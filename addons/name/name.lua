@@ -1,11 +1,11 @@
 addon.name    = 'name';
 addon.author  = 'win';
-addon.version = '1.58';
+addon.version = '1.63';
 addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the namehook plugin.';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 27; -- winxi.mobs, the monster tables name kept in its own data folder until 1.50
+local winxiNeeded = 47; -- public capability metadata for privacy-safe support reports
 do
     local ok, found = pcall(require, 'winxi.version');
     local number = ok and type(found) == 'table' and found.Number or 0;
@@ -27,7 +27,9 @@ local custom     = require('custom');
 local customSettings = require('custom_settings');
 local statuses   = require('statuses');
 local controls   = require('controls');
+local tips       = require('winxi.tips');
 local diag       = require('diag');
+local castbar    = require('castbar');
 local levels     = require('levels');
 local general    = require('general');
 local nameColours = require('name_colours');
@@ -38,21 +40,21 @@ local Category = nameplates.Category;
 -- and what it covers. Group headings match Trigger's menus.
 local rows = {
     { key = 'showSelf',     category = Category.Self,     label = 'Own Name',         group = 'Players',
-      tooltip = 'The name over your own head.' },
+      tooltip = tips.Get('name.visibility.self') },
     { key = 'showParty',    category = Category.Party,    label = 'Party Members',
-      tooltip = 'The others of your party, trusts among them.' },
+      tooltip = tips.Get('name.visibility.party') },
     { key = 'showAlliance', category = Category.Alliance, label = 'Alliance Members',
-      tooltip = 'The other parties of your alliance.' },
+      tooltip = tips.Get('name.visibility.alliance') },
     { key = 'showPlayers',  category = Category.Player,   label = 'Other Players',
-      tooltip = 'Every player who is not of your party or alliance. A player on the plugin\'s whitelist is shown all the same: /namehook whitelist add <name>' },
+      tooltip = tips.Get('name.visibility.players') },
     { key = 'showMyPet',    category = Category.MyPet,    label = 'My Pet',           group = 'Pets',
-      tooltip = 'Your own pet.' },
+      tooltip = tips.Get('name.visibility.my_pet') },
     { key = 'showPets',     category = Category.Pet,      label = 'Other Pets',
-      tooltip = 'Anyone else\'s pet, trust or adventuring fellow.' },
+      tooltip = tips.Get('name.visibility.pets') },
     { key = 'showNpcs',     category = Category.Npc,      label = 'NPCs',             group = 'NPCs & Monsters',
-      tooltip = 'What cannot be fought: townspeople, doors, and the rest.' },
+      tooltip = tips.Get('name.visibility.npcs') },
     { key = 'showMonsters', category = Category.Monster,  label = 'Monsters',
-      tooltip = 'What can be fought, charmed players among them.' },
+      tooltip = tips.Get('name.visibility.monsters') },
 };
 
 local defaults = T{
@@ -85,6 +87,7 @@ Prefer(defaults, preferredDefaults);
 -- same: the settings are given to the plugin when it is first found and whenever they change here,
 -- and a change made there is taken into the settings.
 local connected = false;
+local featureWarned = false;
 
 -- What the plugin was last seen to have, so that the settings are only gone through when it changes
 local seenHidden, seenOptions = nil, nil;
@@ -163,7 +166,7 @@ local function DrawSettings(options)
         if (imgui.Checkbox('##name.alwaysTarget', options.alwaysTarget)) then
             changed = true;
         end
-        controls.Mark('Your target\'s name is shown though names like it are hidden. Your own is not: with Own Name off it stays hidden while you have yourself targeted.');
+        controls.Mark(tips.Get('name.visibility.target'));
     end
 
     if (changed) then
@@ -181,7 +184,7 @@ local function DrawDiagnostics(options)
     controls.BeginLayout('diagnostics', nil, 'Enable Diagnostics');
     if (controls.Section('Diagnostics', '##name.diagnostics', true, true)) then
         if (controls.Checkbox('Enable Diagnostics', '##name.diagnosticsEnabled', options.diagnostics,
-                'Record renderer problems and write a log when custom names stop.')) then
+                tips.Get('name.diagnostics.enabled'))) then
             diag.Enable(options.diagnostics[1]);
             app:Save();
         end
@@ -196,20 +199,30 @@ local function DrawDiagnostics(options)
             end
             widgets.Label('Names In View');
             imgui.Text(('%d shown, %d hidden'):format(shown, hidden));
-            controls.Mark('The names the game had to draw last frame: near enough, and on screen.');
+            controls.Mark(tips.Get('name.diagnostics.in_view'));
         end
 
+        widgets.Label('Support Report');
+        if imgui.Button('Write Report##name.diag.report') then
+            local path, problem = diag.Report();
+            app:Say(path and ('Support report written to ' .. path) or ('Could not write support report: ' .. tostring(problem)));
+        end
+        controls.Mark(tips.Get('name.diagnostics.report'));
+        if diag.LastReportPath() then
+            widgets.Label('Last Report');
+            imgui.Text(diag.LastReportPath():match('[^\\]+$'));
+        end
         if (diag.Enabled()) then
             widgets.Label('Custom Names');
             imgui.Text(diag.Status());
-            controls.Mark('Whether Name is drawing the names. When it stops for more than half a second the game draws its own, the reason is said in the chat log once, and a log is written.');
+            controls.Mark(tips.Get('name.diagnostics.custom_names'));
 
             widgets.Label('Diagnostic Log');
             if (imgui.Button('Write Log##name.diag.write')) then
                 local path, problem = diag.Write('written from the settings');
                 app:Say(path and ('Log written to ' .. path) or ('The log could not be written: ' .. tostring(problem)));
             end
-            controls.Mark('Writes what Name and the namehook plugin are doing now, and what happened lately, to a small text file in config\\addons\\name\\logs. Send it with a report of a problem.');
+            controls.Mark(tips.Get('name.diagnostics.log'));
             if (diag.LastPath() ~= nil) then
                 widgets.Label('Last Log');
                 imgui.Text(diag.LastPath():match('[^\\]+$'));
@@ -220,8 +233,17 @@ local function DrawDiagnostics(options)
     controls.EndLayout();
 end
 
+-- Leave tabs navigable while Name is off, but only Enable Name can be edited.
+local function WhenEnabled(draw)
+    return function (options)
+        imgui.BeginDisabled(not general.Drawing(options));
+        draw(options, app.save);
+        imgui.EndDisabled();
+    end;
+end
+
 -- NM Tracking is a tab only after /name dev, for the session
-local trackingTab = { label = 'NM Tracking', draw = function (options) customSettings.DrawTracking(options, app.save); end };
+local trackingTab = { label = 'NM Tracking', draw = WhenEnabled(customSettings.DrawTracking) };
 
 -- The settings, the settings window and the command are the shell's
 app = shell.New({
@@ -231,21 +253,25 @@ app = shell.New({
     menuOnlyCommands = true,
     command      = '/name',
     help         = 'Use /name to open General, Names, Health Bars, Statuses and Visibility. Diagnostics is under Names.',
-    drawSettings = DrawSettings,
+    drawSettings = WhenEnabled(DrawSettings),
     settingsLabel = 'Visibility',
     leadingTabs  = {
         { label = 'General', draw = function (options) general.DrawSettings(options, app.save); end },
-        { label = 'Names', draw = function (options)
-            customSettings.DrawSettings(options, app.save);
+        { label = 'Names', draw = WhenEnabled(function (options, save)
+            customSettings.DrawSettings(options, save);
             DrawDiagnostics(options);
-        end },
-        { label = 'Health Bars', draw = function (options) customSettings.DrawHealthBars(options, app.save); end },
-        { label = 'Statuses', draw = function (options) statuses.DrawSettings(options, app.save); end },
+        end) },
+        { label = 'Health Bars', draw = WhenEnabled(customSettings.DrawHealthBars) },
+        { label = 'Statuses', draw = WhenEnabled(statuses.DrawSettings) },
     },
     tabs         = { },
 
     -- for testers: /name diag on or off, /name diag log; /name dev shows or hides NM Tracking
     commands     = {
+        report = function ()
+            local path, problem = diag.Report();
+            app:Say(path and ('Support report written to ' .. path) or ('Could not write support report: ' .. tostring(problem)));
+        end,
         dev = function ()
             local tabs = app.spec.tabs;
             if (tabs[#tabs] == trackingTab) then
@@ -281,12 +307,14 @@ app = shell.New({
     -- another character's settings are given to the plugin afresh
     onSettings   = function (options)
         connected = false;
+        custom.Deactivate();
         custom.Settle(options);
         statuses.Settle(options);
         if (type(options.diagnostics) ~= 'table') then
             options.diagnostics = T{ false };
         end
         diag.Options = options;
+        diag.Runtime = custom.Diagnostics;
         diag.Enable(options.diagnostics[1]);
         diag.Note('Settings loaded');
     end,
@@ -301,8 +329,10 @@ end
 -- levels and the diagnostics' history; which monsters were called for help on, for their colour; and
 -- what lands on an enemy, kept count of only while statuses are shown over names
 ashita.events.register('packet_in', 'name_packet_in', function (e)
+    castbar.HandlePacket(e, app.options);
     levels.HandlePacket(e);
     diag.HandlePacket(e);
+    if e.id == 0x00A then custom.ResetReadability(); end
     nameColours.HandlePacket(e);
     if (app.options.showStatuses[1]) then
         statuses.HandlePacket(e);
@@ -320,7 +350,8 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         if (connected) then
             diag.Note('Plugin lost: %s', tostring(why));
         end
-        connected = false;
+        connected, featureWarned = false, false;
+        custom.Deactivate();
         diag.Frame(why or 'unloaded');
         return;
     end
@@ -335,10 +366,23 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 
     -- Custom Nameplates off: no claim, and the game draws its names as namehook sizes them
     if (not general.Drawing(options)) then
+        custom.Deactivate();
         nameplates.Claim(0, hook);
         diag.Frame('off');
         return;
     end
+
+    if not nameplates.Supports(nameplates.Feature.IconOutline, hook) then
+        custom.Deactivate();
+        nameplates.Claim(0, hook);
+        if not featureWarned then
+            app:Say(nameplates.Problem(nameplates.Feature.IconOutline));
+            featureWarned = true;
+        end
+        diag.Frame('features');
+        return;
+    end
+    featureWarned = false;
 
     -- with diagnostics off, nothing in the way
     if (not diag.Enabled()) then

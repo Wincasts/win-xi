@@ -11,6 +11,7 @@
 local imgui = require('imgui');
 local widgets = require('winxi.widgets');
 local controls = require('controls');
+local tips = require('winxi.tips');
 
 local general = {};
 
@@ -31,16 +32,16 @@ end
 
 local PLAYER = '[icons: space=4][name]';
 general.Presets = {
-    { key = 'default', label = 'Default', help = 'Player icons, enemy aggro and spawn letters, status icons and check details; no health bars.',
+    { key = 'default', label = 'Default', help = tips.Get('name.presets.default'),
         values = { nameFormat = PLAYER, monsterFormat = '[aggro] [name] [letters]', npcFormat = '[name]',
             showHealthBar = false, healthBarsCombatOnly = false, showStatuses = true, showCheckDetails = true } },
-    { key = 'minimal', label = 'Minimal', help = 'Names alone: no icons, levels, bars, statuses or check details.',
+    { key = 'minimal', label = 'Minimal', help = tips.Get('name.presets.minimal'),
         values = { nameFormat = '[name]', monsterFormat = '[name]', npcFormat = '[name]',
             showHealthBar = false, healthBarsCombatOnly = false, showStatuses = false, showCheckDetails = false } },
-    { key = 'robust', label = 'Robust', help = 'Everything there is to know: enemy aggro, level, spawn letters and distance, health bars at all times, status icons and check details.',
+    { key = 'robust', label = 'Robust', help = tips.Get('name.presets.robust'),
         values = { nameFormat = PLAYER, monsterFormat = '[aggro: space=4]Lv [level]. [name] [letters] ([distance: decimals=1]y)', npcFormat = '[name]',
             showHealthBar = true, healthBarsCombatOnly = false, showStatuses = true, showCheckDetails = true } },
-    { key = 'immersive', label = 'Immersive', help = 'Close to the game\'s own: names with player icons, and health bars only in combat; no levels, letters, status icons or check details.',
+    { key = 'immersive', label = 'Immersive', help = tips.Get('name.presets.immersive'),
         values = { nameFormat = PLAYER, monsterFormat = '[name]', npcFormat = '[name]',
             showHealthBar = true, healthBarsCombatOnly = true, showStatuses = false, showCheckDetails = false } },
 };
@@ -78,8 +79,13 @@ local presetIds = {};
 
 function general.DrawSettings(options, save)
     local changed = false;
-    controls.BeginLayout('general', 360, 'Custom Nameplates');
+    controls.BeginLayout('general', 360, 'Status Icons');
     if (controls.Section('General', '##name.generalOptions', true)) then
+        if (controls.Checkbox('Enable Name', '##name.drawNames', options.drawNames,
+                tips.Get('name.general.custom_names'))) then
+            changed = true;
+        end
+        imgui.BeginDisabled(not general.Drawing(options));
         local matching = general.Matching(options);
         widgets.Label('Preset');
         controls.Width();
@@ -95,19 +101,14 @@ function general.DrawSettings(options, save)
             end
             imgui.EndCombo();
         end
-        controls.Mark('A premade look: it sets the formats, health bars, status icons and check details. Font, sizes, colours, visibility and the chosen statuses are kept. Custom: the settings are none of these.');
+        controls.Mark(tips.Get('name.general.preset'));
 
-        if (controls.Checkbox('Custom Nameplates', '##name.drawNames', options.drawNames,
-                'Name draws the names. Off: the game draws its own, as namehook sizes them (/namehook fontsize), unstretched; Visibility still says which are shown. Health bars and status icons are Name\'s and are not drawn while it is off.')) then
-            changed = true;
-        end
-        imgui.BeginDisabled(not general.Drawing(options));
         if (controls.Checkbox('Health Bars', '##name.general.showHealthBar', options.showHealthBar,
-                'A bar under each damaged name. Its size and Combat Only are in the Health Bars tab.')) then
+                tips.Get('name.general.health_bars'))) then
             changed = true;
         end
         if (controls.Checkbox('Status Icons', '##name.general.showStatuses', options.showStatuses,
-                'The row of status icons over names. Which statuses, their size and their icons are in the Statuses tab.')) then
+                tips.Get('name.general.status_icons'))) then
             changed = true;
         end
         imgui.EndDisabled();

@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.63
+
+- Make spell/skill/preview cast-bar fills inherit the resolved entity-name colour, including explicit name-token tint and normal text fading, instead of fixed blue/orange fills.
+- Add opt-in Auto-scale to Name: extend from the saved minimum shared width to the rendered entity-name/visible-letter span in either token order. Exclude surrounding icons/details, honour visibility conditions, centre under the measured span, and keep an eligible HP row aligned with the cast row. Ordinary HP-only geometry, name placement and bar height are unchanged.
+- Extend actual-quad tests for resolved tint, measured width, letter ordering, saved minimum width, unrelated format text and shared HP/cast alignment.
+
+## 1.62
+
+- Add independent Cast Name Size and Timer Size controls (25–200% of nameplate font, default 75% to preserve the existing appearance). Keep bar dimensions unchanged and account for resized captions in below-name status placement.
+- Add a session-only animated in-world cast-bar preview. Clearly label samples, alternate spell/TP styles when weaponskills are enabled, prefer real actions, and create no fake actor records or packets. Stop after leaving the visible controls; reset on disable/profile changes. Do not save preview state.
+- Extend actual-quad, scaling, preview lifecycle, real-action precedence and settings validation checks. Native and WinXI requirements are unchanged.
+
+## 1.61
+
+- Add opt-in packet-observed cast bars with action name and timer below the bar. Reuse the HP bar's origin, font-atlas white pixel, scaling and saved width/height. Move the dimension controls to Shared Bar Size without renaming saved keys. An eligible enabled HP row sits above cast, including full HP while casting, so damage cannot shift the cast row.
+- Add Show Weaponskills under enabled Cast Bars: display readied TP moves with estimated base preparation times; briefly show completed/instant weaponskills as Used, without inventing a ready phase.
+- Clearly mark base-time estimates (~), use Waiting after a predicted end, and show elapsed (+) without fabricated fill for unknown timings. Real matching finish/interrupt packets take precedence. Validate first-result packet bounds, deduplicate events, check live server identity, bound actors/timeouts, and clear on death/despawn/zone/profile/disable/plugin loss.
+- Include cast tracking counts (no action/actor names) in support reports. Keep active casters detailed under crowd decluttering; place below-name statuses after cast labels/timer.
+- Add generated Phoenix base mob ready times and a reproducible builder, with packet/lifecycle/actual-quad/shared-size/stacking/capacity and generator tests. No new native ABI or DLL beyond namehook 1.35 is required; WinXI minimum stays 47.
+
+## 1.60
+
+- Add opt-in Crowd Decluttering: after sustained on-screen crowding, keep ordinary plates' core names/letters/aggro cues and omit secondary details, icons, stars, check lines, HP bars and status rows. Keep targets/subtargets, party/alliance/self/own pet, whitelisted/charmed players and tracked NM/placeholders fully detailed. Never move anchors or rewrite saved formats. Default 20 anchors / 750 ms, with a three-name exit margin.
+- Add opt-in distance-token warning/danger colours and hysteresis. Defaults 20/25 yalms and a 1-yalm exit margin; colours are editable, explicit token colours win, and normal fading is retained. Invalid distances no longer retain stale text. These are distance thresholds, not action-range guarantees.
+- Add one-click Write Report and `/name report`, independent of diagnostic recording. Include versions/capabilities, display/draw counts, generated atlas sizes, artwork source/fallback and recorded failure counts. Omit character names, chat, paths, formats, raw errors and history. Keep detailed diagnostic logs separate.
+- Require WinXI 47 for copied public namehook capability metadata; renderer remains namehook 1.35 / ABI 3. No new native build required beyond 1.35.
+- Add policy, actual-quad, privacy/redaction, file-write failure and UI regression checks. Presentation state resets on deactivation/profile and zone changes.
+
+## 1.59
+
+- Added editable tooltip catalogues, Enable Name gating, filtered Smooth Font, guarded supersampled letter badges, selectable Game DATs/Bundled/Custom player icons, and independent icon outline width/opacity. Game DATs honour Pivot's fopen redirection; missing/unsupported sources retain a bundled fallback.
+- Require WinXI 46 and namehook's optional capability sidecar (1.35) for custom rendering. An older ABI-compatible plugin now leaves native names intact and reports an update warning instead of silently ignoring independent icon width. Visibility remains usable.
+- Release generated text, badge, active DAT and owned PNG textures on deactivation/settings changes. Badge rebuilds explicitly release old GPU textures, and disabling letters drops the badge atlas. ImGui's shared font allocation is not forcibly cleared.
+- Skip player-atlas work when icons and stars are both disabled, party-role gathering when no format uses icons, and the redundant filtered-text rung pass when Smooth Font is off. Keep warming the native font rungs to avoid atlas churn.
+- Regression coverage includes lifecycle/compatibility, bounded capability scans, deterministic release, and existing layouts/rendering fallbacks.
+
 ## 1.58
 
 - **Party Icons**, under Player Names: a sign of each party and alliance member's place, drawn where `[icons]` is in Player Format: Alliance Leader, Party Leader, another party's leader, Alliance Member and Party Member. **Beside Game Icons** (to begin with) puts it before the game's icons, **Replace Game Icons** in their place, and **Off** leaves the game's alone. The game writes nothing of it over a name: it is read each frame from the party's memory, its 18 members' server ids and the leaders' (`roles.lua`). Players outside the party and alliance keep the game's icons; alone, there is none.

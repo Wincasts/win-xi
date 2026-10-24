@@ -8,6 +8,7 @@ local headers, tabs, ids, marks, widths, disabledIds = {}, {}, {}, {}, {}, {}
 local section, locations = nil, {}
 local expanded = { ['Check Details##name.checkOptions'] = true }
 local inside, offset, disabled = false, nil, false
+local disabledStack, order = {}, {}
 widgets.Header = function(text, first, collapsed)
     section = text
     headers[#headers + 1] = text
@@ -20,13 +21,21 @@ local lastId, help = nil, {}
 local mark = controls.Mark
 controls.Mark = function(text) help[lastId or ''] = text; mark(text) end
 local function record(id)
+    order[#order + 1] = id
     lastId = id; ids[id] = true; disabledIds[id] = disabled; locations[id] = section; return false
 end
 imgui.Checkbox, imgui.InputInt, imgui.SliderInt = record, record, record
 imgui.InputText, imgui.BeginCombo, imgui.RadioButton, imgui.Button = record, record, record, record
 imgui.TreeNode = function(id) ids[id] = true; return expanded[id] == true end
 imgui.TreePop = function() end
-imgui.BeginDisabled, imgui.EndDisabled = function(value) disabled = value end, function() disabled = false end
+imgui.BeginDisabled = function(value)
+    disabledStack[#disabledStack + 1] = disabled
+    disabled = disabled or value
+end
+imgui.EndDisabled = function()
+    assert(#disabledStack > 0, 'balanced disabled groups')
+    disabled = table.remove(disabledStack)
+end
 imgui.GetFontSize = function() return 14 end
 local right = 400
 imgui.GetWindowPos = function() return 100, 200 end
@@ -35,7 +44,7 @@ imgui.SetNextItemWidth = function(value) widths[#widths + 1] = value end
 imgui.SameLine = function(value) offset = value end
 imgui.TextDisabled = function(text) if text == '(?)' and inside then marks[#marks + 1] = offset end end
 imgui.GetContentRegionAvail = function() error('Window widths must not feed back into auto-sizing') end
-local function clear() headers, tabs, ids, marks, disabledIds, locations = {}, {}, {}, {}, {}, {} end
+local function clear() headers, tabs, ids, marks, disabledIds, locations, order = {}, {}, {}, {}, {}, {}, {} end
 H.tab(2); H.command('/name'); H.frames(1)
 clear(); H.frames(1); H.command('/name')
 assert(table.concat(tabs, '|') == 'General|Names|Health Bars|Statuses|Visibility', 'NM Tracking waits for /name dev')
@@ -43,9 +52,39 @@ H.command('/name dev'); H.command('/name'); clear(); H.frames(1); H.command('/na
 assert(table.concat(tabs, '|') == 'General|Names|Health Bars|Statuses|Visibility|NM Tracking', '/name dev shows NM Tracking')
 H.command('/name dev'); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(tabs, '|') == 'General|Names|Health Bars|Statuses|Visibility', 'a second /name dev hides it')
-assert(table.concat(headers, '|') == 'General Name Appearance|Player Names|Enemy Names|NPC Names|Diagnostics')
-assert(ids['##name.font'] and ids['##name.fontBold'] and ids['##name.subtargetScale'])
+assert(table.concat(headers, '|') == 'General Name Appearance|Crowd Decluttering|Distance Thresholds|Player Names|Enemy Names|NPC Names|Diagnostics')
+assert(ids['##name.font'] and ids['##name.fontBold'] and ids['Smooth Font##name.fontSmooth'] and ids['##name.subtargetScale'])
+for index, id in ipairs(order) do
+    if id == '##name.fontBold' then
+        assert(order[index + 1] == 'Smooth Font##name.fontSmooth', 'Smooth Font is beside Bold')
+    end
+end
 assert(ids['##name.fontSize'] and ids['##name.minSize'], 'shared size controls belong in General')
+assert(ids['0##name.iconOutline0'] and ids['3##name.iconOutline3'] and ids['##name.iconOutlineOpacity'])
+assert(options.iconOutline[1] == 1 and options.iconOutlineOpacity[1] == 100)
+assert(ids['##name.crowdDeclutter'] and ids['##name.distanceColours'])
+assert(disabledIds['##name.crowdThreshold'] and disabledIds['##name.distanceWarning'], 'opt-in policy controls start disabled')
+local outlineOptions = custom.Defaults({})
+outlineOptions.iconOutline, outlineOptions.iconOutlineOpacity = {9}, {-1}
+custom.Settle(outlineOptions)
+assert(outlineOptions.iconOutline[1] == 3 and outlineOptions.iconOutlineOpacity[1] == 0)
+outlineOptions.iconOutline, outlineOptions.iconOutlineOpacity = false, {'bad'}
+custom.Settle(outlineOptions)
+assert(outlineOptions.iconOutline[1] == 1 and outlineOptions.iconOutlineOpacity[1] == 100)
+assert(ids['##name.playerIconSource'] and locations['##name.playerIconSource'] == 'Player Names',
+    'player artwork source belongs beside Player Format, separate from party role icons')
+assert(options.playerIconSource[1] == 'game', 'new and migrated settings default to active DATs')
+local sourceOptions = custom.Defaults({})
+for _, source in ipairs(require('icons').Sources) do
+    sourceOptions.playerIconSource = { source.key }
+    custom.Settle(sourceOptions)
+    assert(sourceOptions.playerIconSource[1] == source.key, 'retain each valid saved source')
+end
+for _, bad in ipairs({ 'bad', 123, false, { 'missing' }, { 123 } }) do
+    sourceOptions.playerIconSource = bad
+    custom.Settle(sourceOptions)
+    assert(sourceOptions.playerIconSource[1] == 'game', 'repair malformed or unknown saved sources')
+end
 for _, removed in ipairs({ 'showIcons', 'showMobLevel', 'showAggroIcons',
     'showMobLetter', 'doubleMobLetters' }) do
     assert(not ids['##name.' .. removed], 'obsolete global/toggle control must be absent: ' .. removed)
@@ -143,15 +182,27 @@ imgui.BeginCombo = record
 H.print('Category format editors/reset preserve each other', true)
 
 H.tab(3); H.command('/name'); clear(); H.frames(1); H.command('/name')
-assert(table.concat(headers, '|') == 'Health Bars|Entity Types')
+assert(table.concat(headers, '|') == 'Health Bars|Cast Bars|Shared Bar Size|Entity Types')
 for _, key in ipairs({ 'self', 'party', 'alliance', 'players', 'myPet', 'pets', 'npcs', 'monsters' }) do
     local id = '##name.healthBarTypes.' .. key
     assert(ids[id] and locations[id] == 'Entity Types' and disabledIds[id], 'Entity Types has ' .. key .. ', waiting for Enabled')
 end
 for _, id in ipairs({ '##name.showHealthBar', '##name.healthBarsCombatOnly', '##name.healthBarWidth', '##name.healthBarHeight' }) do
-    assert(ids[id] and locations[id] == 'Health Bars', 'Health Bars tab has ' .. id)
+    local expected = (id == '##name.healthBarWidth' or id == '##name.healthBarHeight') and 'Shared Bar Size' or 'Health Bars'
+    assert(ids[id] and locations[id] == expected, 'Health Bars tab has ' .. id)
 end
 assert(disabledIds['##name.healthBarWidth'] and disabledIds['##name.healthBarsCombatOnly'], 'the rest wait for Enabled')
+options.showCastBar[1]=true
+clear();customSettings.DrawHealthBars(options)
+assert(ids['##name.castNameScale'] and ids['##name.castTimerScale'] and ids['##name.castBarPreview'] and ids['##name.castBarAutoWidth'])
+assert(options.castBarAutoWidth[1]==false, 'automatic width is opt-in')
+assert(options.castNameScale[1]==75 and options.castTimerScale[1]==75 and options.castBarPreview==nil)
+local sizes=custom.Defaults({});sizes.castNameScale={999};sizes.castTimerScale={'bad'};custom.Settle(sizes)
+assert(sizes.castNameScale[1]==200 and sizes.castTimerScale[1]==75)
+assert(ids['##name.castBarWeaponskills'] and not disabledIds['##name.healthBarWidth'] and disabledIds['##name.healthBarsCombatOnly'],
+    'cast-only mode enables shared dimensions, not HP-only controls')
+assert(locations['##name.healthBarWidth']=='Shared Bar Size' and locations['##name.showCastBar']=='Cast Bars')
+options.showCastBar[1]=false
 local et = require('entity_types')
 local mask = T{ 0xFF }
 imgui.Checkbox = function(id, value) if id == '##name.healthBarTypes.monsters' then value[1] = false; return true end; return false end
@@ -162,7 +213,7 @@ imgui.Checkbox = record
 assert(et.Settle(T{ 'bad' })[1] == 0xFF and et.Settle(nil)[1] == 0xFF and et.Settle(T{ 0x1FF })[1] == 0xFF and et.Settle(T{ 0x12 })[1] == 0x12, 'a bad mask is every kind')
 H.print('Health Bars: a tab of its own, third, with Enabled, Combat Only, width and height, and Entity Types', true)
 
--- General: the preset, Custom Nameplates, and the health bars' and statuses' switches
+-- General: Enable Name first, then the preset and the health bars/statuses switches
 local general = require('general')
 H.tab(1); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(headers, '|') == 'General')
@@ -190,15 +241,17 @@ imgui.BeginCombo, imgui.Selectable = record, function() return false end
 assert(applied == 1 and general.Matching(options).key == 'default', 'choosing a preset in the list applies and saves it')
 assert(options.drawNames[1] and general.Drawing(options))
 options.drawNames[1] = false; clear(); general.DrawSettings(options)
-assert(disabledIds['##name.general.showHealthBar'] and disabledIds['##name.general.showStatuses'], 'bars and statuses wait for Custom Nameplates')
+assert(order[1] == '##name.drawNames' and order[2] == '##name.preset', 'Enable Name precedes Preset')
+assert(not disabledIds['##name.drawNames'], 'Enable Name remains usable while off')
+assert(disabledIds['##name.preset'] and disabledIds['##name.general.showHealthBar'] and disabledIds['##name.general.showStatuses'], 'all other General settings wait for Enable Name')
 options.drawNames[1] = true
-H.print('General: presets apply, match and leave the rest; Custom Nameplates and the bars\' and statuses\' switches', true)
+H.print('General: Enable Name first; presets, bars and statuses disabled while off', true)
 H.tab(5); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(headers, '|') == 'Players|Pets|NPCs & Monsters|Target')
 H.command('/name diag on')
 expanded.Diagnostics = true
 H.tab(2); H.command('/name'); clear(); H.frames(1); H.command('/name')
-assert(ids['##name.diagnosticsEnabled'] and ids['Write Log##name.diag.write'])
+assert(ids['##name.diagnosticsEnabled'] and ids['Write Log##name.diag.write'] and ids['Write Report##name.diag.report'])
 H.command('/name diag off')
 right = 320
 customSettings.DrawSettings(options)
@@ -231,3 +284,36 @@ clear(); customSettings.DrawTracking(options)
 assert(table.concat(headers, '|') == 'Tracked Monster|Placeholder Options')
 levels.Placeholders = original
 H.print('Visibility, diagnostics, statuses/tracking and stable aligned/wrapped layouts retained', true)
+
+-- All Name tabs keep their controls visible but disabled while Enable Name is off.
+options.drawNames[1] = false
+local formatsBefore = options.nameFormat[1] .. options.monsterFormat[1] .. options.npcFormat[1]
+for tab, expected in ipairs({
+    { '##name.preset', '##name.general.showHealthBar' },
+    { '##name.font', '##name.fontBold', 'Smooth Font##name.fontSmooth', '##name.nameFormat', '##name.playerIconSource', '##name.diagnosticsEnabled' },
+    { '##name.showHealthBar', '##name.healthBarWidth', '##name.healthBarTypes.monsters' },
+    { '##name.showStatuses', '##name.statusTypes.monsters', '##name.statusSearch' },
+    { '##name.showSelf', '##name.alwaysTarget' },
+    { '##name.trackedNm' },
+}) do
+    H.tab(tab); H.command('/name'); clear(); H.frames(1); H.command('/name')
+    for _, id in ipairs(expected) do
+        assert(ids[id] and disabledIds[id], 'disabled while Name is off: ' .. id)
+    end
+    assert(#disabledStack == 0 and not disabled, 'no disabled state leaks between tabs')
+end
+assert(formatsBefore == options.nameFormat[1] .. options.monsterFormat[1] .. options.npcFormat[1], 'disabling keeps saved formats')
+options.drawNames[1] = true
+H.tab(2); H.command('/name'); clear(); H.frames(1); H.command('/name')
+assert(not disabledIds['##name.font'] and not disabledIds['##name.nameFormat']
+    and not disabledIds['Smooth Font##name.fontSmooth'], 'settings are editable again after enabling')
+local boldBeforeSmooth = options.fontBold[1]
+imgui.Checkbox = function(id, value)
+    if id == 'Smooth Font##name.fontSmooth' then value[1] = true; return true end
+    return record(id)
+end
+customSettings.DrawSettings(options)
+assert(options.fontSmooth[1] and options.fontBold[1] == boldBeforeSmooth, 'Smooth Font toggles independently of Bold')
+imgui.Checkbox = record
+options.fontSmooth[1] = false
+H.print('Enable Name: all other tabs greyed out while off, saved values retained, controls restored when on', true)

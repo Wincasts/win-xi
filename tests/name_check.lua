@@ -29,7 +29,11 @@ block.Width, block.Height = 960, 540
 local manager = AshitaCore.GetPluginManager()
 manager.IsLoaded = function(_, name) return loaded and name == 'namehook' end
 AshitaCore.GetPluginManager = function() return manager end
-ashita.memory.find = function(module) return module == 'namehook.dll' and tonumber(ffi.cast('uintptr_t', ffi.cast('void*', block))) or 0 end
+local capabilities = dofile('tests/fixtures/namehook_capabilities.lua')
+ashita.memory.find = function(module, _, signature)
+    local data = signature == '4E414D45484F4F4B4341505300000000' and capabilities or block
+    return module == 'namehook.dll' and tonumber(ffi.cast('uintptr_t', ffi.cast('void*', data))) or 0
+end
 
 H.print('the block is laid out as the plugin has it', ffi.sizeof('namehook_name_t') == 128, ffi.offsetof('namehook_t', 'Sequence') == 64,
     ffi.offsetof('namehook_t', 'Draw') == 68, ffi.offsetof('namehook_t', 'FontTexture') == 80, ffi.offsetof('namehook_t', 'Override') == 84, ffi.offsetof('namehook_t', 'Names') == 84 + 0x900)
@@ -158,7 +162,8 @@ H.frames(1)
 local buddy = draw.Entities[0x401]
 H.print('custom on: all claimed', block.Claimed == Category.All, '| set out in frame', draw.Frame, '| font texture: the mark', draw.Textures[0] == 1)
 o.drawNames[1] = false; block.Frame = 79; H.frames(1)
-assert(block.Claimed == 0 and draw.Frame == 78, 'Custom Nameplates off: nothing claimed or set out, the game draws its names')
+assert(block.Claimed == 0 and draw.Frame == 70 and draw.QuadCount == 0 and draw.Textures[0] == 0,
+    'Custom Nameplates off: claim and batch invalidated before texture cleanup; the game draws its names')
 o.drawNames[1] = true; block.Frame = 78; H.frames(1)
 assert(block.Claimed == Category.All and draw.Frame == 78, 'and on again, claimed')
 H.print('Custom Nameplates off: the claim let go at once; on: claimed again', true)
@@ -271,11 +276,12 @@ end
 H.print('icons: quads', buddy.Count, '| between the icons, and before the name', gapToName())
 do
     local pearl, flag = draw.Quads[buddy.First + 3], draw.Quads[buddy.First + 4]
-    H.print('player icons receive softened outlines; stars unchanged', pearl.Flags == 3, flag.Flags == 3,
-        pearl.Reserved == 191, flag.Reserved == 191, draw.Quads[buddy.First].Flags == 0)
+    H.print('player icons receive independent outlines; stars unchanged', pearl.Flags == 19, flag.Flags == 19,
+        pearl.Reserved % 256 == 255, flag.Reserved % 256 == 255, draw.Quads[buddy.First].Flags == 0)
     local edge = o.outline[1]
     o.outline[1] = 0; H.frames(1)
-    H.print('outline zero disables player icon edges too', buddy.Edge == 0)
+    assert(buddy.Edge == 0 and draw.Quads[buddy.First + 3].Flags == 19)
+    H.print('text outline zero leaves player icon outlines enabled', true)
     o.outline[1] = edge; H.frames(1)
 end
 o.nameFormat[1] = '[icons: space=10][name]'
@@ -297,7 +303,7 @@ o.nameFormat[1] = '[icons: space=2][name]'
 H.print('inline icons: ordering, omission, scaled spacing, gap, colour and size parameters', true)
 ffi.copy(block.Names[0].Text, '\172 Buddy'); H.frames(1)
 local seeking, badge = draw.Quads[buddy.First + 3], draw.Quads[buddy.First + 4]
-assert(seeking.Flags == 3 and badge.Flags == 3)
+assert(seeking.Flags == 19 and badge.Flags == 19)
 assert(math.abs(2*(badge.X1-badge.X0)-(seeking.X1-seeking.X0)) < 0.001,
     'composite status star must be half-size, not painted over the full seeking-party icon')
 assert(math.abs(badge.X0-seeking.X0+(seeking.X1-seeking.X0)/16) < 0.001)
@@ -326,7 +332,7 @@ for i = 1, 160 do
     for j = 0, 4 do
         local q = draw.Quads[buddy.First + j]
         assert(q.Color == 0xFFFFFFFF, 'stars, status icon and overlay retain their colours')
-        if j >= 3 then assert(q.Reserved == 191, 'icon outlines must not pulse') end
+        if j >= 3 then assert(q.Reserved % 256 == 255, 'icon outlines must not pulse') end
     end
     local glyph = draw.Quads[buddy.First + 5]
     assert(glyph.Color == 0xFFFF0000, 'target text holds its brightest opacity and its own colour, not the pulse')
@@ -605,7 +611,7 @@ do
 end
 local softIconEdges = true
 for _, q in ipairs(quads) do
-    if q.Texture >= 2 then softIconEdges = softIconEdges and q.Flags == 3 and q.Reserved == 191 and q.Color % 0x1000000 == 0xFFFFFF and math.floor(q.Color / 0x1000000) == math.floor(quads[7].Color / 0x1000000) end
+    if q.Texture >= 2 then softIconEdges = softIconEdges and q.Flags == 19 and q.Reserved % 256 == 255 and q.Color % 0x1000000 == 0xFFFFFF and math.floor(q.Color / 0x1000000) == math.floor(quads[7].Color / 0x1000000) end
 end
 H.print('detail icon edges softened; fill and text edges unchanged', softIconEdges, quads[8].Flags == 1, quads[8].Reserved == 0)
 H.print('magnifier leads check line, not name', quads[7].Texture == 4, quads[7].Y0 > quads[1].Y1, quads[7].X0 < quads[8].X0)
@@ -687,8 +693,9 @@ H.print('Show Check Details off: the name alone, quads', goblin.Count)
 -- [aggro]: the sign that it is aggressive, before its name, whether or not it has been checked
 o.monsterFormat[1] = '[aggro][name]'; H.frames(1)
 local first = draw.Quads[goblin.First]
--- letters 23 high: the sign 29 square, three above the line's top and three below its foot, with the edge letters have
-H.print('[aggro] is a thing:', parts('[aggro][name]'), '| quads', goblin.Count, ('| the sign first: texture %d, at %.2f,%.2f, %d square, from %d down'):format(first.Texture, first.U0, first.V0, first.X1 - first.X0, first.Y0), '| softer edge', first.Flags == 3 and first.Reserved == 191,
+assert(first.Flags == 27 and first.Reserved % 256 == 255, 'aggro/passive glyphs use an independent shadow-free outline')
+-- letters 23 high: the sign 29 square, three above the line's top and three below its foot
+H.print('[aggro] is a thing:', parts('[aggro][name]'), '| quads', goblin.Count, ('| the sign first: texture %d, at %.2f,%.2f, %d square, from %d down'):format(first.Texture, first.U0, first.V0, first.X1 - first.X0, first.Y0), '| tight edge', first.Flags == 27 and first.Reserved % 256 == 255,
     '| the name after it', draw.Quads[goblin.First + 1].X0 >= first.X1)
 -- Aggro and inline /check icons also stay steady on a pulsing monster target.
 do
@@ -703,12 +710,34 @@ do
         assert(goblin.Count == 8 and math.abs(goblin.Alpha - 1) < 0.001)
         for j = 0, 1 do
             local q = draw.Quads[goblin.First + j]
-            assert(q.Color == 0xFFFFFFFF and q.Reserved == 191,
+            assert(q.Color == 0xFFFFFFFF and q.Reserved % 256 == 255,
                 'aggro and /check icon fills/outlines must not follow name RGB or alpha pulses')
+            assert(q.Flags == (j == 0 and 27 or 19), 'only aggro glyphs request the tight outline')
         end
     end
     block.Names[1].Flags, block.Names[1].NameColor = flags, color
     o.monsterFormat[1] = '[aggro][name]'; H.frames(1)
+end
+-- Both icon controls are independent of text outlines in the production buffer.
+do
+    local width, opacity, text = o.iconOutline[1], o.iconOutlineOpacity[1], o.outline[1]
+    o.iconOutline[1], o.iconOutlineOpacity[1], o.outline[1] = 3, 100, 0
+    H.frames(1)
+    local icon = draw.Quads[goblin.First]
+    local radius = math.floor(icon.Reserved / 256) / 256
+    assert(goblin.Edge == 0 and icon.Flags == 27 and radius > 1)
+    local fill, left, right = icon.Color, icon.X0, icon.X1
+    o.iconOutlineOpacity[1] = 50
+    H.frames(1)
+    icon = draw.Quads[goblin.First]
+    assert(icon.Reserved % 256 == 128 and icon.Color == fill and icon.X0 == left and icon.X1 == right)
+    assert(math.floor(icon.Reserved / 256) / 256 == radius, 'opacity must not change thickness')
+    o.iconOutline[1], o.outline[1] = 0, 2
+    H.frames(1)
+    assert(draw.Quads[goblin.First].Flags == 0 and goblin.Edge > 0,
+        'text keeps its outline with icon outlines off')
+    o.iconOutline[1], o.iconOutlineOpacity[1], o.outline[1] = width, opacity, text
+    H.frames(1)
 end
 -- Exercise the production path with saved per-category formats.
 frameForTests(o, block, suppliedFormats)
@@ -854,7 +883,7 @@ runSet.syntheticBold = true
 H.print('bold change invalidates cached advances', measure(runSet, 'AAA', 1) == firstWidth + 3, runSet.runCount == 1)
 runSet.syntheticBold = false
 H.print('regular advances restored after bold', measure(runSet, 'AAA', 1) == firstWidth)
-local getRungs = upvalue(frameForTests, 'fontRungs')
+local getRungs = upvalue(frameForTests, 'fontPipeline').Rungs
 local rungSizes = getRungs(23)
 H.print('font rungs reused across names and frames', rungSizes == getRungs(23), rungSizes[1] == 23, rungSizes[2] == 17, rungSizes[3] == 12)
 local resized = getRungs(24)
@@ -883,7 +912,7 @@ H.packetData(0x029, message(0x1000 + 300, 9, 0x46, 300, 174)); H.frames(2)
 local softMagnifier = false
 for i = 0, goblin.Count - 1 do
     local q = draw.Quads[goblin.First + i]
-    if q.Texture == 4 then softMagnifier = q.Flags == 3 and q.Reserved == 191 end
+    if q.Texture == 4 then softMagnifier = q.Flags == 19 and q.Reserved % 256 == 255 end
 end
 H.print('magnifier edge softened too', softMagnifier)
 block.Count = savedSignCount
@@ -1094,6 +1123,35 @@ assert(labelled.Count == 8 and draw.Quads[labelled.First + 7].X1 - draw.Quads[la
 o.monsterFormat[1] = '[name][letters: type=single]'
 frameForTests(o, block, suppliedFormats)
 assert(levels.Letter(300, 'Goblin', block.Names[0].ServerId) == 'a' and pairsWanted == 0, 'off again: as it was')
+-- Filtering guards enlarge the submitted texture quad, never the visible box,
+-- text advance or baseline. Exercise the actual shared draw buffer with padding.
+levels.Set({ Indices = { [299] = { Name = 'Goblin' }, [300] = { Name = 'Goblin' } }, Names = {} })
+o.monsterFormat[1] = '[name][letters]'
+frameForTests(o, block, suppliedFormats)
+local beforeGuard = draw.Quads[labelled.First + 6]
+local content = { beforeGuard.X0, beforeGuard.Y0, beforeGuard.X1, beforeGuard.Y1,
+    draw.Quads[labelled.First].X0 }
+badges.Prepare = function(...)
+    local result = preparedBadges(...)
+    for _, letters in pairs(result.regions) do
+        for _, region in pairs(letters) do
+            region.width, region.height, region.padding = region.uv.w, region.uv.h, 1
+            region.uv.w, region.uv.h = region.width + 2, region.height + 2
+        end
+    end
+    return result
+end
+frameForTests(o, block, suppliedFormats)
+local guarded = draw.Quads[labelled.First + 6]
+local guardFit = (guarded.X1 - guarded.X0) / (content[3] - content[1] + 2)
+assert(math.abs(guarded.X0 + guardFit - content[1]) < 0.001
+    and math.abs(guarded.X1 - guardFit - content[3]) < 0.001,
+    'guard must not shift the visible badge or change its width')
+assert(math.abs(guarded.Y0 + guardFit - content[2]) < 0.001
+    and math.abs(guarded.Y1 - guardFit - content[4]) < 0.001,
+    'guard must not change the visible badge baseline or height')
+assert(draw.Quads[labelled.First].X0 == content[5], 'nameplate centring excludes the guard')
+assert(guarded.Texture == 5 and guarded.Flags == 1, 'one existing badge quad and outline, no extra texture slot')
 badges.Prepare = originalBadgePrepare
 levels.Set(nil)
 frameForTests(o, block, suppliedFormats)
@@ -1104,6 +1162,7 @@ H.print('experimental mob letters: square cutout badge, centring, tint, fallback
 pcall(ffi.cdef, 'typedef struct IDirect3DTexture8 IDirect3DTexture8;')
 local originalC, originalClock = ffi.C, os.clock
 local now, attempts, ready = 1000, 0, false
+require('gdi.atlas').release = function() end -- the sheet loader below returns a mock COM pointer
 os.clock = function() return now end
 ffi.C = setmetatable({
     S_OK = 0,

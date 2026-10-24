@@ -40,4 +40,18 @@ assert(rejected == nil and err:find('pitch') and unlocks == 2)
 width = 65535
 rejected, err = atlas.read(tex)
 assert(rejected == nil and err:find('dimensions') and unlocks == 2)
-print('GDI readback: owned descriptor, GC during allocation, row pitch and bounds checks\ttrue')
+-- Deterministic release must remove the GC finalizer to avoid double Release.
+ffi.cdef('typedef struct { int unused; } name_test_owned_texture;')
+local releases, finalizers = 0, 0
+ffi.metatype('name_test_owned_texture', { __index = { Release = function() releases = releases + 1 end } })
+local owned = ffi.gc(ffi.new('name_test_owned_texture'), function(t)
+    finalizers = finalizers + 1
+    t:Release()
+end)
+atlas.release(owned)
+assert(releases == 1 and finalizers == 0)
+owned = nil
+collectgarbage('collect'); collectgarbage('collect')
+assert(releases == 1 and finalizers == 0, 'manual release must not run the old finalizer later')
+atlas.release(nil)
+print('GDI readback/release: descriptor ownership, GC, pitch/bounds and no double Release\ttrue')

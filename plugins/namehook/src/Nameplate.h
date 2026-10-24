@@ -18,9 +18,14 @@ If not, see <https://www.gnu.org/licenses/>.
 
 #define UNICODE_MAX_PATH 32768
 
-// The plugin's version, as Ashita shows it and as the help says it
-#define NAMEHOOK_VERSION 1.31
-#define NAMEHOOK_VERSION_TEXT "1.31"
+#include "Version.h"
+
+// Optional sidecar: ABI-3 clients that do not need these features remain valid.
+struct HookCapabilities {
+    char Magic[16];
+    uint32_t Size, Version, Features, Build;
+};
+enum : uint32_t { FEATURE_EDGE_RADIUS = 1, FEATURE_SOFT_RECT = 2, FEATURE_TIGHT_EDGE = 4 };
 
 // What a name is over. Every name is in exactly one category, and a category's names are shown or
 // hidden together.
@@ -132,6 +137,9 @@ struct HookShared {
 enum : uint32_t {
     QUAD_EDGED = 1 << 0,
     QUAD_EDGE_OPACITY = 1 << 1, // Reserved's low byte holds edge opacity, 0 to 255
+    QUAD_SOFT_RECT = 1 << 2, // constant-UV, unedged rectangle: one-pixel screen-space alpha fringe (1.32)
+    QUAD_EDGE_RADIUS = 1 << 4, // Reserved bits 8..23: explicit radius in 1/256 target pixels (1.34)
+    QUAD_TIGHT_EDGE = 1 << 3, // edged icon: cap halo at one target pixel and omit downward shadow (1.33)
 };
 
 // One rectangle of a name an addon has drawn: a letter, or an icon.
@@ -141,7 +149,22 @@ struct HookQuad {
     uint32_t Color;       // as 0xAARRGGBB
     uint32_t Texture;     // which of HookDraw::Textures
     uint32_t Flags;       // QUAD_*; explicit edge opacity requires both bits
-    uint32_t Reserved;    // low byte: edge opacity when QUAD_EDGE_OPACITY is set
+    uint32_t Reserved;    // low byte: edge opacity; bits 8..23: radius * 256 when QUAD_EDGE_RADIUS is set
+
+    float EdgeRadius(float edge) const {
+        if ((Flags & QUAD_EDGED) == 0 || !(EdgeOpacity() > 0)) { return 0; }
+        if ((Flags & QUAD_EDGE_RADIUS) != 0) {
+            const float radius = static_cast<float>((Reserved >> 8) & 0xFFFF) / 256.0f;
+            return radius > 8 ? 8 : radius;
+        }
+        if (!(edge > 0)) { return 0; }
+        edge = edge > 8 ? 8 : edge;
+        return (Flags & QUAD_TIGHT_EDGE) != 0 && edge > 1 ? 1 : edge;
+    }
+
+    bool EdgeShadow() const {
+        return (Flags & QUAD_EDGED) != 0 && (Flags & QUAD_TIGHT_EDGE) == 0;
+    }
 
     float EdgeOpacity() const {
         return (Flags & QUAD_EDGE_OPACITY) != 0 ? static_cast<float>(Reserved & 0xFF) / 255.0f : 1.0f;

@@ -50,7 +50,10 @@
 --                                                 which the plugin reads itself (hook.FontTexture says
 --                                                 which it last drew from, 0 for none)
 --   nameplates.BeginName(entityIndex, alpha, edge, edgeColor)   false if there is no room for it
---   nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged, edgeOpacity)
+--   nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged, edgeOpacity, softRect, tightEdge, edgeRadius)
+--                                     edgeRadius: independent target-pixel width, including when text edge is zero (1.34).
+--                                     tightEdge: cap an icon halo at one target pixel, no shadow (namehook 1.33).
+--                                     softRect: antialias a constant-UV, unedged solid rectangle (namehook 1.32).
 --   nameplates.EndName()
 -- A quad is a rectangle of a texture: its corners are in pixels of the game's picture, measured from
 -- the point the game puts the name at, and its colour is 0xAARRGGBB. alpha, 0 to 1, fades the whole
@@ -141,6 +144,13 @@ ffi.cdef[[
 local nameplates = {};
 
 nameplates.Plugin = 'namehook';
+nameplates.Feature = { IconOutline = 1, SoftRectangle = 2, TightEdge = 4 };
+ffi.cdef[[
+    typedef struct {
+        char Magic[16];
+        uint32_t Size, Version, Features, Build;
+    } namehook_capabilities_t;
+]];
 
 nameplates.Category = {
     Self     = 0x01, -- the player
@@ -179,6 +189,7 @@ local OVERRIDE_SHOW, OVERRIDE_HIDE = 1, 2;
 local block = nil;         -- the plugin's block, while the plugin is loaded
 local why = 'unloaded';    -- why there is none: 'unloaded', 'old' or 'mismatch'
 local lookedAt = -LOOK_EVERY;
+local capabilities, capabilityOwner, capabilityLookedAt = nil, nil, -LOOK_EVERY;
 
 local problems = {
     unloaded = 'The namehook plugin is not loaded: /load namehook',
@@ -191,6 +202,7 @@ local problems = {
 function nameplates.Hook()
     if (not AshitaCore:GetPluginManager():IsLoaded(nameplates.Plugin)) then
         block, why = nil, 'unloaded';
+        capabilities, capabilityOwner, capabilityLookedAt = nil, nil, -LOOK_EVERY;
         lookedAt = -LOOK_EVERY;
         return nil, why;
     end
@@ -221,13 +233,45 @@ function nameplates.Hook()
     return block;
 end
 
-function nameplates.Problem()
+-- The optional sidecar is separate from ABI 3, so older consumers still work.
+-- Missing/malformed capability blocks are never treated as implicit support.
+function nameplates.Supports(features, hook)
+    hook = hook or nameplates.Hook();
+    if hook == nil then return false; end
+    if capabilityOwner ~= hook then
+        capabilities, capabilityOwner, capabilityLookedAt = nil, hook, -LOOK_EVERY;
+    end
+    if capabilities == nil and os.clock() - capabilityLookedAt >= LOOK_EVERY then
+        capabilityLookedAt = os.clock();
+        local found = ashita.memory.find(nameplates.Plugin .. '.dll', 0,
+            '4E414D45484F4F4B4341505300000000', 0, 0); -- NAMEHOOKCAPS + four zeroes
+        if found ~= nil and found ~= 0 then
+            local candidate = ffi.cast('namehook_capabilities_t*', found);
+            if candidate.Size == ffi.sizeof('namehook_capabilities_t') and candidate.Version == 1 then
+                capabilities = candidate;
+            end
+        end
+    end
+    return capabilities ~= nil and bit.band(capabilities.Features, features) == bit.tobit(features);
+end
+
+-- Copy only public capability metadata, never expose a cached DLL pointer.
+function nameplates.Capabilities(hook)
+    hook = hook or nameplates.Hook();
+    if hook == nil or not nameplates.Supports(0, hook) then return nil; end
+    return { version = tonumber(capabilities.Version), features = tonumber(capabilities.Features), build = tonumber(capabilities.Build) };
+end
+
+function nameplates.Problem(requiredFeatures)
     local hook, reason = nameplates.Hook();
     if (hook == nil) then
         return problems[reason];
     end
     if (hook.Hooked == 0) then
         return problems.unhooked;
+    end
+    if requiredFeatures and not nameplates.Supports(requiredFeatures, hook) then
+        return 'Name requires namehook 1.35 or newer for independent icon outlines. Update namehook.dll and reload the plugin.';
     end
     return nil;
 end
@@ -380,6 +424,20 @@ local QUADS_PER_NAME = 256;
 local QUADS_MAX = 16384;
 local TEXTURES = 8;
 
+-- Invalidate the ordinary-name buffer before releasing its owned textures.
+-- Never follow a cached DLL pointer after unload; resolve a current Hook first.
+-- Speech bubbles own a different buffer and are not touched here.
+function nameplates.ClearDrawing(hook)
+    hook = hook or nameplates.Hook();
+    if hook ~= nil and hook.Draw ~= nil and hook.Draw ~= 0 then
+        local target = ffi.cast('namehook_draw_t*', hook.Draw);
+        target.QuadCount = 0;
+        ffi.fill(target.Textures, ffi.sizeof(target.Textures));
+        target.Frame = hook.Frame - 9; -- beyond HOOK_DRAW_FRAMES, including frame wrap
+    end
+    draw, drawing, quadLimit = nil, nil, 0;
+end
+
 function nameplates.BeginDrawing(hook, correctAspect)
     draw, drawing = nil, nil;
     horizontalFit = 1;
@@ -443,7 +501,7 @@ function nameplates.BeginName(entityIndex, alpha, edge, edgeColor)
     return true;
 end
 
-function nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged, edgeOpacity)
+function nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged, edgeOpacity, softRect, tightEdge, edgeRadius)
     if (drawing == nil or drawing.Count >= QUADS_PER_NAME or drawing.First + drawing.Count >= quadLimit) then
         return;
     end
@@ -452,6 +510,14 @@ function nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged, edg
     if (edged and edgeOpacity ~= nil) then
         -- edged, with explicit edge opacity in Reserved's low byte
         flags, reserved = 3, math.floor(math.max(0, math.min(1, edgeOpacity)) * 255 + 0.5);
+    end
+    -- Only solid, unedged rectangles support the screen-space alpha fringe.
+    -- Older namehook builds ignore this flag and draw the original hard rectangle.
+    if (softRect and not edged and u0 == u1 and v0 == v1) then flags = bit.bor(flags, 4); end
+    if (tightEdge and edged) then flags = bit.bor(flags, 8); end
+    if (edged and edgeRadius ~= nil) then
+        flags = bit.bor(flags, 16);
+        reserved = reserved + math.floor(math.max(0, math.min(8, edgeRadius)) * 256 + 0.5) * 256;
     end
     local quad = draw.Quads[drawing.First + drawing.Count];
     quad.X0, quad.Y0, quad.X1, quad.Y1 = x0 * horizontalFit, y0, x1 * horizontalFit, y1;

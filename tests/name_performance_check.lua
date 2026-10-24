@@ -41,6 +41,7 @@ local atlas = require('gdi.atlas')
 local source = require('gdi.image').new(8, 12):fill(function() return 0.5 end)
 atlas.read = function() prepared = prepared + 1; return source end
 atlas.upload = function() uploads = uploads + 1; return ffi.cast('IDirect3DTexture8*', 0x5678) end
+atlas.release = function() end -- mock pointers are not native COM interfaces
 local indices = {}
 for i = 0, 255 do
     local name = hook.Names[i]

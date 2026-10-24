@@ -28,6 +28,7 @@ local statusicons = require('winxi.statusicons');
 local debuffs     = require('winxi.debuffs');
 local theme       = require('winxi.theme');
 local controls    = require('controls');
+local tips        = require('winxi.tips');
 local entityTypes = require('entity_types');
 
 local statuses = {};
@@ -444,43 +445,43 @@ function statuses.DrawSettings(options, save)
     controls.BeginLayout('statuses', 360, 'Y Offset (px)');
     if (controls.Section('Display', '##name.statusOptions', true)) then
         if (controls.Checkbox('Enabled', '##name.showStatuses', options.showStatuses,
-                'Show the statuses selected below on visible nameplates.')) then
+                tips.Get('name.statuses.enabled'))) then
             changed = true;
         end
         if (options.showStatuses[1]) then
             if (controls.Choice('Icons', '##name.statusIcons', options.statusIcons, ICONS,
-                    'Which icons the statuses are drawn with. Winxi Theme follows Custom Icons in /wxi; Game Icons are the game\'s own; Custom Icons are the custom set\'s (the one chosen in /wxi, FFXIV to begin with), and the game\'s for a status the set has none for.')) then
+                    tips.Get('name.statuses.icons'))) then
                 changed = true;
             end
             if (controls.Slider('Size (%)', '##name.statusSize', options.statusSize, 50, 300, '%d%%',
-                    'An icon\'s height, as a percentage of the height of the names. With custom icons, each is as wide as the set\'s icons are for that height; the game\'s are square.')) then
+                    tips.Get('name.statuses.size'))) then
                 changed = true;
             end
             if (controls.Choice('Position', '##name.statusPlace', options.statusPlace, PLACES,
-                    'Above the name, over the mastery stars where it has them, or below it, under the line a checked monster\'s details are written on while they are shown.')) then
+                    tips.Get('name.statuses.position'))) then
                 changed = true;
             end
             if (controls.Choice('Alignment', '##name.statusAlign', options.statusAlign, ALIGNMENTS,
-                    'Which side of the name the row is level with: its left, where its icons begin, its middle, or its right.')) then
+                    tips.Get('name.statuses.alignment'))) then
                 changed = true;
             end
             if (controls.Input('X Offset (px)', '##name.statusOffsetX', options.statusOffsetX, -MOST_OFFSET, MOST_OFFSET,
-                    'Moves the row right from where Position and Alignment put it, in screen pixels; below 0, left.')) then
+                    tips.Get('name.statuses.offset_x'))) then
                 changed = true;
             end
             if (controls.Input('Y Offset (px)', '##name.statusOffsetY', options.statusOffsetY, -MOST_OFFSET, MOST_OFFSET,
-                    'Moves the row down from where Position and Alignment put it, in screen pixels; below 0, up.')) then
+                    tips.Get('name.statuses.offset_y'))) then
                 changed = true;
             end
             controls.Checkbox('Preview', '##name.statusPreview', preview,
-                'Puts the first few ticked statuses over every name that is shown, whatever it is really under, to see how the row looks. Not kept: it is off again when the addon is loaded.');
+                tips.Get('name.statuses.preview'));
         end
     end
     controls.EndSection();
 
     if (controls.Section('Entity Types', '##name.statusTypes')) then
         imgui.BeginDisabled(not options.showStatuses[1]);
-        if (entityTypes.Draw('statusTypes', options.statusCategories, 'Whether names of this kind have a row of statuses.')) then
+        if (entityTypes.Draw('statusTypes', options.statusCategories, tips.Get('name.statuses.entity_types'))) then
             changed = true;
         end
         imgui.EndDisabled();
@@ -491,8 +492,8 @@ function statuses.DrawSettings(options, save)
         widgets.Label('Search');
         controls.Width();
         imgui.InputText('##name.statusSearch', search, 64);
-        controls.Mark('Part of a status\'s name, or its number. Only a ticked status is drawn over a name.');
-        controls.Checkbox('Selected Only', '##name.statusChosenOnly', chosenOnly, 'Lists only the statuses that are ticked.');
+        controls.Mark(tips.Get('name.statuses.search'));
+        controls.Checkbox('Selected Only', '##name.statusChosenOnly', chosenOnly, tips.Get('name.statuses.selected_only'));
 
         local wanted = search[1]:lower();
         listSize[2] = imgui.GetFrameHeightWithSpacing() * LIST_ROWS;
@@ -527,7 +528,7 @@ function statuses.DrawSettings(options, save)
     controls.EndSection();
     controls.EndLayout();
     controls.Help('Help / Examples', '##name.statusHelp',
-        'Your own and party statuses come from the game. Everyone else\'s come from effects observed in server messages; effects applied out of sight or before entering the area may be unknown.\nCustom Icons in /wxi selects the icon set, with game icons as fallback.');
+        tips.Get('name.statuses.help'));
 
     if (changed and save ~= nil) then
         save();

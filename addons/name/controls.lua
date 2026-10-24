@@ -2,6 +2,7 @@
 -- visible help mark beside each control, with wrapped explanations.
 local imgui = require('imgui');
 local widgets = require('winxi.widgets');
+local tips = require('winxi.tips');
 local controls = {};
 local helpWidth;
 local uniformWidth;
@@ -77,13 +78,14 @@ function controls.Input(label, id, value, minimum, maximum, help)
     return changed;
 end
 
-function controls.Outline(value)
-    widgets.Label('Outline (px)');
+function controls.Outline(value, label, id, help)
+    widgets.Label(label or 'Outline (px)');
+    id = id or 'outline';
     for thickness = 0, 3 do
         if thickness > 0 then imgui.SameLine(); end
-        if imgui.RadioButton(tostring(thickness) .. '##name.outline' .. thickness, value[1] == thickness) then value[1] = thickness; end
+        if imgui.RadioButton(tostring(thickness) .. '##name.' .. id .. thickness, value[1] == thickness) then value[1] = thickness; end
     end
-    controls.Mark('Choose the font outline thickness. 0 disables the outline.');
+    controls.Mark(help or tips.Get('name.appearance.outline'));
 end
 
 function controls.Mark(text)

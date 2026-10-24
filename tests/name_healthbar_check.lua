@@ -28,6 +28,10 @@ end
 local under = draw()
 assert(#quads == 3 and under > 20 and quads[1][2] > 20)
 assert(quads[3][9] == 0xFF4080C0 and quads[1][11] == false)
+for _, quad in ipairs(quads) do
+    assert(quad[13] == true and quad[5] == quad[7] and quad[6] == quad[8],
+        'every bar layer requests the constant-UV antialias fringe')
+end
 assert(quads[1][3] - quads[1][1] == 60 and quads[1][4] - quads[1][2] == 6)
 assert(quads[3][3] - quads[3][1] == (quads[2][3] - quads[2][1]) / 2)
 style.healthBarWidth[1], style.healthBarHeight[1] = 120, 12
@@ -44,6 +48,11 @@ for _, value in ipairs({ 100, 101, -1, 0/0 }) do
     hp = value
     assert(draw() == 20 and #quads == 0)
 end
+hp = 0.1
+assert(draw() > 20 and quads[3][3] > quads[3][1], 'tiny HP stays fractional for antialiased coverage')
+quads = {}
+healthbar.Write(name, entities, -40, 40, 20.37, 0.75, 0xFF4080C0, 120, 7)
+assert(quads[1][2] == math.floor(quads[1][2]), 'bar baseline is aligned to render-target pixels')
 hp = 0
 assert(draw() > 20 and #quads == 2)
 hp, id = 50, 456

@@ -1,5 +1,30 @@
 # Changelog
 
+## namehook 1.35 — audit fixes and bounded submissions
+
+- Add a versioned `NAMEHOOKCAPS` sidecar, without changing ABI 3, so newer Name/WinXI can verify independent icon outlines. Older consumers and speech bubbles retain their existing API.
+- Cull Lens drawings using counter-transformed bounds, including shear and a conservative screen-space AA fringe. Fix names rejected by untransformed bounds despite reaching into the viewport after compensation.
+- Merge adjacent runs whose slots point to the same texture; preserve all vertex/compositing order. Reject zero-alpha quads before expansion, and skip depth submissions whose maximum vertex alpha cannot meet the alpha-test threshold. No cross-texture reordering or removal of the occlusion pass.
+- Remove the write-only plugin ID. Runtime/help, CMake and Windows resources now derive their version from `src/Version.h`.
+- Test both Lens modes, sheared/contracted bounds, alias merging, alpha thresholds and unchanged ABI/capability structure.
+
+## namehook 1.34 — independent icon outlines
+
+- Optional ABI-3 `QUAD_EDGE_RADIUS` (flag 16) overrides the text edge radius using Reserved bits 8..23 in 1/256 target pixels, capped at 8. Low-byte edge opacity is unchanged. Explicit radii work with text outline zero and override the legacy tight-icon one-pixel cap; tight icons still omit the shadow.
+- Rendering and culling share radius/opacity rules. Zero-width or zero-opacity edges skip halo/shadow copies, without changing fills or maximum geometry capacity.
+- Name provides separate Icon Outline (0–3 px) and Icon Outline Opacity (0–100%) settings. All outlined icons use these controls; text, mastery stars and letter badges remain independent. Updated WinXI is required to submit explicit radii.
+
+## namehook 1.33 — tight outlines for aggro/passive glyphs
+
+- Optional ABI-3 `QUAD_TIGHT_EDGE` (flag 8) caps an outlined icon's halo at one render-target pixel and omits the downward shadow. Name opts its aggro/passive and tracked-monster `[aggro]` glyphs into this style at full outline opacity. Text and other icon outlines retain their existing rendering; Outline 0 still disables edges.
+- The radius and shadow rules are shared with culling bounds and tested at zero, fractional and thick outline sizes. No new texture or draw-buffer capacity is needed; tight icons omit a shadow copy.
+
+## namehook 1.32 — smoother name halos and health bars
+
+- Custom name outlines use eight circularly spaced glyph-mask copies instead of four diagonal copies, with a restrained downward shadow. Text retains its colour, size and position; icon edge-opacity multipliers and the zero-outline setting still apply. Depth testing and the alpha-tested depth pass are unchanged.
+- ABI 3 gains optional `QUAD_SOFT_RECT` (flag 4): constant-UV, unedged solid rectangles get a one-render-target-pixel alpha ramp around their edges, calculated after Lens counter-transformation. Subpixel fill slivers have reduced coverage instead of becoming opaque thick lines. Name uses it for HP bars without another texture or extra shared-buffer quads. Older plugins ignore the flag and retain hard edges.
+- Draw-vertex and texture-run capacities include the worst-case halo/shadow expansion. Bounds include the new shadow and bar fringe. Geometry tests cover rotation, shear, nonuniform scaling, tiny fills and degenerate rectangles.
+
 ## namehook 1.31 — names under lens's cylindrical warp cheaper
 
 - Built against lens 0.6's `warp.h`, whose cylindrical mapping finds its edge once a call instead of in every step: `lens::Counter`, worked out for each name each frame, takes about 2 µs a name in cylindrical mode where it took about 35 to 55 (some 3 ms a frame with 60 names on screen). Panini was cheap already. Nothing drawn changes.

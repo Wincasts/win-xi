@@ -35,6 +35,8 @@ import tempfile
 import zipfile
 from pathlib import Path
 
+from build_tooltips import references as tooltip_references
+
 ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY = 'Wincasts/win-xi'
 
@@ -98,12 +100,19 @@ def notes(addon, version):
     return '## ' + top.strip() + '\n'
 
 
+def winxi_dependencies(text):
+    modules = set(re.findall(r"require\(['\"]winxi\.([\w.]+)['\"]\)", text))
+    # tips.Get loads its catalogue by namespace at runtime, not a literal require.
+    modules.update('data.tooltips.' + key.split('.')[0] for key in tooltip_references(text))
+    return modules
+
+
 def winxi_modules(tree, addon):
     """The winxi modules the addon loads, and those they load, as paths under libs/winxi: version.lua too."""
     winxi = tree / 'addons/libs/winxi'
     wanted = set()
     for source in (tree / 'addons' / addon).rglob('*.lua'):
-        wanted |= set(re.findall(r"require\(['\"]winxi\.([\w.]+)['\"]\)", source.read_text(encoding='utf-8', errors='replace')))
+        wanted |= winxi_dependencies(source.read_text(encoding='utf-8', errors='replace'))
     found, queue = {}, ['version', *wanted]
     while queue:
         name = queue.pop()
@@ -115,7 +124,7 @@ def winxi_modules(tree, addon):
         if not path.is_file():
             raise FileNotFoundError(f'{addon} loads winxi.{name}, which libs/winxi does not have')
         found[name] = path.relative_to(winxi)
-        queue += re.findall(r"require\(['\"]winxi\.([\w.]+)['\"]\)", path.read_text(encoding='utf-8'))
+        queue += list(winxi_dependencies(path.read_text(encoding='utf-8')))
     return sorted(found), [found[name] for name in sorted(found)]
 
 

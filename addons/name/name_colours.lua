@@ -3,6 +3,7 @@ local bit = require('bit');
 local plates = require('winxi.nameplates');
 local types = require('name_types');
 local controls = require('controls');
+local tips = require('winxi.tips');
 local widgets = require('winxi.widgets');
 local imgui = require('imgui');
 local colours = {};
@@ -161,18 +162,18 @@ function colours.Resolve(options, name, entities, partyIds, corpse, icons)
 end
 function colours.Draw(options, key)
     local open = controls.More('Colour Overrides', '##name.colours.' .. key);
-    controls.Mark('The states the game colours names by. An override applies together to name text, spawn letters and HP fill; a state not overridden keeps the game\'s colour. Icons and client opacity are unchanged.');
+    controls.Mark(tips.Get('name.colours.section'));
     if not open then return; end
     for _, state in ipairs(colours.States[key]) do
         local entry = options.nameColours[key][state[1]];
         local id = '##name.colours.' .. key .. '.' .. state[1];
-        controls.Checkbox(state[2] .. ' Override', id .. '.enabled', entry.enabled,
-            'Override this state for the name, letters and matching health-bar fill, including explicit name/letter token colours. Off: the game\'s colour for it.');
+        controls.Checkbox(state[2] .. ' Override', id .. '.enabled', entry.enabled);
+        imgui.SameLine();
         imgui.BeginDisabled(not entry.enabled[1]);
-        widgets.Label(state[2] .. ' Colour'); controls.Width();
+        controls.Width();
         imgui.ColorEdit4(id .. '.color', entry.color, ImGuiColorEditFlags_NoAlpha or 0);
-        controls.Mark('RGB only. Opacity, distance fading and disappearance fading remain controlled by the renderer; a target\'s name does not pulse.');
         imgui.EndDisabled();
+        controls.Mark(tips.Get('name.colours.state'));
     end
     if imgui.Button('Use Game Colours##name.colours.reset.' .. key) then
         for _, state in ipairs(colours.States[key]) do options.nameColours[key][state[1]].enabled[1] = false; end
