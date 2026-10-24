@@ -476,9 +476,7 @@ public:
         Diag.Counted();
         Hud.Frame=Chat.Frame=Menus.Frame=Shared.Frame;
         ChatReadReset(); // the regions found readable last frame are asked about again
-        chat.Sample(Chat,Shared.Frame);
-        SampleChatWindows(windowRoutes,Chat,Shared.Frame);
-        chat.SampleLines(Chat,Shared.Frame);
+        if (ChatWanted()) SampleChat(false);
         History.Frame=Shared.Frame;
         TextTap.Frame=Shared.Frame;
         // a read of the first window's history, once for each request
@@ -487,10 +485,6 @@ public:
             if (!ChatReadHistory(chat.FirstRing(),History)) History.Count=History.Used=0;
             History.ReadFrame=Shared.Frame; History.Serial++;
         }
-        // the colours change seldom, and are a few thousand bytes to read and compare: read every fourth
-        // frame once they have been read, and vouched for as current between
-        if (!colorTables.cached || (Shared.Frame & 3)==0) SampleChatColors(colorTables,Chat,Shared.Frame);
-        else if (Chat.ColorFrame) Chat.ColorFrame=Shared.Frame;
         if (!MenuFresh(Menus,Chat,Shared.Frame)) menus.Stop(Menus);
         if (!LogFresh(Menus,Shared.Frame)) menus.StopLog(Menus);
         // As namehook: no cross-frame state blocks holding client resources across a reset.
@@ -608,8 +602,8 @@ public:
         }
         if (command && _stricmp(command,"/uihook chat")==0) {
             char line[256];
-            snprintf(line,sizeof(line),"[uihook:chat] ABI 13, mask %u, frame %u; primary native/drawn %u/%u, split %u/%u, input %u/%u.",
-                Chat.SupportedMask,Chat.Frame,Chat.NativeFrame[0],Chat.DrawnFrame[0],Chat.NativeFrame[1],Chat.DrawnFrame[1],Chat.NativeFrame[2],Chat.DrawnFrame[2]);
+            snprintf(line,sizeof(line),"[uihook:chat] ABI 13, mask %u, frame %u, %s; primary native/drawn %u/%u, split %u/%u, input %u/%u.",
+                Chat.SupportedMask,Chat.Frame,ChatWanted() ? "read for an addon" : "not read: no addon asking",Chat.NativeFrame[0],Chat.DrawnFrame[0],Chat.NativeFrame[1],Chat.DrawnFrame[1],Chat.NativeFrame[2],Chat.DrawnFrame[2]);
             core->GetChatManager()->Write(0,false,line);
             snprintf(line,sizeof(line),"[uihook:chat] state 0x%x at %u, full bounds at %u; history scroll %u, cursor %u/%u, filter %u (browsing/filter menus remain native).",
                 Chat.StateFlags,Chat.StateFrame,Chat.ExpandedRectFrame,Chat.FullScroll,Chat.FullCursor,Chat.FullPageRows,Chat.FullFilter);
@@ -889,11 +883,28 @@ public:
         }
     }
     void StopChat() { drawings[8].Clear(); drawings[9].Clear(); drawings[10].Clear(); Forgive(8); Forgive(9); Forgive(10); staging.Clear(); Chat.ReplacementRectFrame=0; expandedCapture=controlsValid=false; replaceControls=0; Chat.ControlStyleFrame=0; Chat.TabFrame=Chat.ScrollFrame=Chat.TextFrame=0; }
+    // The chat's state, its two windows' routing and lines, and its colours, read for an addon only while one is asking:
+    // a chat submission (chatbox's Begin, each frame it draws) in the last PARTY_FRESH_FRAMES frames. With none
+    // (chatbox not loaded, switched off, or zoning) nothing of the chat is read each frame.
+    uint32_t chatAsked=0;  // the frame of the last chat submission
+    bool ChatWanted() const { return chatAsked && Shared.Frame-chatAsked<=PARTY_FRESH_FRAMES; }
+    // all: the colours read whole, not vouched for from the last read (they may have changed while nothing asked)
+    void SampleChat(bool all) {
+        chat.Sample(Chat,Shared.Frame);
+        SampleChatWindows(windowRoutes,Chat,Shared.Frame);
+        chat.SampleLines(Chat,Shared.Frame);
+        // the colours change seldom, and are a few thousand bytes to read and compare: read every fourth
+        // frame once they have been read, and vouched for as current between
+        if (all || !colorTables.cached || (Shared.Frame & 3)==0) SampleChatColors(colorTables,Chat,Shared.Frame);
+        else if (Chat.ColorFrame) Chat.ColorFrame=Shared.Frame;
+    }
     int CaptureChat(int index,int capture) {
         if (index==-1) { StopChat(); return 1; }
         if (index<0 || index>2 || capture>2) return 0;
         if (capture==2 && (index!=0 || !(Chat.SupportedMask & CHAT_FULL_SKIN_SUPPORTED))) return 0;
-        chat.Sample(Chat,Shared.Frame);
+        // asked again after a while: all of it read now, so this frame's reads find it fresh
+        if (ChatWanted()) chat.Sample(Chat,Shared.Frame); else SampleChat(true);
+        chatAsked=Shared.Frame ? Shared.Frame : 1;
         if (index==0) { Chat.ReplacementRectFrame=0; expandedCapture=controlsValid=false; replaceControls=0; }
         const int result=Capture(index+8,capture==2 ? 1 : capture);
         if (index==0 && result && capture>0) {
@@ -1101,7 +1112,7 @@ public:
         }
         bool chatReady=true;
         if (chatIndex>=0) {
-            chat.Sample(Chat,Shared.Frame);
+            if (ChatWanted()) chat.Sample(Chat,Shared.Frame);
             Chat.NativeFrame[chatSlot]=Shared.Frame;
             // Full-log captures replace only the frame, never the native rows/actions. A compact
             // capture must not cover a newly opened full log (or vice versa).

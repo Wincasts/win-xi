@@ -27,6 +27,9 @@
   menus addon, `winxi.nativemirror` (winxi 43) and tools/uihook_live.py. The skin and the native look change the
   game's own menus instead. Copies are in `archive/`; the history has all of it up to `eae073d`. The window hooks
   stay (the native look needs them) and the census moves to `src/modules/census/`.
+- The chat's state, routing, lines and colours are read only while an addon asks for them (a chat submission in
+  the last 8 frames; the first after a while reads them all at once): with chatbox not loaded, switched off or
+  zoning, nothing of the chat is read each frame. `/uihook chat` says whether they are being read.
 - `/uihook` lists its commands a line each, the diagnostics only where they are built in. The plugin's description
   and its DLL's version (it said 0.3 and 0.4) say what it is now; the README no longer says it is experimental or untested.
 
