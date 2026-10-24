@@ -73,6 +73,9 @@ measure('banner: Letter Reveal', banner('reveal'));
 measure('banner: Classic Window', banner('window'));
 measure('banner: Elemental Weather', banner('element'));
 measure('banner: Kind Frames (open country)', banner('kind'));
+measure('banner: Nation Seal', banner('seal'));
+measure('banner: Atlas Cartouche (no map)', banner('atlas'));
+measure('banner: Edge Toast', banner('toast'));
 -- The harness's zone is West Ronfaure (100, open country): Southern San d'Oria (230) a city, Davoi (149) a dungeon.
 local game = H.zoneinfo_game;
 measure('banner: Kind Frames (city)', function() game.zone = 230; H.frames(1); banner('kind')(); end);
@@ -92,6 +95,11 @@ measure('banner: Letter Reveal entrance', function() d.zoneStyle = 'reveal'; end
 measure('banner: Classic Window entrance', function() d.zoneStyle = 'window'; end, entrances);
 measure('banner: Elemental Weather entrance', function() d.zoneStyle = 'element'; end, entrances);
 measure('banner: Kind Frames entrance', function() d.zoneStyle = 'kind'; end, entrances);
+measure('banner: Nation Seal entrance', function() d.zoneStyle = 'seal'; end, entrances);
+measure('banner: Edge Toast entrance', function() d.zoneStyle = 'toast'; end, entrances);
+d.locationEnabled[1], d.locationStyle = true, 'breadcrumb';
+measure('location line: Breadcrumb', function() d.zoneStyle = 'classic'; end);
+d.locationEnabled[1], d.locationStyle = false, 'plain';
 
 -- What each style asks of imgui in a settled frame, by name: BENCH_CALLS=1 to see it.
 if os.getenv('BENCH_CALLS') then

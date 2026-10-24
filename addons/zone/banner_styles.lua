@@ -1,5 +1,6 @@
 -- The banner's styles other than Classic Text: Title Card, Pennant, Kanji Watermark, Letter Reveal,
--- Classic Window, Elemental Weather and Kind Frames.
+-- Classic Window, Elemental Weather, Kind Frames, Nation Seal, Atlas Cartouche and Edge Toast; and
+-- Discovery, drawn in place of the sub-zone style the first time an area is come to.
 --
 --   styles.ids, styles.labels      the styles there are, Classic Text first, and their names
 --   styles.valid(id)               whether id is one of them
@@ -10,6 +11,7 @@
 --   styles.weather_element(id)     the element of a weather id and 1 or 2 for single or double weather
 --   styles.elements                each element's colour
 --   styles.backdrop(list, x0, y0, x1, y1, soft, alpha)   a soft shadow round a box, fading out over soft
+--   styles.crystal(list, x, y, w, h, angle, color, alpha, outline)   an element's crystal, for the location line
 --
 -- Each is drawn straight onto the draw list, under every imgui window, and fades with the banner as
 -- a whole; its entrance plays over the first second or two. Text has winxi.text's dark edge.
@@ -18,9 +20,10 @@ local text = require('winxi.text');
 
 local M = {};
 
-M.ids = { 'classic', 'titlecard', 'pennant', 'kanji', 'reveal', 'window', 'element', 'kind' };
+M.ids = { 'classic', 'titlecard', 'pennant', 'kanji', 'reveal', 'window', 'element', 'kind', 'seal', 'atlas', 'toast' };
 M.labels = { classic = 'Classic Text', titlecard = 'Title Card', pennant = 'Pennant', kanji = 'Kanji Watermark',
-    reveal = 'Letter Reveal', window = 'Classic Window', element = 'Elemental Weather', kind = 'Kind Frames' };
+    reveal = 'Letter Reveal', window = 'Classic Window', element = 'Elemental Weather', kind = 'Kind Frames',
+    seal = 'Nation Seal', atlas = 'Atlas Cartouche', toast = 'Edge Toast' };
 
 function M.valid(id)
     return M.labels[id] ~= nil;
@@ -561,6 +564,7 @@ local function crystal(list, x, y, w, h, angle, color, alpha, outline)
     list:AddTriangleFilled(q[1], q[4], at(p1, x, y), packed(paler(color), alpha));
     list:AddQuad(q[1], q[2], q[3], q[4], packed(outline, alpha * .8), 1);
 end
+M.crystal = crystal;
 
 -- A band across, clear at its ends and of a colour in the middle: two gradients from the middle out.
 local function band(list, cx, y, half, thick, color, alpha)
@@ -760,8 +764,299 @@ local function kind_frames(list, c)
     return open_country(list, c);
 end
 
+
+-- Nation Seal: the nation's flag as a round wax seal that stamps down beside the name, overshooting a
+-- little; the region in the seal's trim colour over the name, and the day and weather under it. A
+-- region without a flag has a crystal on a plain seal.
+local function seal(list, c)
+    local S, D, age, a = c.title_size, c.detail_size, c.age, c.alpha;
+    local colors = palettes[c.flag or 'none'] or palettes.none;
+    local upper = chars(c.upper:upper());
+    local upper_gap = D * .35;
+    local upper_w = #upper > 0 and tracked_width(c.detail_font, D, upper, upper_gap) or 0;
+    local name_w, name_h = measure(c.title_font, S, c.title);
+    local meta_w = c.meta ~= '' and measure(c.detail_font, D, c.meta) or 0;
+    local text_w = math.max(upper_w, name_w, meta_w);
+    local R = S * 1.1;
+    local gap = S * .45;
+    local gx = left_of(c, R * 2 + gap + text_w);
+    local cx, cy = gx + R, c.y + R;
+
+    -- The stamp: from large and faint to its own size, with a bounce.
+    local t = age / .55;
+    local r = R * (1 + 1.4 * (1 - out_back(t)));
+    local shown = a * clamp(t / .5);
+    if shown > .01 then
+        list:AddCircleFilled(at(p1, cx + R * .06, cy + R * .1), r, packed(c.outline, shown * .45), 40);
+        list:AddCircleFilled(at(p1, cx, cy), r, packed(colors.base, shown), 40);
+        list:AddCircleFilled(at(p1, cx - r * .16, cy - r * .2), r * .62, packed(colors.light, shown * .55), 32);
+        local thick = math.max(1, r * .05);
+        list:AddCircle(at(p1, cx, cy), r * .86, packed(colors.trim, shown), 40, thick);
+        list:AddCircle(at(p1, cx, cy), r - thick / 2, packed(c.outline, shown * .5), 40, 1);
+        if c.flag_image then
+            local half = r * .6;
+            list:AddImageRounded(c.flag_image.handle, at(p1, cx - half, cy - half), at(p2, cx + half, cy + half),
+                at(p3, 0, 0), at(p4, 1, 1), packed(white, shown), half);
+        else
+            crystal(list, cx, cy, r * .3, r * .45, 0, colors.trim, shown, c.outline);
+        end
+    end
+
+    -- The words, sliding in from the seal once it has landed.
+    local later = a * clamp((age - .35) / .8);
+    local slide = -(1 - out_cubic((age - .35) / .8)) * S * .5;
+    local tx = gx + R * 2 + gap + slide;
+    local block_h = (#upper > 0 and D * 1.5 or 0) + name_h + (c.meta ~= '' and D * 1.3 or 0);
+    local y = cy - block_h / 2;
+    if #upper > 0 then
+        imgui.PushFont(c.detail_font, D);
+        tracked(list, c.detail_font, D, upper, upper_gap, tx, y, packed(colors.trim, later), packed(c.outline, later), c.edge);
+        imgui.PopFont();
+        y = y + D * 1.5;
+    end
+    line(list, c, c.title_font, S, c.title, tx, y, c.title_color, later);
+    y = y + name_h + D * .1;
+    if c.meta ~= '' then line(list, c, c.detail_font, D, c.meta, tx, y, c.detail_color, later); end
+    reach(gx, math.min(c.y, cy - block_h / 2), gx + R * 2 + gap + text_w, math.max(c.y + R * 2, cy + block_h / 2));
+end
+
+-- Atlas Cartouche: the name on a parchment ribbon that unrolls from its middle, and beside it a round
+-- inset of the zone's own map, the area come to drawn on it and where you stand. c.atlas (presentation
+-- fills it) has the map's picture, the part of it shown and the area; without a map there is no inset.
+local parchment = { light = { .94, .88, .75, 1 }, dark = { .86, .77, .59, 1 }, tail = { .80, .70, .50, 1 },
+    edge = { .54, .42, .23, 1 }, ink = { .23, .16, .09, 1 }, gold = { .85, .72, .40, 1 }, you = { .12, .44, .82, 1 },
+    rim = { .91, .84, .68, 1 } };
+local function atlas(list, c)
+    local S, D, age, a = c.title_size, c.detail_size, c.age, c.alpha;
+    local upper_w = c.upper ~= '' and measure(c.detail_font, D, c.upper) or 0;
+    local name_w, name_h = measure(c.title_font, S, c.title);
+    local meta_w = c.meta ~= '' and measure(c.detail_font, D, c.meta) or 0;
+    local pad_x, pad_y = S * 1.1, D * .6;
+    local rw = math.max(name_w, upper_w) + pad_x * 2;
+    local rh = pad_y * 2 + name_h + (c.upper ~= '' and D * 1.3 or 0);
+    local map = c.atlas;
+    local inset = map and map.handle and math.max(rh * .75, S * 1.3) or 0;
+    local gap = inset > 0 and S * .6 or 0;
+    local group = math.max(rw, meta_w) + gap + inset * 2;
+    local x0 = left_of(c, group);
+    local cx, y = x0 + math.max(rw, meta_w) / 2, c.y;
+
+    -- The ribbon: its tails behind it, then the parchment, edged above and below.
+    local half = rw / 2 * out_cubic(age / .9);
+    if half > 1 then
+        local tail, drop = S * .9, rh * .2;
+        local tail_color, shade = packed(parchment.tail, a), packed(c.outline, a * .35);
+        -- Each tail notched at its end: three triangles round the notch's point.
+        for side = -1, 1, 2 do
+            local inner, outer = cx + side * (half - tail * .3), cx + side * (half + tail * .7);
+            local top, low, notch = y + drop, y + rh + drop, outer - side * tail * .4;
+            local mid = (top + low) / 2;
+            list:AddTriangleFilled(at(p1, inner, top), at(p2, outer, top), at(p3, notch, mid), tail_color);
+            list:AddTriangleFilled(at(p1, inner, top), at(p2, notch, mid), at(p3, inner, low), tail_color);
+            list:AddTriangleFilled(at(p1, inner, low), at(p2, notch, mid), at(p3, outer, low), tail_color);
+        end
+        list:AddRectFilled(at(p1, cx - half + 4, y + 5), at(p2, cx + half + 4, y + rh + 5), shade);
+        local light, dark = packed(parchment.light, a), packed(parchment.dark, a);
+        list:AddRectFilledMultiColor(at(p1, cx - half, y), at(p2, cx + half, y + rh), light, light, dark, dark);
+        local edge = packed(parchment.edge, a);
+        local thick = math.max(2, math.floor(S / 22 + .5));
+        list:AddRectFilled(at(p1, cx - half, y), at(p2, cx + half, y + thick), edge);
+        list:AddRectFilled(at(p1, cx - half, y + rh - thick), at(p2, cx + half, y + rh), edge);
+    end
+    -- Ink on parchment: no dark edge round it.
+    local ink = a * clamp((age - .3) / .5);
+    local ty = y + pad_y;
+    if ink > .01 then
+        if c.upper ~= '' then
+            imgui.PushFont(c.detail_font, D);
+            text.Packed(list, cx - upper_w / 2, ty, packed(parchment.ink, ink * .8), c.upper, 0);
+            imgui.PopFont();
+            ty = ty + D * 1.3;
+        end
+        imgui.PushFont(c.title_font, S);
+        text.Packed(list, cx - name_w / 2, ty, packed(parchment.ink, ink), c.title, 0);
+        imgui.PopFont();
+    end
+    local below = y + rh + D * .6;
+    if c.meta ~= '' then line(list, c, c.detail_font, D, c.meta, cx - meta_w / 2, below, c.detail_color, ink); end
+
+    -- The inset: the map round, ringed; the area's outline on it and you a blue dot.
+    if inset > 0 then
+        local shown = a * clamp((age - .5) / .8);
+        local ix, iy = x0 + math.max(rw, meta_w) + gap + inset, y + rh / 2;
+        if shown > .01 then
+            list:AddCircleFilled(at(p1, ix + 3, iy + 4), inset + 3, packed(c.outline, shown * .4), 48);
+            list:AddImageRounded(map.handle, at(p1, ix - inset, iy - inset), at(p2, ix + inset, iy + inset),
+                at(p3, map.u0, map.v0), at(p4, map.u1, map.v1), packed(white, shown), inset);
+            -- A place on the map is (ox + mx * k, oy + my * k) on the screen.
+            local k = inset * 2 / map.span;
+            local ox, oy = ix - inset - map.left * k, iy - inset - map.top * k;
+            local polygon = map.polygon;
+            if polygon then
+                local pulse = .75 + .25 * math.sin(age * 4);
+                local gold, dark = packed(parchment.gold, shown * pulse), packed(c.outline, shown * .6);
+                local r2 = (inset - 2) * (inset - 2);
+                local previous = polygon[#polygon];
+                for _, point in ipairs(polygon) do
+                    -- Each edge in short pieces, those inside the circle drawn.
+                    local x1, y1 = ox + previous[1] * k, oy + previous[2] * k;
+                    local x2, y2 = ox + point[1] * k, oy + point[2] * k;
+                    local steps = math.max(1, math.ceil(math.sqrt((x2 - x1) ^ 2 + (y2 - y1) ^ 2) / 3));
+                    for i = 0, steps - 1 do
+                        local ax, ay = x1 + (x2 - x1) * i / steps, y1 + (y2 - y1) * i / steps;
+                        local bx, by = x1 + (x2 - x1) * (i + 1) / steps, y1 + (y2 - y1) * (i + 1) / steps;
+                        local mx, my = (ax + bx) / 2 - ix, (ay + by) / 2 - iy;
+                        if mx * mx + my * my <= r2 then
+                            list:AddLine(at(p1, ax, ay + 1), at(p2, bx, by + 1), dark, 3);
+                            list:AddLine(at(p1, ax, ay), at(p2, bx, by), gold, 2);
+                        end
+                    end
+                    previous = point;
+                end
+            end
+            if map.px then
+                local px, py = ox + map.px * k, oy + map.py * k;
+                local dx, dy = px - ix, py - iy;
+                if dx * dx + dy * dy <= (inset - 4) * (inset - 4) then
+                    local dot = math.max(3, inset * .07);
+                    list:AddCircleFilled(at(p1, px, py), dot + 1.5, packed(white, shown), 16);
+                    list:AddCircleFilled(at(p1, px, py), dot, packed(parchment.you, shown), 16);
+                end
+            end
+            local ring = math.max(2, inset * .06);
+            list:AddCircle(at(p1, ix, iy), inset + ring / 2, packed(parchment.edge, shown), 48, ring);
+            list:AddCircle(at(p1, ix, iy), inset + ring * 1.5, packed(parchment.rim, shown), 48, math.max(1, ring / 2));
+        end
+    end
+    reach(x0, math.min(y, y + rh / 2 - inset), x0 + group, math.max(y + rh + (c.meta ~= '' and D * 1.8 or 0), y + rh / 2 + inset));
+end
+
+-- Edge Toast: a notched tag slides in from the edge of the screen (the right edge with the banner
+-- aligned right, the left otherwise) at the banner's height: a pin, what happened in small capitals
+-- and the name. Under it, fading, the place just left, when there is one.
+local toast_colors = { body = { .05, .06, .09, 1 }, pin = { .62, .82, .65, 1 }, leaving = { .79, .64, .64, 1 } };
+local function tag(list, c, x_edge, right, y, S, D, label, name, color, alpha, slide)
+    local label_w = measure(c.detail_font, D, label);
+    local name_w, name_h = measure(c.title_font, S, name);
+    local pad = D * .7;
+    local pin = S * .55;
+    local notch = S * .7;
+    local inner = math.max(label_w, name_w);
+    local w = pad + pin + pad + inner + pad + notch;
+    local h = pad * 1.2 + D * 1.1 + name_h;
+    local dir = right and -1 or 1;
+    local x0 = x_edge - dir * w * (1 - slide);
+    local x1 = x0 + dir * w;
+    local body = packed(toast_colors.body, alpha * .9);
+    local fade = packed(toast_colors.body, alpha * .55);
+    local body_end = x1 - dir * notch;
+    list:AddRectFilledMultiColor(at(p1, math.min(x0, body_end), y), at(p2, math.max(x0, body_end), y + h),
+        right and fade or body, right and body or fade, right and body or fade, right and fade or body);
+    list:AddTriangleFilled(at(p1, body_end, y), at(p2, x1, y), at(p3, body_end, y + h), fade);
+    -- The pin: a drop with a hole, in the label's colour.
+    local px = x0 + dir * (pad + pin / 2);
+    local py = y + h / 2 - pin * .15;
+    local fill = packed(color, alpha);
+    list:AddCircleFilled(at(p1, px, py), pin / 2, fill, 20);
+    list:AddTriangleFilled(at(p1, px - pin * .42, py + pin * .2), at(p2, px + pin * .42, py + pin * .2), at(p3, px, py + pin * .85), fill);
+    list:AddCircleFilled(at(p1, px, py), pin * .18, packed(toast_colors.body, alpha), 12);
+    local tx = right and (x0 - pad - pin - pad - inner) or (x0 + pad + pin + pad);
+    line(list, c, c.detail_font, D, label, tx, y + pad * .6, color, alpha);
+    line(list, c, c.title_font, S, name, tx, y + pad * .6 + D * 1.1, c.title_color, alpha);
+    return h, math.min(x0, x1), math.max(x0, x1);
+end
+local function toast(list, c)
+    local S, D, age, a = c.title_size * .65, c.detail_size, c.age, c.alpha;
+    local right = c.alignment == 'right';
+    local edge = right and (c.screen_w or 0) or 0;
+    local slide = out_cubic(age / .7);
+    local label = (c.toast_label or 'Entering'):upper();
+    if c.upper ~= '' then label = label .. '  ·  ' .. c.upper:upper(); end
+    local h, left, far = tag(list, c, edge, right, c.y, S, D, label, c.title, toast_colors.pin, a, slide);
+    local bottom = c.y + h;
+    if c.left and c.left ~= '' then
+        local gone = a * .55 * (1 - clamp((age - 2) / 1.5));
+        if gone > .01 then
+            local h2, l2, f2 = tag(list, c, edge, right, bottom + D * .5, S * .85, D * .85, 'LEAVING', c.left, toast_colors.leaving, gone, 1);
+            bottom, left, far = bottom + D * .5 + h2, math.min(left, l2), math.max(far, f2);
+        end
+    end
+    if c.meta ~= '' then
+        local meta_w = measure(c.detail_font, D, c.meta);
+        local mx = right and (edge - meta_w - D) or (edge + D);
+        line(list, c, c.detail_font, D, c.meta, mx, bottom + D * .4, c.detail_color, a * slide);
+        bottom = bottom + D * 1.6;
+    end
+    reach(left, c.y, far, bottom);
+end
+
+-- Discovery: the first time an area is come to, a ring bursts behind it, NEW AREA DISCOVERED over
+-- its name, and under them the zone with a pip for each of its areas, those found lit, the new one
+-- pulsing. c.discovery is { count, total }; more areas than twenty, and the count alone is written.
+local found_colors = { gold = { 1, .85, .54, 1 }, glow = { 1, .73, .29, 1 }, off = { 1, 1, 1, .2 } };
+local DISCOVERED = chars('NEW AREA DISCOVERED');
+local function discovery(list, c)
+    local S, D, age, a = c.title_size, c.detail_size, c.age, c.alpha;
+    local found = c.discovery or { count = 1, total = 1 };
+    local label_gap = D * .45;
+    local label_w = tracked_width(c.detail_font, D, DISCOVERED, label_gap);
+    local name_w, name_h = measure(c.title_font, S, c.title);
+    local tally = ('%d / %d'):format(found.count, found.total);
+    local tally_w = measure(c.detail_font, D, tally);
+    local zone_w = c.upper ~= '' and measure(c.detail_font, D, c.upper) or 0;
+    local pip = D * .32;
+    local pips = found.total <= 20 and found.total or 0;
+    local pips_w = pips > 0 and (pips * pip * 2.6 - pip * .6) or 0;
+    local row_w = zone_w + (zone_w > 0 and D or 0) + pips_w + (pips > 0 and D or 0) + tally_w;
+    local block = math.max(label_w, name_w, row_w);
+    local cx = left_of(c, block) + block / 2;
+    local y = c.y;
+
+    -- The ring: from small and bright to wide and gone.
+    local t = clamp(age / 1.3);
+    if t < 1 then
+        local R = S * 2;
+        local r = R * (.2 + 1.4 * out_cubic(t));
+        local ring = a * (1 - t);
+        local cy = y + D * 1.6 + name_h / 2;
+        list:AddCircle(at(p1, cx, cy), r, packed(found_colors.glow, ring * .5), 48, math.max(2, S * .22 * (1 - t)));
+        list:AddCircle(at(p1, cx, cy), r, packed(found_colors.gold, ring), 48, math.max(1, S * .06 * (1 - t) + 1));
+    end
+    local shown = a * clamp((age - .3) / .8);
+    imgui.PushFont(c.detail_font, D);
+    tracked(list, c.detail_font, D, DISCOVERED, label_gap, cx - label_w / 2, y, packed(found_colors.gold, shown), packed(c.outline, shown), c.edge);
+    imgui.PopFont();
+    y = y + D * 1.6;
+    line(list, c, c.title_font, S, c.title, cx - name_w / 2, y, c.title_color, shown);
+    y = y + name_h + D * .5;
+
+    local later = a * clamp((age - .9) / .8);
+    local x = cx - row_w / 2;
+    if zone_w > 0 then
+        line(list, c, c.detail_font, D, c.upper, x, y, c.detail_color, later);
+        x = x + zone_w + D;
+    end
+    if pips > 0 then
+        local my = y + D * .6;
+        for i = 1, pips do
+            local lit = i <= found.count;
+            local size = pip;
+            if i == found.count then size = pip * (1 + .8 * math.max(0, math.sin(clamp((age - 1.4) / 1.5) * math.pi * 3))); end
+            local color = lit and found_colors.gold or found_colors.off;
+            local px = x + pip + (i - 1) * pip * 2.6;
+            list:AddQuadFilled(at(p1, px, my - size), at(p2, px + size, my), at(p3, px, my + size), at(p4, px - size, my), packed(color, later));
+            if lit then list:AddQuad(at(p1, px, my - size), at(p2, px + size, my), at(p3, px, my + size), at(p4, px - size, my), packed(c.outline, later * .7), 1); end
+        end
+        x = x + pips_w + D;
+    end
+    line(list, c, c.detail_font, D, tally, x, y, c.detail_color, later);
+    y = y + D * 1.4;
+    reach(cx - block / 2, c.y, cx + block / 2, y);
+end
+
 local draws = { titlecard = title_card, pennant = pennant, kanji = kanji,
-    reveal = reveal, window = classic_window, element = elemental, kind = kind_frames };
+    reveal = reveal, window = classic_window, element = elemental, kind = kind_frames,
+    seal = seal, atlas = atlas, toast = toast, discovery = discovery };
 
 function M.draw(id, list, c)
     local draw = draws[id];

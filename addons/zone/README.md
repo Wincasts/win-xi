@@ -6,11 +6,13 @@ named part of it (a square, a bridge, a shop, a guild) shows a smaller one, and 
 a change of weather. An always-on location line can say where you are, and every map
 has an editor for the areas it announces.
 
-The banner comes in eight styles: **Classic Text**, **Title Card**, **Pennant**,
+The banner comes in eleven styles: **Classic Text**, **Title Card**, **Pennant**,
 **Kanji Watermark** (the Japanese client's name, huge and faint), **Letter Reveal**,
-**Classic Window** (the game's own blue window), **Elemental Weather** and **Kind
-Frames** (a look for cities, open country and dungeons), with a soft **Backdrop**
-behind it so it reads over a bright scene.
+**Classic Window** (the game's own blue window), **Elemental Weather**, **Kind
+Frames** (a look for cities, open country and dungeons), **Nation Seal**, **Atlas
+Cartouche** (a ribbon and a round inset of the map) and **Edge Toast** (a tag from
+the side of the screen), with a soft **Backdrop** behind it so it reads over a
+bright scene. The first time you come to an area, **Discovery** celebrates it.
 
 ## Install
 
@@ -263,6 +265,13 @@ Size** is 10 to 40 pixels. It follows the banner's hiding rules. Naming the
 sub-zone uses the same detection as the popups, and works with **Show Sub-zone
 Popups** off.
 
+**Line Style** is **Plain**, the words alone, or **Breadcrumb**: a dark chip with
+a picture of the kind of zone (hills, towers or an arch), then region › zone ›
+sub-zone, the sub-zone in gold and sliding in as it changes; under them, smaller,
+the weather's crystal (two for double weather) and name, the moon (`Waxing
+Gibbous 62%`, as the info panel's calendar works it out) and the Vana'diel day
+and time, read once a second.
+
 Enable **Use Per-Line Timing** for independent start delay, hold, fade-in and
 fade-out controls for zone region/title/weather and sub-zone title/zone-context/
 weather. Otherwise the shared timing controls apply. Fade-in is part of the
@@ -335,6 +344,31 @@ are drawn with ImGui under every winxi window, whichever Text Renderer is chosen
   (`data/zone_kinds.lua`, made with drawscale's by `tools/build_zone_kinds.py`
   from the Phoenix server's zone data); a zone of no known kind is open country.
   The stone's colour is its own whatever the text colour.
+- **Nation Seal**: the nation's flag as a round wax seal that stamps down beside
+  the name, overshooting a little, in the nation's colours (the Pennant's); the
+  region above the name in the seal's gold and the day and weather under it. A
+  region without a flag has a crystal on a slate seal.
+- **Atlas Cartouche**: the name inked on a parchment ribbon that unrolls from its
+  middle, its tails notched, and beside it a round inset of the zone's own map:
+  for a sub-zone the part round the area with its outline in gold, for a zone the
+  part round you, and you a blue dot. The picture is the map you are on, from the
+  game's files through pivot as the browser has it; without one there is the
+  ribbon alone. The day and weather go under the ribbon.
+- **Edge Toast**: a notched tag slides in from the left edge of the screen (the
+  right, with the banner aligned right) at the banner's height: a pin, ENTERING
+  and the zone in small capitals, and the name. Under it, fading after two
+  seconds, LEAVING and the place just left: the shop you stepped out of, or the
+  zone you came from. A weather popup says WEATHER. Its name is two thirds of
+  Style Title Size.
+
+**Discovery** (Behaviour → Sub-zone Popup → **Celebrate New Areas**, on to start)
+is drawn in place of the sub-zone style the first time this character comes to an
+area: a ring bursts behind NEW AREA DISCOVERED and the name, and under them the
+zone, a pip for each of its areas with those found lit and the new one pulsing,
+and the count (`4 / 7`; with more than twenty areas, the count alone). The areas
+found are saved with the character's settings, by map and area, whether or not
+it is on; entrances are not counted, and a preview finds nothing. **Forget
+Discovered Areas** makes every area new again.
 
 **Appearance → Backdrop** puts a soft dark shadow behind the banner so it stands
 out from a bright scene (**Show Backdrop**, on to start): **Backdrop Opacity**

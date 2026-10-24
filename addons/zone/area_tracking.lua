@@ -106,7 +106,7 @@ function M.new(reader)
     function controller:reset(now)
         geometry.reset(self.tracker);
         self.state.position, self.state.entry, self.state.map_x, self.state.map_y = nil, nil, nil, nil;
-        self.state.raw_area, self.state.area, self.state.error = nil, nil, nil;
+        self.state.raw_area, self.state.area, self.state.error, self.state.left = nil, nil, nil, nil;
         self.state.approach_pixels, self.state.map_key, self.state.definition = 0, nil, nil;
         self.state.merged = nil;
         self.queued, self.next_map_retry = nil, 0;
@@ -195,10 +195,12 @@ function M.new(reader)
         local previous = self.tracker.initialized and self.tracker.current or nil;
         local changed, stable_id = geometry.update(self.tracker, candidate and candidate.id or nil, now,
             candidate and candidate.exact and EXACT_DELAY or nil);
+        local was = s.area;
         s.area = nil;
         for _, area in ipairs(areas) do
             if (area.id == stable_id) then s.area = area; break; end
         end
+        if (changed) then s.left = was; end -- The area just left, which the Edge Toast names.
         if (changed) then
             self.queued = s.enabled and s.area or nil; -- A stable exit clears without inventing an area name.
             -- Time away: an area is named again only once it has been left for long enough.

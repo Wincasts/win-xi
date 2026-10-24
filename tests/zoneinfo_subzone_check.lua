@@ -19,10 +19,16 @@ check('sub-zone popups enabled by default', p.area_enabled());
 check('load seeds silently', count() == 0);
 move(238, 337); H.frames(70);
 check('entering sub-zone announces without POC command', count() == 1);
+local discovered = 0;
+for key in pairs(p.app.options.display.discovered) do if key:find(':knightwell', 1, true) then discovered = discovered + 1; end end
+check('the first time, it is discovered and kept', discovered == 1);
 H.frames(70);
 check('remaining inside does not spam', count() == 1);
 move(200, 300); H.frames(60); move(238, 337); H.frames(70);
 check('reentry produces another popup', count() == 2);
+local kept = 0;
+for _ in pairs(p.app.options.display.discovered) do kept = kept + 1; end
+check('come to again, nothing more is discovered', kept == 1);
 H.packet(0x00A); H.frames(70);
 check('zone-in inside sub-zone remains silent', count() == 2);
 p.app.options.display.areaEnabled[1] = false;
