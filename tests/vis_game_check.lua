@@ -1,4 +1,4 @@
--- drawscale against a stand-in client: a small module holding the scale function, the fog's two
+-- vis against a stand-in client: a small module holding the scale function, the fog's two
 -- calls, the object range's call, the vis read, and a load of the projection's C with the game object's
 -- k beside it. The load reads the module once; a frame touches only the world float while nothing
 -- changes and rewrites the ratios when something else moves world; the projection is lens's since
@@ -82,7 +82,7 @@ ashita.memory = {
 -- the report goes nowhere
 local realOpen = io.open
 io.open = function(p, mode)
-    if type(p) == 'string' and p:find('drawscale\\', 1, true) then return { write = function() end, close = function() end } end
+    if type(p) == 'string' and p:find('vis\\', 1, true) then return { write = function() end, close = function() end } end
     return realOpen(p, mode)
 end
 
@@ -92,7 +92,7 @@ H.print('the module read once', count.chunks == SIZE / 4096, '| nothing said of 
 H.print('the fog and the object range found', said:find('fog calls not found', 1, true) == nil, said:find('range call not found', 1, true) == nil)
 
 -- world x2 by the setting: the fog's stubs at fog / world
-H.command('/drawscale world 2')
+H.command('/vis world 2')
 local fogRatios = 0
 for a, v in pairs(floats) do if a >= 0x20000000 and v == 0.5 then fogRatios = fogRatios + 1 end end
 H.print('world x2: the fog\'s ratios a half', fogRatios == 2, '| world written', floats[WORLD] == 2)

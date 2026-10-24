@@ -1,6 +1,6 @@
--- drawscale detail: finds the four detail-level comparisons in a run of bytes, writes their stubs and
+-- vis detail: finds the four detail-level comparisons in a run of bytes, writes their stubs and
 -- calls, sets k = 1 / lod^2 and puts the original bytes back, all through a fake memory
-package.path = 'addons/drawscale/?.lua;' .. package.path
+package.path = 'addons/vis/?.lua;' .. package.path
 local detail = require('detail')
 
 local function check(label, ...)
@@ -162,4 +162,4 @@ local state4 = detail.find(mem4)
 check('no allocation patches nothing', detail.install(mem4, state4, mem4.alloc(detail.ALLOC_SIZE)) == 0,
     same(mem4.read(codeBase, #originalCode), originalCode), detail.set(mem4, state4, 2) == nil)
 
-print('drawscale detail: all checks passed')
+print('vis detail: all checks passed')

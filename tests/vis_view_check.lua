@@ -1,7 +1,7 @@
--- drawscale view: finds the vis site, toggles the visibility lists off and back exactly, and restores
+-- vis view: finds the vis site, toggles the visibility lists off and back exactly, and restores
 -- twice safely. Run from the repo root:
--- luajit tests/drawscale_view_check.lua
-package.path = 'addons/drawscale/?.lua;' .. package.path
+-- luajit tests/vis_view_check.lua
+package.path = 'addons/vis/?.lua;' .. package.path
 local view = require('view')
 
 local function check(label, ...)
@@ -95,4 +95,4 @@ local s3 = view.find(m3)
 view.restore(m3, s3)
 check('restore with nothing found', m3.writes == 0)
 
-print('drawscale view: all checks passed')
+print('vis view: all checks passed')
