@@ -193,6 +193,15 @@ under Sub-zone Popup, saved per character as is the map chosen for live
 detection in each zone; `/zone approach` and `/zone livemap` change the same
 settings.
 
+**Re-announce After** (10 seconds to start, 0 to 60) keeps an area you come
+back to from being announced again unless you were away from it that long:
+step out of the Lion Springs Tavern after a moment and Lion Square is not
+named again; stay inside a while and it is. It counts time away, from when you
+left the area. It is the same for every kind of area, so walking along the edge
+of two streets or stepping in and out of an entrance does not repeat either.
+Only the popup and its chat line are held back: the location line always names
+where you are. Zoning starts afresh, and 0 announces every return.
+
 ### Dungeon and town entrances
 
 **Announce Dungeon Entrances** (on to start) names a dungeon's entrance as you

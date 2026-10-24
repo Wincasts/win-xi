@@ -122,4 +122,39 @@ local hx, hy = g.world_to_map(jeuno, 28.5, -46.7); -- where its merchants stand
 check('down among its merchants it is named', g.classify(catalog[245].areas, hx, hy, nil, 0, 10, 3.9) == tenshodo);
 check('on the street above it is not', g.classify(catalog[245].areas, hx, hy, nil, 0, 10, -0.1) ~= tenshodo);
 
+-- Re-announce After: time away. A shop inside a square, on a synthetic map one yalm to the pixel.
+local square = { id = 'square', name = 'Lion Square', polygon = { { 0, 0 }, { 100, 0 }, { 100, 100 }, { 0, 100 } } };
+local inn = { id = 'inn', name = 'Lion Springs Tavern', exact = true, polygon = { { 40, 40 }, { 60, 40 }, { 60, 60 }, { 40, 60 } } };
+local town = { key = 'town', areas = { square, inn } };
+local flat = { scale = 5, offset_x = 0, offset_y = 0 };
+local r = tracking.new({ get_entry = function() return flat; end, get_definition = function() return town; end });
+r.state.enabled, r.state.entrances.enabled, r.state.entrances.towns = true, false, false;
+r:set_zone(230, 0, 0); r.announce_after = 0;
+local clock = 0;
+local function walk(x, y, seconds)
+    local said = {};
+    for _ = 1, seconds * 4 do
+        clock = clock + .25;
+        local area = r:sample(230, { x = x, y = -y, z = 0 }, clock);
+        if area then said[#said + 1] = area.name; end
+    end
+    return table.concat(said, ',');
+end
+walk(200, 200, 2);
+check('into the square, it is named', walk(20, 20, 3) == 'Lion Square');
+check('into the inn, the inn', walk(50, 50, 3) == 'Lion Springs Tavern');
+check('out after a moment, the square is not named again', walk(20, 20, 3) == '');
+check('back into the inn soon after, nor is the inn', walk(50, 50, 12) == '');
+check('out after more than ten seconds inside, the square is', walk(20, 20, 3) == 'Lion Square');
+walk(200, 200, 11);
+check('away long enough, it is named on return', walk(20, 20, 3) == 'Lion Square');
+r.state.reannounce = 0;
+walk(50, 50, 3);
+check('at 0, every return is named', walk(20, 20, 3) == 'Lion Square');
+r.state.reannounce = 10;
+walk(200, 200, 2);
+r:set_zone(230, clock, 0); r.announce_after = 0;
+walk(200, 200, 2);
+check('zoning forgets what was left: the square is named at once', walk(20, 20, 3) == 'Lion Square');
+
 print(('zoneinfo dungeon entrances: %d assertions passed'):format(checks));

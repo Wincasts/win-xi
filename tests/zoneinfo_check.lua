@@ -28,6 +28,7 @@ end
 H.load();
 local display = H.options().display;
 display.fieldApproach[1] = 30; -- The places below were laid out for a 30-yalm buffer.
+display.reannounceSeconds[1] = 0; -- Returns below come quickly; each is to be announced.
 H.frames(50);
 check('addon load does not pop a zone banner', zones(100) == 0);
 check('sub-zone popups and chat lines on to begin with', display.areaEnabled[1] == true and display.chat[1] == true);

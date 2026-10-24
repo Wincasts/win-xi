@@ -13,6 +13,7 @@ end
 local function move(x, y) game.x, game.y = x - 256, 256 - y; end
 H.load();
 p.app.options.display.fieldApproach[1] = 30; -- The places below were laid out for a 30-yalm buffer.
+p.app.options.display.reannounceSeconds[1] = 0; -- Returns below come quickly; each is to be announced.
 H.frames(230);
 check('sub-zone popups enabled by default', p.area_enabled());
 check('load seeds silently', count() == 0);

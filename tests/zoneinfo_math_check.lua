@@ -64,6 +64,7 @@ local c = tracking.new(reader);
 check('open country is announced from further off than a dungeon, a dungeon than a town',
     c.state.approach.outdoors == 50 and c.state.approach.dungeon == 15 and c.state.approach.city == 10);
 c.state.approach.outdoors = 30; -- The places below were laid out for a 30-yalm buffer.
+c.state.reannounce = 0; -- Its returns come quickly; each is to be announced.
 c.state.enabled = true;
 local function sample(map_x, map_y, at, zone)
     local px, py = g.map_to_world(entry, map_x, map_y);
