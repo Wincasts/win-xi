@@ -32,7 +32,11 @@ H.print('settings: malformed values bounded, no Profiles tab, old profiles dropp
 local statuses = require('statuses')
 local style = { debuffsFirst = true, priorityStatuses = '40,4', hiddenStatuses = '7' }
 local ids = { 33, 7, 1, 40, 4, 41 }
-assert(table.concat(statuses.Select(ids, style), ',') == '40,4,1,33,41')
+assert(table.concat(statuses.Select(ids, style), ',') == '4,1,40,33,41',
+    'Debuffs First outranks Priority Status IDs, which order each kind')
+-- Defense Down, Threnody, Magic Evasion Down, a Geo down and a daze are debuffs as well as the ailments
+local mixed = { 33, 149, 43, 217, 404, 557, 386, 40 }
+assert(table.concat(statuses.Select(mixed, { debuffsFirst = true }), ',') == '149,217,404,557,386,33,43,40')
 style.priorityStatuses, style.hiddenStatuses, style.debuffsFirst = '', '', false
 assert(table.concat(statuses.Select(ids, style), ',') == '33,7,1,40,4,41')
 assert(#statuses.Select({}, style) == 0, 'scratch list must not retain old IDs')
@@ -83,6 +87,21 @@ local loads = 0
 texts = {}
 frames.Draw(members, 'party', function() loads = loads + 1; return 7, false end, style)
 assert(loads == 1 and table.concat(texts, '|'):find('+3', 1, true))
+-- Debuffs First: the debuffs nearest the frame, the rest following in the grow direction
+style.buffLimit, style.buffFitScreen, style.debuffsFirst, style.priorityStatuses, style.hiddenStatuses = 8, false, true, '', ''
+member.statusIds = { 33, 40, 149, 4 }
+local image = draw.Image
+for _, direction in ipairs({ 'left', 'right' }) do
+    style.buffDirection = direction
+    local placed = {}
+    draw.Image = function(texture, x1) if texture >= 1000 then placed[#placed + 1] = { texture - 1000, x1 } end end
+    frames.Draw(members, 'party', function(id) return 1000 + id, false end, style)
+    table.sort(placed, function(p, q) if direction == 'left' then return p[2] > q[2] end return p[2] < q[2] end)
+    local order = {}
+    for i, p in ipairs(placed) do order[i] = p[1] end
+    assert(table.concat(order, ',') == '149,4,33,40', direction .. ': ' .. table.concat(order, ','))
+end
+draw.Image = image
 H.print('drawing: shadow quality, font invalidation, low-HP warning, row geometry and overflow', true)
 local pack, image = draw.Packed, draw.Image
 local alphas = {}

@@ -43,8 +43,11 @@ calls per category; averages and maxima cover the full interval.
   Effects: search by name or ID, tick effects, and reorder priorities with Up and Down. Priority order
   follows the list, hidden effects win, and other effects keep their original order. The same lists
   can be typed as comma-separated numeric IDs under **Advanced: Status IDs** (collapsed by default),
-  which is also where IDs without a name in the game's resources can be entered. Debuff classification
-  covers common ailments, not every special effect; prioritize unknown effects explicitly.
+  which is also where IDs without a name in the game's resources can be entered. With Debuffs First,
+  every debuff comes before every buff, nearest the frame in the Status Growth direction, and Priority
+  Effects order each kind among itself. The debuffs are those Erase or a waltz removes in Phoenix's
+  `data/status_effects.yaml`, and the harmful ones that cannot be cancelled (sleep, charm, doom, helix,
+  enemy songs, dazes, the Geo downs and the like).
 - **Style → Warnings** has a low-HP `!` threshold (zero disables it) and the TP-ready threshold.
   **Advanced: Range Indicators** has near range (centimeters), far range (meters) and both dimming
   levels. Far range is treated as at least near range. These are approximate distance indicators,

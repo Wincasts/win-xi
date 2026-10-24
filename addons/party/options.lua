@@ -145,7 +145,8 @@ local extra = {
         { kind = 'check', key = 'hoverDetails', label = 'Hover Details', default = false,
           when = function() return false end, -- drawn beside Clickthrough in Behavior; storage stays compatible
           tooltip = 'Full names, jobs, owners and status names. Enemy durations are estimates.' },
-        { kind = 'check', key = 'debuffsFirst', label = 'Debuffs First', default = false },
+        { kind = 'check', key = 'debuffsFirst', label = 'Debuffs First', default = false,
+          tooltip = 'Debuffs are drawn nearest the frame, before every buff, in the Status Growth direction. Priority Effects order the debuffs among themselves, and the buffs.' },
         { kind = 'statuslist', key = 'priorityStatuses', label = 'Priority Effects', default = '', ordered = true,
           tooltip = 'Comma-separated numeric status IDs, in priority order. Hidden IDs take precedence.' },
         { kind = 'statuslist', key = 'hiddenStatuses', label = 'Hidden Effects', default = '', tooltip = 'Hidden effects take precedence over priority effects.' },
