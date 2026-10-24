@@ -71,6 +71,7 @@ run mobcast    addons/mobcast/mobcast.lua mobcast_check.lua
 run tempo      addons/tempo/tempo.lua   tempo_ui_check.lua
 luajit tests/tempo_check.lua || exit 1
 run drawscale  addons/drawscale/drawscale.lua drawscale_check.lua
+run drawscale  addons/drawscale/drawscale.lua drawscale_game_check.lua
 luajit tests/drawscale_detail_check.lua || exit 1
 luajit tests/drawscale_view_check.lua || exit 1
 luajit tests/drawscale_fov_check.lua || exit 1

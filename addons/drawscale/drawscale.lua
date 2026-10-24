@@ -1,6 +1,6 @@
 addon.name    = 'drawscale';
 addon.author  = 'win';
-addon.version = '1.8';
+addon.version = '1.9';
 addon.desc    = 'World and entity draw distance with the fog kept where you want it: general values, a preset for cities, the outdoors and dungeons, and a zone\'s own, saved per character.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -207,7 +207,8 @@ local function eachChunk(module, fn)
 end
 
 -- Every call to the scale function in the module holding it: direct calls, then calls through a
--- jump thunk, and the places holding its address.
+-- jump thunk, and the places holding its address. The projection's loads of C (view.fovSites) are
+-- gathered in the same pass, so the module is read once.
 local function findCallers()
     local found = T{};
     state.thunks, state.pointers = T{}, T{};
@@ -216,10 +217,14 @@ local function findCallers()
         fail('The module holding the scale function was not found; nothing to scan.');
         return found;
     end
+    local fovSites = (state.view ~= nil and state.view.c ~= nil) and state.view.sites or nil;
     eachChunk(state.module, function (bytes, at, count)
         for _, hit in ipairs(scan.callers(bytes, at, state.fn, count, REACH)) do found:append(hit); end
         for _, hit in ipairs(scan.jumps(bytes, at, state.fn, count, REACH)) do state.thunks:append(hit.address); end
         for _, addr in ipairs(scan.references(bytes, at, state.fn, count)) do state.pointers:append(addr); end
+        if (fovSites ~= nil) then
+            for _, site in ipairs(view.fovSites(bytes, at, count, state.view.cAddr)) do fovSites[#fovSites + 1] = site; end
+        end
     end);
     if (#state.thunks > 0) then
         eachChunk(state.module, function (bytes, at, count)
@@ -349,10 +354,12 @@ local function detailValue() local s = active(); return (s.detail ~= nil and s.d
 
 -- Keeps each stub's ratio right for the world multiplier as it is now: a manual patch wants
 -- mult x stock, the fog wants the fog setting x stock, and the object range wants its setting
--- squared, since the client compares squared distances against it.
-local function applyRatios()
+-- squared, since the client compares squared distances against it. world is the multiplier as read,
+-- when the caller has it already.
+local function applyRatios(world)
     if (next(state.patches) == nil or state.world == 0) then return; end
-    local world = ashita.memory.read_float(state.world);
+    world = world or ashita.memory.read_float(state.world);
+    state.ratioWorld = world;
     for _, p in pairs(state.patches) do
         local mult = p.fog and active().fog or p.objects and (objectsValue() ^ 2) or p.mult;
         local ratio = scan.ratio(mult, world);
@@ -450,6 +457,7 @@ local function rescan()
     end
     state.world = ashita.memory.read_uint32(state.fn + 0x07);
     state.entity = ashita.memory.read_uint32(state.fn + 0x0F);
+    state.view = view.find(mem);
     state.callers = findCallers();
     describeCallers();
     if (not findFog()) then
@@ -462,16 +470,8 @@ local function rescan()
     if (state.detail.missing > 0) then
         fail(('%d of %d mesh-detail sites not found; some objects will still drop detail early.'):format(state.detail.missing, #detail.PATTERNS));
     end
-    state.view = view.find(mem);
     if (state.view.visSite == 0) then fail('The visibility-list read was not found; distant terrain may still pop in.'); end
     if (state.view.gamePointer == 0) then fail('The game pointer was not found; square and fov are unavailable.'); end
-    if (state.view.c ~= nil and state.module ~= nil) then
-        local kept = state.scanStats;
-        eachChunk(state.module, function (bytes, at, count)
-            for _, site in ipairs(view.fovSites(bytes, at, count, state.view.cAddr)) do table.insert(state.view.sites, site); end
-        end);
-        state.scanStats = kept;
-    end
     if (#state.view.sites == 0) then fail('The projection\'s field of view was not found; fov is unavailable.'); end
     return true;
 end
@@ -821,10 +821,20 @@ ashita.events.register('unload', 'unload_cb', guarded('unload', function ()
 end));
 
 ashita.events.register('d3d_present', 'present_cb', guarded('d3d_present', function ()
-    applyRatios();
-    -- the game object may not exist at load; the constant is set once it does, and kept
+    -- the ratios follow the world multiplier, which something else (drawdistance) may write; every
+    -- change of setting or stub runs applyRatios itself, so a frame only looks at the float
+    if (next(state.patches) ~= nil and state.world ~= 0) then
+        local world = ashita.memory.read_float(state.world);
+        if (world ~= state.ratioWorld) then applyRatios(world); end
+    end
+    -- the game object may not exist at load; the constant is set once it does, and kept. With square
+    -- off and k never set by us there is nothing to put back.
     if (state.view ~= nil and state.settings ~= nil) then
-        view.setSquare(mem, state.view, active().square == true);
+        local on = active().square == true;
+        if (on or state.view.squared) then
+            view.setSquare(mem, state.view, on);
+            state.view.squared = on;
+        end
     end
 end));
 
