@@ -5,7 +5,7 @@
 - Six smooth bar textures (winxisettings → Styles → Bar Texture), shaded from top to foot with nothing along the bar, so the fill looks the same at any HP: Enamel, Enamel (Lit Rim), Enamel (Gradient), Glass Tube, Glass Tube (Deep) and Glass Enamel.
 - Fill End Glow (%): a soft light at the end of each HP and MP fill, 35 to begin with; 0 for none.
 - Custom Bar Backdrop and Bar Backdrop Color: the empty part of the bars in a colour of your own.
-- Bar Frame (winxisettings → Styles): Capsule Outline and Capsule Outline (Silver), a thin rim in the Rounded bookends' colours in place of the texture's frame, so that the bar and its caps are one capsule being filled. Bar Texture keeps the texture's own.
+- Bar Frame (winxisettings → Styles): Capsule Outline and Capsule Outline (Silver), a thin rim in the Rounded bookends' colours in place of the texture's frame, so that the bar and its caps are one capsule being filled. Bar Texture keeps the texture's own. Bar Frame Opacity (%) makes either see-through, down to none at 0.
 - Bookend Style adds Rounded and Rounded Silver, round ends after the game's own gauges that sit beyond the bar's ends.
 
 - Show Statuses (Style → Status Display, on to begin with) turns the party's and alliance's buff and debuff icons on and off; off, the status settings are greyed and kept. A target's debuffs follow the Target tab as before.

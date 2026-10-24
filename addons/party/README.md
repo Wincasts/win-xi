@@ -356,7 +356,7 @@ Colours, range fading, bar sizes and the optional bookends still work as before.
 rim in the cyan of the Rounded bookends, **Capsule Outline (Silver)** in Rounded Silver's, along the
 bar above and below. It is not tinted by the HP/MP colour. With those bookends the bar and its caps
 are one capsule being filled; with others, or none, its ends are closed square. **Bar Texture** keeps
-the texture's own frame.
+the texture's own frame. **Bar Frame Opacity (%)** makes either frame see-through: 100 is solid, 0 hides it.
 
 **Fill End Glow (%)** puts a soft white light at the end of each fill, where it stops, as on the
 game's own gauges: 0 is none, 100 the brightest. It dims with the bar's range fading.
