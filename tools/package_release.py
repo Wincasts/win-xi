@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Packages one addon for a release: a zip to extract into the Ashita folder, and its checksum.
 
-    tools/package_release.py <addon>          buff, clock, inventory, name, occlusionfix, party, trigger or zone
+    tools/package_release.py <addon>          an addon, plugin or data named in RELEASES (chatbox, lens, mobdb, zone...)
     tools/package_release.py --all            each of them
 
 Each zip holds the addon, everything it needs and nothing else:
@@ -15,7 +15,10 @@ Each zip holds the addon, everything it needs and nothing else:
     addons/winxisettings/        the shared look's settings window, in every zip but a standalone one
     addons/hideparty/            with party
     plugins/namehook.dll         with name, built here, with its GPL license and where its source is
-    plugins/uihook.dll           with buff/party, built here, with its MIT license and where its source is
+    plugins/uihook.dll           with buff/chatbox/party, built here, with its MIT license and where its source is
+
+A plugin released alone (lens) is plugins/<plugin>.dll with its license, source and INSTALL.txt beside it.
+Data released alone (mobdb) is the folder the addon reads it from, for the addon as its author releases it.
 
 The files are the commit's (git archive of HEAD), never the working folder's, so the zip is what is on
 GitHub at that commit. Anything uncommitted in what goes into a zip stops the packaging. Run the checks
@@ -43,6 +46,14 @@ REPOSITORY = 'Wincasts/win-xi'
 # What each release brings besides the addon, winxi and winxisettings; standalone leaves out those two
 RELEASES = {
     'buff': {'plugin': 'uihook'},
+    'chatbox': {'plugin': 'uihook'},
+    'lens': {'kind': 'plugin'},
+    # Phoenix's monsters for ThornyFFXI's MobDB as it is: the data folder alone, versioned by the date it was made
+    'mobdb': {'kind': 'data', 'source': 'forks/addons/mobdb/mobdb', 'data': 'data', 'changelog': 'forks/addons/mobdb/DATA_CHANGELOG.md',
+              'title': 'mobdb data for Phoenix'},
+    'parse': {},
+    'sct': {},
+    'vis': {'standalone': True},
     'clock': {'plugin': 'uihook'},
     'inventory': {},
     'name': {'plugin': 'namehook'},
@@ -62,11 +73,11 @@ RELEASES = {
 }
 # MIT, as the repository's LICENSE says: each is given a copy of it. The others keep their own terms.
 MIT = {'addons/clock', 'addons/libs/winxi', 'addons/winxisettings', 'addons/buff', 'addons/name', 'addons/occlusionfix',
-       'addons/trigger', 'addons/zone', 'addons/zone/winxi'}
+       'addons/trigger', 'addons/zone', 'addons/zone/winxi', 'addons/chatbox', 'addons/parse', 'addons/sct', 'addons/vis'}
 # The art a winxi module draws, which goes with it into an addon's own copy
 WINXI_ART = {'backgrounds': 'assets/backgrounds', 'borders': 'assets/borders', 'bars': 'assets/bars'}
 # The terms each plugin is under: namehook is a fork of GPL code, buffhook this repository's own
-PLUGIN_LICENSES = {'namehook': 'the GNU GPL v3.0', 'buffhook': 'the MIT License', 'uihook': 'the MIT License'}
+PLUGIN_LICENSES = {'namehook': 'the GNU GPL v3.0', 'buffhook': 'the MIT License', 'uihook': 'the MIT License', 'lens': 'the MIT License'}
 # Kept with the addons to make their art and sounds, and of no use in the game
 LEFT_OUT = ('*.py', '*.sh')
 # Text no release should hold: the author's character's settings folder
@@ -89,15 +100,33 @@ def addon_version(source):
     return match.group(1)
 
 
-def notes(addon, version):
-    changelog = ROOT / 'addons' / addon / 'CHANGELOG.md'
+def plugin_version(plugin):
+    match = re.search(r'GetVersion\(\) const override \{ return ([\d.]+); \}', (ROOT / 'plugins' / plugin / 'src' / f'{plugin}.cpp').read_text())
+    if not match:
+        raise ValueError(f'No GetVersion in plugins/{plugin}/src/{plugin}.cpp')
+    return match.group(1)
+
+
+def released(addon):
+    """The versions released before, from the repository's tags: <addon>-v<version>."""
+    return [tag[len(addon) + 2:] for tag in git('tag', '-l', f'{addon}-v*').split() if '-test' not in tag]
+
+
+def notes(addon, version, changelog):
+    """The changelog's sections since the last release: the first section alone for a first release."""
     if not changelog.is_file():
         raise FileNotFoundError(f'{changelog} is needed for the release notes')
-    sections = re.split(r'^## ', changelog.read_text(), flags=re.M)
-    top = sections[1] if len(sections) > 1 else ''
+    sections = re.split(r'^## ', changelog.read_text(), flags=re.M)[1:]
+    top = sections[0] if sections else ''
     if not top.startswith(version + ' ') and not top.startswith(version + '\n'):
         raise ValueError(f"{changelog}'s first section is not {version}: add it before releasing")
-    return '## ' + top.strip() + '\n'
+    before = set(released(addon)) - {version}
+    taken = [top]
+    for section in sections[1:]:
+        if not before or section.split()[0] in before:
+            break
+        taken.append(section)
+    return ''.join('## ' + section.strip() + '\n\n' for section in taken).rstrip() + '\n'
 
 
 def winxi_dependencies(text):
@@ -259,15 +288,122 @@ def build_plugin(plugin):
     return built
 
 
+def finish(name, title, archive, release_notes, output, commit):
+    """Checks the zip, writes its checksum and notes, and prints the command that makes the release."""
+    with zipfile.ZipFile(archive) as zipped:
+        if zipped.testzip():
+            raise ValueError(f'{archive} did not read back whole')
+        names = zipped.namelist()
+    if any(not entry.startswith(('addons/', 'plugins/')) for entry in names):
+        raise ValueError('Something outside addons/ and plugins/ got in')
+    digest = sha256(archive.read_bytes())
+    (output / f'{name}.zip.sha256').write_text(f'{digest}  {archive.name}\n')
+    (output / f'{name}.notes.md').write_text(release_notes)
+    shown = archive.relative_to(ROOT) if archive.is_relative_to(ROOT) else archive
+    print(f'{shown}: {len(names)} files, {archive.stat().st_size:,} bytes, sha256 {digest}')
+    print(f'  gh release create {name} -R {REPOSITORY} --target {commit} --prerelease '
+          f'--title "{title}" --notes-file dist/{name}.notes.md '
+          f'dist/{name}.zip dist/{name}.zip.sha256')
+
+
+def write_zip(staging, archive, output):
+    files = sorted(path for path in staging.rglob('*') if path.is_file())
+    for path in files:
+        data = path.read_bytes()
+        for private in PRIVATE:
+            if private in data:
+                raise ValueError(f'{path.relative_to(staging)} holds {private.decode()}')
+    output.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zipped:
+        for path in files:
+            zipped.write(path, path.relative_to(staging).as_posix())
+
+
+def package_plugin(plugin, output):
+    """A plugin alone: plugins/<plugin>.dll, its license, where its source is and how to load it."""
+    commit = git('rev-parse', 'HEAD')
+    folder = f'plugins/{plugin}'
+    dirty = git('status', '--porcelain', '--', folder)
+    if dirty:
+        raise RuntimeError('Uncommitted changes in what would be packaged: commit them first\n' + dirty)
+    version = plugin_version(plugin)
+    name = f'{plugin}-v{version}'
+    archive = output / f'{name}.zip'
+    if archive.exists():
+        raise FileExistsError(f'{archive} is already there: remove it, or raise the version')
+    release_notes = notes(plugin, version, ROOT / folder / 'CHANGELOG.md')
+    with tempfile.TemporaryDirectory() as temporary:
+        staging = Path(temporary) / name
+        (staging / 'plugins').mkdir(parents=True)
+        shutil.copy2(build_plugin(plugin), staging / 'plugins' / f'{plugin}.dll')
+        (staging / 'plugins' / f'{plugin}-LICENSE.md').write_bytes(git('show', f'{commit}:{folder}/LICENSE.md', binary=True))
+        (staging / 'plugins' / f'{plugin}-SOURCE.txt').write_text(
+            f'{plugin}.dll is built from the source at\n'
+            f'https://github.com/{REPOSITORY}/tree/{commit}/plugins/{plugin}\n'
+            f'and is licensed under {PLUGIN_LICENSES[plugin]}: {plugin}-LICENSE.md.\n')
+        (staging / 'plugins' / f'{plugin}-INSTALL.txt').write_text(
+            f'{plugin} {version}, from https://github.com/{REPOSITORY}\n\n'
+            'Extract the zip into your Ashita folder (the one holding addons, plugins and config), merging\n'
+            f'folders and replacing files. Your settings, in config/{plugin}, are kept. Unload the plugin\n'
+            f'(/unload {plugin}) before replacing it.\n\nThen, in game:\n    /load {plugin}\n    /{plugin} help\n')
+        write_zip(staging, archive, output)
+    finish(name, f'{plugin} {version}', archive, release_notes + '\nNeeds nothing else. Extract into your Ashita folder; '
+           f'see plugins/{plugin}-INSTALL.txt.\n', output, commit)
+
+
+def package_data(addon, output):
+    """An addon's data alone, as the folder it reads it from: for the addon as its author releases it."""
+    extras = RELEASES[addon]
+    commit = git('rev-parse', 'HEAD')
+    source = f"{extras['source']}/{extras['data']}"
+    changelog = ROOT / extras['changelog']
+    dirty = git('status', '--porcelain', '--', source, extras['changelog'])
+    if dirty:
+        raise RuntimeError('Uncommitted changes in what would be packaged: commit them first\n' + dirty)
+    sections = re.findall(r'^## (\S+)', changelog.read_text(), flags=re.M)
+    if not sections:
+        raise ValueError(f'{changelog} has no section to release')
+    version = sections[0]
+    name = f'{addon}-data-v{version}'
+    archive = output / f'{name}.zip'
+    if archive.exists():
+        raise FileExistsError(f'{archive} is already there: remove it, or add a newer section')
+    release_notes = notes(f'{addon}-data', version, changelog)
+    archived = git('archive', '--format=tar', commit, '--', source, binary=True)
+    with tempfile.TemporaryDirectory() as temporary:
+        tree = Path(temporary) / 'tree'
+        with tarfile.open(fileobj=io.BytesIO(archived)) as tar:
+            tar.extractall(tree, filter='data')
+        staging = Path(temporary) / name
+        target = staging / 'addons' / addon / extras['data']
+        shutil.copytree(tree / source, target, ignore=shutil.ignore_patterns(*LEFT_OUT))
+        count = len(list(target.glob('*.lua')))
+        (staging / 'addons' / addon / f'{addon}-data-INSTALL.txt').write_text(
+            f'{extras["title"]} {version}, from https://github.com/{REPOSITORY}\n\n'
+            f'The data alone, {count} zones of it, for {addon} as you have it installed already. Unload {addon}\n'
+            f'(/addon unload {addon}), empty addons/{addon}/{extras["data"]}, then extract the zip into your Ashita folder\n'
+            f'(the one holding addons, plugins and config). Emptying the folder first matters: a zone with no\n'
+            f'monsters on the server would otherwise keep its old file. Then /addon load {addon}.\n\n'
+            f'Made with import_phoenix.py, at https://github.com/{REPOSITORY}/tree/{commit}/{extras["source"]}\n')
+        write_zip(staging, archive, output)
+    finish(name, f'{extras["title"]} {version}', archive, release_notes + f'\nThe data alone ({count} zones), for {addon} '
+           f'as you have it. Empty addons/{addon}/{extras["data"]} first, then extract into your Ashita folder; '
+           f'see addons/{addon}/{addon}-data-INSTALL.txt.\n', output, commit)
+
+
 def package(addon, output):
     extras = RELEASES[addon]
+    if extras.get('kind') == 'plugin':
+        return package_plugin(addon, output)
+    if extras.get('kind') == 'data':
+        return package_data(addon, output)
     commit = git('rev-parse', 'HEAD')
     version = addon_version(ROOT / 'addons' / addon / f'{addon}.lua')
     name = f'{addon}-v{version}'
     archive = output / f'{name}.zip'
     if archive.exists():
         raise FileExistsError(f'{archive} is already there: remove it, or raise the version')
-    release_notes = notes(addon, version)
+    release_notes = notes(addon, version, ROOT / 'addons' / addon / 'CHANGELOG.md')
 
     with tempfile.TemporaryDirectory() as temporary:
         staging = Path(temporary) / name
@@ -277,26 +413,8 @@ def package(addon, output):
         if extras.get('private_winxi'):
             check_private(addon, extras, staging)
 
-        files = sorted(path for path in staging.rglob('*') if path.is_file())
-        for path in files:
-            data = path.read_bytes()
-            for private in PRIVATE:
-                if private in data:
-                    raise ValueError(f'{path.relative_to(staging)} holds {private.decode()}')
-        output.mkdir(parents=True, exist_ok=True)
-        with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zipped:
-            for path in files:
-                zipped.write(path, path.relative_to(staging).as_posix())
+        write_zip(staging, archive, output)
 
-    with zipfile.ZipFile(archive) as zipped:
-        if zipped.testzip():
-            raise ValueError(f'{archive} did not read back whole')
-        names = zipped.namelist()
-    if any(not entry.startswith(('addons/', 'plugins/')) for entry in names):
-        raise ValueError('Something outside addons/ and plugins/ got in')
-
-    digest = sha256(archive.read_bytes())
-    (output / f'{name}.zip.sha256').write_text(f'{digest}  {archive.name}\n')
     winxi = re.search(r'Number = (\d+)', (ROOT / 'addons/libs/winxi/version.lua').read_text()).group(1)
     if extras.get('private_winxi'):
         comes = f'Needs nothing else: it carries its own copy of the parts of winxi {winxi} it uses.'
@@ -307,14 +425,8 @@ def package(addon, output):
         if extras.get('plugin'):
             bundled.append(f"the {extras['plugin']} plugin")
         comes = f"Comes with {', '.join(bundled[:-1])} and {bundled[-1]}."
-    (output / f'{name}.notes.md').write_text(
-        release_notes + f'\n{comes} Extract into your Ashita folder; see addons/{addon}/INSTALL.txt.\n')
-
-    shown = archive.relative_to(ROOT) if archive.is_relative_to(ROOT) else archive
-    print(f'{shown}: {len(names)} files, {archive.stat().st_size:,} bytes, sha256 {digest}')
-    print(f'  gh release create {name} -R {REPOSITORY} --target {commit} --prerelease '
-          f'--title "{addon} {version}" --notes-file dist/{name}.notes.md '
-          f'dist/{name}.zip dist/{name}.zip.sha256')
+    finish(name, f'{addon} {version}', archive,
+           release_notes + f'\n{comes} Extract into your Ashita folder; see addons/{addon}/INSTALL.txt.\n', output, commit)
 
 
 if __name__ == '__main__':
