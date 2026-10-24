@@ -115,3 +115,52 @@ paint()
 local caps = find('^bookends/silver')
 assert(#caps == 4 and caps[2].u1 == 0, 'the others as they were')
 H.print('rounded caps: beyond the bar\'s ends, the right turned about', true)
+
+-- Bar Frame: a capsule's rim in place of the texture's front, four bands a bar between the rounded caps'
+-- top and bottom, and closed square ends where the caps are not rounded
+local function rectsDrawn()
+    local list = {}
+    draw.Rect = function(x1, y1, x2, y2) list[#list + 1] = { x1, y1, x2, y2 } end
+    return list
+end
+assert(listed(theme.BarFrames, 'capsule') and listed(theme.BarFrames, 'capsule_silver') and theme.Defaults.BarFrame == 'texture')
+style.barFrame, style.bookendStyle, style.barTexture = 'capsule', 'rounded', 'enamel'
+rects = rectsDrawn()
+paint = function() drawn = {}; for i = #rects, 1, -1 do rects[i] = nil end; frames.Draw({ member }, 'party', nil, style) end
+paint()
+assert(#find('_front%.png$') == 0, 'no texture frame under the capsule')
+-- each bar's bands, found by where they start: between its caps, from the caps' top to their bottom,
+-- each with height; a rim of one pixel is light alone, so a bar has two to four
+local function check(scale)
+    style.scale = scale
+    paint()
+    assert(#find('_front%.png$') == 0, 'no texture frame under the capsule')
+    local caps, most = find('^bookends/rounded'), 0
+    for bar = 1, 2 do
+        local left, right = caps[bar * 2 - 1], caps[bar * 2]
+        local top, bottom, count = math.huge, -math.huge, 0
+        for _, band in ipairs(rects) do
+            if band[1] == left.x2 then
+                count = count + 1
+                assert(band[4] > band[2] and band[3] == right.x1, 'from cap to cap, each with height')
+                top, bottom = math.min(top, band[2]), math.max(bottom, band[4])
+            end
+        end
+        assert(count >= 2 and count <= 4, 'light above and below, and dark where there is room')
+        assert(top == left.y1 and bottom == left.y2, ('as far out as the caps at %d'):format(scale))
+        most = math.max(most, count)
+    end
+    return most
+end
+assert(check(100) >= 2 and check(150) == 4 and check(300) == 4, 'dark outside light where there is room')
+style.bookendStyle = 'silver'
+paint()
+assert(#rects == 16, 'square ends where the caps are not rounded')
+style.bookends = false
+paint()
+assert(#rects == 16, 'and with no caps at all')
+style.scale = 100
+style.bookends, style.barFrame = true, 'texture'
+paint()
+assert(#rects == 0 and #find('_front%.png$') == 2, 'the texture\'s own frame otherwise')
+H.print('bar frame: the capsule\'s rim in place of the texture\'s, from cap to cap, square ends without them', true)
