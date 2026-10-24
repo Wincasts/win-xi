@@ -2,6 +2,9 @@
 
 ## 1.58
 
+- The buff selector's hand is put out of sight each frame the game draws its status icons, not once a window: the
+  game makes the list again with its hand back at -5, -5, often where the last one was, and the plugin took it for
+  the one it had already moved, so the game's hand sometimes showed beside buff's highlight.
 - `/uihook native move`, `scale` and `tint`, the first experiment's commands for one window at a time, are taken
   out, and `clear` with them: nothing used them once `group`, `inset` and `size` (nativeui's settings) did it for
   every window. Every entry the native look keeps is now one made as a window is drawn.

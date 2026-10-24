@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- In the selector, the game's hand no longer comes back beside the highlight now and then (uihook 1.58).
+- With a Controller Type of the other kind than the controller pressing buttons (a DualSense on DirectInput, XInput chosen), A could not remove a status: the Controller settings now say so, and buff says it once in the chat the first time it happens in the selector. Needs winxi 44.
 - Font and Font Size are winxi's own controls (widgets.FontFile, FontSize), as every addon's; every tooltip, the statuses' included, is drawn by winxi.tooltip, so winxisettings' Tooltips tab applies to them.
 - The anchored bar's plugin is uihook, which holds buffhook's module, or the legacy buffhook where uihook is not loaded. The plugin in use is asked after once a frame, and the other only once that one is gone.
 - With the new `buffhook` plugin, which comes with buff, the anchored bar is drawn where and when the game draws its own status icons, in their place: the game's menus are drawn over it as over its icons, a menu covering part of it covers just that part, and it goes when they would. Without the plugin it is drawn over everything, as before, and the settings say how to load it.

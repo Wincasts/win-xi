@@ -361,6 +361,14 @@ function shell.ControllerSettings(options, tooltip, between)
     if imgui.IsItemHovered() then
         tips.Show('XInput is an Xbox controller, or one set to behave as one. DirectInput is anything else: pick the make whose buttons match.\nOn a DirectInput controller the buttons are read by position: the bottom face button is A, the right one B.');
     end
+    -- the game reads one kind of controller: with the other chosen, no button is taken
+    if controller.LayoutMismatch() then
+        imgui.PushTextWrapPos(0);
+        imgui.TextColored(widgets.ExperimentalColor, controller.Heard() == 'xinput'
+            and 'Your controller is pressing XInput buttons: choose XInput, or no button reaches this addon.'
+            or 'Your controller is pressing DirectInput buttons: choose the DirectInput make that matches it, or no button reaches this addon.');
+        imgui.PopTextWrapPos();
+    end
 end
 
 function shell.New(spec)

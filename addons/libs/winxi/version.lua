@@ -79,6 +79,8 @@
 --     larger given to the game at the same place on its own
 -- 42: bars, a bar in the theme's Bar Texture at any size (party's HP art, in assets\bars)
 -- 43: winxi.nativemirror retired with the menus addon and uihook 1.58's mirror (kept in archive/)
+-- 44: controller.Heard and LayoutMismatch, the kind of controller pressing buttons; the Controller settings
+--     say when Controller Type is the other kind
 return {
-    Number = 43,
+    Number = 44,
 };

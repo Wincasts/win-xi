@@ -203,7 +203,23 @@ end
 -- XInput numbers the triggers after the buttons: 16 and 17, or 32 and 33 on an older Ashita
 local xinputTrigger = (ashita.interface_version ~= nil) and 16 or 32;
 
+-- Which kind of controller last pressed a button, 'xinput' or 'directinput', or nil before one has:
+-- the game reads one kind or the other, and a layout of the other kind hears nothing it can use
+local heard = nil;
+
+function controller.Heard()
+    return heard;
+end
+
+-- Whether the kind of controller chosen is not the one heard pressing buttons
+function controller.LayoutMismatch()
+    return heard ~= nil and heard ~= (layout.buttons == nil and 'xinput' or 'directinput');
+end
+
 local function OnXInput(e)
+    if e.button <= 15 and e.state == 1 then
+        heard = 'xinput';
+    end
     if layout.buttons ~= nil then
         return; -- a DirectInput controller is in use
     end
@@ -230,6 +246,10 @@ local dpadHas = {
 };
 
 local function OnDirectInput(e)
+    -- DIJOYSTATE's buttons, from offset 48: not its sticks and triggers, which report at rest
+    if e.button >= 48 and e.button < 80 and e.state == 128 then
+        heard = 'directinput';
+    end
     local buttons = layout.buttons;
     if buttons == nil then
         return; -- an XInput controller is in use

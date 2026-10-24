@@ -247,8 +247,10 @@ public:
     // back when the game draws its own icons again, or the plugin unloads.
     // Only the window being drawn, or the last one hidden while the game still draws it, is changed:
     // one the game has made again in its place is gone, and is forgotten.
+    // Put away each frame it is drawn, not once a window: the game makes the list again (the cursor
+    // at -5, -5 once more), often at the address the last one had, and the hand came back.
     void PutCursorAway(void* window) {
-        if (SetCursorOffset == nullptr || window == nullptr || window == m_CursorWindow) {
+        if (SetCursorOffset == nullptr || window == nullptr) {
             return;
         }
         SetCursorOffset(window, nullptr, CURSOR_AWAY, CURSOR_AWAY);

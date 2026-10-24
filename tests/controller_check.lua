@@ -26,3 +26,10 @@ H.print('let go: the button taken again', H.tap(H.Button.Y) == true, pressed == 
 on = true; H.frames(1)
 H.print('with a binding that keeps them: told without pass', H.raised[#H.raised], '| the trigger kept', H.button(H.Button.L2, 200))
 H.button(H.Button.L2, 0); on, pass = false, false; H.frames(1)
+-- the kind of controller pressing buttons, and whether the layout chosen is the other kind
+H.print('a DirectInput press heard on XInput: a mismatch', H.dinput(49, 128) == false, controller.Heard(), controller.LayoutMismatch())
+H.dinput(49, 0); H.dinput(12, 200); H.dinput(12, 0)
+controller.SetLayout('playstation'); H.print('PlayStation chosen: none', controller.LayoutMismatch() == false)
+H.button(H.Button.A, 1); H.button(H.Button.A, 0)
+H.print('an XInput press heard: a mismatch again', controller.Heard(), controller.LayoutMismatch())
+controller.SetLayout('xinput')
