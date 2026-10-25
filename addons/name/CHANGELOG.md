@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.66
+
+- Move Crowd Decluttering from Names to the bottom of the Visibility tab; Distance Thresholds stays under Names.
+- Put each format's Reset button on the same row as its editor, the two together as wide as the other controls.
+- The format (?) lists every token that kind of name can have (players and NPCs: [name], [icons], [distance]; enemies: [name], [level], [aggro], [checked], [letters], [distance]) with an example, and no longer has the options section.
+- Remove the Help / Examples dropdowns (letters, check details, statuses); what they said is now in the (?) of the settings they were about.
+- Extend the menu check: Reset beside each editor, the tokens each tooltip lists, no options section, no Help / Examples anywhere, Crowd Decluttering in Visibility.
+
 ## 1.65
 
 - Give Cast Bars and Check Details tabs of their own, after Health Bars: Cast Bars holds what was Health Bars → Cast Bars and Cast Text, with the Shared Bar Size there too; Check Details holds what was under Names → Enemy Names → Check Details, the rest greyed out while Enabled is off. Saved settings are unchanged.

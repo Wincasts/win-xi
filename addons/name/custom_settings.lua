@@ -168,32 +168,35 @@ function settings.DrawCheck(options, save)
             { { key = false, label = 'Icons & Text' }, { key = true, label = 'Text Only' } },
             tips.Get('name.enemies.check_style'));
         imgui.EndDisabled();
-        controls.Help('Help / Examples', '##name.checkHelp',
-            tips.Get('name.enemies.check_help'));
     end
     controls.EndSection();
     controls.EndLayout();
 end
 
--- Keep format reference/examples on the editor's (?) rather than separate dropdowns.
+-- The tokens each kind of name can have, with an example, on the editor's (?)
 local formatHelp = {
     nameFormat = tips.Get('name.format.player'),
     monsterFormat = tips.Get('name.format.enemy'),
     npcFormat = tips.Get('name.format.npc'),
 };
+local resetHelp = tips.Get('name.format.reset');
+
+-- The format and its Reset on one row, together as wide as any other control
 local function DrawFormat(label, key, options, save)
     local enemy = key == 'monsterFormat';
     local baseline = enemy and '[aggro] [name] [letters]' or (key == 'nameFormat' and '[icons: space=4][name]' or '[name]');
     widgets.Label(label);
-    controls.Width();
+    controls.WidthBeside(imgui.CalcTextSize('Reset') + imgui.GetStyle().FramePadding.x * 2);
     imgui.InputText('##name.' .. key, options[key], math.max(1024, #options[key][1]+256));
-    controls.Mark(formatHelp[key] .. '\n\n' .. tips.Get('name.format.options', { default_format = baseline }));
-    widgets.Label('Reset Format');
+    imgui.SameLine();
     if (imgui.Button('Reset##name.' .. (enemy and 'resetFormat' or ('reset.' .. key)))) then
         options[key][1] = baseline;
         if (save ~= nil) then save(); end
     end
-    controls.Mark(tips.Get('name.format.reset'));
+    if (imgui.IsItemHovered()) then
+        imgui.SetTooltip(resetHelp);
+    end
+    controls.Mark(formatHelp[key]);
 end
 
 function settings.DrawSettings(options, save)
@@ -203,7 +206,7 @@ function settings.DrawSettings(options, save)
         widgets.Gap();
     end
 
-    controls.BeginLayout('nameplates', 360, 'Abbreviate Difficulty');
+    controls.BeginLayout('nameplates', 360, 'Icon Outline Opacity (%)');
     if (controls.Section('General Name Appearance', '##name.appearanceOptions', true)) then
         widgets.Label('Font');
         controls.Width();
@@ -242,7 +245,7 @@ function settings.DrawSettings(options, save)
     end
     controls.EndSection();
 
-    require('readability').DrawSettings(options);
+    require('readability').DrawDistance(options);
 
     if (controls.Section('Player Names', '##name.playerOptions')) then
         DrawFormat('Player Format', 'nameFormat', options, save);
@@ -265,8 +268,6 @@ function settings.DrawSettings(options, save)
         if (rosterProblem ~= nil) then
             imgui.TextColored(warning, rosterProblem);
         end
-        controls.Help('Help / Examples', '##name.letterHelp',
-            tips.Get('name.enemies.letters_help'));
     end
     controls.EndSection();
     if (controls.Section('NPC Names', '##name.npcOptions')) then

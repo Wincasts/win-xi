@@ -1,6 +1,6 @@
 addon.name    = 'name';
 addon.author  = 'win';
-addon.version = '1.65';
+addon.version = '1.66';
 addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the namehook plugin.';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
@@ -33,6 +33,7 @@ local castbar    = require('castbar');
 local levels     = require('levels');
 local general    = require('general');
 local nameColours = require('name_colours');
+local readability = require('readability');
 
 local Category = nameplates.Category;
 
@@ -143,7 +144,7 @@ local function DrawSettings(options)
         widgets.Gap();
     end
 
-    controls.BeginLayout('filters', nil, 'Always Show Target');
+    controls.BeginLayout('filters', nil, 'Crowd Threshold (names)');
     local changed, first, open = false, true, true;
     for _, row in ipairs(rows) do
         if (row.group ~= nil) then
@@ -175,6 +176,7 @@ local function DrawSettings(options)
     end
 
     controls.EndSection();
+    readability.DrawCrowd(options);
     controls.EndLayout();
 end
 
