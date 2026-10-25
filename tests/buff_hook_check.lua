@@ -200,9 +200,14 @@ for i = 0, block.Count - 1 do
     if quad.Texture ~= hook.Solid and block.Textures[quad.Texture] == 0x5000 then hands, handQuad = hands + 1, quad end
 end
 H.print('anchored, the hand: handed over in place of the highlight', hands == 1, solid == 0)
-H.print('its fingertip at Haste\'s left edge, as tall as the icon, written last',
-    handQuad ~= nil and math.abs(handQuad.X1 - (width + 4) * 0.5) < 0.01 and math.abs((handQuad.Y1 - handQuad.Y0) - o.iconSize[1] * 0.5) < 0.01,
+H.print('its fingertip at Haste\'s left edge, Cursor Size (60%) of the icon\'s height, written last',
+    handQuad ~= nil and math.abs(handQuad.X1 - (width + 4) * 0.5) < 0.01 and math.abs((handQuad.Y1 - handQuad.Y0) - o.iconSize[1] * 0.6 * 0.5) < 0.01,
     block.Quads[block.Count - 1] == handQuad)
+o.cursorSize[1] = 100; block.Frame = 45; block.DrawnFrame = 45; H.frames(1)
+handQuad = block.Quads[block.Count - 1]
+H.print('at 100%, as tall as the icon, in the middle of its height', math.abs((handQuad.Y1 - handQuad.Y0) - o.iconSize[1] * 0.5) < 0.01,
+    math.abs((handQuad.Y0 + handQuad.Y1) / 2 - o.iconSize[1] * 0.25) < 0.01)
+o.cursorSize[1] = 60
 o.anchorToDefault[1] = false
 block.Frame = 41; block.DrawnFrame = 41; H.frames(1)
 local function counted(n)

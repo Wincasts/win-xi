@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- In the buff selector the game's hand points at the status the cursor is on, at its left as the game's menus have it: the game's animated hand from its menu DAT (winxi.cursor's anc_s), as tall as the icons, handed to the plugin anchored and over the window dragged. winxi's highlight is drawn instead only where the hand cannot be read.
+- In the buff selector the game's hand points at the status the cursor is on, at its left as the game's menus have it: the game's animated hand from its menu DAT (winxi.cursor's anc_s), Cursor Size of an icon's height (60% to begin with, 25% to 100%), handed to the plugin anchored and over the window dragged. winxi's highlight is drawn instead only where the hand cannot be read.
 - The anchored bar is dragged from anywhere on it, the gaps between its icons too, not just from an icon.
 - Grow From: Left, Right or Middle, where a row's icons sit as statuses come and go. Anchored, across a full row of Icons Per Row from where the bar is placed (the mouse finds them there); dragged, the window keeps that side where it is.
 - Show Backdrop: off, the dragged window has no backdrop, border or shadow.

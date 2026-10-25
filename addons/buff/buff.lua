@@ -76,6 +76,7 @@ local defaults = T{
     hideGameIcons = T{ true },
     growFrom = 'Left',      -- which way a row grows as statuses come: Left, Right or Middle
     showBackdrop = T{ true }, -- the dragged window's backdrop, border and shadow
+    cursorSize = T{ 60 },     -- the selector's hand, as a share of an icon's height, in percent
 };
 
 -- Grow From: where a row's icons sit across the bar. Anchored, the bar is as wide as a full row of
@@ -244,23 +245,23 @@ end
 
 -- The game's hand, as its menus point with it (the right-pointing anc_s, read from its menu DAT),
 -- at the left of the status the selector's cursor is on: its fingertip, the pivot, at the icon's
--- left edge, the hand as tall as the icon and in the middle of its height. nil where the hand could
--- not be read: the highlight is drawn round the status instead.
+-- left edge, the hand Cursor Size of the icon's height and in the middle of it. nil where the hand
+-- could not be read: the highlight is drawn round the status instead.
 local handLeft, handTop, handRight, handBottom = 0, 0, 0, 0;
-local function HandAt(x, y, height)
+local function HandAt(x, y, height, percent)
     local handle, frame = hand.Get();
     if handle == nil then
         return nil;
     end
-    local corners, scale = frame.corners, height / frame[6];
+    local corners, scale = frame.corners, height * percent / 100 / frame[6];
     local pivotY = y + (height - (corners[8] + corners[2]) * scale) / 2;
     handLeft, handTop = x + corners[1] * scale, pivotY + corners[2] * scale;
     handRight, handBottom = x + corners[7] * scale, pivotY + corners[8] * scale;
     return handle, frame;
 end
 
-local function DrawCursor(drawList, x, y, width, height)
-    local handle, frame = HandAt(x, y, height);
+local function DrawCursor(drawList, x, y, width, height, percent)
+    local handle, frame = HandAt(x, y, height, percent);
     if handle ~= nil then
         cursorMin[1], cursorMin[2], cursorMax[1], cursorMax[2] = handLeft, handTop, handRight, handBottom;
         handUvA[1], handUvA[2], handUvB[1], handUvB[2] = frame[1], frame[2], frame[3], frame[4];
@@ -321,7 +322,7 @@ local function DrawStatusesContent(options)
             end
         end
         if index == cursorIndex then
-            DrawCursor(drawList, x + (cell[1] - width) / 2, y, width, height);
+            DrawCursor(drawList, x + (cell[1] - width) / 2, y, width, height, options.cursorSize[1]);
         end
 
         local handle, own = icons.Get(status.id, useOwn);
@@ -541,7 +542,7 @@ local function WriteHooked(options, found, alpha)
     if cursorIndex ~= nil then
         handle, handFrame = hand.Get();
     end
-    Note(handFrame or false);
+    Note(handFrame or false); Note(options.cursorSize[1]);
     local sheet = useOwn and icons.MixedSheet() or icons.GameSheet();
     for index, status in ipairs(current) do
         Note(status.id);
@@ -596,7 +597,7 @@ local function WriteHooked(options, found, alpha)
         local index = cursorIndex;
         local x = nudgeX + RowShift(index, count, perRow, cellWidth, span, align) + ((index - 1) % perRow) * (cellWidth + gap);
         local y = nudgeY + math.floor((index - 1) / perRow) * (cellHeight + rowGap);
-        HandAt(x + (cellWidth - width) / 2, y, height);
+        HandAt(x + (cellWidth - width) / 2, y, height, options.cursorSize[1]);
         hook.Quad(handLeft * sx, handTop * sy, handRight * sx, handBottom * sy,
             handFrame[1], handFrame[2], handFrame[3], handFrame[4], iconColor, hook.Texture(handle));
     end
@@ -807,6 +808,9 @@ local function DrawSettings(options)
     widgets.PushControlWidth();
     imgui.SliderInt('##buff.iconSize', options.iconSize, 16, 96);
     tips.Hover('How tall an icon is, in pixels. The icons are 64 tall as made: at 64, or 32, they are at their sharpest.');
+    widgets.Label('Cursor Size');
+    imgui.SliderInt('##buff.cursorSize', options.cursorSize, 25, 100, '%d%%');
+    tips.Hover('How tall the game\'s hand is in the buff selector, as a share of an icon\'s height.');
     widgets.Label('Icons Per Row');
     imgui.SliderInt('##buff.perRow', options.perRow, 1, 32);
     widgets.PopControlWidth();
