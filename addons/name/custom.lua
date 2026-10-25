@@ -84,6 +84,7 @@ local SIZE_JUMP     = 0.15; -- a change in the game's size for a name, from one 
 local SIZE_HOLD     = 0.1;  -- seconds such a change has to last to be believed: longer than a frame of the game's own (a 30th)
 local PULSE_SLACK   = 3;    -- of the game's 0x80: how far a channel may stray from a pulse's mix and be counted in it
 local SUB_SETTLE    = 0.5;  -- seconds after a character stops being the sub target that its name's size is still held
+local SPACE_SIZE    = 4;    -- a [space] with no size of its own, in screen pixels
 local SIGN_SIZE     = 0.7;  -- how large the magnifying glass is beside the letters it is written among
 local MAGNIFIER     = 0xF002; -- the magnifying glass, among the icons Ashita's own font has with its letters
 local PROBE         = 65;   -- the letter looked at each frame to see that the font's letters are where they were
@@ -1558,11 +1559,19 @@ function custom.Frame(options, hook, formats)
                     local own = override or nameColor(displayColor);
                     local nameTint = own;
                     local width, iconsHeight = 0, 0;
+                    -- a [space] waits, after something written, for the next part that writes anything, and
+                    -- goes before it: there is none at either end of the line, nor round what writes nothing
+                    local pending = 0;
                     written.barNameLeft, written.barNameRight = nil, nil;
                     for index = 1, #parts do
                         local part = parts[index];
-                        if (not parts.rules or rules.Visible(part, written)) then
+                        if (part.kind == 'space') then
+                            if (width > 0 and (not parts.rules or rules.Visible(part, written))) then
+                                pending = pending + math.floor((part.size or SPACE_SIZE) * scale + 0.5);
+                            end
+                        elseif (not parts.rules or rules.Visible(part, written)) then
                             local kind = part.kind;
+                            width = width + pending;
                             local start = width;
                             if (kind == 'icons') then
                                 local tokenWidth, tokenHeight = inline.IconWidth(part, written, height, scale, options.iconSize[1], options.iconSpacing[1]);
@@ -1592,6 +1601,7 @@ function custom.Frame(options, hook, formats)
                             if (kind ~= 'icons' and kind ~= 'party' and kind ~= 'vendor' and width > start) then
                                 width = width + math.floor((part.space or 0) * scale + 0.5);
                             end
+                            if (width > start) then pending = 0; else width = start - pending; end
                         end
                     end
 
@@ -1624,10 +1634,16 @@ function custom.Frame(options, hook, formats)
 
                     local fill = nameTint;
                     local pen = left;
+                    pending = 0;
                     for index = 1, #parts do
                         local part = parts[index];
-                        if (not parts.rules or rules.Visible(part, written)) then
+                        if (part.kind == 'space') then
+                            if (pen > left and (not parts.rules or rules.Visible(part, written))) then
+                                pending = pending + math.floor((part.size or SPACE_SIZE) * scale + 0.5);
+                            end
+                        elseif (not parts.rules or rules.Visible(part, written)) then
                             local kind = part.kind;
+                            pen = pen + pending;
                             local start = pen;
                             local words = partWords(part, kind, written, nameWords, letter);
                             local color = (kind == 'distance' and not part.color and written.distanceColor)
@@ -1679,6 +1695,7 @@ function custom.Frame(options, hook, formats)
                             if (kind ~= 'icons' and kind ~= 'party' and kind ~= 'vendor' and pen > start) then
                                 pen = pen + math.floor((part.space or 0) * scale + 0.5);
                             end
+                            if (pen > start) then pending = 0; else pen = start - pending; end
                         end
                     end
 

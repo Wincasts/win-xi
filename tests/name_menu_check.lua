@@ -122,9 +122,9 @@ end
 H.print('Names: shared General text controls, per-category colour overrides, no obsolete toggles', true)
 
 local tokens = {
-    nameFormat = { 'name', 'icons', 'distance' },
-    monsterFormat = { 'name', 'level', 'aggro', 'checked', 'letters', 'distance' },
-    npcFormat = { 'name', 'icons', 'distance' },
+    nameFormat = { 'name', 'icons', 'distance', 'space' },
+    monsterFormat = { 'name', 'level', 'aggro', 'checked', 'letters', 'distance', 'space' },
+    npcFormat = { 'name', 'icons', 'distance', 'space' },
 }
 for _, key in ipairs({ 'nameFormat', 'monsterFormat', 'npcFormat' }) do
     assert(not ids['Tokens & Examples##name.formatHelp.' .. key], 'token dropdown must be absent')
