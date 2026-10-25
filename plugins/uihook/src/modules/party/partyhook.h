@@ -28,7 +28,7 @@ struct PartyShared {
 // A texture's address from the id imgui holds for it (ImTextureID, 64 bits), in this 32-bit game: the
 // pointer, zero-extended, or sign-extended, as a pointer above 2 GB is once it has been read as a signed
 // integer on its way through a renderer or a binding, and as the font texture's can be after a while (the
-// addons draw with it as ever, and Font() truncates it as this does). 0 for anything else: a null, a mark
+// addons draw with it as ever). 0 for anything else: a null, a mark
 // (1, the addons' word for the font texture), a value no 32-bit pointer could give.
 static inline uint32_t TextureAddress(uint64_t id) {
     const uint32_t low=static_cast<uint32_t>(id), high=static_cast<uint32_t>(id>>32);

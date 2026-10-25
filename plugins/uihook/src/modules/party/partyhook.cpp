@@ -16,6 +16,7 @@
 #include "detour.h"
 #include "game.h"
 #include "target.h"
+#include "hold.h"
 #include "hud.h"
 #include "../chat/chat.h"
 #include "../chat/controls.h"
@@ -123,15 +124,17 @@ static void GiveContentCall() {
 }
 
 using Run = TextureRun<IDirect3DBaseTexture8>;
+// A capture, drawn from the textures it holds (each run's AddRef): those it was taken with, whatever
+// imgui has made of its font texture since, so it can be replayed after the atlas is made again
 struct Drawing {
     std::vector<PartyVertex> vertices;
     std::vector<Run> runs;
     uint32_t submitted = 0, drawn = 0;
+    uint32_t held = 0; // frames in a row it has been kept in place of a refused capture (hold.h)
     float width = 0, height = 0;
-    IDirect3DBaseTexture8* font = nullptr;
     void Clear() {
         for (auto& r : runs) if (r.texture) r.texture->Release();
-        runs.clear(); vertices.clear(); submitted = drawn = 0; font = nullptr;
+        runs.clear(); vertices.clear(); submitted = drawn = held = 0;
     }
     bool Fresh() const { return submitted != 0 && Shared.Frame-submitted <= PARTY_FRESH_FRAMES; }
 };
@@ -324,14 +327,6 @@ class PartyHook : public IPlugin {
     bool targetScope = false;
     uint8_t* menuManager = nullptr;
 
-    IDirect3DBaseTexture8* Font() const {
-        auto* gui = core->GetGuiManager();
-        const ImFontAtlas* atlas = gui ? gui->GetIO().Fonts : nullptr;
-        const ImTextureData* data = atlas ? atlas->TexData : nullptr;
-        if (!data || (data->Status != ImTextureStatus_OK && data->Status != ImTextureStatus_WantUpdates)) return nullptr;
-        // namehook 1.25 / buffhook 1.1: a 64-bit ImTextureID is read here, NEVER by Lua.
-        return reinterpret_cast<IDirect3DBaseTexture8*>(static_cast<uintptr_t>(data->TexID));
-    }
     void ReleaseStates() {
         auto* d = core ? core->GetDirect3DDevice() : nullptr;
         if (d) { if (states) d->DeleteStateBlock(states); if (saved) d->DeleteStateBlock(saved); }
@@ -730,7 +725,7 @@ public:
         staging.Clear();
         const ImVec2 display=gui->GetIO().DisplaySize;
         if (!(display.x>0 && display.y>0)) return Refuse(slot,REFUSED_NO_LIST);
-        staging.width=display.x; staging.height=display.y; staging.font=Font();
+        staging.width=display.x; staging.height=display.y;
         uint8_t why=REFUSED_NONE;
         unsigned commands=0;
         for (int c=0;c<list->CmdBuffer.Size && !why;c++) {
@@ -772,11 +767,23 @@ public:
             }
             AppendRun(staging.runs,texture,first,static_cast<uint32_t>(staging.vertices.size())-first);
         }
+        if (why && HoldCapture(why,out.Fresh(),out.held)) {
+            // imgui's texture is being made again: the last capture drawn once more, this frame's
+            // commands consumed as a capture's are, so that neither the game's nor imgui's shows
+            staging.Clear();
+            if (!out.held && log) log->Logf(static_cast<uint32_t>(Ashita::LogLevel::Info),"uihook",
+                "%s: imgui's texture not ready at frame %u; the last capture is drawn until it is",PartySlotName(slot),Shared.Frame);
+            ++out.held; out.submitted=Shared.Frame;
+            for (int c=0;c<list->CmdBuffer.Size;c++) list->CmdBuffer[c].ElemCount=0;
+            return 1;
+        }
         if (why) { staging.Clear(); out.Clear(); return Refuse(slot,why); }
         Accept(slot);
+        if (out.held && log) log->Logf(static_cast<uint32_t>(Ashita::LogLevel::Info),"uihook",
+            "%s: capture taken again at frame %u, the last one drawn for %u while imgui's texture was made",PartySlotName(slot),Shared.Frame,out.held);
         out.Clear();
         out.vertices.swap(staging.vertices); out.runs.swap(staging.runs);
-        out.width=staging.width; out.height=staging.height; out.font=staging.font; out.submitted=Shared.Frame;
+        out.width=staging.width; out.height=staging.height; out.submitted=Shared.Frame;
         Shared.CapturedVertices=static_cast<uint32_t>(out.vertices.size());
         if ((index==8 || index==9) && !out.vertices.empty()) {
             const ImVec2 pos=gui->GetWindowPos(), size=gui->GetWindowSize();
@@ -795,7 +802,8 @@ public:
             if (index>=8) Chat.DrawnFrame[index-8]=Shared.Frame;
             return true; // explicit empty replacement (solo/faded/hidden list)
         }
-        if (drawing.font!=Font()) return false; // atlas changed: old glyph UVs are not safe to replay
+        // Its runs hold the textures its UVs are of: a font texture imgui has since made again is still
+        // the one drawn from, and the capture draws as it was taken
         // Keep the atlas check on repeated passes, but avoid redundant viewport queries/state work.
         if (drawing.drawn==Shared.Frame) return true;
         auto* device=core->GetDirect3DDevice(); D3DVIEWPORT8 viewport;
@@ -980,14 +988,12 @@ public:
     // Whether Replay would draw a drawing (or its empty replacement) now
     bool Replayable(unsigned index) {
         const Drawing& drawing=drawings[index];
-        return drawing.Fresh() && (drawing.vertices.empty() || drawing.font==Font());
+        return drawing.Fresh();
     }
     bool ReplayTargets() {
         // Validate the whole target group before drawing any of it; no fresh submission means
         // the stock target box/arrow run unchanged. Empty hidden frames still preserve the arrows.
-        auto* font=Font();
-        for (unsigned i=3;i<6;i++) if (!drawings[i].Fresh()
-            || (!drawings[i].vertices.empty() && drawings[i].font!=font)) return false;
+        for (unsigned i=3;i<6;i++) if (!drawings[i].Fresh()) return false;
         return Replay(3) && Replay(4) && Replay(5);
     }
     void Arrow(void* sprite,uint32_t x,uint32_t y,uint32_t sx,uint32_t sy,uint32_t color,uint32_t a,uint32_t b,uint32_t c) {

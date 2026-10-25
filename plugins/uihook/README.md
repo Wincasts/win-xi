@@ -264,6 +264,11 @@ long ago; the first refusal in a row, and each change of reason, is a warning in
 capture taken again after refusals an info line. A refused slot is drawn by the game, with the addon's
 window drawn by imgui over it, until a capture is taken; chatbox draws its second box only after the
 first's capture, so it is missing while the first is refused.
+While imgui is making its font texture again (its atlas grown or made afresh, as when an addon loads
+a font or writes new sizes), a slot's capture is not refused but its last one drawn again, for up to
+eight frames in a row (`PARTY_HOLD_FRAMES`, `src/modules/party/hold.h`): a capture holds the textures
+it was taken with, so the old atlas is still there to draw it from. Ashita's log has an info line as
+the hold begins and as a capture is taken again; past eight frames it is refused as before.
 `InputRect` and `PrimaryRect` are the viewport-normalized native input and primary log
 rectangles (left/top/right/bottom), each read after its layout update using the verified
 `Window::GetRect` coordinate source. `ExpandedRect` uses the same normalized format and

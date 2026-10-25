@@ -5,6 +5,8 @@
 #include "../src/modules/party/target.h"
 #include "../src/modules/party/clip.h"
 #include "../src/modules/party/partyhook.h"
+#include "../src/modules/party/hold.h"
+#include "../src/modules/party/runs.h"
 static int failures=0;
 static void Check(bool ok,const char* text) { printf("%s %s\n",ok?"ok":"FAIL",text); if(!ok) failures++; }
 static int __fastcall Replacement(void*,void*) { return 99; }
@@ -146,6 +148,23 @@ int main() {
         Check(!WarpArrow(ox,oy,3440,1440,&warp) && ox==3268,"strength 0 leaves the arrow alone");
         warp.Strength=0.25f;
         Check(!WarpArrow(ox,oy,0,0,&warp),"no menu size, nothing moved");
+    }
+    {
+        // imgui making its font texture again: the last capture is kept, a few frames, for that alone
+        Check(HoldCapture(REFUSED_TEXTURE_NOT_READY,true,0),"texture not ready: the last capture kept");
+        Check(HoldCapture(REFUSED_TEXTURE_NOT_READY,true,PARTY_HOLD_FRAMES-1) && !HoldCapture(REFUSED_TEXTURE_NOT_READY,true,PARTY_HOLD_FRAMES),
+            "kept PARTY_HOLD_FRAMES frames in a row, then refused");
+        Check(!HoldCapture(REFUSED_TEXTURE_NOT_READY,false,0),"none fresh to keep: refused");
+        Check(!HoldCapture(REFUSED_VERTEX,true,0) && !HoldCapture(REFUSED_TEXTURE_ID,true,0) && !HoldCapture(REFUSED_NONE,true,0),
+            "any other refusal is not covered");
+        // the capture holds its texture: imgui letting the old atlas go leaves it there to draw from
+        struct Texture { int refs=1; void AddRef() { ++refs; } void Release() { --refs; } } old;
+        std::vector<TextureRun<Texture>> runs;
+        AppendRun(runs,&old,0,6); AppendRun(runs,&old,6,6);
+        old.Release(); // the renderer's own reference, given up as imgui makes the texture again
+        Check(old.refs==1 && runs.size()==1 && runs[0].count==12,"the old atlas lives while a capture is drawn from it");
+        for (auto& r:runs) r.texture->Release();
+        Check(old.refs==0,"and goes with the capture");
     }
     printf("%d failures\n",failures); return failures?1:0;
 }
