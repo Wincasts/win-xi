@@ -23,7 +23,7 @@ Replace placeholder names with "Placeholder". The rest of each nameplate is unch
 
 ## name.health_bars.entity_types
 Label: Entity Types
-Location: Health Bars → Entity Types
+Location: Bars → Health Bar Entity Types
 
 Whether names of this kind have a health bar.
 
@@ -209,39 +209,38 @@ Choose the text outline thickness. 0 disables text outlines without changing ico
 
 ## name.health_bars.enabled
 Label: Enabled
-Location: Health Bars → Health Bars
+Location: Bars → Health Bars
 
 One shared health-bar setting for every entity, including pets/trusts and NPCs. Requires valid HP data. Full-health entities normally have no bar; while their cast bar is active, an enabled/eligible HP row stays visible above it so damage does not move the cast bar.
 
 ## name.health_bars.combat_only
 Label: Combat Only
-Location: Health Bars → Health Bars
+Location: Bars → Health Bars
 
 Show bars only for the entity whose status is Engaged (1) and HP is above zero. Being targeted or claimed alone is not combat. Missing status data hides the bar. Applies to every type.
 
 
 ## name.health_bars.texture
 Label: Bar Texture
-Location: Health Bars → Health Bars
+Location: Bars → Health Bars
 
 What the bar is drawn in. Plain (the default) is the dark-bordered bar Name has always drawn. The others are WinXI's Bar Textures, the art party's HP bars use, tinted the name's colour. Shared Bar Size still sets its width and height; very small bars are drawn from a smaller copy of the art so they stay clean. The fill's end is softened with namehook 1.37; an older namehook draws it hard. If the art cannot be loaded, the bar is drawn Plain.
 
 
 ## name.health_bars.preview
 Label: Preview
-Location: Health Bars → Health Bars
+Location: Bars → Shared Bar Settings
 
-Session-only preview: every name that can have a health bar shows one, emptying and filling again, each name a little apart. Shows bars at full health and out of combat, whatever Combat Only says, so you can tune Bar Texture and Shared Bar Size. Entity Types still apply. Not saved. Stops shortly after you leave this section or close the window.
-
+Session-only preview of every bar that is enabled: each name that can have a health bar shows one, emptying and filling again, a little apart from the next, at full health and out of combat too (Combat Only is set aside; Health Bar Entity Types still apply); and with cast bars on, an animated sample cast under visible names, alternating spell and TP-move styles with Show Weaponskills. Real casts take precedence; no packets or actor records are made. Tune the shared size, Fit to Name, textures and cast text without waiting. Never saved; stops shortly after leaving this section or closing the window.
 ## name.health_bars.width
 Label: Bar Width (px)
-Location: Health Bars → Shared Bar Size
+Location: Bars → Shared Bar Settings
 
-One width, including the border, for HP and cast bars. Both use the same horizontal origin and shrink with the name. With both rows present, HP is above cast. Existing saved HP-bar widths are retained; the setting is editable when either kind of bar is enabled.
+One width, including the border, for HP and cast bars, and the least they are with Fit to Name. Both use the same horizontal origin and shrink with the name. With both rows present, HP is above cast. Existing saved HP-bar widths are retained; the setting is editable when either kind of bar is enabled.
 
 ## name.health_bars.height
 Label: Bar Height (px)
-Location: Health Bars → Shared Bar Size
+Location: Bars → Shared Bar Settings
 
 One height, including the border, for HP and cast bars. Both shrink with the name and use the same gap between rows. Action name and timer appear below the cast row, with statuses below those when configured underneath.
 
@@ -441,7 +440,7 @@ Writes what Name and the namehook plugin are doing now, and what happened lately
 Label: Crowd Decluttering
 Location: Visibility → Crowd Decluttering
 
-Optional and off by default. In a sustained crowd, simplify ordinary plates to their name, monster letters and aggro cue. Hide secondary text, player/vendor icons, stars, check details, HP bars and status rows. Never move plates or hide their core name. Your target, subtarget, yourself, party, alliance, own pet, whitelisted/charmed players, tracked NM/placeholders and observed active casters (with Cast Bars enabled) stay fully detailed. A deliberately name-less format remains name-less.
+Optional and off by default. In a sustained crowd, simplify ordinary plates to their name, monster letters and aggro cue. Hide secondary text, player/vendor icons, stars, check details, HP bars and status rows. Never move plates or hide their core name. Your target, subtarget, yourself, party, alliance, own pet, whitelisted/charmed players, tracked NM/placeholders and observed active casters (with cast bars enabled) stay fully detailed. A deliberately name-less format remains name-less.
 
 ## name.readability.crowd_threshold
 Label: Crowd Threshold (names)
@@ -493,79 +492,71 @@ Write a shareable report to config\addons\name\logs. Includes Name/WinXI/namehoo
 
 ## name.cast_bars.enabled
 Label: Enabled
-Location: Cast Bars → Cast Bars
+Location: Bars → Cast Bars
 
 Show observed spell casts under visible names. Uses the same width, height and starting position as HP bars; an enabled and eligible HP bar is drawn above it, including full HP while casting. The fill inherits the resolved entity-name colour (including explicit name-token colours and fading), with action name and timer below as the bar fills. Active casters remain detailed in crowd mode. Base timings are estimates (~), not live Fast Cast/modifier measurements. Finish/interrupt packets take precedence. If the estimate ends first, show Waiting with a full bar; unknown durations show elapsed time (+) with no fabricated fill. Casts already in progress when enabled cannot be recovered without a start packet.
 
 ## name.cast_bars.weaponskills
 Label: Show Weaponskills
-Location: Cast Bars → Cast Bars
+Location: Bars → Cast Bars
 
 Also show readied weaponskills and monster TP moves, using estimated base preparation times where known. Completed/instant weaponskills briefly show their name and Used with a full bar; no fake charge-up is invented when there is no ready packet. Disabled by default. Spell and weaponskill bars stop on interrupts, death, despawn, zone change or a safety timeout. These are observations, not predictions of an enemy's next move.
 
 ## name.cast_bars.skill_text_only
 Label: Text Only for Weaponskills
-Location: Cast Bars → Cast Bars
+Location: Bars → Cast Bars
 
 Show weaponskills and monster TP moves as their name and timer alone, with no bar, in the place the bar would start. On by default. Spells keep their bar. Needs Show Weaponskills.
 
 ## name.cast_bars.auto_width
-Label: Auto-scale to Name
-Location: Cast Bars → Cast Bars
+Label: Fit to Name
+Location: Bars → Shared Bar Settings
 
-Extend the cast bar to fit the visible entity name, counting visible letter badges as part of the name in either token order. Off by default. The saved shared Bar Width remains the minimum, so short names do not shrink the bar. Uses the rendered name/letter span and intervening spaces, not the action caption, vendor/player icons or surrounding distance/check details. Centres both bar rows under that span; an eligible HP row extends with the cast row so they remain aligned. Without an active cast/preview, HP keeps its usual saved width and position. Hidden name/letter tokens are not counted; formats with neither keep the saved width. Height is unchanged, and normal nameplate scaling still applies.
-
-
+Widen health and cast bars to the visible entity name, counting visible letter badges as part of the name in either token order. Off by default. The saved Bar Width remains the minimum, so short names do not shrink the bars. Uses the rendered name/letter span and the spaces between, not cast captions, vendor/player icons or distance/check details. Both rows are centred under that span and stay aligned. Hidden name/letter tokens are not counted; formats with neither keep the saved width. Height is unchanged, and normal nameplate scaling still applies.
 ## name.cast_bars.texture
 Label: Bar Texture
-Location: Cast Bars → Cast Bars
+Location: Bars → Cast Bars
 
 What the cast bar is drawn in: Plain (the default) or one of WinXI's Bar Textures, as for health bars. It can differ from the health bars' texture. Weaponskills shown as text only have no bar.
 
 ## name.cast_bars.name_scale
 Label: Cast Name Size (%)
-Location: Cast Bars → Cast Text
+Location: Bars → Cast Text
 
 Size of the action-name text relative to the nameplate font, independent of the timer. Default 75% preserves the original appearance; 25–200% is available. Does not change the bar dimensions or nameplate text. Large percentages upscale the existing font and may look softer. Status rows are moved down to clear the resized captions.
 
 ## name.cast_bars.timer_scale
 Label: Timer Size (%)
-Location: Cast Bars → Cast Text
+Location: Bars → Cast Text
 
 Size of the remaining/elapsed timer text relative to the nameplate font, independent of the action name. Default 75% preserves the original appearance; 25–200% is available. Used and Waiting use this size too. Does not change the bar dimensions; normal fading still applies.
 
-## name.cast_bars.preview
-Label: Preview
-Location: Cast Bars → Cast Bars
-
-Session-only animated preview under visible names, clearly labelled Preview. Tune shared bar dimensions, cast-name size and timer size without waiting for a cast. Uses the actual cast-bar layout, name colour, auto-width and your real HP row when enabled. With Show Weaponskills on, the sample alternates spell and TP-move styles. Real casts take precedence. No packets, actor records or saved preview setting are created. Stops shortly after leaving this settings section/window, and resets when Name/cast bars are disabled or settings reloaded.
-
 ## name.cast_text.font
 Label: Font
-Location: Cast Bars → Cast Text
+Location: Bars → Cast Text
 
 The font the action name and timer are written in. Same as Names (the default) uses the names' font; Default is the font everything else is written in; or a .ttf from C:\Windows\Fonts. Bold follows the names' Bold. With Smooth Font on, a font of its own is drawn without the smoothing. A font that cannot be loaded falls back to the names' font.
 
 ## name.cast_text.show_name
 Label: Show Action Name
-Location: Cast Bars → Cast Text
+Location: Bars → Cast Text
 
 Write the spell, weaponskill or TP move's name under the cast bar. On by default.
 
 ## name.cast_text.show_timer
 Label: Show Timer
-Location: Cast Bars → Cast Text
+Location: Bars → Cast Text
 
 Write the time left (~), the time so far (+), Waiting or Used under the action's name. On by default.
 
 ## name.cast_text.colour
 Label: Text Colour
-Location: Cast Bars → Cast Text
+Location: Bars → Cast Text
 
 What the action name and timer are written in: White (the default), Name Colour (the same colour as the name and its cast bar) or Custom. Normal fading still applies.
 
 ## name.cast_text.custom_colour
 Label: Custom Colour
-Location: Cast Bars → Cast Text
+Location: Bars → Cast Text
 
 The colour of the action name and timer when Text Colour is Custom.

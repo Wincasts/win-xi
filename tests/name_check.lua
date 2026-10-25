@@ -71,7 +71,7 @@ H.resettle(); H.frames(1)
 H.print('/names is left alone', H.command('/names') == false)
 
 -- a checkbox in Filters (the second tab): the fourth, Other Players
-H.tab(7)
+H.tab(6)
 local before = H.calls.Begin or 0
 H.command('/name'); H.frames(1)
 H.print('settings window drawn', (H.calls.Begin or 0) > before, '| checkboxes', H.calls.Checkbox)
@@ -923,7 +923,7 @@ replacementGlyph.AdvanceX = glyph.AdvanceX * 2
 local replacementSet = { glyphs = {}, baked = { FindGlyph = function() return replacementGlyph end } }
 H.print('replacement font set never reuses stale glyph runs', measure(replacementSet, 'AAA', 1) == firstWidth * 2)
 block.Count = 1
-H.tab(2); H.command('/name'); local sliders = H.calls.SliderInt or 0; H.frames(1); H.command('/name'); H.tab(7)
+H.tab(2); H.command('/name'); local sliders = H.calls.SliderInt or 0; H.frames(1); H.command("/name"); H.tab(6)
 H.print('its tab drawn: sliders', (H.calls.SliderInt or 0) - sliders)
 
 H.print('ImGui signs retain their own texture: the font\'s mark', draw.Textures[4] == 1)

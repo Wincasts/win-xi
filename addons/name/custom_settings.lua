@@ -1,9 +1,8 @@
--- The Names, Health Bars, Cast Bars, Check Details and NM Tracking tabs of the settings: how the
+-- The Names, Bars, Check Details and NM Tracking tabs of the settings: how the
 -- names are drawn, as custom.lua draws them.
 --
 --   settings.DrawSettings(options, save)    the Names tab
---   settings.DrawHealthBars(options, save)  the Health Bars tab
---   settings.DrawCastBars(options, save)    the Cast Bars tab
+--   settings.DrawBars(options, save)        the Bars tab: health and cast bars
 --   settings.DrawCheck(options, save)       the Check Details tab
 --   settings.DrawTracking(options, save)    the NM Tracking tab, after /name dev
 local imgui = require('imgui');
@@ -102,24 +101,35 @@ function settings.DrawTracking(options, save)
     controls.EndLayout();
 end
 
--- The bars under the names: a tab of their own
-function settings.DrawHealthBars(options, save)
-    controls.BeginLayout('healthBars', 360, 'Health Bar Height (px)');
+-- The bars under the names, health and cast, in one tab: what they share first (their size, Fit to Name and
+-- the preview of them all), then each kind's own
+function settings.DrawBars(options, save)
+    controls.BeginLayout('bars', 360, 'Text Only for Weaponskills');
+    local either = options.showHealthBar[1] or options.showCastBar[1];
+    if controls.Section('Shared Bar Settings', '##name.barShared', true) then
+        nameTypes.DrawSize(options);
+        imgui.BeginDisabled(not either);
+        controls.Checkbox('Fit to Name', '##name.castBarAutoWidth', options.castBarAutoWidth,
+            tips.Get('name.cast_bars.auto_width'));
+        controls.Checkbox('Preview', '##name.barPreview', healthbar.Preview, tips.Get('name.health_bars.preview'));
+        imgui.EndDisabled();
+    end
+    controls.EndSection();
+    -- one preview for both kinds, each shown while it is enabled, and only while this is drawn
+    local casts = require('castbar');
+    casts.Preview[1] = healthbar.Preview[1];
+    if options.showHealthBar[1] then healthbar.PreviewVisible(os.clock()); end
+    if options.showCastBar[1] then casts.PreviewVisible(os.clock()); end
+
     if (controls.Section('Health Bars', '##name.healthBarOptions', true)) then
         nameTypes.Draw(options);
         imgui.BeginDisabled(not options.showHealthBar[1]);
         controls.Choice('Bar Texture', '##name.healthBarTexture', options.healthBarTexture, barArt.Choices(),
             tips.Get('name.health_bars.texture'));
-        controls.Checkbox('Preview', '##name.healthBarPreview', healthbar.Preview, tips.Get('name.health_bars.preview'));
         imgui.EndDisabled();
-        if options.showHealthBar[1] then healthbar.PreviewVisible(os.clock()); end
     end
     controls.EndSection();
-    if controls.Section('Shared Bar Size', '##name.barSize') then
-        nameTypes.DrawSize(options);
-    end
-    controls.EndSection();
-    if (controls.Section('Entity Types', '##name.healthBarTypes')) then
+    if (controls.Section('Health Bar Entity Types', '##name.healthBarTypes')) then
         imgui.BeginDisabled(not options.showHealthBar[1]);
         if (entityTypes.Draw('healthBarTypes', options.healthBarCategories, tips.Get('name.health_bars.entity_types')) and save ~= nil) then
             save();
@@ -127,12 +137,7 @@ function settings.DrawHealthBars(options, save)
         imgui.EndDisabled();
     end
     controls.EndSection();
-    controls.EndLayout();
-end
 
--- The bars of what a name is casting: a tab of their own, sharing the health bars' size
-function settings.DrawCastBars(options, save)
-    controls.BeginLayout('castBars', 360, 'Text Only for Weaponskills');
     if controls.Section('Cast Bars', '##name.castBarOptions', true) then
         controls.Checkbox('Enabled', '##name.showCastBar', options.showCastBar, tips.Get('name.cast_bars.enabled'));
         if options.showCastBar[1] then
@@ -142,13 +147,8 @@ function settings.DrawCastBars(options, save)
             controls.Checkbox('Text Only for Weaponskills', '##name.castBarSkillTextOnly', options.castBarSkillTextOnly,
                 tips.Get('name.cast_bars.skill_text_only'));
             imgui.EndDisabled();
-            controls.Checkbox('Auto-scale to Name', '##name.castBarAutoWidth', options.castBarAutoWidth,
-                tips.Get('name.cast_bars.auto_width'));
             controls.Choice('Bar Texture', '##name.castBarTexture', options.castBarTexture, barArt.Choices(),
                 tips.Get('name.cast_bars.texture'));
-            local casts = require('castbar');
-            controls.Checkbox('Preview', '##name.castBarPreview', casts.Preview, tips.Get('name.cast_bars.preview'));
-            casts.PreviewVisible(os.clock());
         end
     end
     controls.EndSection();
@@ -171,10 +171,6 @@ function settings.DrawCastBars(options, save)
         controls.Slider('Timer Size (%)', '##name.castTimerScale', options.castTimerScale, 25, 200, '%d%%',
             tips.Get('name.cast_bars.timer_scale'));
         imgui.EndDisabled();
-    end
-    controls.EndSection();
-    if controls.Section('Shared Bar Size', '##name.barSize') then
-        nameTypes.DrawSize(options);
     end
     controls.EndSection();
     controls.EndLayout();

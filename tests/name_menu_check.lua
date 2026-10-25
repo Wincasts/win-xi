@@ -50,11 +50,11 @@ imgui.GetContentRegionAvail = function() error('Window widths must not feed back
 local function clear() headers, tabs, ids, marks, disabledIds, locations, order = {}, {}, {}, {}, {}, {}, {} end
 H.tab(2); H.command('/name'); H.frames(1)
 clear(); H.frames(1); H.command('/name')
-assert(table.concat(tabs, '|') == 'General|Names|Health Bars|Cast Bars|Check Details|Statuses|Visibility', 'NM Tracking waits for /name dev')
+assert(table.concat(tabs, '|') == 'General|Names|Bars|Check Details|Statuses|Visibility', 'NM Tracking waits for /name dev')
 H.command('/name dev'); H.command('/name'); clear(); H.frames(1); H.command('/name')
-assert(table.concat(tabs, '|') == 'General|Names|Health Bars|Cast Bars|Check Details|Statuses|Visibility|NM Tracking', '/name dev shows NM Tracking')
+assert(table.concat(tabs, '|') == 'General|Names|Bars|Check Details|Statuses|Visibility|NM Tracking', '/name dev shows NM Tracking')
 H.command('/name dev'); H.command('/name'); clear(); H.frames(1); H.command('/name')
-assert(table.concat(tabs, '|') == 'General|Names|Health Bars|Cast Bars|Check Details|Statuses|Visibility', 'a second /name dev hides it')
+assert(table.concat(tabs, '|') == 'General|Names|Bars|Check Details|Statuses|Visibility', 'a second /name dev hides it')
 assert(table.concat(headers, '|') == 'General Name Appearance|Player Names|Enemy Names|NPC Names|Distance Thresholds')
 assert(not ids['##name.partyIcons'] and not ids['##name.showVendorIcons'], 'party and vendor signs are tokens, not settings')
 assert(ids['##name.font'] and ids['##name.fontBold'] and ids['Smooth Font##name.fontSmooth'] and ids['##name.subtargetScale'] and ids['##name.textOutlineOpacity'])
@@ -154,7 +154,7 @@ end
 assert(help['Reset##name.reset.npcFormat']:find('Babubu (4.2y)', 1, true))
 controls.Mark = mark
 options.showHealthBar[1] = true
-clear(); customSettings.DrawHealthBars(options)
+clear(); customSettings.DrawBars(options)
 assert(not disabledIds['##name.healthBarWidth'] and not disabledIds['##name.healthBarsCombatOnly'])
 options.showHealthBar[1] = false
 local input = imgui.InputInt
@@ -165,7 +165,7 @@ imgui.InputInt = function(id, value)
 end
 local barWidth = options.healthBarWidth[1]
 customSettings.DrawSettings(options)
-customSettings.DrawHealthBars(options)
+customSettings.DrawBars(options)
 imgui.InputInt = input
 custom.Settle(options)
 assert(options.fontSize[1] == 28 and options.healthBarHeight[1] == 11 and options.healthBarWidth[1] == barWidth)
@@ -211,41 +211,37 @@ customSettings.DrawCheck(options); assert(options.checkDetailsInWords[1])
 imgui.BeginCombo = record
 H.print('Category format editors/reset preserve each other', true)
 
+options.showHealthBar[1], options.showCastBar[1] = false, false
 H.tab(3); H.command('/name'); clear(); H.frames(1); H.command('/name')
-assert(table.concat(headers, '|') == 'Health Bars|Shared Bar Size|Entity Types')
-assert(not ids['##name.showCastBar'] and not ids['##name.castBarWeaponskills'], 'cast bars have a tab of their own')
+assert(table.concat(headers, '|') == 'Shared Bar Settings|Health Bars|Health Bar Entity Types|Cast Bars',
+    'what the bars share first, then each kind; Cast Text waits for Enabled')
+for _, id in ipairs({ '##name.healthBarWidth', '##name.healthBarHeight', '##name.castBarAutoWidth', '##name.barPreview' }) do
+    assert(ids[id] and locations[id] == 'Shared Bar Settings' and disabledIds[id], 'shared: ' .. id .. ', waiting for either bar')
+end
+assert(not ids['##name.healthBarPreview'] and not ids['##name.castBarPreview'], 'one preview for both')
 for _, key in ipairs({ 'self', 'party', 'alliance', 'players', 'myPet', 'pets', 'npcs', 'monsters' }) do
     local id = '##name.healthBarTypes.' .. key
-    assert(ids[id] and locations[id] == 'Entity Types' and disabledIds[id], 'Entity Types has ' .. key .. ', waiting for Enabled')
+    assert(ids[id] and locations[id] == 'Health Bar Entity Types' and disabledIds[id], 'Entity Types has ' .. key .. ', waiting for Enabled')
 end
-for _, id in ipairs({ '##name.showHealthBar', '##name.healthBarsCombatOnly', '##name.healthBarWidth', '##name.healthBarHeight' }) do
-    local expected = (id == '##name.healthBarWidth' or id == '##name.healthBarHeight') and 'Shared Bar Size' or 'Health Bars'
-    assert(ids[id] and locations[id] == expected, 'Health Bars tab has ' .. id)
+for _, id in ipairs({ '##name.showHealthBar', '##name.healthBarsCombatOnly', '##name.healthBarTexture' }) do
+    assert(ids[id] and locations[id] == 'Health Bars', 'Health Bars has ' .. id)
 end
-assert(disabledIds['##name.healthBarWidth'] and disabledIds['##name.healthBarsCombatOnly'], 'the rest wait for Enabled')
-H.print('Health Bars: a tab of its own, third, with Enabled, Combat Only, width and height, and Entity Types', true)
+assert(disabledIds['##name.healthBarsCombatOnly'] and disabledIds['##name.healthBarTexture'], 'the rest wait for Enabled')
+assert(ids['##name.showCastBar'] and locations['##name.showCastBar'] == 'Cast Bars' and not ids['##name.castBarWeaponskills'])
+H.print('Bars: one tab, third: the shared size, Fit to Name and Preview, then Health Bars, its Entity Types and Cast Bars', true)
 
-options.showCastBar[1]=false
-H.tab(4); H.command('/name'); clear(); H.frames(1); H.command('/name')
-assert(table.concat(headers, '|') == 'Cast Bars|Shared Bar Size', 'Cast Text waits for Enabled')
-assert(ids['##name.showCastBar'] and not ids['##name.castBarWeaponskills'] and disabledIds['##name.healthBarWidth'])
-assert(not ids['##name.showHealthBar'] and not ids['##name.healthBarsCombatOnly'], 'the health bars stay in their tab')
-clear();customSettings.DrawHealthBars(options)
-assert(disabledIds['##name.healthBarWidth'], 'with neither bar on, the shared size waits')
 options.showCastBar[1]=true
-clear();customSettings.DrawHealthBars(options)
-assert(not disabledIds['##name.healthBarWidth'] and disabledIds['##name.healthBarsCombatOnly'],
-    'cast-only mode enables shared dimensions in Health Bars, not HP-only controls')
-clear();customSettings.DrawCastBars(options)
-assert(table.concat(headers, '|') == 'Cast Bars|Cast Text|Shared Bar Size')
-assert(ids['##name.castNameScale'] and ids['##name.castTimerScale'] and ids['##name.castBarPreview'] and ids['##name.castBarAutoWidth'])
-assert(options.castBarAutoWidth[1]==false, 'automatic width is opt-in')
-assert(options.castNameScale[1]==75 and options.castTimerScale[1]==75 and options.castBarPreview==nil)
+clear();customSettings.DrawBars(options)
+assert(not disabledIds['##name.healthBarWidth'] and not disabledIds['##name.barPreview'] and disabledIds['##name.healthBarsCombatOnly'],
+    'cast bars alone enable what is shared, not the health bars\' own')
+assert(table.concat(headers, '|') == 'Shared Bar Settings|Health Bars|Health Bar Entity Types|Cast Bars|Cast Text')
+assert(ids['##name.castNameScale'] and ids['##name.castTimerScale'] and ids['##name.castBarTexture'] and ids['##name.castFont'])
+assert(options.castBarAutoWidth[1]==false, 'Fit to Name is opt-in')
+assert(options.castNameScale[1]==75 and options.castTimerScale[1]==75 and options.castBarPreview==nil and options.barPreview==nil)
 local sizes=custom.Defaults({});sizes.castNameScale={999};sizes.castTimerScale={'bad'};custom.Settle(sizes)
 assert(sizes.castNameScale[1]==200 and sizes.castTimerScale[1]==75)
-assert(ids['##name.castBarWeaponskills'] and not disabledIds['##name.healthBarWidth'])
-assert(locations['##name.healthBarWidth']=='Shared Bar Size' and locations['##name.showCastBar']=='Cast Bars')
-for _, id in ipairs({ '##name.castShowName', '##name.castShowTimer', '##name.castTextColour', '##name.castNameScale', '##name.castTimerScale' }) do
+assert(ids['##name.castBarWeaponskills'])
+for _, id in ipairs({ '##name.castShowName', '##name.castShowTimer', '##name.castTextColour', '##name.castNameScale', '##name.castTimerScale', '##name.castFont' }) do
     assert(locations[id]=='Cast Text', 'Cast Text has ' .. id)
 end
 assert(locations['##name.castBarSkillTextOnly']=='Cast Bars' and disabledIds['##name.castBarSkillTextOnly'], 'Text Only waits for Show Weaponskills')
@@ -253,7 +249,17 @@ assert(not ids['##name.castTextColor'], 'the custom colour shows only for Custom
 assert(options.castBarSkillTextOnly[1] and options.castShowName[1] and options.castShowTimer[1] and options.castTextColour[1]=='white')
 local text=custom.Defaults({});text.castTextColour={'pink'};text.castTextColor={2,'x',-1};custom.Settle(text)
 assert(text.castTextColour[1]=='white' and text.castTextColor[1]==1 and text.castTextColor[2]==1 and text.castTextColor[3]==0)
-options.showCastBar[1]=false
+-- the one preview drives both kinds, each while it is enabled
+local casts, healthbar = require('castbar'), require('healthbar')
+healthbar.Preview[1] = true
+options.showHealthBar[1] = true
+clear();customSettings.DrawBars(options)
+assert(casts.Preview[1], 'the cast preview follows the shared one')
+healthbar.Begin(nil, os.clock()); assert(healthbar.previewing, 'and the health bars\' too')
+healthbar.Preview[1] = false
+clear();customSettings.DrawBars(options)
+assert(not casts.Preview[1], 'and off together')
+options.showCastBar[1], options.showHealthBar[1] = false, false
 local et = require('entity_types')
 local mask = T{ 0xFF }
 imgui.Checkbox = function(id, value) if id == '##name.healthBarTypes.monsters' then value[1] = false; return true end; return false end
@@ -262,9 +268,9 @@ imgui.Checkbox = function(id, value) if id == '##name.healthBarTypes.monsters' t
 assert(et.Draw('healthBarTypes', mask) and mask[1] == 0xFF, 'and ticking it puts it back')
 imgui.Checkbox = record
 assert(et.Settle(T{ 'bad' })[1] == 0xFF and et.Settle(nil)[1] == 0xFF and et.Settle(T{ 0x1FF })[1] == 0xFF and et.Settle(T{ 0x12 })[1] == 0x12, 'a bad mask is every kind')
-H.print('Cast Bars: a tab of its own, fourth, with Enabled, Cast Text and the shared bar size', true)
+H.print('Bars: cast bars enable the shared settings, Cast Text, and one preview for both', true)
 
-H.tab(5); H.command('/name'); clear(); H.frames(1); H.command('/name')
+H.tab(4); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(headers, '|') == 'Check Details')
 for _, id in ipairs({ '##name.showCheckDetails', '##name.checkSize', '##name.abbreviateDifficulty', '##name.checkDetailsInWords' }) do
     assert(ids[id] and locations[id] == 'Check Details', 'Check Details tab has ' .. id)
@@ -315,7 +321,7 @@ assert(not disabledIds['##name.drawNames'], 'Enable Name remains usable while of
 assert(disabledIds['##name.preset'], 'all other General settings wait for Enable Name')
 options.drawNames[1] = true
 H.print('General: Enable Name first; the preset disabled while off', true)
-H.tab(7); H.command('/name'); clear(); H.frames(1); H.command('/name')
+H.tab(6); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(headers, '|') == 'Players|Pets|NPCs & Monsters|Target|Crowd Decluttering')
 assert(ids['##name.crowdDeclutter'] and disabledIds['##name.crowdThreshold'] and locations['##name.crowdHold'] == 'Crowd Decluttering')
 H.command('/name diag on')
@@ -337,14 +343,14 @@ assert((H.calls.PushTextWrapPos or 0) == wraps + 1)
 imgui.IsItemHovered = function() return false end
 imgui.GetFrameHeightWithSpacing = function() return 20 end
 AshitaCore.GetResourceManager = function() return { GetString = function() return '' end } end
-H.tab(6); H.command('/name'); clear(); H.frames(1); H.command('/name')
+H.tab(5); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(headers, '|') == 'Display|Entity Types|Selected Statuses')
 for _, key in ipairs({ 'self', 'party', 'alliance', 'players', 'myPet', 'pets', 'npcs', 'monsters' }) do
     assert(ids['##name.statusTypes.' .. key] and locations['##name.statusTypes.' .. key] == 'Entity Types', 'statuses\' Entity Types has ' .. key)
 end
 assert(ids['##name.statusOffsetX'] and ids['##name.statusOffsetY'] and not ids['##name.statusTimers'], 'X and Y Offset in Display, and no Timers')
 assert(ids['##name.statusIcons'] and locations['##name.statusIcons'] == 'Display', 'Icons is in Statuses → Display')
-H.command('/name dev'); H.tab(8); H.command('/name'); clear(); H.frames(1); H.command('/name')
+H.command('/name dev'); H.tab(7); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(headers, '|') == 'Tracked Monster')
 local levels = require('levels')
 local original = levels.Placeholders
@@ -361,8 +367,7 @@ local formatsBefore = options.nameFormat[1] .. options.monsterFormat[1] .. optio
 for tab, expected in ipairs({
     { '##name.preset' },
     { '##name.font', '##name.fontBold', 'Smooth Font##name.fontSmooth', '##name.nameFormat', '##name.playerIconSource' },
-    { '##name.showHealthBar', '##name.healthBarWidth', '##name.healthBarTypes.monsters' },
-    { '##name.showCastBar', '##name.healthBarWidth' },
+    { '##name.showHealthBar', '##name.healthBarWidth', '##name.healthBarTypes.monsters', '##name.showCastBar', '##name.barPreview' },
     { '##name.showCheckDetails', '##name.checkSize' },
     { '##name.showStatuses', '##name.statusTypes.monsters', '##name.statusSearch' },
     { '##name.showSelf', '##name.alwaysTarget' },
