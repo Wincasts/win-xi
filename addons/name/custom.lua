@@ -336,12 +336,21 @@ local function parse(name)
         return known;
     end
 
+    -- The game gives the player's own name no text while they are their own target, sub target
+    -- or confirm included: what was written for the character before is kept, its icons with it,
+    -- and with nothing before the entity's name is written
+    local empty = name.Text[0] == 0;
+    if (empty and not known.fresh and known.id == name.ServerId and known.words ~= '') then
+        return known;
+    end
+
     ffi.copy(known.text, name.Text, TEXT_SIZE);
     known.fresh = false;
+    known.id = name.ServerId;
     known.letterOf = nil; -- a renamed monster has no letter, or another's
     known.trackOf = nil;
     known.vendorOf = nil;
-    local written = ffi.string(name.Text);
+    local written = empty and ffi.string(name.Name) or ffi.string(name.Text);
 
     -- the icons lead; the name is what follows them, less the space between
     known.icons = {};
