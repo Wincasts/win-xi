@@ -20,10 +20,20 @@ Move Down draw them all that many pixels from where the game puts them, together
 (`/uihook native group`). Only their drawing moves: the controller works them as ever, but the mouse clicks
 where the game put them.
 
-[Experimental] Winxi Frames (off to begin with) draws their frames, the game's corners, edges and striped
-background, as a winxi panel: the theme's Background Color, its border in Border Color at Border Opacity, the
-corners rounded as a winxi window's. Their words, pictures, buttons and hand are the game's, drawn over it. It
-follows the theme as it changes. Needs uihook 1.59 (`/uihook native frames`).
+[Experimental] Drawn As (The Game to begin with), needing uihook 1.59:
+
+- **Winxi Frames**: their frames, the game's corners, edges and striped background, drawn by uihook as a panel in
+  the theme's Background Color, its border in Border Color at Border Opacity, the corners rounded as a winxi
+  window's. Their words, pictures, buttons and hand are the game's, drawn over it (`/uihook native frames`).
+- **Winxi**: each drawn again whole in the winxi look from uihook's mirror of them (`groupmirror.lua`,
+  `groupdraw.lua`): a winxi frame with the window's title on its edge, its words in the theme's font (the command
+  menu's pictured words read back from the game's letters), its icons and buttons the game's art, the row the cursor
+  is on lit in the Highlight Color, the game's hand, the scrollbar. The game's own stays open unseen underneath, so
+  the controller works it as ever and the mouse clicks it where it is drawn (with Move Right, Move Down or Menu
+  Scale, while Mouse Follows Menus is on). One whose text cannot all be placed is left to the game for a couple of
+  seconds and taken again once it measures whole; the settings say which.
+
+Both follow the theme as it changes.
 
 ## Fonts
 

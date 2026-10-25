@@ -13,9 +13,10 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 -- Menus Over The Chat Log: the windows the game stacks in the bottom left over its chat log (the command menu, a
 -- shop's buy and sell, a yes or no, an item's description) drawn this far from where it puts them, together
 -- (/uihook native group). Only their drawing is moved: the controller works them as ever, but the mouse clicks
--- where the game put them. [Experimental] Winxi Frames: their frames (the game's corners, edges and striped
--- background) drawn as a winxi panel in the theme's Background Color and border, under their words and pictures,
--- which stay the game's (/uihook native frames).
+-- where the game put them. [Experimental] Drawn As: The Game; Winxi Frames, their frames (the game's corners, edges
+-- and striped background) drawn as a panel in the theme's Background Color and border by uihook, under their words
+-- and pictures, which stay the game's (/uihook native frames); or Winxi, each drawn again whole in the winxi look by
+-- this (groupdraw.lua, from uihook's mirror of them), the game's own working unseen underneath.
 --
 -- Fonts: the skin's two fonts (the menus' words, the windows' titles) drawn in a font of C:\Windows\Fonts by uihook as
 -- the skin loads (/uihook skin font), following the winxi theme's Font and Title Font, the skin's own, or any chosen.
@@ -28,7 +29,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 -- [Experimental] Mouse Follows Menus: the game's mouse given each window where it is drawn, moved or larger, and kept
 -- from where the game puts one drawn elsewhere (/uihook native mouse). Off: the mouse clicks where the game put them.
 --
--- Needs uihook 1.59 or newer for Winxi Frames, 1.58 for Mouse Follows Menus, 1.54 for the rest.
+-- Needs uihook 1.59 or newer for Drawn As, 1.58 for Mouse Follows Menus, 1.54 for the rest.
 
 local winxiNeeded = 41
 do
@@ -48,6 +49,7 @@ local tooltip = require('winxi.tooltip')
 local shell = require('winxi.shell')
 local fonts = require('winxi.fonts')
 local theme = require('winxi.theme')
+local groupdraw = require('groupdraw')
 
 local THEME_FONT, SKIN_FONT = 'Follow Winxi Theme', 'Skin\'s Own'
 local WEIGHTS = { 'As The Font', 'Regular', 'Bold' }   -- the file's own weight, or one drawn so
@@ -61,6 +63,9 @@ local NONE = 'None'
 local OFFSET_LIMIT = 4000   -- pixels either way
 local INSET_LIMIT = 800     -- pixels in from each side, at most
 local SCALE_LOW, SCALE_HIGH = 0.75, 2
+-- how the menus over the chat log are drawn
+local LOOK_GAME, LOOK_FRAMES, LOOK_WINXI = 'The Game', 'Winxi Frames', 'Winxi'
+local LOOKS = { LOOK_GAME, LOOK_FRAMES, LOOK_WINXI }
 local PANEL_ROUNDING, PANEL_BORDER = 3, 1   -- a winxi window's corners and border, in pixels (winxi.borders)
 
 local defaults = T{
@@ -73,7 +78,7 @@ local defaults = T{
     menuWeight = 'Bold',     -- one of WEIGHTS: at a menu's size a regular font's strokes are a pixel, and faint
     titleWeight = 'As The Font',
     mouse = false,           -- the game's mouse given each window where it is drawn (an experiment)
-    frames = false,          -- the menus over the chat log framed as winxi panels (an experiment)
+    look = LOOK_GAME,        -- one of LOOKS: the menus over the chat log as the game draws them, framed, or drawn in winxi
 }
 
 local app
@@ -124,7 +129,7 @@ end
 -- The panel the menus over the chat log are framed with: the theme's Background Color, its game window's border (Border
 -- Color faded by Border Opacity), a winxi window's corners; or off
 local function FramesCommand(options)
-    if not options.frames then return '/uihook native frames off quiet' end
+    if options.look ~= LOOK_FRAMES then return '/uihook native frames off quiet' end
     local ok, t = pcall(theme.Get)
     local fill = ok and type(t) == 'table' and type(t.BackgroundColor) == 'table' and t.BackgroundColor or theme.Defaults.BackgroundColor
     local okBorder, border = pcall(theme.GameBorderColor)
@@ -290,14 +295,24 @@ local function DrawSettings(options)
             Apply()
         end
         tooltip.Hover('Back where the game puts them.')
-        widgets.Label('Winxi Frames', true)
-        local frames = { options.frames == true }
-        if imgui.Checkbox('##nativeui.frames', frames) then
-            options.frames = frames[1]
-            app:Save()
-            Apply()
+        widgets.Label('Drawn As', true)
+        widgets.PushControlWidth()
+        if imgui.BeginCombo('##nativeui.look', options.look) then
+            for _, look in ipairs(LOOKS) do
+                if imgui.Selectable(look .. '##nativeui.look.' .. look, options.look == look) then
+                    options.look = look
+                    app:Save()
+                    Apply()
+                end
+            end
+            imgui.EndCombo()
         end
-        tooltip.Hover('Their frames (the game\'s corners, edges and striped background) drawn as a winxi panel: the theme\'s Background Color, its border in Border Color at Border Opacity, its corners rounded. Their words, pictures, buttons and hand are the game\'s, over the panel. Needs uihook 1.59.')
+        widgets.PopControlWidth()
+        tooltip.Hover('The Game: as the game draws them. Winxi Frames: their frames (the game\'s corners, edges and striped background) drawn as a panel in the theme\'s Background Color and border, their words, pictures and hand the game\'s over it. Winxi: each drawn again whole in the winxi look, its words in the theme\'s font, the row the cursor is on lit, the game\'s hand; the game\'s own stays open unseen underneath, so the controller and the mouse work it as ever. One that cannot be measured whole is left to the game for a moment. Needs uihook 1.59.')
+        if options.look == LOOK_WINXI then
+            widgets.Label('Status')
+            imgui.TextWrapped(groupdraw.Status())
+        end
         imgui.TextWrapped('The command menu, a shop\'s buy and sell, a yes or no and an item\'s description, and every other window the game stacks there, move together. Only their drawing moves: the controller works them as ever, but the mouse clicks where the game put them, unless Mouse Follows Menus (Screen) is on.')
     end
 end
@@ -315,7 +330,10 @@ local function Complete(options)
     if type(options.inset) ~= 'table' then options.inset = T{ 0 } end
     options.inset[1] = math.max(0, math.min(INSET_LIMIT, math.floor((tonumber(options.inset[1]) or 0) + 0.5)))
     options.mouse = options.mouse == true
-    options.frames = options.frames == true
+    local known = false
+    for _, look in ipairs(LOOKS) do known = known or options.look == look end
+    if not known then options.look = options.frames == true and LOOK_FRAMES or LOOK_GAME end
+    options.frames = nil
     -- another character's settings: all of it given again
     for _, f in ipairs(FONT_KINDS) do
         if type(options[f.key]) ~= 'string' or options[f.key] == '' then options[f.key] = THEME_FONT end
@@ -348,6 +366,8 @@ ashita.events.register('d3d_present', 'nativeui_present', function()
         Apply()
     end
     app:BeginFrame()
+    -- the group asked for and drawn each frame, or given back
+    groupdraw.Frame(app.options ~= nil and app.options.look == LOOK_WINXI and uihookWas)
 end)
 
 -- unloaded: the game's own menus, where it puts them
@@ -357,4 +377,5 @@ ashita.events.register('unload', 'nativeui_unload', function()
     if Uihook() and sent.scale and sent.scale ~= '1.00' then Send('/uihook native size 1 quiet') end
     if Uihook() and sent.mouse then Send('/uihook native mouse off quiet') end
     if Uihook() and sent.frames and sent.frames ~= '/uihook native frames off quiet' then Send('/uihook native frames off quiet') end
+    groupdraw.Stop()
 end)

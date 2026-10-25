@@ -34,7 +34,7 @@ check('the sides brought in as it changes', Sent('/uihook native inset 100 quiet
 options.mouse = true
 H.wait(0.6); H.frames(1)
 check('Mouse Follows Menus given as it changes', Sent('/uihook native mouse on quiet'))
-options.frames = true
+options.look = 'Winxi Frames'
 H.wait(0.6); H.frames(1)
 local function SentLike(pattern) for _, q in ipairs(queued) do if q:match(pattern) then return q end end end
 check('Winxi Frames given: a fill, a border, rounded 3, a pixel thick', SentLike('^/uihook native frames %x%x%x%x%x%x%x%x %x%x%x%x%x%x%x%x 3 1 quiet$') ~= nil)

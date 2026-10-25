@@ -2,9 +2,15 @@
 
 ## 0.9
 
-- [Experimental] Winxi Frames (Menus Over The Chat Log, off to begin with): their frames drawn as a winxi panel in
-  the theme's Background Color and game window border, the rest of them the game's (uihook 1.59's
-  `/uihook native frames`). It follows the theme as it changes, and is given back when unloaded.
+- [Experimental] Drawn As (Menus Over The Chat Log; The Game to begin with), with uihook 1.59:
+  - Winxi Frames: their frames drawn as a panel in the theme's Background Color and game window border, the rest
+    of them the game's (`/uihook native frames`).
+  - Winxi: each drawn again whole in the winxi look from uihook's mirror of the group (mirror ABI 6,
+    `groupmirror.lua`, its reader revived from winxi.nativemirror; `groupdraw.lua`, its drawing from the menus
+    addon), the game's own working unseen underneath. One that cannot be measured whole is left to the game a
+    while, and the settings say so.
+  Each follows the theme, and the game is given the group back when unloaded. tests/groupmirror_check.lua and
+  tests/nativeui_group_check.lua.
 
 ## 0.8
 

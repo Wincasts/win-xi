@@ -174,6 +174,7 @@ public:
     bool groupOn=false; float groupX=0,groupY=0;
     // /uihook native frames: the group's frames drawn as panels of this look. The group is told while either is on.
     bool framesOn=false; NativePanelStyle panelStyle;
+    bool mirrorOn=false;   // an addon draws the group itself (mirror.h), asked again each frame
     float inset=0;   // the sides brought in by this many pixels, 0 not
     float menuScale=1;   // every framed window drawn this much larger, from its quarter's corner of the screen
     int16_t logLeft=0,logTop=0; uint32_t logFrame=0;
@@ -204,7 +205,9 @@ public:
         for (auto& e:entries) if (e.group) { e.dx=x; e.dy=y; }
         return true;
     }
-    bool Grouping() const { return groupOn || framesOn; }
+    bool Grouping() const { return groupOn || framesOn || mirrorOn; }
+    // The window being drawn one of the group this frame
+    bool Member() const { return current && current->group && current->member; }
     // The group's move undone; its entries let go unless its frames are still drawn as panels
     unsigned GroupOff() {
         groupOn=false; groupX=groupY=0;

@@ -2,7 +2,14 @@
 
 ## 1.59
 
-- `/uihook native frames <fill> <border> <rounding> <thickness> | off` (an experiment; nativeui 0.9's Winxi
+- The group's mirror (mirror ABI 6, `native/mirror.h`; nativeui 0.9's Drawn As Winxi): while an addon asks each
+  frame, the windows the game stacks over the chat log are measured, published and left undrawn, the game's own
+  working unseen underneath, for the addon to draw them in the winxi look. Revived from the menu mirror (ABI 5,
+  retired in 1.58), for the group alone: no names asked for, but those the addon keeps for the game, and its places
+  measured where the native look draws the window (its move, its scale), so the native look's mouse works it there.
+  Quads to 1024 a frame. tests/mirror.cpp: a window of the group measured and hidden, one kept, one moved and
+  larger, the textures held two frames, a stale request and no viewport, cleared.
+- `/uihook native frames <fill> <border> <rounding> <thickness> | off` (an experiment; nativeui 0.9's Drawn As Winxi
   Frames): the frames of the windows the game stacks over the chat log left undrawn (the draws in a window's frame
   of the frame's art: its corners, edges and striped background, told by their textures' pixels), and a panel
   drawn in their place under the rest of the window, in the colours given (AARRGGBB), its corners rounded and its
