@@ -1,8 +1,10 @@
--- The Names, Health Bars and NM Tracking tabs of the settings: how the names are drawn, as custom.lua
--- draws them.
+-- The Names, Health Bars, Cast Bars, Check Details and NM Tracking tabs of the settings: how the
+-- names are drawn, as custom.lua draws them.
 --
 --   settings.DrawSettings(options, save)    the Names tab
 --   settings.DrawHealthBars(options, save)  the Health Bars tab
+--   settings.DrawCastBars(options, save)    the Cast Bars tab
+--   settings.DrawCheck(options, save)       the Check Details tab
 --   settings.DrawTracking(options, save)    the NM Tracking tab, after /name dev
 local imgui = require('imgui');
 local widgets    = require('winxi.widgets');
@@ -89,7 +91,25 @@ function settings.DrawHealthBars(options, save)
         nameTypes.Draw(options);
     end
     controls.EndSection();
-    if controls.Section('Cast Bars', '##name.castBarOptions') then
+    if controls.Section('Shared Bar Size', '##name.barSize') then
+        nameTypes.DrawSize(options);
+    end
+    controls.EndSection();
+    if (controls.Section('Entity Types', '##name.healthBarTypes')) then
+        imgui.BeginDisabled(not options.showHealthBar[1]);
+        if (entityTypes.Draw('healthBarTypes', options.healthBarCategories, tips.Get('name.health_bars.entity_types')) and save ~= nil) then
+            save();
+        end
+        imgui.EndDisabled();
+    end
+    controls.EndSection();
+    controls.EndLayout();
+end
+
+-- The bars of what a name is casting: a tab of their own, sharing the health bars' size
+function settings.DrawCastBars(options, save)
+    controls.BeginLayout('castBars', 360, 'Text Only for Weaponskills');
+    if controls.Section('Cast Bars', '##name.castBarOptions', true) then
         controls.Checkbox('Enabled', '##name.showCastBar', options.showCastBar, tips.Get('name.cast_bars.enabled'));
         if options.showCastBar[1] then
             controls.Checkbox('Show Weaponskills', '##name.castBarWeaponskills', options.castBarWeaponskills,
@@ -130,12 +150,26 @@ function settings.DrawHealthBars(options, save)
         nameTypes.DrawSize(options);
     end
     controls.EndSection();
-    if (controls.Section('Entity Types', '##name.healthBarTypes')) then
-        imgui.BeginDisabled(not options.showHealthBar[1]);
-        if (entityTypes.Draw('healthBarTypes', options.healthBarCategories, tips.Get('name.health_bars.entity_types')) and save ~= nil) then
-            save();
-        end
+    controls.EndLayout();
+end
+
+-- What a check of a monster says, on a line under its name: a tab of its own
+function settings.DrawCheck(options, save)
+    controls.BeginLayout('check', 360, 'Abbreviate Difficulty');
+    if (controls.Section('Check Details', '##name.checkOptions', true)) then
+        controls.Checkbox('Enabled', '##name.showCheckDetails', options.showCheckDetails,
+            tips.Get('name.enemies.check_enabled'));
+        imgui.BeginDisabled(not options.showCheckDetails[1]);
+        controls.Slider('Size (%)', '##name.checkSize', options.checkSize, 50, 125, '%d%%',
+            tips.Get('name.enemies.check_size'));
+        controls.Checkbox('Abbreviate Difficulty', '##name.abbreviateDifficulty', options.abbreviateDifficulty,
+            tips.Get('name.enemies.check_abbreviate'));
+        controls.Choice('Display Style', '##name.checkDetailsInWords', options.checkDetailsInWords,
+            { { key = false, label = 'Icons & Text' }, { key = true, label = 'Text Only' } },
+            tips.Get('name.enemies.check_style'));
         imgui.EndDisabled();
+        controls.Help('Help / Examples', '##name.checkHelp',
+            tips.Get('name.enemies.check_help'));
     end
     controls.EndSection();
     controls.EndLayout();
@@ -233,22 +267,6 @@ function settings.DrawSettings(options, save)
         end
         controls.Help('Help / Examples', '##name.letterHelp',
             tips.Get('name.enemies.letters_help'));
-        if (controls.More('Check Details', '##name.checkOptions')) then
-            controls.Checkbox('Enabled', '##name.showCheckDetails', options.showCheckDetails,
-                tips.Get('name.enemies.check_enabled'));
-            if (options.showCheckDetails[1]) then
-                controls.Slider('Size (%)', '##name.checkSize', options.checkSize, 50, 125, '%d%%',
-                    tips.Get('name.enemies.check_size'));
-                controls.Checkbox('Abbreviate Difficulty', '##name.abbreviateDifficulty', options.abbreviateDifficulty,
-                    tips.Get('name.enemies.check_abbreviate'));
-                controls.Choice('Display Style', '##name.checkDetailsInWords', options.checkDetailsInWords,
-                    { { key = false, label = 'Icons & Text' }, { key = true, label = 'Text Only' } },
-                    tips.Get('name.enemies.check_style'));
-                controls.Help('Help / Examples', '##name.checkHelp',
-                    tips.Get('name.enemies.check_help'));
-            end
-            imgui.TreePop();
-        end
     end
     controls.EndSection();
     if (controls.Section('NPC Names', '##name.npcOptions')) then
