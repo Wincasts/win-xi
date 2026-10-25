@@ -20,16 +20,18 @@ function tokens.IconWidth(part, written, height, scale, defaultSize, defaultSpac
     return geometry(part, count(written), height, scale, defaultSize, defaultSpace);
 end
 
-function tokens.WriteIcons(part, written, x, top, height, scale, defaultSize, defaultSpace, pearlColor)
+-- pearlDoubled: pearlColor is the game's, to be doubled as the game draws it (namehook 1.36)
+function tokens.WriteIcons(part, written, x, top, height, scale, defaultSize, defaultSpace, pearlColor, pearlDoubled)
     local width, size, gap = geometry(part, count(written), height, scale, defaultSize, defaultSpace);
     if (written.iconsReplaced) then return width; end
     local y = top + math.floor((height - size) * 0.5);
     for index = 1, #written.icons do
         local byte = written.icons[index];
-        local color = part.color or (byte == 0x92 and pearlColor or 0xFFFFFFFF);
+        local pearl = part.color == nil and byte == 0x92;
+        local color = part.color or (pearl and pearlColor or 0xFFFFFFFF);
         local at = icons.Place(byte);
         if (at) then
-            icons.Quad(x, y, x + size, y + size, at[1], at[2], at[3], at[4], color, 1);
+            icons.Quad(x, y, x + size, y + size, at[1], at[2], at[3], at[4], color, 1, nil, pearl and pearlDoubled);
         end
         local layers = at and icons.Overlays(byte);
         if (layers) then

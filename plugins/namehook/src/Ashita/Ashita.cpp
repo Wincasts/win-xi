@@ -623,7 +623,8 @@ void AshitaNameplate::RenderCustom(uint32_t entityIndex, const HookDrawing& draw
     uint32_t runCount = 0;
     DWORD mostSolid = 0; // of the colours of what is drawn
 
-    auto add = [&](const HookQuad& quad, float dx, float dy, DWORD color) {
+    // doubled only for a quad itself, as the addon asked: never for its edge
+    auto add = [&](const HookQuad& quad, float dx, float dy, DWORD color, bool doubled) {
         const bool soft = (quad.Flags & QUAD_SOFT_RECT) != 0 && (quad.Flags & QUAD_EDGED) == 0
             && quad.U0 == quad.U1 && quad.V0 == quad.V1;
         const uint32_t needed = soft ? 30 : 6;
@@ -631,7 +632,7 @@ void AshitaNameplate::RenderCustom(uint32_t entityIndex, const HookDrawing& draw
             return;
         }
 
-        NameSubmission::Append(Runs, runCount, quad.Texture, vertexCount, needed, color, textures);
+        NameSubmission::Append(Runs, runCount, quad.Texture, vertexCount, needed, color, textures, doubled);
         if ((color >> 24) > mostSolid) {
             mostSolid = color >> 24;
         }
@@ -697,7 +698,7 @@ void AshitaNameplate::RenderCustom(uint32_t entityIndex, const HookDrawing& draw
             EdgeColors[i] = FadeColor(drawing.EdgeColor, alpha * (static_cast<float>(quads[i].Color >> 24) / 255.0f) * quads[i].EdgeOpacity());
             if (quads[i].EdgeShadow()) {
                 add(quads[i], 0, radius + NameGeometry::ShadowDrop,
-                    FadeColor(EdgeColors[i], NameGeometry::ShadowOpacity));
+                    FadeColor(EdgeColors[i], NameGeometry::ShadowOpacity), false);
             }
         }
     }
@@ -706,13 +707,13 @@ void AshitaNameplate::RenderCustom(uint32_t entityIndex, const HookDrawing& draw
             for (uint32_t i = 0; i < drawing.Count; i++) {
                 const float radius = EdgeRadii[i];
                 if (radius > 0) {
-                    add(quads[i], offset.x * radius * horizontalFit, offset.y * radius, EdgeColors[i]);
+                    add(quads[i], offset.x * radius * horizontalFit, offset.y * radius, EdgeColors[i], false);
                 }
             }
         }
     }
     for (uint32_t i = 0; i < drawing.Count; i++) {
-        add(quads[i], 0.0f, 0.0f, FadeColor(quads[i].Color, alpha));
+        add(quads[i], 0.0f, 0.0f, FadeColor(quads[i].Color, alpha), (quads[i].Flags & QUAD_DOUBLED) != 0);
     }
 
     if (vertexCount == 0 || !MakeNameStates()) {
@@ -731,9 +732,18 @@ void AshitaNameplate::RenderCustom(uint32_t entityIndex, const HookDrawing& draw
     device->ApplyStateBlock(m_NameStates);
 
     // most names are letters alone, from the one texture, which is then set once for both passes
+    // a doubled run's colour is the texture's times twice its own, as the client draws its pearls
+    bool doubling = false;
     for (uint32_t i = 0; i < runCount; i++) {
+        if (Runs[i].doubled != doubling) {
+            doubling = Runs[i].doubled;
+            device->SetTextureStageState(0, D3DTSS_COLOROP, doubling ? D3DTOP_MODULATE2X : D3DTOP_MODULATE);
+        }
         device->SetTexture(0, textures[Runs[i].texture]);
         device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, Runs[i].count / 3, &Vertices[Runs[i].first], sizeof(NameVertex));
+    }
+    if (doubling) {
+        device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
     }
 
     // Again for the picture's depth alone, where the name is solid: what the client draws after it,

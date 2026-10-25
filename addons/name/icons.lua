@@ -27,10 +27,11 @@ function icons.ConfigureOutline(options, size, scale, fit)
 end
 
 -- All outlined icons go through this path; text, badges and mastery stars do not.
-function icons.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, tight)
+-- doubled: color is the game's own, doubled as it draws it (nameplates' Feature.Doubled)
+function icons.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, tight, doubled)
     plates = plates or require('winxi.nameplates');
     plates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot,
-        outlineRadius > 0 and outlineOpacity > 0, outlineOpacity, nil, tight, outlineRadius);
+        outlineRadius > 0 and outlineOpacity > 0, outlineOpacity, nil, tight, outlineRadius, doubled);
 end
 
 local handle, places, overlays = nil, bundledPlaces, bundledOverlays;

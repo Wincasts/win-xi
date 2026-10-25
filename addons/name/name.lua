@@ -1,11 +1,11 @@
 addon.name    = 'name';
 addon.author  = 'win';
-addon.version = '1.71';
+addon.version = '1.72';
 addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the namehook plugin.';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 47; -- public capability metadata for privacy-safe support reports
+local winxiNeeded = 48; -- nameplates.Feature.Doubled, the pearl's colour as the game draws it
 do
     local ok, found = pcall(require, 'winxi.version');
     local number = ok and type(found) == 'table' and found.Number or 0;

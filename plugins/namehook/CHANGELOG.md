@@ -1,5 +1,10 @@
 # Changelog
 
+## namehook 1.36 — doubled colours
+
+- A quad an addon draws can ask for its colour to be doubled as the client's own are (`QUAD_DOUBLED`, Flags bit 5): drawn with `D3DTOP_MODULATE2X`, 0x80 in a channel is the texture as it is and more brightens it. The client draws a linkshell pearl so, and a pearl's colour goes above 0x80; drawn plainly it could be no brighter than the icon, and was darker than the client's. Only the quad is doubled, never its edge or shadow. Such quads are runs of their own (`NameRun::doubled`), the stage put back to `MODULATE` after them. The capabilities sidecar says so (`FEATURE_DOUBLED`, 8; Build 136).
+- tests/test.cpp: a doubled quad a run of its own, of the same texture, and the next not; the capability.
+
 ## namehook 1.35 — audit fixes and bounded submissions
 
 - Add a versioned `NAMEHOOKCAPS` sidecar, without changing ABI 3, so newer Name/WinXI can verify independent icon outlines. Older consumers and speech bubbles retain their existing API.

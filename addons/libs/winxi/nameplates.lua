@@ -50,7 +50,9 @@
 --                                                 which the plugin reads itself (hook.FontTexture says
 --                                                 which it last drew from, 0 for none)
 --   nameplates.BeginName(entityIndex, alpha, edge, edgeColor)   false if there is no room for it
---   nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged, edgeOpacity, softRect, tightEdge, edgeRadius)
+--   nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged, edgeOpacity, softRect, tightEdge, edgeRadius, doubled)
+--                                     doubled: the colour is doubled as the game's own are, 0x80 the texture as it
+--                                     is and more brightening it, its edge not (namehook 1.36, Feature.Doubled).
 --                                     edgeRadius: independent target-pixel width, including when text edge is zero (1.34).
 --                                     tightEdge: cap an icon halo at one target pixel, no shadow (namehook 1.33).
 --                                     softRect: antialias a constant-UV, unedged solid rectangle (namehook 1.32).
@@ -144,7 +146,7 @@ ffi.cdef[[
 local nameplates = {};
 
 nameplates.Plugin = 'namehook';
-nameplates.Feature = { IconOutline = 1, SoftRectangle = 2, TightEdge = 4 };
+nameplates.Feature = { IconOutline = 1, SoftRectangle = 2, TightEdge = 4, Doubled = 8 };
 ffi.cdef[[
     typedef struct {
         char Magic[16];
@@ -501,7 +503,7 @@ function nameplates.BeginName(entityIndex, alpha, edge, edgeColor)
     return true;
 end
 
-function nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged, edgeOpacity, softRect, tightEdge, edgeRadius)
+function nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged, edgeOpacity, softRect, tightEdge, edgeRadius, doubled)
     if (drawing == nil or drawing.Count >= QUADS_PER_NAME or drawing.First + drawing.Count >= quadLimit) then
         return;
     end
@@ -519,6 +521,8 @@ function nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged, edg
         flags = bit.bor(flags, 16);
         reserved = reserved + math.floor(math.max(0, math.min(8, edgeRadius)) * 256 + 0.5) * 256;
     end
+    -- an older plugin knows nothing of it, and draws the colour as it is
+    if (doubled) then flags = bit.bor(flags, 32); end
     local quad = draw.Quads[drawing.First + drawing.Count];
     quad.X0, quad.Y0, quad.X1, quad.Y1 = x0 * horizontalFit, y0, x1 * horizontalFit, y1;
     quad.U0, quad.V0, quad.U1, quad.V1 = u0, v0, u1, v1;

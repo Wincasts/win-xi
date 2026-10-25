@@ -300,3 +300,24 @@ assert(own[2] - own[1] == tight[2] - tight[1] + 1, 'a token\'s spacing= in place
 options.letterSpacing[1] = 99; custom.Settle(options); assert(options.letterSpacing[1] == 10, 'kept within 0 to 10')
 options.letterSpacing[1] = 0; options.nameFormat[1] = '[name]'
 H.print('Letter Spacing: letters moved apart, centred, a token\'s own spacing, kept within bounds', true)
+
+-- A linkshell pearl's colour: given as the game has it, doubled by the plugin (namehook 1.36) as the game
+-- draws it, so that more than 0x80 is brighter than the icon; with an older plugin as before, where it is not
+options.nameFormat[1] = '[icons][name]'; custom.Settle(options)
+put(0, 0x408, 'Win', plates.Category.Self); ffi.copy(hook.Names[0].Text, '\146 Win'); hook.Names[0].IconColor = 0x008F1F8F; hook.Count = 1
+local supports = plates.Supports
+local iconsModule = require('icons'); local realPlace = iconsModule.Place
+iconsModule.Place = function(byte) return byte == 0x92 and { 0, 0, 0.1, 0.1 } or realPlace(byte) end
+local function pearl() for k = 0, quads(0x408) - 1 do local q = draw.Quads[draw.Entities[0x408].First + k]; if q.Texture == 1 then return q end end end
+plates.Supports = function(features, ...) if features == plates.Feature.Doubled then return true end return supports(features, ...) end
+render(); local q = pearl()
+assert(q ~= nil and q.Color == 0xFF8F1F8F and bit.band(q.Flags, 32) ~= 0, 'pearl: the game\'s colour, doubled by the plugin')
+assert(bit.band(q.Flags, 1) ~= 0, 'and still edged as icons are')
+plates.Supports = function(features, ...) if features == plates.Feature.Doubled then return false end return supports(features, ...) end
+render(); q = pearl()
+assert(q.Color == 0xFFFF3EFF and bit.band(q.Flags, 32) == 0, 'older plugin: doubled here, more than 0x80 no brighter')
+options.nameFormat[1] = '[icons: color=red][name]'; plates.Supports = function(features, ...) if features == plates.Feature.Doubled then return true end return supports(features, ...) end
+render(); q = pearl()
+assert(q.Color == 0xFFFF4040 and bit.band(q.Flags, 32) == 0, 'a colour of the format\'s own is not doubled')
+plates.Supports, iconsModule.Place = supports, realPlace; options.nameFormat[1] = '[name]'
+H.print('pearl colour: doubled by the plugin, as before with an older one, a format\'s colour as it is', true)
