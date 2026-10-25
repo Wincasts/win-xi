@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.77
+
+- Health Bars and Cast Bars are one tab, **Bars**: **Shared Bar Settings** first (Bar Width, Bar Height, Fit to Name and Preview, waiting until either kind is enabled), then **Health Bars** (Enabled, Combat Only, Bar Texture), **Health Bar Entity Types**, **Cast Bars** (Enabled, Show Weaponskills, Text Only for Weaponskills, Bar Texture) and **Cast Text**. The tabs after it move up one.
+- **Fit to Name** (was Auto-scale to Name, the same saved setting) widens health bars too, with or without a cast; the saved width is still the least.
+- One **Preview** for both: every enabled bar is shown, the health bars emptying and filling and the sample cast under the names; the two previews of 1.76 are gone.
+- Tests: the tab's sections, places and what waits for what; one preview driving both; Fit to Name on a health bar alone; the tabs after it renumbered.
+
 ## 1.76
 
 - Bar Texture for health bars (Health Bars → Health Bars) and for cast bars (Cast Bars → Cast Bars), each its own: Plain (the bar as it was, and to begin with) or one of WinXI's Bar Textures, the art party's HP bars are drawn in, tinted the name's colour and drawn as WinXI draws it (the back and front in three, their ends kept to the bar's height, the fill squeezed to how far it goes). The plugin's eight textures are all taken, so the sets in use are packed with Name's own signs (special.png) into one sheet of the addon's own (`bar_art.lua`), at their own size and at a half and a quarter of it, and a bar is drawn from the copy nearest its height: the plugin samples without mipmaps. The fill's end is softened as the plain bar's is with namehook 1.37. Art that will not load leaves the bar Plain.

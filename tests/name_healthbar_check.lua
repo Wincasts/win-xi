@@ -61,14 +61,14 @@ id = 123
 assert(healthbar.Write(name, nil, -40, 40, 20, 1) == 20)
 imgui.GetFontTexUvWhitePixel = function() return { x = 0.5, y = 0.75 } end
 assert(draw() > 20 and quads[1][5] == 0.5)
--- the preview is on the Health Bars tab, not the Names one, and is the session's alone
+-- the preview is on the Bars tab, not the Names one, and is the session's alone
 local originalCheckbox, seen = imgui.Checkbox, {}
 imgui.Checkbox = function(label) seen[label] = true; return false end
 customSettings.DrawSettings(o)
-assert(not seen['##name.healthBarPreview'], 'no preview among the names\' settings')
+assert(not seen['##name.barPreview'], 'no preview among the names\' settings')
 o.showHealthBar[1] = true
-customSettings.DrawHealthBars(o)
-assert(seen['##name.healthBarPreview'], 'Health Bars has a Preview')
+customSettings.DrawBars(o)
+assert(seen['##name.barPreview'], 'Bars has a Preview')
 imgui.Checkbox = originalCheckbox
 assert(types.Preview == nil and o.healthBarPreview == nil, 'never a saved setting')
 hp = 100

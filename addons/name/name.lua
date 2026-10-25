@@ -1,6 +1,6 @@
 addon.name    = 'name';
 addon.author  = 'win';
-addon.version = '1.76';
+addon.version = '1.77';
 addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the namehook plugin.';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
@@ -254,7 +254,7 @@ app = shell.New({
     hideAppearance = true,
     menuOnlyCommands = true,
     command      = '/name',
-    help         = 'Use /name to open General, Names, Health Bars, Cast Bars, Check Details, Statuses and Visibility. Diagnostics is under General.',
+    help         = 'Use /name to open General, Names, Bars, Check Details, Statuses and Visibility. Diagnostics is under General.',
     drawSettings = WhenEnabled(DrawSettings),
     settingsLabel = 'Visibility',
     leadingTabs  = {
@@ -263,8 +263,7 @@ app = shell.New({
             DrawDiagnostics(options);
         end },
         { label = 'Names', draw = WhenEnabled(customSettings.DrawSettings) },
-        { label = 'Health Bars', draw = WhenEnabled(customSettings.DrawHealthBars) },
-        { label = 'Cast Bars', draw = WhenEnabled(customSettings.DrawCastBars) },
+        { label = 'Bars', draw = WhenEnabled(customSettings.DrawBars) },
         { label = 'Check Details', draw = WhenEnabled(customSettings.DrawCheck) },
         { label = 'Statuses', draw = WhenEnabled(statuses.DrawSettings) },
     },

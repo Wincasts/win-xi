@@ -229,6 +229,13 @@ options.castBarSkillTextOnly[1],options.castBarWeaponskills[1]=true,false
 now=now+.3;assert(#render()==0,'closed preview control expires without a fake action record')
 options.showCastBar[1]=false;hp=50
 assert(#render()==1,'disabled cast bars preserve the HP-only pipeline')
+glyph.Y0,glyph.Y1=0,12;font.ContainerAtlas.TexData.UniqueID=4
+local plainWidth=render()[1].w
+options.castBarAutoWidth[1]=true;options.healthBarWidth[1]=12
+local fitted=render();assert(#fitted==1 and fitted[1].w==48,'Fit to Name widens a health bar with no cast')
+options.healthBarWidth[1]=100
+assert(render()[1].w==100,'the saved width still the least')
+options.castBarAutoWidth[1]=false;assert(render()[1].w==plainWidth)
 custom.Deactivate();os.clock=clock
 ffi.C.munmap(low,bytes+16)
 H.print('Cast rendering: shared origin/dimensions, HP above cast including full HP, progress, labels/timer below, status clearance, packet hookup and bounded writes passed',true)

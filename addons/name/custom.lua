@@ -111,7 +111,7 @@ local settings = {
     signFormatVersion = function () return 0; end, -- 1 once Party Icons and Vendor Icons are in the formats
     showCastBar = function () return T{ false }; end,
     castBarWeaponskills = function () return T{ false }; end,
-    castBarAutoWidth = function () return T{ false }; end,
+    castBarAutoWidth = function () return T{ false }; end, -- Fit to Name, for health bars as well since 1.77
     castNameScale = function () return T{ 75 }; end,
     castTimerScale = function () return T{ 75 }; end,
     castBarSkillTextOnly = function () return T{ true }; end, -- weaponskills and TP moves as words, no bar
@@ -1746,7 +1746,8 @@ function custom.Frame(options, hook, formats)
 
                     written.barScale = scale * height / fullHeight;
                     written.barLeft, written.barRight, written.barWidth = nameLeft, nameLeft + width, options.healthBarWidth[1];
-                    if written.cast and options.castBarAutoWidth[1] and written.barNameLeft ~= nil then
+                    -- Fit to Name: health and cast bars alike as wide as the name, the saved width the least
+                    if options.castBarAutoWidth[1] and written.barNameLeft ~= nil then
                         written.barLeft, written.barRight = nameLeft + written.barNameLeft, nameLeft + written.barNameRight;
                         written.barWidth = math.max(written.barWidth, (written.barRight - written.barLeft) / written.barScale);
                     end

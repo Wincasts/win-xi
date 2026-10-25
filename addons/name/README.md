@@ -36,9 +36,10 @@ Kept for each character. Each is on for names that are shown.
 The menus follow Trigger's layout: named sections, aligned controls, and visible
 `(?)` help marks with wrapped explanations.
 
-The tabs are **General → Names → Health Bars → Cast Bars → Check Details → Statuses → Visibility**, and
+The tabs are **General → Names → Bars → Check Details → Statuses → Visibility**, and
 **NM Tracking** after `/name dev`. Each part a name can have (health bars, cast bars, check details,
-statuses) is turned on and off in its own tab, with **Enabled** at the top.
+statuses) is turned on and off in its own section, with **Enabled** at the top; health and cast bars
+share the **Bars** tab.
 
 - **General:** **Enable Name** first, then **Preset**, a premade look to start from.
   A preset sets the three formats, the check line, Health Bars and Combat Only, Status Icons and
@@ -134,17 +135,16 @@ statuses) is turned on and off in its own tab, with **Enabled** at the top.
   enemy formats have `[name]`,
   `[level]`, `[aggro]`, `[checked]`, `[letters]` and `[distance]`. There are no Help /
   Examples dropdowns: what they said is in the (?) beside the setting it is about.
-- **Health Bars**, a tab of its own, has one shared **Enabled** toggle,
-  **Combat Only**, and shared **Bar Width/Height** for HP and cast rows, including pets,
-  trusts and NPCs. Dimensions and Combat Only stay visible but disabled while bars
-  are off. HP bars require valid live HP/server-ID data; full-health entities have none
-  unless an active cast needs the enabled HP row above it.
-  Combat Only requires that particular entity to be alive and Engaged (status 1).
-  Targeting/claiming alone is not combat; missing status data hides the bar.
-  **Bar Texture** draws the bars in Plain or one of WinXI's Bar Textures, and **Preview**
-  shows a bar under every name that can have one while its section is open.
-- **Cast Bars**, a tab of its own: **Enabled**, Show Weaponskills, Auto-scale to Name, Bar Texture,
-  Preview, Cast Text (with its own Font) and the same Shared Bar Size as Health Bars. See [Cast bars and shared bar layout](#cast-bars-and-shared-bar-layout).
+- **Bars**, one tab for health and cast bars. **Shared Bar Settings** comes first: **Bar Width/Height**
+  for HP and cast rows alike, **Fit to Name** (both kinds as wide as the name) and **Preview** (every
+  enabled bar shown under the names while the section is open). Then **Health Bars**: **Enabled**,
+  **Combat Only** and **Bar Texture**, for every type including pets, trusts and NPCs, with
+  **Health Bar Entity Types** after; HP bars require valid live HP/server-ID data, and full-health
+  entities have none unless an active cast needs the HP row above it. Combat Only requires that
+  particular entity to be alive and Engaged (status 1); targeting/claiming alone is not combat. Then
+  **Cast Bars** (**Enabled**, Show Weaponskills, Text Only for Weaponskills, Bar Texture) and **Cast
+  Text** (with its own Font). The shared settings wait until either kind is enabled. See
+  [Cast bars and shared bar layout](#cast-bars-and-shared-bar-layout).
 - **Check Details**, a tab of its own: **Enabled**, Size, Abbreviate Difficulty and Display Style
   (Icons & Text / Text Only), greyed out while it is off. See [What a check shows](#what-a-check-shows).
   **Entity Types** under it says which kinds of name have a bar: Yourself, Party
@@ -201,12 +201,12 @@ rebuilds promptly release replaced badge atlases rather than waiting for Lua GC.
 
 | Setting | What it does |
 |---|---|
-| Health Bars → Enabled (shared) | Off by default. Shows a bar matching the name's colour for damaged names of every type when HP is available. Full-health names have no bar. Bars follow visibility/fading and leave room for check details and statuses |
-| Bar Width / Height (px, Health Bars → Shared Bar Size) | One pair for HP and cast rows of all types, the bar's size under a name at its largest; it shrinks with the name as it goes further away, and grows with a hunted or sub-targeted one. Defaults to **60 × 6 px**, including border. Width: 12–300; height: 3–40. Saved per character |
+| Bars → Health Bars → Enabled | Off by default. Shows a bar matching the name's colour for damaged names of every type when HP is available. Full-health names have no bar. Bars follow visibility/fading and leave room for check details and statuses |
+| Bar Width / Height (px, Bars → Shared Bar Settings) | One pair for HP and cast rows of all types, the bar's size under a name at its largest; it shrinks with the name as it goes further away, and grows with a hunted or sub-targeted one. Defaults to **60 × 6 px**, including border. Width: 12–300; height: 3–40. Saved per character |
 | Bold | Makes names and check-detail text heavier. Each letter is drawn twice, a pixel apart. On in the preferred defaults; icons and stars are unchanged |
 | Smooth Font (beside Bold) | Off by default. Uses a cached, area-filtered text atlas generated from 4× rasterised glyphs, with transparent edge guards. Native layout metrics and Bold's one-pixel stroke are retained; icons and badges are unchanged. More atlas memory and a one-time build cost; direct rendering is used while preparing or unavailable |
-| Bar Texture (Health Bars, Cast Bars) | What the bars are drawn in, each kind its own: **Plain** (the dark-bordered bar, to begin with) or one of WinXI's Bar Textures, party's HP art, tinted the name's colour. Drawn from a sheet Name makes of the sets in use and its own signs, at full, half and quarter size, so small bars stay clean. The fill's end is softened with namehook 1.37. Art that will not load leaves the bar Plain |
-| Preview (Health Bars) | Session-only: every name that can have a health bar shows one, emptying and filling again, at full health and out of combat too, while the Health Bars section is open. Entity Types still apply; never saved |
+| Bar Texture (Bars → Health Bars, Cast Bars) | What the bars are drawn in, each kind its own: **Plain** (the dark-bordered bar, to begin with) or one of WinXI's Bar Textures, party's HP art, tinted the name's colour. Drawn from a sheet Name makes of the sets in use and its own signs, at full, half and quarter size, so small bars stay clean. The fill's end is softened with namehook 1.37. Art that will not load leaves the bar Plain |
+| Preview (Bars → Shared Bar Settings) | Session-only: every enabled bar is shown while the section is open. Each name that can have a health bar shows one, emptying and filling again, at full health and out of combat too (Entity Types still apply); with cast bars on, a sample cast runs under the names. Never saved |
 | Combat Only (Health Bars) | Off by default. Requires each entity's own Engaged status (1) and HP above zero. Missing/invalid data hides the bar; applies to players, enemies, pets/trusts and NPCs |
 | Maximum Name Size (px, General) | Shared nearby text height, 6–48 pixels, for every entity type; independent of bar dimensions |
 | Minimum Name Size (px, General) | Shared distant text height for every type, never more than the maximum |
@@ -228,13 +228,13 @@ rebuilds promptly release replaced badge atlases rather than waiting for Lua GC.
 
 ### Cast bars and shared bar layout
 
-In the **Cast Bars** tab, enable cast bars (off by default). When enabled,
+In **Bars → Cast Bars**, enable cast bars (off by default). When enabled,
 **Show Weaponskills** also enables readied monster TP moves and weaponskill names;
 that option starts off too. With it, **Text Only for Weaponskills** (on by default)
 shows weaponskills and TP moves as their name and timer alone, with no bar; spells
 keep theirs.
 
-**Cast Bars → Cast Text** holds the text under the bar: **Font** (Same as Names to begin
+**Bars → Cast Text** holds the text under the bar: **Font** (Same as Names to begin
 with, Default, or a .ttf of `C:\Windows\Fonts`; drawn without Smooth Font's filtering, Bold
 following the names'), **Show Action Name** and **Show Timer** (both on), **Text Colour** (White by default, Name Colour, or Custom
 with a colour picker), and **Cast Name Size (%)** and **Timer Size (%)**, which
@@ -242,29 +242,29 @@ independently scale the two text rows relative to the nameplate font (25–200%,
 default **75%** for the existing appearance). Bar dimensions and nameplate text are
 unchanged; the status anchor follows the resized captions. Upscaled text can look softer.
 
-**Preview** is a session-only, clearly labelled animated sample under visible names.
-It uses the actual bar/caption layout and your real HP row when enabled, and alternates
-spell/TP styles with Show Weaponskills. Real actions take precedence; samples create
-no packets or observed actor records. It stops shortly after leaving the visible Cast
-Bars settings section/window, and resets on disable/profile reload. The preview switch
-is never saved. Enable Cast Bars first to access these controls.
+**Preview**, in Shared Bar Settings, shows every enabled bar: with cast bars on, a
+clearly labelled animated sample cast under visible names, using the actual bar/caption
+layout, alternating spell/TP styles with Show Weaponskills; with health bars on, a bar
+under every name that can have one, emptying and filling. Real actions take precedence;
+samples create no packets or observed actor records. It stops shortly after leaving the
+section or window, and resets on disable/profile reload. The switch is never saved.
 
 Cast bars apply to visible names with a matching live
 entity identity; the existing Entity Types and Combat Only controls still filter
 HP bars only.
 
-**Shared Bar Size**, in both the Health Bars and Cast Bars tabs, contains one **Bar Width / Bar Height** pair for
+**Shared Bar Settings**, at the top of the Bars tab, holds one **Bar Width / Bar Height** pair for
 both kinds of bar. These reuse the saved `healthBarWidth` / `healthBarHeight` values;
-there is no separate cast-bar size to drift out of alignment. **Auto-scale to Name**
-(off by default) extends the bar to fit the visible **entity name plus visible letter
+there is no separate cast-bar size to drift out of alignment. **Fit to Name**
+(off by default) extends health and cast bars alike to fit the visible **entity name plus visible letter
 badges**, in either token order. The saved width remains a minimum. It measures the
 name/letter span, including spaces between them, not the action caption, surrounding
 icons or distance/check details. Both bar rows are centred under that span and grow
-together while a cast/preview is shown; ordinary HP-only layout stays unchanged.
+together, with or without a cast.
 Hidden tokens do not count, and formats with neither name nor letters keep the saved
 width. Text-scale controls and bar height are independent of auto-width.
 
-With auto-width off, cast-only starts at
+With Fit to Name off, cast-only starts at
 exactly the existing HP-bar origin. If an eligible HP row is enabled, HP is above
 cast, with matching left edges, widths and heights. While casting, the HP row remains
 visible even at full health so taking damage does not move the cast row. Away from
