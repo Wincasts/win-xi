@@ -54,7 +54,7 @@ drag the window; Lock Position holds it) is kept separately, so adjusting the an
 overwrite your free-window placement. With uihook (or legacy buffhook) loaded and **Hide Game's
 Icons** on, the bar at Position is handed to the plugin too: drawn when the game would draw its
 icons, under the game's menus and every addon's window, and dragged with the left button as the
-anchored bar is. Grow From then works as anchored, across a full row from Position, and Show
+anchored bar is, from anywhere on it: an icon, the gap between two, or the backdrop round them. Grow From then works as anchored, across a full row from Position, and Show
 Backdrop is the theme's Background Color with a line of its border colour round it. With the game's
 icons shown, it is a window over everything.
 

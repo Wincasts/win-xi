@@ -161,10 +161,25 @@ block.Frame, block.DrawnFrame = 23, 23; H.frames(1)
 H.ret.IsMouseClicked = { false }; H.ret.GetMousePos = { 300 + pad + 22, 150 + pad + 12 }
 block.Frame, block.DrawnFrame = 24, 24; H.frames(1)
 H.print('dragged: Position follows the mouse', o.pos[1] == 320 and o.pos[2] == 160, '| the adjustment left alone', o.anchorAdjustment[1] == 0)
-H.ret.IsMouseDown = { false }; H.ret.IsItemHovered = { false }; H.ret.GetMousePos = { 0, 0 }
-block.Frame, block.DrawnFrame = 25, 25; H.frames(1)
-o.hideGameIcons[1] = false; block.Frame = 26; begins = H.calls.Begin; H.frames(1)
-H.print('the game\'s icons shown: a window, nothing handed over', H.calls.Begin > begins, block.SubmitFrame == 25, '| nothing hidden', written[300] == 301)
+H.ret.IsMouseDown = { false }; block.Frame, block.DrawnFrame = 25, 25; H.frames(1)
+-- on the backdrop round the icons, not on an icon: a drag all the same
+assert(pad > 1)
+o.showBackdrop[1] = true; begins = H.calls.Begin
+H.ret.GetMousePos = { 320 + 1, 160 + 1 }; H.ret.IsMouseClicked = { true }; H.ret.IsMouseDown = { true }
+block.Frame, block.DrawnFrame = 26, 26; H.frames(1)
+H.print('the backdrop under the mouse: a window over the bar to take the click', H.calls.Begin == begins + 1)
+H.ret.IsMouseClicked = { false }; H.ret.GetMousePos = { 320 + 41, 160 + 21 }
+block.Frame, block.DrawnFrame = 27, 27; H.frames(1)
+H.print('dragged from the backdrop: Position follows the mouse', o.pos[1] == 360 and o.pos[2] == 180)
+H.ret.IsMouseDown = { false }; block.Frame, block.DrawnFrame = 28, 28; H.frames(1)
+o.showBackdrop[1] = false; begins = H.calls.Begin
+H.ret.GetMousePos = { 360 + 1, 180 + 1 }; block.Frame, block.DrawnFrame = 29, 29; H.frames(1)
+H.print('without the backdrop, just outside the icons: nothing taken', H.calls.Begin == begins)
+o.pos[1], o.pos[2] = 320, 160
+H.ret.IsItemHovered = { false }; H.ret.GetMousePos = { 0, 0 }
+block.Frame, block.DrawnFrame = 30, 30; H.frames(1)
+o.hideGameIcons[1] = false; block.Frame = 31; begins = H.calls.Begin; H.frames(1)
+H.print('the game\'s icons shown: a window, nothing handed over', H.calls.Begin > begins, block.SubmitFrame == 30, '| nothing hidden', written[300] == 301)
 o.hideGameIcons[1] = true
 
 -- The buff selector: the status the game's cursor is on has the highlight round it, drawn by the

@@ -500,9 +500,9 @@ local function BarNudge(options, found)
     return math.floor(options.pos[1] + pad - left + 0.5), math.floor(options.pos[2] + pad - top + 0.5);
 end
 
--- Show Backdrop, for the bar handed over at Position: the theme's background colour behind the rows
--- with its padding round them, and a line of its border colour round that
-local function WriteBackdrop(nudgeX, nudgeY, count, perRow, cellWidth, cellHeight, span, align, alpha, sx, sy)
+-- The rows of the bar handed over, from its first icon's corner: their left, top, right and bottom,
+-- with pad round them
+local function BarBounds(nudgeX, nudgeY, count, perRow, cellWidth, cellHeight, span, align, pad)
     local rows = math.ceil(count / perRow);
     local x0, x1 = math.huge, -math.huge;
     for row = 0, rows - 1 do
@@ -511,9 +511,14 @@ local function WriteBackdrop(nudgeX, nudgeY, count, perRow, cellWidth, cellHeigh
         x0 = math.min(x0, left);
         x1 = math.max(x1, left + RowWidth(math.min(perRow, count - index + 1), cellWidth));
     end
-    local pad = theme.For('Padding', false);
-    x0, x1 = x0 - pad, x1 + pad;
-    local y0, y1 = nudgeY - pad, nudgeY + rows * cellHeight + (rows - 1) * rowGap + pad;
+    return x0 - pad, nudgeY - pad, x1 + pad, nudgeY + rows * cellHeight + (rows - 1) * rowGap + pad;
+end
+
+-- Show Backdrop, for the bar handed over at Position: the theme's background colour behind the rows
+-- with its padding round them, and a line of its border colour round that
+local function WriteBackdrop(nudgeX, nudgeY, count, perRow, cellWidth, cellHeight, span, align, alpha, sx, sy)
+    local x0, y0, x1, y1 = BarBounds(nudgeX, nudgeY, count, perRow, cellWidth, cellHeight, span, align,
+        theme.For('Padding', false));
     hook.Quad(x0 * sx, y0 * sy, x1 * sx, y1 * sy, 0, 0, 0, 0, ARGB(theme.Get().BackgroundColor, alpha), hook.Solid);
     SolidFrame(x0, y0, x1, y1, 1, ARGB(theme.GameBorderColor(), alpha), sx, sy);
 end
@@ -609,7 +614,9 @@ end
 
 -- Under the mouse, a status's description, and a right click to remove it: while the game has drawn
 -- the bar and no menu of the game's is open, as one may be over it. An invisible window over the
--- cell the mouse is on takes the click, so that the game does not.
+-- cell the mouse is on takes the click, so that the game does not. Between the icons, and on the
+-- backdrop round them, an invisible window over the whole bar takes it instead: anywhere on the bar
+-- starts a drag, as anywhere on a window does.
 local hoverCell = { 0, 0 };
 local hoverPos = { 0, 0 };
 local noPadding = { 0, 0 };
@@ -618,35 +625,45 @@ local hoverFlags = nil;
 local function Interact(options, found)
     local left, top = hook.Origin(found);
     local nudgeX, nudgeY = BarNudge(options, found);
-    if left == nil or nudgeX == nil then
+    if left == nil or nudgeX == nil or #current == 0 then
         return;
     end
     left, top = left + nudgeX, top + nudgeY;
     local mx, my = imgui.GetMousePos();
-    local perRow = layout.perRow;
+    local perRow, count = layout.perRow, #current;
+    local span = RowWidth(perRow, layout.width);
+    local pad = (not options.anchorToDefault[1] and options.showBackdrop[1]) and theme.For('Padding', false) or 0;
+    local x0, y0, x1, y1 = BarBounds(left, top, count, perRow, layout.width, layout.height, span, layout.align, pad);
+    if mx < x0 or mx >= x1 or my < y0 or my >= y1 or not hook.Drawn(found) or anchoring.MenuOpen() ~= nil then
+        return;
+    end
+
+    -- the status under the mouse, if it is on one
+    local status, x, y = nil, x0, y0;
     local row = math.floor((my - top) / (layout.height + rowGap));
-    if row < 0 then
-        return;
-    end
-    left = left + RowShift(row * perRow + 1, #current, perRow, layout.width, RowWidth(perRow, layout.width), layout.align);
-    local column = math.floor((mx - left) / (layout.width + gap));
-    if column < 0 or column >= perRow then
-        return;
-    end
-    local x, y = left + column * (layout.width + gap), top + row * (layout.height + rowGap);
-    if mx > x + layout.width or my > y + layout.height then
-        return;
-    end
-    local status = current[row * perRow + column + 1];
-    if status == nil or not hook.Drawn(found) or anchoring.MenuOpen() ~= nil then
-        return;
+    if my >= top and row * perRow < count then
+        local rowLeft = left + RowShift(row * perRow + 1, count, perRow, layout.width, span, layout.align);
+        local column = math.floor((mx - rowLeft) / (layout.width + gap));
+        if mx >= rowLeft and column < perRow then
+            local cx, cy = rowLeft + column * (layout.width + gap), top + row * (layout.height + rowGap);
+            if mx <= cx + layout.width and my <= cy + layout.height then
+                status = current[row * perRow + column + 1];
+                if status ~= nil then
+                    x, y = cx, cy;
+                end
+            end
+        end
     end
 
     hoverFlags = hoverFlags or bit.bor(style.TitlelessFlags(), ImGuiWindowFlags_NoBackground,
         ImGuiWindowFlags_NoMove, ImGuiWindowFlags_NoSavedSettings, ImGuiWindowFlags_NoFocusOnAppearing,
         ImGuiWindowFlags_NoNav or 0);
     hoverPos[1], hoverPos[2] = x, y;
-    hoverCell[1], hoverCell[2] = layout.width, layout.height;
+    if status ~= nil then
+        hoverCell[1], hoverCell[2] = layout.width, layout.height;
+    else
+        hoverCell[1], hoverCell[2] = x1 - x0, y1 - y0;
+    end
     imgui.SetNextWindowPos(hoverPos, ImGuiCond_Always);
     imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, noPadding);
     imgui.PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
@@ -654,9 +671,11 @@ local function Interact(options, found)
         imgui.Dummy(hoverCell);
         if imgui.IsItemHovered() then
             StartDrag(options);
-            local canCancel = Tooltip(status.id);
-            if canCancel and ClickedToRemove() then
-                statuses.Cancel(status.id);
+            if status ~= nil then
+                local canCancel = Tooltip(status.id);
+                if canCancel and ClickedToRemove() then
+                    statuses.Cancel(status.id);
+                end
             end
         end
     end
