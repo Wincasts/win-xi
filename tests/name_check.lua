@@ -450,7 +450,8 @@ memory.GetEntity = function() return {
     GetDistance = function() return 4 end,
     GetServerId = function(_, index) return alive[index] and alive[index].id or 0 end,
     GetRenderFlags0 = function(_, index) return alive[index] and alive[index].flags or 0x200 end,
-    GetHPPercent = function(_, index) return alive[index] and alive[index].hp or 0 end } end
+    GetHPPercent = function(_, index) return alive[index] and alive[index].hp or 0 end,
+    GetStatus = function(_, index) return alive[index] and alive[index].status or 0 end } end
 o.showCheckDetails[1] = false -- looked at by itself further down
 levels.Set({ Indices = { [300] = { MinLevel = 8, MaxLevel = 10 } }, Names = {} })
 put(1, 300, Category.Monster, Flag.Wanted, 'Goblin'); block.Names[1].Scale, block.Names[1].NameColor = 1, 0x80800000
@@ -833,6 +834,19 @@ alive[300] = nil; H.frames(1)
 H.print('checked again, then gone from sight:', levels.Of(300, 'Goblin', 0x1000 + 300))
 H.packetData(0x029, message(0x1000 + 300, 10, 0x44, 300, 174))
 local before = levels.Of(300, 'Goblin', 0x1000 + 300)
+-- [level: nocombat]: nothing of the level while the monster is engaged and alive, the rest as it was
+alive[300] = { id = 0x1000 + 300, hp = 100, status = 0 }; o.monsterFormat[1] = '[name] [level: nocombat]'; H.frames(1)
+local calmQuads = draw.Entities[300].Count
+alive[300].status = 1; H.frames(1)
+local fightingQuads = draw.Entities[300].Count
+assert(fightingQuads == calmQuads - 2, 'in combat: the level (10) left out, the name kept')
+alive[300].status = 0; H.frames(1)
+assert(draw.Entities[300].Count == calmQuads, 'out of combat: the level again')
+alive[300].status = 1; H.frames(1); alive[300].hp = 0; H.frames(1)
+assert(draw.Entities[300].Count == calmQuads, 'dead: no longer in combat, the level again')
+alive[300].hp, alive[300].status = 100, 0
+H.print('[level: nocombat]: left out in combat, back out of it and on the corpse', true)
+o.monsterFormat[1] = '[name] L[level]'
 H.packetData(0x00A, string.rep('\0', 0x100))
 H.print('checked again:', before, '| then the area left: forgotten', levels.Of(300, 'Goblin', 0x1000 + 300) == nil)
 levels.Set(nil)

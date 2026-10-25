@@ -31,6 +31,11 @@ assert(format.Compile('[icons: gap=-1]')[1].gap == 0)
 assert(format.Compile('[distance: decimals=9]')[1].decimals == 2)
 assert(format.Compile('[name: spacing=2]')[1].spacing == 2 and format.Compile('[level: spacing=99]')[1].spacing == 10
     and format.Compile('[distance: spacing=-3]')[1].spacing == 0, 'spacing= on name, level and distance, kept within 0 to 10')
+local calm = format.Compile('Lv [level: nocombat, exact]')
+assert(calm[2].nocombat and calm[2].exact and calm.rules and calm.ruleCombat, '[level: nocombat] a rule of its own')
+assert(format.Compile('[level: nocombat=false]')[1].nocombat == nil and format.Compile('[name: nocombat]')[1].text == '[name: nocombat]',
+    'nocombat=false is none, and only [level] has it')
+assert(format.Serialize(calm) == 'Lv [level: exact, nocombat]', 'nocombat written back')
 assert(format.Serialize(format.Compile('[name: spacing=3, space=4]')) == '[name: space=4, spacing=3]', 'spacing= written back')
 for _, bad in ipairs({ '[name: nope=4]', '[level: decimals=2]', '[icons: size=oops]',
     '[icons: space=1e999]', '[name:color=nocolour]', '[name:]', '[distance:decimals=nan]', '[icons: spacing=2]', '[aggro: spacing=2]' }) do

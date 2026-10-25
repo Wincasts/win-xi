@@ -1478,6 +1478,9 @@ function custom.Frame(options, hook, formats)
                     -- how far off it is, to a tenth: written afresh only as that changes
                     written.ruleTarget = bit.band(name.Flags, TARGET) ~= 0;
                     written.ruleChecked = written.isChecked == true;
+                    -- a monster in combat, as Combat Only health bars have it, for [level: nocombat]
+                    written.ruleCombat = parts.ruleCombat and name.Category == MONSTER and entities ~= nil
+                        and nameColours.InCombat(name, entities) or false;
                     written.ruleDistance, written.distanceValue = nil, nil;
                     if ((parts.distance or parts.ruleDistance) and entities ~= nil) then
                         -- the game keeps the distance squared
