@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.59
+
+- `/uihook native frames <fill> <border> <rounding> <thickness> | off` (an experiment; nativeui 0.9's Winxi
+  Frames): the frames of the windows the game stacks over the chat log left undrawn (the draws in a window's frame
+  of the frame's art: its corners, edges and striped background, told by their textures' pixels), and a panel
+  drawn in their place under the rest of the window, in the colours given (AARRGGBB), its corners rounded and its
+  border so many pixels. Their words, pictures, buttons and hand are the game's. While it is on the group is told
+  with no move set; `group off` keeps its windows, unmoved. `/uihook native` says what is set and how many draws
+  were left undrawn and panels drawn. tests/native.cpp covers the group with frames alone, the panel's place,
+  once a frame and with the move, and its triangles.
+
 ## 1.58
 
 - The buff selector's hand is put out of sight each frame the game draws its status icons, not once a window: the

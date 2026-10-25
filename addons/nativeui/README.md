@@ -20,6 +20,11 @@ Move Down draw them all that many pixels from where the game puts them, together
 (`/uihook native group`). Only their drawing moves: the controller works them as ever, but the mouse clicks
 where the game put them.
 
+[Experimental] Winxi Frames (off to begin with) draws their frames, the game's corners, edges and striped
+background, as a winxi panel: the theme's Background Color, its border in Border Color at Border Opacity, the
+corners rounded as a winxi window's. Their words, pictures, buttons and hand are the game's, drawn over it. It
+follows the theme as it changes. Needs uihook 1.59 (`/uihook native frames`).
+
 ## Fonts
 
 Menu Font (the menus' words: commands, lists, buttons) and Title Font (the windows' titles, the jobs' and races'

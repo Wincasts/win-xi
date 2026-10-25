@@ -15,7 +15,7 @@ public:
     const char* GetAuthor() const override { return "win"; }
     const char* GetDescription() const override { return "The game's own interface changed: buffs, party and alliance, target, clock, compass and chat replaced by addons' own, and its menus skinned, moved and scaled."; }
     const char* GetLink() const override { return "https://github.com/Wincasts/win-xi"; }
-    double GetVersion() const override { return 1.58; }
+    double GetVersion() const override { return 1.59; }
     // UseCommands: Ashita gives plugins commands only when they ask, and /uihook hud is one; UseText: each line given
     // to the game's chat log, recorded for addons as it stands at uihook's turn
     uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseCommands | Ashita::PluginFlags::UseText | Ashita::PluginFlags::UseDirect3D); }
@@ -61,6 +61,7 @@ public:
         Say("  /uihook skin font <menu|title> <file|off> [regular|bold] [outline=<px>]: the skin's fonts drawn in a font of C:\\Windows\\Fonts.");
         Say("  /uihook native [group <x> <y> | group off | inset <pixels> | size <factor>]: the windows the game stacks over the chat log moved together, the sides brought in, or every framed window drawn larger; the game's menus and controller input left as they are.");
         Say("  /uihook native mouse on|off: the game's mouse given each window where it is drawn (an experiment).");
+        Say("  /uihook native frames <fill> <border> <rounding> <thickness> | off: the frames of the windows over the chat log drawn as panels in those colours (AARRGGBB), the rest of them the game's (an experiment).");
 #if UIHOOK_DIAGNOSTICS
         Say("Diagnostics, in this build:");
         Say("  /uihook census on|off|dump|clear: every window the game draws and the text it prints, to logs\\uihook-census (off until asked).");

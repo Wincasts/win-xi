@@ -10,6 +10,11 @@
 //                                          the top (one wider than half the screen, over its middle) that much
 //                                          shorter at each end; one over the middle and narrower left as it is,
 //                                          as are the chat log and the windows stacked on it (the group's)
+//   /uihook native frames <fill> <border> <rounding> <thickness> | off
+//                                          the group's frames (the game's corners, edges and striped background)
+//                                          left undrawn, a panel drawn in their place: filled and bordered in the
+//                                          colours given (AARRGGBB), its corners rounded so many pixels, its border
+//                                          so thick. Its words, pictures, cursor and buttons are the game's own.
 //
 // The group: the windows the game places in the bottom left over its chat log (the command menu, a shop's buy and
 // sell, a yes or no, an item's description...), told by where the game draws them (+3A, as left, top, width,
@@ -31,6 +36,7 @@
 #include <string.h>
 #include <cmath>
 #include <algorithm>
+#include <vector>
 #include "../window/window.h"
 
 #define NATIVE_ENTRIES 128
@@ -42,6 +48,54 @@
 #define NATIVE_SCALE_LOW 0.5f
 #define NATIVE_SCALE_HIGH 3.0f
 #define NATIVE_MOUSE_FRAMES 2    // a window drawn this many frames ago or since is under the mouse where it was drawn
+
+// The frame's art, as the texture census names it: its corners, its top and bottom, its sides, its striped background
+static const uint32_t NativeFrameHashes[4]={0x72D3D795u,0x3C8984C5u,0x1023C0C5u,0x92C145C5u};
+static bool NativeFrameHash(uint32_t hash) { for (uint32_t h:NativeFrameHashes) if (h==hash) return true; return false; }
+
+// A panel drawn in place of a frame (/uihook native frames): a vertex as the game's interface's are (screen-space, a
+// colour, a texture place, unused), and how it looks
+struct NativePanelVertex { float x,y,z,rhw; uint32_t colour; float u,v; };
+struct NativePanelStyle { uint32_t fill=0,border=0; float rounding=0,thickness=1; };
+// A rectangle's outline (left, top, right, bottom) with its corners rounded radius, each corner segments+1 points,
+// clockwise from the top left's
+static void NativeOutline(float l,float t,float r,float b,float radius,unsigned segments,std::vector<float>& out) {
+    out.clear();
+    radius=(std::max)(0.0f,(std::min)(radius,(std::min)(r-l,b-t)/2));
+    const float cx[4]={l+radius,r-radius,r-radius,l+radius},cy[4]={t+radius,t+radius,b-radius,b-radius};
+    for (unsigned c=0;c<4;c++) for (unsigned i=0;i<=segments;i++) {
+        const float a=3.14159265f*(1.0f+0.5f*float(c)+(segments ? 0.5f*float(i)/float(segments) : 0.0f));
+        out.push_back(cx[c]+cosf(a)*radius); out.push_back(cy[c]+sinf(a)*radius);
+    }
+}
+// The panel over rect (pixels: left, top, right, bottom) as triangles: its fill, then its border inside its edge
+static void NativePanel(const float* rect,const NativePanelStyle& s,std::vector<NativePanelVertex>& out) {
+    out.clear();
+    const float l=rect[0],t=rect[1],r=rect[2],b=rect[3];
+    if (!(r>l && b>t)) return;
+    const unsigned segments=s.rounding>0 ? unsigned(s.rounding/2)+2 : 0;
+    std::vector<float> outer,inner;
+    NativeOutline(l,t,r,b,s.rounding,segments,outer);
+    const size_t n=outer.size()/2;
+    // a place given as the device has it: a pixel's middle at its .5
+    auto vertex=[&](float x,float y,uint32_t colour) { out.push_back({x-0.5f,y-0.5f,0,1,colour,0,0}); };
+    if (s.fill>>24) {
+        const float mx=(l+r)/2,my=(t+b)/2;
+        for (size_t i=0;i<n;i++) {
+            const size_t j=(i+1)%n;
+            vertex(mx,my,s.fill); vertex(outer[2*i],outer[2*i+1],s.fill); vertex(outer[2*j],outer[2*j+1],s.fill);
+        }
+    }
+    const float k=(std::min)(s.thickness,(std::min)(r-l,b-t)/2);
+    if ((s.border>>24) && k>0) {
+        NativeOutline(l+k,t+k,r-k,b-k,(std::max)(0.0f,s.rounding-k),segments,inner);
+        for (size_t i=0;i<n;i++) {
+            const size_t j=(i+1)%n;
+            vertex(outer[2*i],outer[2*i+1],s.border); vertex(outer[2*j],outer[2*j+1],s.border); vertex(inner[2*j],inner[2*j+1],s.border);
+            vertex(outer[2*i],outer[2*i+1],s.border); vertex(inner[2*j],inner[2*j+1],s.border); vertex(inner[2*i],inner[2*i+1],s.border);
+        }
+    }
+}
 
 // Where a window's draws go: grown by scale about the corner of the display its bounds are nearest, then moved by
 // dx, dy, kept on the display. out: the corner (ax, ay) and the move kept (dx, dy). False with no bounds.
@@ -102,6 +156,7 @@ struct NativeEntry {
     // the same of its frame's draws alone: what it is placed by, and what a draw must touch to be moved
     float frameGather[4]={}; bool frameGathered=false;
     float frame[4]={}; bool frameKnown=false;
+    uint32_t panelFrame=0;  // the frame its panel was last drawn in (/uihook native frames)
     uint32_t order=0;  // its place among the windows drawn in the frame it was last drawn, for the mouse: the last on top
     // for /uihook native
     uint32_t seen=0,moved=0,unmoved=0,kept=0;
@@ -117,6 +172,8 @@ public:
     unsigned text=0;
     // the group above the chat log, and the log's layout target as last drawn (its left and top), 0 frame unknown
     bool groupOn=false; float groupX=0,groupY=0;
+    // /uihook native frames: the group's frames drawn as panels of this look. The group is told while either is on.
+    bool framesOn=false; NativePanelStyle panelStyle;
     float inset=0;   // the sides brought in by this many pixels, 0 not
     float menuScale=1;   // every framed window drawn this much larger, from its quarter's corner of the screen
     int16_t logLeft=0,logTop=0; uint32_t logFrame=0;
@@ -137,7 +194,7 @@ public:
     bool MenuScale(float k) { if (!(k>=NATIVE_SCALE_LOW && k<=NATIVE_SCALE_HIGH)) return false; menuScale=k; return true; }
     // Whether a window of this name and place is one of the group
     bool GroupMember(const char* name,const int16_t* target) const {
-        if (!groupOn || !logFrame || !target || target[2]<=0 || target[3]<=0) return false;
+        if (!Grouping() || !logFrame || !target || target[2]<=0 || target[3]<=0) return false;
         if (LogWindow(name)) return false;
         const int bottom=target[1]+target[3];
         return bottom<=logTop && bottom>=logTop-NATIVE_GROUP_SLACK && target[0]>=0 && target[0]<=logLeft+NATIVE_GROUP_REACH;
@@ -147,8 +204,17 @@ public:
         for (auto& e:entries) if (e.group) { e.dx=x; e.dy=y; }
         return true;
     }
+    bool Grouping() const { return groupOn || framesOn; }
+    // The group's move undone; its entries let go unless its frames are still drawn as panels
     unsigned GroupOff() {
-        unsigned n=0; groupOn=false;
+        groupOn=false; groupX=groupY=0;
+        if (framesOn) { unsigned n=0; for (auto& e:entries) if (e.name[0] && e.group) { e.dx=e.dy=0; n++; } return n; }
+        return ForgetGroup();
+    }
+    void Frames(const NativePanelStyle& style) { framesOn=true; panelStyle=style; }
+    unsigned FramesOff() { framesOn=false; return groupOn ? 0 : ForgetGroup(); }
+    unsigned ForgetGroup() {
+        unsigned n=0;
         for (auto& e:entries) if (e.name[0] && e.group) {
             n++;
             if (&e==current) current=nullptr;
@@ -178,7 +244,7 @@ public:
         for (auto& e:entries) if (!e.name[0]) { e=NativeEntry(); memcpy(e.name,name,16); return &e; }
         return nullptr;
     }
-    bool Any() const { if (groupOn || inset>0 || menuScale!=1) return true; for (auto& e:entries) if (e.name[0]) return true; return false; }
+    bool Any() const { if (Grouping() || inset>0 || menuScale!=1) return true; for (auto& e:entries) if (e.name[0]) return true; return false; }
 
     // The window being drawn: its entry, if it is one named. Its draws' bounds from the frame before become the ones
     // it is placed by. Returns what to give back after it.
@@ -353,6 +419,20 @@ public:
             return NATIVE_MOUSE_MOVED;
         }
         return under ? NATIVE_MOUSE_KEPT : NATIVE_MOUSE_AS_IS;
+    }
+    // Whether a draw of the window being drawn may be its frame's art, to be left undrawn for its panel: frames on, the
+    // window of the group now, the draw its frame's and not text (its elements, the command menu's pictured words
+    // among them, are drawn in the frame too: the draw's texture says which)
+    bool FrameDraw() const { return framesOn && current && current->group && current->member && phase==PHASE_FRAME && !text; }
+    // The window being drawn's panel, once a frame: where (its frame as last drawn, moved as its draws are), in pixels;
+    // false where it is drawn already this frame or its frame is not known
+    bool PanelDue(float width,float height,uint32_t frame,float* rect) {
+        if (!current || current->panelFrame==frame || !current->frameKnown) return false;
+        current->panelFrame=frame;
+        memcpy(rect,current->frame,4*sizeof(float));
+        NativeTransform t;
+        if (TransformOf(*current,width,height,t)) { t.Apply(rect[0],rect[1]); t.Apply(rect[2],rect[3]); }
+        return rect[2]>rect[0] && rect[3]>rect[1];
     }
     // A draw of a window moved that could not be (from a vertex buffer)
     void Unmoved() { if (current) current->unmoved++; }

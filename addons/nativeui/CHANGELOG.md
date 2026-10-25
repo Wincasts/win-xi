@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9
+
+- [Experimental] Winxi Frames (Menus Over The Chat Log, off to begin with): their frames drawn as a winxi panel in
+  the theme's Background Color and game window border, the rest of them the game's (uihook 1.59's
+  `/uihook native frames`). It follows the theme as it changes, and is given back when unloaded.
+
 ## 0.8
 
 - [Experimental] Mouse Follows Menus (Screen, off to begin with): the game's mouse given each window where it is
