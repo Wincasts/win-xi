@@ -241,6 +241,8 @@ function settings.DrawSettings(options, save)
         controls.Slider('Letter Spacing (px)', '##name.letterSpacing', options.letterSpacing, 0, 10, '%d px',
             tips.Get('name.appearance.letter_spacing'));
         controls.Outline(options.outline, 'Text Outline (px)');
+        controls.Slider('Text Outline Opacity (%)', '##name.textOutlineOpacity', options.textOutlineOpacity, 0, 100, '%d%%',
+            tips.Get('name.appearance.text_outline_opacity'));
         controls.Outline(options.iconOutline, 'Icon Outline (px)', 'iconOutline', tips.Get('name.appearance.icon_outline'));
         controls.Slider('Icon Outline Opacity (%)', '##name.iconOutlineOpacity', options.iconOutlineOpacity, 0, 100, '%d%%',
             tips.Get('name.appearance.icon_outline_opacity'));

@@ -333,3 +333,14 @@ assert(math.abs((bigSign.Y1 - bigSign.Y0) - usualHeight * 2) <= 1, '250%: twice 
 assert(bigName.X0 - bigSign.X0 > usualAt, 'and the name after it moved on')
 options.monsterFormat[1] = '[aggro][name]'
 H.print('[aggro: size=]: the sign sized, the name after it', true)
+
+-- Text Outline Opacity: the edge of the text alone softened, as Icon Outline Opacity does for icons
+options.monsterFormat[1] = '[aggro][name]'; options.textOutlineOpacity = T{ 100 }; custom.Settle(options)
+render(); local letter = draw.Quads[draw.Entities[1].First + 1]
+assert(bit.band(letter.Flags, 2) == 0, 'at 100% the text\'s edge as it was')
+options.textOutlineOpacity[1] = 40; render()
+local softened, sign = draw.Quads[draw.Entities[1].First + 1], first(1)
+assert(bit.band(softened.Flags, 3) == 3 and bit.band(softened.Reserved, 0xFF) == 102, '40%: the letters\' edge at 40%')
+assert(bit.band(sign.Reserved, 0xFF) == 255, 'the icon\'s edge as Icon Outline Opacity has it')
+options.textOutlineOpacity[1] = 999; custom.Settle(options); assert(options.textOutlineOpacity[1] == 100, 'kept within 0 to 100')
+H.print('Text Outline Opacity: the text\'s edge alone, kept within bounds', true)

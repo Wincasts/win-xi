@@ -150,6 +150,12 @@ Location: Names → General Name Appearance
 
 Outline thickness for player, party-role, vendor, aggro/passive, sense and check icons, independent of Text Outline. Zero disables icon outlines without fading the artwork. Width follows name distance and render-resolution scaling. Aggro/passive icons remain shadow-free, but follow this width instead of the previous fixed one-pixel cap. Requires namehook 1.35 and WinXI 47; an older plugin leaves native names intact with an update warning. Mastery stars and letter badges retain their own rendering.
 
+## name.appearance.text_outline_opacity
+Label: Text Outline Opacity (%)
+Location: Names → General Name Appearance
+
+Opacity of the outline round text only: names, levels, distances, check details and cast text. 0% hides it, 100% is the outline colour's full opacity. Letters, icon outlines and name opacity are unchanged; distance fading still applies. Default 100%.
+
 ## name.appearance.icon_outline_opacity
 Label: Icon Outline Opacity (%)
 Location: Names → General Name Appearance

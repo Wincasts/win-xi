@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.74
+
+- Text Outline Opacity (%), under General Name Appearance after Text Outline: the outline round text alone (names, levels, distances, check details and cast text) from 0% to 100%, as Icon Outline Opacity is for icons. 100% to begin with, the outline as it was.
+- Tests: the letters' edge at the setting's opacity and as it was at 100%, the icon's edge left to its own; kept within 0 to 100; the menu has it.
+
 ## 1.73
 
 - `size=25`–`300` on `[aggro]` (the sign's height as a percentage of the name's, 125 without it; the hunt sign too) and `[checked]` (the magnifying glass as a percentage of the letters, 70 without it), as `[icons]`, `[party]` and `[vendor]` have it.

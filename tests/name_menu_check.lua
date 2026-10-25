@@ -57,7 +57,7 @@ H.command('/name dev'); H.command('/name'); clear(); H.frames(1); H.command('/na
 assert(table.concat(tabs, '|') == 'General|Names|Health Bars|Cast Bars|Check Details|Statuses|Visibility', 'a second /name dev hides it')
 assert(table.concat(headers, '|') == 'General Name Appearance|Player Names|Enemy Names|NPC Names|Distance Thresholds')
 assert(not ids['##name.partyIcons'] and not ids['##name.showVendorIcons'], 'party and vendor signs are tokens, not settings')
-assert(ids['##name.font'] and ids['##name.fontBold'] and ids['Smooth Font##name.fontSmooth'] and ids['##name.subtargetScale'])
+assert(ids['##name.font'] and ids['##name.fontBold'] and ids['Smooth Font##name.fontSmooth'] and ids['##name.subtargetScale'] and ids['##name.textOutlineOpacity'])
 for index, id in ipairs(order) do
     if id == '##name.fontBold' then
         assert(order[index + 1] == 'Smooth Font##name.fontSmooth', 'Smooth Font is beside Bold')
