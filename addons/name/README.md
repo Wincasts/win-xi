@@ -629,9 +629,10 @@ monster can be, as `5-6`, or as `8` where it can only be the one. They are from 
 `[level]` writes nothing, and what was typed round it is still written.
 
 When you `/check` a monster, the game's answer has its level in it, and from then on `[level]` writes
-that one level for that monster in place of the range. It is forgotten when the monster dies, when it
-is no longer there to be seen, and when you leave the area, since the monster that next has its place
-is another. It is also forgotten five minutes after the check, so that a long stay in one place does
+that one level for that monster in place of the range. It stays while the monster's body lies there
+after it dies, its health bar grey, and is forgotten once the body is gone (or the place is seen alive
+again), when it is no longer there to be seen, and when you leave the area, since the monster that next
+has its place is another. It is also forgotten five minutes after the check, so that a long stay in one place does
 not leave more and more kept: check again for it. Nothing is sent to the game for this: the addon only reads the answers to checks you make
 yourself. A notorious monster, whose strength is impossible to gauge, gives no level.
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.68
+
+- Keep a checked monster's level after it dies, while its body is there with grey health, in place of going back to the range. The check is forgotten once the client stops showing the body, or once its place is seen alive again (respawned out of sight). The defeat message only notes the death, as the health may not yet read 0.
+- Tests: the level kept on the corpse, forgotten at despawn, the respawn showing the range, a corpse respawned out of sight, the defeat message before the health reaches 0.
+
 ## 1.67
 
 - Move Diagnostics from Names into General, under the General section; it works while Enable Name is off. Distance Thresholds moves to the bottom of Names.

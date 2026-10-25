@@ -10,7 +10,7 @@
 --                            Blood, Magic, JA, Scent, TrueSight, Notorious, Family), or nil
 --   levels.HandlePacket(e)   every packet in goes by this: the area entered, checks and deaths
 --   levels.Generation()      a number that changes whenever what levels.Of would say may have
---   levels.Tidy()            each frame: what was checked and has since died is forgotten
+--   levels.Tidy()            each frame: what was checked and has since died and gone is forgotten
 --   levels.Set(data)         the tables to look in, for whoever has them some other way
 --   levels.Notorious()       the names of the area's notorious monsters, in order
 --   levels.Placeholders(name)  the monsters a notorious monster is drawn by lot from, as a set of their
@@ -29,8 +29,10 @@
 --
 -- The one time the game does tell a monster's level is in its answer to /check. When the player
 -- checks a monster the level in the answer is kept for it, and written in place of what the tables
--- say, until it dies or the player leaves the area: the monster that next has its place is another,
--- of a level of its own. It is kept five minutes at most, so that a long evening of checking in one
+-- say, until its body is gone or the player leaves the area: the monster that next has its place is
+-- another, of a level of its own, though it has the same server id. Its death is only noted, so that the
+-- level stays while the body lies there, its health grey; the check is forgotten as the client stops
+-- showing it, or as the place is seen alive again. It is kept five minutes at most, so that a long evening of checking in one
 -- place does not leave more and more kept. Nothing is asked of the game for this: only its answers are read.
 local levels = {};
 local mobLetters = require('mob_letters');
@@ -64,12 +66,22 @@ local HARD = { 'Too Weak', 'Incredibly Easy Prey', 'Easy Prey', 'Decent Challeng
 local HARD_SHORT = { 'TW', 'IEP', 'EP', 'DC', 'EM', 'T', 'VT', 'IT' };
 local HARD_NO_GAUGE = 'Impossible To Gauge';
 local DEFEATED, FALLS         = 6, 20;    -- the messages that say a target has died
+local SPAWNED                 = 0x200;    -- GetRenderFlags0: the client is showing this entity
 
 local function forget(index)
     if (checked[index] ~= nil) then
         checked[index] = nil;
         checkedCount = checkedCount - 1;
         generation = generation + 1;
+    end
+end
+
+-- Said to be defeated: kept for its body, until levels.Tidy sees it gone. Its health may not yet
+-- read 0 as this comes, so that is left for levels.Tidy to see (known.dead).
+local function defeated(index)
+    local known = checked[index];
+    if (known ~= nil) then
+        known.defeated = true;
     end
 end
 
@@ -118,8 +130,10 @@ local function load(zone, subZone)
     end
 end
 
--- A monster that was checked is forgotten the moment it is dead or gone, however that is learnt:
--- here by looking, each frame, at the few there are
+-- A monster that was checked is forgotten the moment it is gone, however that is learnt: here by
+-- looking, each frame, at the few there are. One that died is gone once the client no longer shows
+-- it, or once its place is alive again (it was respawned while out of sight). One that lives is
+-- kept though it goes out of sight.
 function levels.Tidy()
     if (checkedCount == 0) then
         return;
@@ -131,7 +145,16 @@ function levels.Tidy()
     end
     local now = os.clock();
     for index, known in pairs(checked) do
-        if (now - known.at > KEPT_FOR or entities:GetServerId(index) ~= known.id or entities:GetHPPercent(index) == 0) then
+        local hp = entities:GetHPPercent(index);
+        if (hp == 0) then
+            known.dead = true;
+        end
+        local gone = now - known.at > KEPT_FOR or entities:GetServerId(index) ~= known.id;
+        if (not gone and (known.dead or known.defeated)) then
+            local flags = entities.GetRenderFlags0 ~= nil and entities:GetRenderFlags0(index) or nil;
+            gone = (known.dead and hp ~= 0) or (type(flags) == 'number' and bit.band(flags, SPAWNED) == 0);
+        end
+        if (gone) then
             forget(index);
         end
     end
@@ -260,7 +283,7 @@ function levels.HandlePacket(e)
     local index = struct.unpack('H', e.data, MESSAGE_INDEX + 1);
 
     if (number == DEFEATED or number == FALLS) then
-        forget(index);
+        defeated(index);
     elseif (number >= CHECK_FIRST and number <= CHECK_LAST) then
         local level = struct.unpack('I', e.data, MESSAGE_VALUE + 1);
         local hard = struct.unpack('I', e.data, MESSAGE_VALUE2 + 1);
