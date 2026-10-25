@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.67
+
+- Move Diagnostics from Names into General, under the General section; it works while Enable Name is off. Distance Thresholds moves to the bottom of Names.
+- Make the vendor coin a token: `[vendor]` draws it where it is in a format for an NPC that sells, with `size` and `space` as `[icons]` has, and nothing (no space either) for any other. The Vendor Icons setting goes; if it was on, `[vendor: space=N]` (N the old icon spacing) goes before the NPC format once.
+- Make the party and alliance signs a token: `[party]`, with `size` and `space`, and `replace` to leave out the game's icons for a member who has a sign. The Party Icons setting goes; Beside becomes `[party: space=2]` before `[icons]` (the icons' gap), Replace `[party: replace, space=…]` with the icons' spacing, Off nothing, once.
+- New and preset formats: players `[party: space=2][icons: space=4][name]`, NPCs `[vendor: space=4][name]` (Minimal stays `[name]`). The format tooltips list `[party]` and `[vendor]`.
+- Tests: the migration for each Party Icons mode and Vendor Icons, once only; a sign's width; the coin after the name; `[party: replace]`; Diagnostics in General, Distance Thresholds last, the two settings gone.
+
 ## 1.66
 
 - Move Crowd Decluttering from Names to the bottom of the Visibility tab; Distance Thresholds stays under Names.

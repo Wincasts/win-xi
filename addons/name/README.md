@@ -47,12 +47,12 @@ statuses) is turned on and off in its own tab, with **Enabled** at the top.
 
   | Preset | Players | Enemies | Bars | Status icons | Check details |
   |---|---|---|---|---|---|
-  | Default | `[icons: space=4][name]` | `[aggro] [name] [letters]` | Off | On | On |
+  | Default | `[party: space=2][icons: space=4][name]` | `[aggro] [name] [letters]` | Off | On | On |
   | Minimal | `[name]` | `[name]` | Off | Off | Off |
-  | Robust | `[icons: space=4][name]` | `[aggro: space=4]Lv [level]. [name] [letters] ([distance: decimals=1]y)` | Always | On | On |
-  | Immersive | `[icons: space=4][name]` | `[name]` | In combat | Off | Off |
+  | Robust | `[party: space=2][icons: space=4][name]` | `[aggro: space=4]Lv [level]. [name] [letters] ([distance: decimals=1]y)` | Always | On | On |
+  | Immersive | `[party: space=2][icons: space=4][name]` | `[name]` | In combat | Off | Off |
 
-  NPCs are `[name]` in each. **Enable Name**, at the top of General and on to begin with, is Name drawing the names; off,
+  NPCs are `[vendor: space=4][name]` in each but Minimal, where they are `[name]`. **Enable Name**, at the top of General and on to begin with, is Name drawing the names; off,
   Name lets them go at once and the game draws its own as namehook sizes them (`/namehook fontsize`),
   unstretched, Visibility still saying which are shown. Name's health bars and status icons are not
   drawn while it is off. All other Name settings are greyed out across the tabs until enabled again;
@@ -106,25 +106,30 @@ statuses) is turned on and off in its own tab, with **Enabled** at the top.
 - **Player Names:** a directly editable **Player Format**, including inline player
   icons through `[icons]` instead of a separate checkbox. The format applies to your
   own name, other players and player-style pets/trusts.
-  Default: `[icons: space=4][name]`. Omit `[icons]` to hide icons or move it anywhere
+  Default: `[party: space=2][icons: space=4][name]`. Omit `[icons]` to hide icons or move it anywhere
   in the string. Existing icon visibility, size and spacing are migrated once.
-  **Party Icons** (Beside Game Icons, Replace Game Icons or Off) adds a sign of each party and
-  alliance member's place where `[icons]` is: Alliance Leader, Party Leader, another party's leader
-  (Alliance Party Leader), Alliance Member or Party Member, from `assets/special/`. Beside, it comes
-  before the game's icons; Replace, it takes their place. Players outside your party and alliance keep
-  the game's icons, and there is none while you are alone. Who leads is read from the party's memory.
+  `[party]` draws a sign of each party and alliance member's place: Alliance Leader, Party Leader,
+  another party's leader (Alliance Party Leader), Alliance Member or Party Member, from
+  `assets/special/`. `[party: replace]` also leaves out the game's icons for a member who has the
+  sign. Players outside your party and alliance keep the game's icons, and there is none while you
+  are alone. Who leads is read from the party's memory. The Party Icons setting of 1.66 and before
+  is brought into the formats once: Beside as `[party: space=2]` before `[icons]`, Replace as
+  `[party: replace, space=…]` with the icons' spacing, Off as no token.
 - **Enemy Names:** a directly editable **Enemy Format**. Existing enemy strings are preserved;
   Reset restores `[aggro] [name] [letters]` for ordinary, targeted and
   checked enemies alike.
 - **NPC Names:** a directly editable **NPC Format** for non-combat NPCs, independent
-  of player/enemy formats. Default: `[name]`.
-  **Vendor Icons** (on) draws a coin (`assets/special/vendor.png`) before the name of every NPC that
-  sells: gil shops, guild merchants and outpost vendors. The list is `vendor_list.lua`, by area and
-  name, made from the Phoenix server's NPC scripts by `tools/build_name_vendors.py`.
+  of player/enemy formats. Default: `[vendor: space=4][name]`.
+  `[vendor]` draws a coin (`assets/special/vendor.png`) where it is for every NPC that sells: gil
+  shops, guild merchants and outpost vendors, and nothing (with no space) for any other. The list is
+  `vendor_list.lua`, by area and name, made from the Phoenix server's NPC scripts by
+  `tools/build_name_vendors.py`. The Vendor Icons setting of 1.66 and before becomes
+  `[vendor: space=N]` (N its old spacing) before the NPC format once if it was on.
 - Each format has its **Reset** button on the same row, after the editor. Hover the
   **(?)** for every token that kind of name can have, an example format and its
   result; the token options are under [Token options](#token-options). Player and NPC
-  formats have `[name]`, `[icons]` and `[distance]`; enemy formats have `[name]`,
+  formats have `[name]`, `[icons]` and `[distance]`, players `[party]` too and NPCs `[vendor]`;
+  enemy formats have `[name]`,
   `[level]`, `[aggro]`, `[checked]`, `[letters]` and `[distance]`. There are no Help /
   Examples dropdowns: what they said is in the (?) beside the setting it is about.
 - **Health Bars**, a tab of its own, has one shared **Enabled** toggle,
@@ -174,7 +179,7 @@ Existing character settings are preserved.
 | Monsters | What can be fought, charmed players among them |
 | Always Show Target | Your target's name is shown though names like it are hidden. Your own is not: with Own Name off it stays hidden while you have yourself targeted |
 
-Names In View, under Names → Diagnostics, counts names shown and hidden last frame.
+Names In View, under General → Diagnostics, counts names shown and hidden last frame.
 Diagnostics is collapsed by default and includes an Enable Diagnostics checkbox.
 
 ## Custom names
@@ -285,7 +290,7 @@ python3 tools/build_name_cast_times.py --server references/Phoenix
 ### Optional readability policies
 
 Both additions are **off by default**: Crowd Decluttering at the bottom of the Visibility tab,
-Distance Thresholds under Names. They do not move plate anchors,
+Distance Thresholds at the bottom of Names. They do not move plate anchors,
 change font size or affect saved formats, and disabling them restores normal presentation.
 
 **Crowd Decluttering** counts wanted, positive-scale, nontransparent anchors projected
@@ -372,8 +377,9 @@ updated plugin as well as `libs/winxi`.
 ### How a name is written
 
 Edit **Player Format**, **Enemy Format**, or **NPC Format** directly in the matching
-section of Names. Player/NPC formats support `[name]`, `[distance]`, `[icons]` and colours;
-Enemy Format also supports `[level]`, `[aggro]`, `[checked]` and `[letters]`.
+section of Names. Player/NPC formats support `[name]`, `[distance]`, `[icons]` and colours, Player
+Format `[party]` and NPC Format `[vendor]`; Enemy Format also supports `[level]`, `[aggro]`,
+`[checked]` and `[letters]`.
 Enemy Format applies to every mob nameplate,
 including targeted and checked mobs. Checking a mob still updates
 its known level and check-detail line; targeting still applies the usual targeting behaviour.
@@ -561,7 +567,8 @@ rank differently.
 
 Each format is a line of text. In it `[name]` stands for the name, `[distance]` for how
 far the character is from you, in yalms to a tenth, as the game measures it, and `[level]` for the
-levels a monster can be. `[icons]` draws player icons at that point in the string.
+levels a monster can be. `[icons]` draws player icons at that point in the string, `[party]` a party
+or alliance member's sign and `[vendor]` the coin of an NPC that sells.
 Everything else is written as you type it.
 
 | Format | Written |
@@ -593,8 +600,9 @@ The older `[name:yellow]` colour shorthand remains supported.
 | Every token | `space=0`–`64` | Screen-pixel gap after the token, scaled with render resolution. Omitted when the token produces nothing |
 | Every token | `when=target+checked+nm+relevant` | Any subset, combined with AND; omitted / `always` means unconditional |
 | Every token | `within=1`–`100` | Only within this distance in yalms; unavailable distance hides the block |
-| `[icons]` | `size=25`–`300` | Icon height as a percentage of name height; defaults to the profile's previous icon size (90% in preferred defaults) |
+| `[icons]`, `[party]`, `[vendor]` | `size=25`–`300` | Icon height as a percentage of name height; defaults to the profile's previous icon size (90% in preferred defaults) |
 | `[icons]` | `gap=0`–`24` | Screen pixels between icons; default 2 |
+| `[party]` | `replace` | For a member with a sign, leave out the game's icons wherever `[icons]` is |
 | `[distance]` | `decimals=0`–`2` | Decimal places; default 1 |
 | `[level]` | `exact` | Only the exact level, once the monster is checked: nothing before then, nor for one impossible to gauge, where `[level]` writes the database's range. Text around it stays |
 | `[letters]` / `[letter]` | `type=single` / `type=double` | Repeat A–Z, or continue AA, AB, etc. after Z; default single |
@@ -606,7 +614,7 @@ The older `[name:yellow]` colour shorthand remains supported.
 [aggro: space=4]Lv [level: color=yellow, space=6][name]
 ```
 
-With no explicit `space`, icons use the profile's previous icon spacing (4 px in
+With no explicit `space`, icons, party signs and the vendor coin use the profile's previous icon spacing (4 px in
 preferred defaults); other tokens use zero. Colours on icons override pearl tint;
 otherwise the linkshell pearl retains its own colour and two-part icons remain overlaid.
 Out-of-range numeric options are clamped; unknown or malformed options leave the
@@ -801,7 +809,7 @@ so, and what is set is given to the plugin when it is.
 
 ## Diagnostics
 
-**Write Report** in Names → Diagnostics produces a shareable support summary with one
+**Write Report** in General → Diagnostics produces a shareable support summary with one
 click, without enabling diagnostic recording. `/name report` also works with Enable Name
 off. Files are `config\\addons\\name\\logs\\name-report-<date>-<time>-<sequence>.txt`.
 Nothing is uploaded. Reports include addon/library/capability-build versions, capability
@@ -819,7 +827,7 @@ Detailed diagnostic recording is off unless turned on, for testers:
 /name diag log      writes a log now, on or off (with diagnostics off it has no history)
 ```
 
-While they are on, Names → Diagnostics shows whether Name is drawing the names (**Custom Names**).
+While they are on, General → Diagnostics shows whether Name is drawing the names (**Custom Names**).
 When Name stops claiming the names for more than half a second, at any frame rate, the game draws
 its own names again. The reason is said once in the chat log and a log is written, once a session for each reason.
 The reasons:
@@ -836,7 +844,7 @@ The reasons:
 With diagnostic recording off, no diagnostic history/errors are retained. The on-demand
 support report and normal compatibility/fallback warnings remain available.
 
-**Write Log** in Names → Diagnostics, while diagnostics are on, writes a log as `/name diag log` does. Logs are small text files in
+**Write Log** in General → Diagnostics, while diagnostics are on, writes a log as `/name diag log` does. Logs are small text files in
 `config\addons\name\logs`, named `name-<date>-<time>.txt`. Each holds:
 
 - The plugin's state: whether it is hooked, the frame and the last claim, what is claimed and

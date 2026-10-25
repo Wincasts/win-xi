@@ -98,7 +98,7 @@ local memory=AshitaCore:GetMemoryManager()
 local distance=21
 memory.GetEntity=function() return {GetDistance=function() return distance and distance*distance or nil end} end
 AshitaCore.GetMemoryManager=function() return memory end
-options.showStars[1],options.showCheckDetails[1],options.showVendorIcons[1]=true,false,false
+options.showStars[1],options.showCheckDetails[1]=true,false
 options.showStatuses={false}
 options.showHealthBar[1]=true;options.healthBarCategories={255}
 local bars,statuses={},{}
@@ -108,7 +108,7 @@ require('icons').Place=function() return {0,0,1,1} end
 require('healthbar').Write=function(name,entities,left,right,under) bars[name.EntityIndex]=true;return under+6 end
 require('statuses').Begin=function() return true end
 require('statuses').Write=function(name) statuses[name.EntityIndex]=true end
-options.partyIcons[1]='off';options.nameFormat[1]='[name] [distance]';options.monsterFormat[1]='[name]'
+options.npcFormat[1]='[name]';options.nameFormat[1]='[name] [distance]';options.monsterFormat[1]='[name]'
 custom.SetSheets(0,0)
 local clock=os.clock;local now=10;os.clock=function() return now end
 policy.Reset()

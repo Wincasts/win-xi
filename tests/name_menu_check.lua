@@ -55,7 +55,8 @@ H.command('/name dev'); H.command('/name'); clear(); H.frames(1); H.command('/na
 assert(table.concat(tabs, '|') == 'General|Names|Health Bars|Cast Bars|Check Details|Statuses|Visibility|NM Tracking', '/name dev shows NM Tracking')
 H.command('/name dev'); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(tabs, '|') == 'General|Names|Health Bars|Cast Bars|Check Details|Statuses|Visibility', 'a second /name dev hides it')
-assert(table.concat(headers, '|') == 'General Name Appearance|Distance Thresholds|Player Names|Enemy Names|NPC Names|Diagnostics')
+assert(table.concat(headers, '|') == 'General Name Appearance|Player Names|Enemy Names|NPC Names|Distance Thresholds')
+assert(not ids['##name.partyIcons'] and not ids['##name.showVendorIcons'], 'party and vendor signs are tokens, not settings')
 assert(ids['##name.font'] and ids['##name.fontBold'] and ids['Smooth Font##name.fontSmooth'] and ids['##name.subtargetScale'])
 for index, id in ipairs(order) do
     if id == '##name.fontBold' then
@@ -141,7 +142,7 @@ for _, key in ipairs({ 'nameFormat', 'monsterFormat', 'npcFormat' }) do
         assert(part.kind ~= 'text' or not part.text:find('[', 1, true), 'example tokens must parse')
     end
 end
-assert(help['Reset##name.reset.npcFormat']:find('Mog House (4.2y)', 1, true))
+assert(help['Reset##name.reset.npcFormat']:find('Babubu (4.2y)', 1, true))
 controls.Mark = mark
 options.showHealthBar[1] = true
 clear(); customSettings.DrawHealthBars(options)
@@ -271,7 +272,7 @@ H.print('Check Details: a tab of its own, fifth, with Enabled, Size, Abbreviate 
 -- General: Enable Name first, then the preset; each part is switched on in its own tab
 local general = require('general')
 H.tab(1); H.command('/name'); clear(); H.frames(1); H.command('/name')
-assert(table.concat(headers, '|') == 'General')
+assert(table.concat(headers, '|') == 'General|Diagnostics', 'Diagnostics is under General')
 for _, id in ipairs({ '##name.preset', '##name.drawNames' }) do
     assert(ids[id] and locations[id] == 'General', 'General has ' .. id)
 end
@@ -310,7 +311,7 @@ assert(table.concat(headers, '|') == 'Players|Pets|NPCs & Monsters|Target|Crowd 
 assert(ids['##name.crowdDeclutter'] and disabledIds['##name.crowdThreshold'] and locations['##name.crowdHold'] == 'Crowd Decluttering')
 H.command('/name diag on')
 expanded.Diagnostics = true
-H.tab(2); H.command('/name'); clear(); H.frames(1); H.command('/name')
+H.tab(1); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(ids['##name.diagnosticsEnabled'] and ids['Write Log##name.diag.write'] and ids['Write Report##name.diag.report'])
 H.command('/name diag off')
 right = 320
@@ -350,7 +351,7 @@ options.drawNames[1] = false
 local formatsBefore = options.nameFormat[1] .. options.monsterFormat[1] .. options.npcFormat[1]
 for tab, expected in ipairs({
     { '##name.preset' },
-    { '##name.font', '##name.fontBold', 'Smooth Font##name.fontSmooth', '##name.nameFormat', '##name.playerIconSource', '##name.diagnosticsEnabled' },
+    { '##name.font', '##name.fontBold', 'Smooth Font##name.fontSmooth', '##name.nameFormat', '##name.playerIconSource' },
     { '##name.showHealthBar', '##name.healthBarWidth', '##name.healthBarTypes.monsters' },
     { '##name.showCastBar', '##name.healthBarWidth' },
     { '##name.showCheckDetails', '##name.checkSize' },
@@ -364,6 +365,8 @@ for tab, expected in ipairs({
     end
     assert(#disabledStack == 0 and not disabled, 'no disabled state leaks between tabs')
 end
+H.tab(1); H.command('/name'); clear(); H.frames(1); H.command('/name')
+assert(ids['##name.diagnosticsEnabled'] and not disabledIds['##name.diagnosticsEnabled'], 'diagnostics work while Name is off')
 assert(formatsBefore == options.nameFormat[1] .. options.monsterFormat[1] .. options.npcFormat[1], 'disabling keeps saved formats')
 options.drawNames[1] = true
 H.tab(2); H.command('/name'); clear(); H.frames(1); H.command('/name')

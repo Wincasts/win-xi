@@ -105,9 +105,8 @@ local settings = {
     iconSize    = function () return T{ 125 }; end,   -- an icon's side, as a percentage of the height of the names
     iconSpacing = function () return T{ 2 }; end,     -- pixels between the last icon and the name
     showStars   = function () return T{ true }; end,
-    showVendorIcons = function () return T{ true }; end, -- the coin before the names of NPCs that sell
     playerIconSource = function () return T{ 'game' }; end, -- icons.Sources; unavailable sources use bundled artwork
-    partyIcons = function () return T{ 'beside' }; end, -- a party or alliance member's sign in [icons]: roles.Modes
+    signFormatVersion = function () return 0; end, -- 1 once Party Icons and Vendor Icons are in the formats
     showCastBar = function () return T{ false }; end,
     castBarWeaponskills = function () return T{ false }; end,
     castBarAutoWidth = function () return T{ false }; end,
@@ -135,8 +134,8 @@ local settings = {
     -- How a name is written: [name] for the name, [distance] for how far off it is, [level] for the
     -- levels a monster can be, and the rest as it is typed (format.lua). One line for all monsters
     -- and separate editable lines for players/pets and non-combat NPCs.
-    npcFormat = function () return T{ '[name]' }; end,
-    nameFormat    = function () return T{ '[icons: space=4][name]' }; end,
+    npcFormat = function () return T{ '[vendor: space=4][name]' }; end,
+    nameFormat    = function () return T{ '[party: space=2][icons: space=4][name]' }; end,
     monsterFormat = function () return T{ '[name]' }; end,
 };
 
@@ -149,7 +148,7 @@ local settled = {
     { 'castNameScale', 'number', 25, 200 }, { 'castTimerScale', 'number', 25, 200 },
     { 'castBarSkillTextOnly', 'boolean' }, { 'castShowName', 'boolean' }, { 'castShowTimer', 'boolean' },
     { 'castTextColour', 'string' },
-    { 'showHealthBar', 'boolean' }, { 'healthBarsCombatOnly', 'boolean' }, { 'labelPlaceholders', 'boolean' }, { 'showVendorIcons', 'boolean' }, { 'partyIcons', 'string' }, { 'playerIconSource', 'string' },
+    { 'showHealthBar', 'boolean' }, { 'healthBarsCombatOnly', 'boolean' }, { 'labelPlaceholders', 'boolean' }, { 'playerIconSource', 'string' },
     { 'abbreviateDifficulty', 'boolean' }, { 'fontBold', 'boolean' }, { 'fontSmooth', 'boolean' },
     { 'trackedNm', 'string' }, { 'nameFormat', 'string' }, { 'monsterFormat', 'string' }, { 'npcFormat', 'string' },
 };
@@ -231,6 +230,47 @@ function custom.Settle(options)
     end
     options.showIcons, options.showMobLetter, options.doubleMobLetters = nil, nil, nil;
 
+    -- Party Icons (Off, Beside or Replace Game Icons) and Vendor Icons were settings: they become
+    -- [party] before each [icons] and [vendor] before the NPC format, once. A [party] or [vendor]
+    -- there already can only be the defaults': kept where the switch was the default, taken out where not.
+    if (options.signFormatVersion ~= 1) then
+        local mode = type(options.partyIcons) == 'table' and options.partyIcons[1] or 'beside';
+        if (mode ~= 'off' and mode ~= 'replace') then mode = 'beside'; end
+        local spacing = tonumber(options.iconSpacing and options.iconSpacing[1]) or 2;
+        if (spacing ~= spacing) then spacing = 2; end
+        spacing = math.max(0, math.min(64, math.floor(spacing)));
+        for _, key in ipairs({ 'nameFormat', 'monsterFormat', 'npcFormat' }) do
+            local text = options[key][1];
+            if (mode ~= 'beside' or not format.Compile(text).party) then
+                text = text:gsub('%[%s*party%s*%]', ''):gsub('%[%s*party%s*:[^%]]*%]', '');
+            end
+            local at = text:lower():find('%[%s*icons');
+            if (mode ~= 'off' and at ~= nil and not format.Compile(text).party) then
+                local iconsPart;
+                for _, part in ipairs(format.Compile(text)) do
+                    if (part.kind == 'icons') then iconsPart = part; break; end
+                end
+                -- beside: as far from the icons as they are from each other; replace: as far from
+                -- what follows as the icons were
+                local sign = mode == 'replace'
+                    and ('[party: replace, space=%d]'):format(iconsPart and iconsPart.space or spacing)
+                    or ('[party: space=%d]'):format(iconsPart and iconsPart.gap or 2);
+                text = text:sub(1, at - 1) .. sign .. text:sub(at);
+            end
+            options[key][1] = text;
+        end
+        local coin = type(options.showVendorIcons) ~= 'table' or options.showVendorIcons[1] ~= false;
+        local npc = options.npcFormat[1];
+        if (not coin) then
+            npc = npc:gsub('%[%s*vendor%s*%]', ''):gsub('%[%s*vendor%s*:[^%]]*%]', '');
+        elseif (not format.Compile(npc).vendor) then
+            npc = ('[vendor: space=%d]'):format(spacing) .. npc;
+        end
+        options.npcFormat[1] = npc;
+        options.signFormatVersion = 1;
+    end
+    options.partyIcons, options.showVendorIcons = nil, nil;
+
     local was = options.showDistance;
     if (type(was) == 'table') then
         if (was[1]) then
@@ -238,10 +278,6 @@ function custom.Settle(options)
         end
         options.showDistance, options.distanceTargetOnly = nil, nil;
     end
-    local mode = options.partyIcons[1];
-    local known = false;
-    for _, choice in ipairs(roles.Modes) do known = known or choice.key == mode; end
-    if (not known) then options.partyIcons[1] = settings.partyIcons()[1]; end
     local castColour = false;
     for _, choice in ipairs(custom.CastTextColours) do castColour = castColour or choice.key == options.castTextColour[1]; end
     if (not castColour) then options.castTextColour[1] = settings.castTextColour()[1]; end
@@ -1176,8 +1212,8 @@ function custom.Frame(options, hook, formats)
     nameplates.SetTexture(TEMPER_SLOT, sheets['aggro.png'] and sheets['aggro.png'].at or 0);
     local trackedName = options.trackedNm ~= nil and options.trackedNm[1] or '';
     local labelPlaceholders = options.labelPlaceholders ~= nil and options.labelPlaceholders[1];
-    local coins = vendors.Begin(options);
-    local ranks = roles.Begin(options, AshitaCore:GetMemoryManager(), wantsIcons);
+    local coins = vendors.Begin(npcFormat.vendor);
+    local ranks = roles.Begin(AshitaCore:GetMemoryManager(), nameFormat.party or monsterFormat.party or npcFormat.party);
     local huntTexture = (trackedName ~= '' or coins or ranks) and sheet(special.Sheet) or 0;
     coins, ranks = coins and huntTexture ~= 0, ranks and huntTexture ~= 0;
     local huntScale = options.huntScale ~= nil and math.max(100, math.min(200, options.huntScale[1])) / 100 or 1;
@@ -1406,6 +1442,10 @@ function custom.Frame(options, hook, formats)
                     end
 
                     if written.simplified then parts = fontPipeline.Readability.Compact(parts); end
+                    written.iconsReplaced = written.role ~= nil and parts.partyReplace;
+                    -- a vendor's coin, where [vendor] is, as large as the icons
+                    local coin = parts.vendor and coins and name.Category == nameplates.Category.Npc
+                        and vendors.Of(written, name) and special.Vendor or nil;
                     local showDetails = showDetails and not written.simplified;
 
                     -- its level if its player has checked it, or the levels it can be: looked for once
@@ -1483,12 +1523,6 @@ function custom.Frame(options, hook, formats)
                     local nameTint = own;
                     local width, iconsHeight = 0, 0;
                     written.barNameLeft, written.barNameRight = nil, nil;
-                    -- a vendor's coin, before all of it, as large as a player's icons and as far from what follows
-                    local coin = not written.simplified and coins and name.Category == nameplates.Category.Npc and vendors.Of(written, name)
-                        and math.floor(height * iconScale + 0.5) or nil;
-                    if (coin) then
-                        width = coin + math.floor(options.iconSpacing[1] * scale + 0.5);
-                    end
                     for index = 1, #parts do
                         local part = parts[index];
                         if (not parts.rules or rules.Visible(part, written)) then
@@ -1496,6 +1530,12 @@ function custom.Frame(options, hook, formats)
                             local start = width;
                             if (kind == 'icons') then
                                 local tokenWidth, tokenHeight = inline.IconWidth(part, written, height, scale, options.iconSize[1], options.iconSpacing[1]);
+                                width = width + tokenWidth;
+                                iconsHeight = math.max(iconsHeight, tokenHeight);
+                            end
+                            if (kind == 'party' or kind == 'vendor') then
+                                local sign = kind == 'party' and written.role or coin;
+                                local tokenWidth, tokenHeight = inline.SignWidth(part, sign, height, scale, options.iconSize[1], options.iconSpacing[1]);
                                 width = width + tokenWidth;
                                 iconsHeight = math.max(iconsHeight, tokenHeight);
                             end
@@ -1513,7 +1553,9 @@ function custom.Frame(options, hook, formats)
                                 written.barNameLeft = math.min(written.barNameLeft or start, start);
                                 written.barNameRight = math.max(written.barNameRight or width, width);
                             end
-                            if (kind ~= 'icons' and width > start) then width = width + math.floor((part.space or 0) * scale + 0.5); end
+                            if (kind ~= 'icons' and kind ~= 'party' and kind ~= 'vendor' and width > start) then
+                                width = width + math.floor((part.space or 0) * scale + 0.5);
+                            end
                         end
                     end
 
@@ -1546,12 +1588,6 @@ function custom.Frame(options, hook, formats)
 
                     local fill = nameTint;
                     local pen = left;
-                    if (coin) then
-                        local coinTop = top + math.floor((height - coin) * 0.5);
-                        local u0, v0, u1, v1 = special.UV(special.Vendor);
-                        icons.Quad(pen, coinTop, pen + coin, coinTop + coin, u0, v0, u1, v1, WHITE, special.Slot);
-                        pen = pen + coin + math.floor(options.iconSpacing[1] * scale + 0.5);
-                    end
                     for index = 1, #parts do
                         local part = parts[index];
                         if (not parts.rules or rules.Visible(part, written)) then
@@ -1564,6 +1600,10 @@ function custom.Frame(options, hook, formats)
                             if (kind == 'icons') then
                                 pen = pen + inline.WriteIcons(part, written, pen, top, height, scale,
                                     options.iconSize[1], options.iconSpacing[1], pearlColor(name.IconColor));
+                            end
+                            if (kind == 'party' or kind == 'vendor') then
+                                pen = pen + inline.WriteSign(part, kind == 'party' and written.role or coin, pen, top, height, scale,
+                                    options.iconSize[1], options.iconSpacing[1]);
                             end
                             if (kind == 'aggro' and temper ~= nil) then
                                 local u, v = (temper % 4) * 0.25, math.floor(temper / 4) * 0.25;
@@ -1597,7 +1637,9 @@ function custom.Frame(options, hook, formats)
                             else
                                 pen = writeWords(set, words, pen, top, fit, color, nil, textOpacity);
                             end
-                            if (kind ~= 'icons' and pen > start) then pen = pen + math.floor((part.space or 0) * scale + 0.5); end
+                            if (kind ~= 'icons' and kind ~= 'party' and kind ~= 'vendor' and pen > start) then
+                                pen = pen + math.floor((part.space or 0) * scale + 0.5);
+                            end
                         end
                     end
 

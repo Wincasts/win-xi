@@ -52,8 +52,8 @@ H.print('nothing is written', block.Hidden == 0)
 loaded = true
 H.frames(1)
 assert(suppliedFormats == o, 'production must use editable character formats, not fixed preferred defaults')
-H.print('production uses saved category formats', suppliedFormats.nameFormat[1] == '[icons: space=4][name]',
-    suppliedFormats.monsterFormat[1] == '[name]', suppliedFormats.npcFormat[1] == '[name]')
+H.print('production uses saved category formats', suppliedFormats.nameFormat[1] == '[party: space=2][icons: space=4][name]',
+    suppliedFormats.monsterFormat[1] == '[name]', suppliedFormats.npcFormat[1] == '[vendor: space=4][name]')
 H.print('plugin loaded: hook', nameplates.Hook() ~= nil, '| no problem', nameplates.Problem() == nil, '| hidden is players', block.Hidden == Category.Player)
 
 -- a change in the plugin, as by its own command, is taken into the settings and saved

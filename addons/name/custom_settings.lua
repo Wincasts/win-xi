@@ -16,7 +16,6 @@ local levels     = require('levels');
 local nameColours = require('name_colours');
 local nameTypes  = require('name_types');
 local entityTypes = require('entity_types');
-local roles      = require('roles');
 local icons      = require('icons');
 
 local settings = {};
@@ -184,7 +183,8 @@ local resetHelp = tips.Get('name.format.reset');
 -- The format and its Reset on one row, together as wide as any other control
 local function DrawFormat(label, key, options, save)
     local enemy = key == 'monsterFormat';
-    local baseline = enemy and '[aggro] [name] [letters]' or (key == 'nameFormat' and '[icons: space=4][name]' or '[name]');
+    local baseline = enemy and '[aggro] [name] [letters]'
+        or (key == 'nameFormat' and '[party: space=2][icons: space=4][name]' or '[vendor: space=4][name]');
     widgets.Label(label);
     controls.WidthBeside(imgui.CalcTextSize('Reset') + imgui.GetStyle().FramePadding.x * 2);
     imgui.InputText('##name.' .. key, options[key], math.max(1024, #options[key][1]+256));
@@ -245,8 +245,6 @@ function settings.DrawSettings(options, save)
     end
     controls.EndSection();
 
-    require('readability').DrawDistance(options);
-
     if (controls.Section('Player Names', '##name.playerOptions')) then
         DrawFormat('Player Format', 'nameFormat', options, save);
         controls.Choice('Player Icon Source', '##name.playerIconSource', options.playerIconSource, icons.Sources,
@@ -256,8 +254,6 @@ function settings.DrawSettings(options, save)
             imgui.TextColored(warning, icons.Texture() and 'Player icons: bundled fallback.' or 'Player icons unavailable.');
             controls.Mark(tips.Get('name.players.icon_source_fallback', { reason = iconProblem }));
         end
-        controls.Choice('Party Icons', '##name.partyIcons', options.partyIcons, roles.Modes,
-            tips.Get('name.players.party_icons'));
         nameColours.Draw(options, 'playerNames');
     end
     controls.EndSection();
@@ -272,11 +268,10 @@ function settings.DrawSettings(options, save)
     controls.EndSection();
     if (controls.Section('NPC Names', '##name.npcOptions')) then
         DrawFormat('NPC Format', 'npcFormat', options, save);
-        controls.Checkbox('Vendor Icons', '##name.showVendorIcons', options.showVendorIcons,
-            tips.Get('name.npcs.vendor_icons'));
         nameColours.Draw(options, 'npcNames');
     end
     controls.EndSection();
+    require('readability').DrawDistance(options);
     controls.EndLayout();
 end
 

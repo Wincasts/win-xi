@@ -18,8 +18,8 @@ name.Scale,name.NameColor,name.Flags=1,0x80808080,bit.bor(plates.Flag.Wanted,pla
 ffi.copy(name.Name,'Player');ffi.copy(name.Text,'Player')
 local options=custom.Defaults({})
 options.nameFormat[1],options.monsterFormat[1]='[name]','[name]'
-options.showStars[1],options.showVendorIcons[1],options.showCheckDetails[1]=false,false,false
-options.showStatuses={false};options.partyIcons[1]='off'
+options.showStars[1],options.showCheckDetails[1]=false,false
+options.showStatuses={false};options.npcFormat[1]='[name]'
 local glyph={X0=0,Y0=0,X1=8,Y1=12,U0=0,V0=0,U1=1,V1=1,AdvanceX=8,Visible=1}
 local font={ContainerAtlas={TexData={UniqueID=2,Status=0,Width=512,Height=256},TexUvWhitePixel={x=.125,y=.25}}}
 imgui.GetFont=function() return font end
