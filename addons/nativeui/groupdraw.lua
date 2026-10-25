@@ -1,8 +1,9 @@
 -- The windows the game stacks over its chat log drawn in the winxi look, from uihook's mirror of them (groupmirror):
 -- the game's own stay open and do everything they do, unseen underneath (the controller moves their cursor, the mouse
--- clicks them where they are drawn, Confirm and Cancel are theirs), and each is drawn again here as a winxi panel with
--- its words in the theme's font, its icons from the game's own textures, the row the cursor is on lit in the Highlight
--- Color, the game's hand where the game put it, and the scrollbar. The menus whose words are pictures (the command
+-- clicks them where they are drawn, Confirm and Cancel are theirs), and each is drawn again here as a winxi panel only
+-- as large as what it holds, its button bars square winxi buttons (the one the cursor is on in the Highlight Color),
+-- its words in the theme's font, its icons from the game's own textures, the game's hand hanging over the box's left
+-- edge at the row the cursor is on, and the scrollbar. The menus whose words are pictures (the command
 -- menu) spell them a letter at a time from the game's menu font; those are read back as words. Drawn from the
 -- archived menus addon (0.13), for this group alone.
 --
@@ -17,6 +18,7 @@ local frame = require('winxi.frame')
 local fonts = require('winxi.fonts')
 local text = require('winxi.text')
 local cursorArt = require('winxi.cursor')
+local tabs = require('winxi.tabs')
 local groupmirror = require('groupmirror')
 
 local view = {}
@@ -92,36 +94,90 @@ local function LineHeight(window, words)
 end
 local LINE_SLACK = 1.5 -- how much taller than the window's line a run of its text may be drawn
 
-local function DrawContents(list, window, words, spelled)
-    local r = window.rect
-    local pad = 4
-    local line = LineHeight(window, words)
-    local most = math.min(Height(r), line and line * LINE_SLACK or math.huge)
-    -- the row the cursor is on, lit across the window, under everything else: found from the cursor, or the game's
-    -- own highlight where that is the shape of a row
-    local row = CursorRow(window, words)
-    local lit = window.selection
-    if not row and lit and Height(lit) < Height(r) / 2 then row = lit end
-    if row then
-        local left, right = r[1] + pad, r[3] - pad
-        if row == lit then left, right = math.max(left, lit[1]), math.min(right, lit[3]) end
-        list:AddRectFilled({ left, row[2] - 1 }, { right, row[4] + 1 }, imgui.GetColorU32(theme.Get().HighlightColor), 3)
-    end
-    -- the game's art: the contents' icons as the game drew them, and the elements that are no letter (a button) in
-    -- their own colours, faint where the game greys one; the cursor's tint left to the row lit under it
+-- How far the box reaches past what it holds, in pixels: only enough to frame its buttons, the hand hanging over its
+-- left edge
+local BOX_PAD = 4
+-- The game's button bars: a window's elements that are no letter, at least twice as wide as they are tall and as tall
+-- as a small letter; each { rect, lit } (lit: tinted by the game, the cursor's). The rest of its art (a submenu's
+-- arrow, an icon) is drawn as the game's.
+local BUTTON_LEAST = 8
+local function Buttons(window, spelled)
+    local buttons, used = {}, {}
     for i, quad in ipairs(window.quads) do
-        if not spelled[i] and quad.texture then
+        local q = quad.rect
+        if not spelled[i] and quad.phase == groupmirror.Element and Height(q) >= BUTTON_LEAST and Width(q) >= Height(q) * 2 then
+            local c = quad.color
+            -- lit: warm, as the game tints the one the cursor is on (613C20, against the blue-grey 616180 of the rest)
+            buttons[#buttons + 1] = { rect = q, lit = c[1] > c[3] + 0.05, faint = c[4] < 0.5 }
+            used[i] = true
+        end
+    end
+    return buttons, used
+end
+-- What the window holds: its buttons, words, text, art and scrollbar, as one rectangle; nil where it holds nothing
+local function Holds(window, buttons, words, spelled, used)
+    local l, t, r, b = math.huge, math.huge, -math.huge, -math.huge
+    local function Take(q) if q then l, t, r, b = math.min(l, q[1]), math.min(t, q[2]), math.max(r, q[3]), math.max(b, q[4]) end end
+    for _, button in ipairs(buttons) do Take(button.rect) end
+    for _, word in ipairs(words) do Take(word.rect) end
+    for _, run in ipairs(window.runs) do if run.text ~= '' then Take(run.rect) end end
+    for i, quad in ipairs(window.quads) do if not spelled[i] and not used[i] then Take(quad.rect) end end
+    if window.scroll and window.scrollCount > window.scrollPage then Take(window.scroll) end
+    if l > r or t > b then return nil end
+    return { l, t, r, b }
+end
+-- The button a place is on (its middle, upright), or nil
+local function ButtonAt(buttons, r)
+    local y = (r[2] + r[4]) / 2
+    for _, button in ipairs(buttons) do
+        local q = button.rect
+        if y >= q[2] and y <= q[4] and r[1] < q[3] and r[3] > q[1] then return button end
+    end
+end
+
+-- A square button in winxi's look: the theme's button colour (its border colour, faint), the Highlight Color where
+-- the cursor is on it, the theme's tab style over it
+local function DrawButton(list, button)
+    local q = button.rect
+    local themed = theme.Get()
+    local color
+    if button.lit then
+        color = themed.HighlightColor
+    else
+        local border = themed.BorderColor
+        color = { border[1], border[2], border[3], border[4] * (button.faint and 0.12 or 0.25) }
+    end
+    list:AddRectFilled({ q[1], q[2] }, { q[3], q[4] }, imgui.GetColorU32(color), 0)
+    tabs.Over(list, q[1], q[2], q[3], q[4], 0)
+end
+
+local function DrawContents(list, window, box, layout)
+    local words, spelled, buttons, used = layout.words, layout.spelled, layout.buttons, layout.used
+    local line = LineHeight(window, words)
+    local most = math.min(Height(box), line and line * LINE_SLACK or math.huge)
+    -- the row the cursor is on, where it is no button: lit across the box, under everything else
+    local row = layout.row
+    if row and not layout.button then
+        list:AddRectFilled({ box[1] + 2, row[2] - 1 }, { box[3] - 2, row[4] + 1 }, imgui.GetColorU32(theme.Get().HighlightColor), 0)
+    end
+    for _, button in ipairs(buttons) do DrawButton(list, button) end
+    -- the game's art: the contents' icons as the game drew them, the other elements (a submenu's arrow) in their own
+    -- colours, faint where the game greys one
+    for i, quad in ipairs(window.quads) do
+        if not spelled[i] and not used[i] and quad.texture then
             local q, uv = quad.rect, quad.uv
             local color = quad.phase == groupmirror.Element and { 1, 1, 1, quad.color[4] } or quad.color
             list:AddImage(quad.texture, { q[1], q[2] }, { q[3], q[4] }, { uv[1], uv[2] }, { uv[3], uv[4] }, imgui.GetColorU32(color))
         end
     end
-    -- the words spelled from the game's fonts, in the theme's
+    -- the words spelled from the game's fonts, in the theme's: on a button, upright in its middle
     for _, word in ipairs(words) do
         local t = word.rect
         local size = math.max(8, math.floor(math.min(word.tall, most) + 0.5))
+        local on = ButtonAt(buttons, t)
+        local top = on and (on.rect[2] + on.rect[4] - size) / 2 or t[2] + (Height(t) - size) / 2
         imgui.PushFont(nil, size)
-        text.Draw(list, t[1], t[2] + (Height(t) - size) / 2, TextColor({ 1, 1, 1, word.color[4] }), word.text)
+        text.Draw(list, t[1], top, TextColor({ 1, 1, 1, word.color[4] }), word.text)
         imgui.PopFont()
     end
     -- the text, each run where the game printed it, in the theme's font at the height of the game's letters
@@ -141,25 +197,31 @@ local function DrawContents(list, window, words, spelled)
         local thumb = theme.Get().HighlightColor
         local width = math.max(3, math.min(6, Width(s)))
         local left = s[3] - width
-        list:AddRectFilled({ left, s[2] }, { s[3], s[4] }, imgui.GetColorU32({ track[1], track[2], track[3], 0.25 }), 2)
+        list:AddRectFilled({ left, s[2] }, { s[3], s[4] }, imgui.GetColorU32({ track[1], track[2], track[3], 0.25 }), 0)
         local top = s[2] + Height(s) * window.scrollTop / window.scrollCount
         local bottom = s[2] + Height(s) * math.min(1, (window.scrollTop + window.scrollPage) / window.scrollCount)
-        list:AddRectFilled({ left, top }, { s[3], bottom }, imgui.GetColorU32({ thumb[1], thumb[2], thumb[3], 1 }), 2)
+        list:AddRectFilled({ left, top }, { s[3], bottom }, imgui.GetColorU32({ thumb[1], thumb[2], thumb[3], 1 }), 0)
     end
-    -- the hand where the game drew its own: as tall as the row it points at, from the left of where the game drew it,
-    -- on its middle
+end
+
+-- The game's hand at the row the cursor is on, its fingertip (the art's pivot) at the row's left edge, so that it
+-- hangs out over the box's left edge; as tall as the row, upright in its middle. Where no row is found, its fingertip
+-- where the game's hand pointed.
+local function DrawHand(list, window, layout)
     local c = window.cursor
-    if c then
-        local handle, art = cursorArt.Get()
-        if handle then
-            local tall = row and Height(row) + 2 or math.min(Height(c), 18)
-            if line then tall = math.min(tall, line + 2) end
-            local wide = tall * art[5] / art[6]
-            local middle = (c[2] + c[4]) / 2
-            list:AddImage(handle, { c[1], middle - tall / 2 }, { c[1] + wide, middle + tall / 2 },
-                { art[1], art[2] }, { art[3], art[4] }, imgui.GetColorU32(white))
-        end
-    end
+    if not c then return end
+    local handle, art = cursorArt.Get()
+    if not handle or not art.corners then return end
+    local row = layout.button and layout.button.rect or layout.row
+    local tall = row and Height(row) or math.min(Height(c), 18)
+    local line = LineHeight(window, layout.words)
+    if line and not layout.button then tall = math.min(tall, line + 2) end
+    local x = row and row[1] - 1 or c[3]
+    local middle = row and (row[2] + row[4]) / 2 or (c[2] + c[4]) / 2
+    local corners, scale = art.corners, tall / art[6]
+    local pivotY = middle - (corners[8] + corners[2]) * scale / 2
+    list:AddImage(handle, { x + corners[1] * scale, pivotY + corners[2] * scale }, { x + corners[7] * scale, pivotY + corners[8] * scale },
+        { art[1], art[2] }, { art[3], art[4] }, imgui.GetColorU32(white))
 end
 
 -- A window's letters read back as words: its title (the game's serif letters), joined, for the frame's edge; the
@@ -173,15 +235,36 @@ local function Spelled(window)
     return #title > 0 and table.concat(title, ' ') or nil, labels, spelled
 end
 
-local function DrawWindow(list, window)
-    local r = window.rect
+-- The window laid out: its words, buttons, the row the cursor is on (the button lit, else the run or word nearest the
+-- game's hand, else the game's own highlight where it is the shape of a row), and its box, only as large as what it
+-- holds and BOX_PAD round it (the game's frame where it holds nothing measured)
+local function Layout(window)
     local title, words, spelled = Spelled(window)
-    frame.Draw({ left = r[1], top = r[2], width = Width(r), height = Height(r) }, function()
-        list:PushClipRect({ r[1] - 24, r[2] - 24 }, { r[3] + 24, r[4] + 24 }, true)
-        local ok, err = pcall(DrawContents, list, window, words, spelled)
+    local buttons, used = Buttons(window, spelled)
+    local layout = { title = title, words = words, spelled = spelled, buttons = buttons, used = used }
+    for _, button in ipairs(buttons) do if button.lit then layout.button = button end end
+    if not layout.button and window.cursor then layout.button = ButtonAt(buttons, window.cursor) end
+    if not layout.button then
+        layout.row = CursorRow(window, words)
+        local lit = window.selection
+        if not layout.row and lit and Height(lit) < Height(window.rect) / 2 then layout.row = lit end
+    end
+    local holds = Holds(window, buttons, words, spelled, used)
+    layout.box = holds and { holds[1] - BOX_PAD, holds[2] - BOX_PAD, holds[3] + BOX_PAD, holds[4] + BOX_PAD } or window.rect
+    return layout
+end
+
+local function DrawWindow(list, window)
+    local layout = Layout(window)
+    local box = layout.box
+    frame.Draw({ left = box[1], top = box[2], width = Width(box), height = Height(box) }, function()
+        list:PushClipRect({ box[1] - 24, box[2] - 24 }, { box[3] + 24, box[4] + 24 }, true)
+        local ok, err = pcall(DrawContents, list, window, box, layout)
         list:PopClipRect()
         if not ok then error(err, 0) end
-    end, { title = title })
+    end, { title = layout.title })
+    -- over the frame's border, which it hangs across
+    DrawHand(list, window, layout)
 end
 
 local hostFlags = bit.bor(ImGuiWindowFlags_NoDecoration, ImGuiWindowFlags_NoInputs, ImGuiWindowFlags_NoBackground,

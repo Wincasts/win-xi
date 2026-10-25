@@ -18,7 +18,10 @@ local function Command()
     local quads = {}
     Spell(quads, 'Attack', 40, 810, { 1, 1, 1, 1 })
     Spell(quads, 'Magic', 40, 826, { 1, 0.6, 0.25, 1 })
-    quads[#quads + 1] = { phase = 3, uv = { 0.25, 0, 1, 0.25 }, color = { 1, 1, 1, 1 }, rect = { 30, 806, 120, 822 }, texture = 0x66 } -- a bar
+    -- the button bars: blue-grey (616180), the one the cursor is on orange (613C20)
+    quads[#quads + 1] = { phase = 3, uv = { 0.25, 0, 1, 0.25 }, color = { 0.76, 0.76, 1, 1 }, rect = { 30, 806, 120, 822 }, texture = 0x66 }
+    quads[#quads + 1] = { phase = 3, uv = { 0.25, 0, 1, 0.25 }, color = { 0.76, 0.47, 0.25, 1 }, rect = { 30, 822, 120, 838 }, texture = 0x66 }
+    quads[#quads + 1] = { phase = 3, uv = { 0.9, 0, 1, 0.05 }, color = { 1, 1, 1, 1 }, rect = { 110, 826, 118, 834 }, texture = 0x66 } -- a submenu's arrow
     return { name = 'playermo', hidden = true, kept = false, focused = true, hasCursor = true, drewContent = true,
         rect = { 16, 800, 128, 888 }, cursor = { 20, 826, 36, 838 }, selection = { 30, 822, 120, 838 },
         runs = {}, quads = quads, target = { 16, 800, 112, 88 }, scrollPage = 0, scrollCount = 0, scrollTop = 0 }
@@ -42,11 +45,23 @@ local before = #GROUP.requests
 H.frames(2)
 check('asked again every frame', #GROUP.requests == before + 2)
 
-local texts, images = H.calls['draw.AddText'] or 0, H.calls['draw.AddImage'] or 0
+local texts = H.calls['draw.AddText'] or 0
 GROUP.windows = { Command(), Question() }
 H.frames(1)
 check('the windows drawn: their words', (H.calls['draw.AddText'] or 0) > texts)
-check('the bar drawn as the game\'s art, the letters not', (H.calls['draw.AddImage'] or 0) - images >= 1)
+local function Box(l, t, r, b)
+    for _, box in ipairs(GROUP.boxes) do
+        if box.min[1] == l and box.min[2] == t and box.max[1] == r and box.max[2] == b then return box end
+    end
+end
+check('the button bars drawn as square boxes, not the game\'s art', Box(30, 806, 120, 822) and Box(30, 806, 120, 822).rounding == 0 and Box(30, 822, 120, 838))
+local arrows, letters, hand = 0, 0, nil
+for _, image in ipairs(GROUP.images) do
+    if image.texture == 0x66 then arrows = arrows + 1 elseif image.texture == 0x55 then letters = letters + 1 elseif image.texture == 0x77 then hand = image end
+end
+check('the arrow the game\'s art, the letters read as words, not drawn', arrows == 1 and letters == 0)
+check('the hand\'s fingertip on the lit button\'s left edge, hanging out past the box', hand and hand.max[1] == 29 and hand.min[1] < 26 and hand.min[2] == 822 and hand.max[2] == 838)
+check('the box only as large as its buttons and words, and 4 round them', Box(26, 802, 124, 842) ~= nil)
 check('nothing printed', #H.printed == 0)
 
 -- a window whose text could not be placed: left to the game, and taken again once it is measured whole a while

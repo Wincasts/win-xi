@@ -26,9 +26,12 @@ where the game put them.
   the theme's Background Color, its border in Border Color at Border Opacity, the corners rounded as a winxi
   window's. Their words, pictures, buttons and hand are the game's, drawn over it (`/uihook native frames`).
 - **Winxi**: each drawn again whole in the winxi look from uihook's mirror of them (`groupmirror.lua`,
-  `groupdraw.lua`): a winxi frame with the window's title on its edge, its words in the theme's font (the command
-  menu's pictured words read back from the game's letters), its icons and buttons the game's art, the row the cursor
-  is on lit in the Highlight Color, the game's hand, the scrollbar. The game's own stays open unseen underneath, so
+  `groupdraw.lua`): a winxi frame with the window's title on its edge, only as large as what the window holds and 4
+  pixels round it; the game's button bars square winxi buttons (the theme's button colour and tab style, the one the
+  cursor is on in the Highlight Color); its words in the theme's font, upright in their buttons (the command menu's
+  pictured words read back from the game's letters); its icons and a submenu's arrow the game's art; the game's hand
+  at the row the cursor is on, its fingertip on the row's left edge so that it hangs out over the box's; the
+  scrollbar. The game's own stays open unseen underneath, so
   the controller works it as ever and the mouse clicks it where it is drawn (with Move Right, Move Down or Menu
   Scale, while Mouse Follows Menus is on). One whose text cannot all be placed is left to the game for a couple of
   seconds and taken again once it measures whole; the settings say which.
