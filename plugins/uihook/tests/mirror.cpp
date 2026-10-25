@@ -59,9 +59,10 @@ int main() {
     // a window of the group: its frame, its text, its icons, its elements, its cursor, measured; left undrawn
     mirror.Viewport(view);
     Mirror::Saved saved;
-    Check(!mirror.Begin(command.window,"menu    menuwind",false,nullptr,nullptr,saved) && !mirror.Active(),"a window not of the group: not mirrored");
+    // Render begun: what is under way kept; the window taken at its first draw
+    Check(!(mirror.Hold(saved),mirror.Begin(command.window,"menu    menuwind",false,nullptr,nullptr)) && !mirror.Active(),"a window not of the group: not mirrored");
     mirror.End(saved);
-    Check(mirror.Begin(command.window,"menu    menuwind",true,nullptr,nullptr,saved) && mirror.Active() && mirror.Hiding(),"one of the group: left undrawn, and mirrored");
+    Check((mirror.Hold(saved),mirror.Begin(command.window,"menu    menuwind",true,nullptr,nullptr)) && mirror.Active() && mirror.Hiding(),"one of the group: left undrawn, and mirrored");
     Vertex v[6];
     Quad(v,100,100,300,300,0x80808080); mirror.Record(FVF,nullptr,v,sizeof(Vertex),6);
     FakeTexture font;
@@ -79,7 +80,7 @@ int main() {
     mirror.Scrollbar(ChatScrollInfo{10,30,5});
     {
         Mirror::Saved inner;
-        Check(!mirror.Begin(other.window,"menu    equip   ",false,nullptr,nullptr,inner) && !mirror.Active(),"a window not of it drawn within it: not mirrored");
+        Check(!(mirror.Hold(inner),mirror.Begin(other.window,"menu    equip   ",false,nullptr,nullptr)) && !mirror.Active(),"a window not of it drawn within it: not mirrored");
         mirror.Record(FVF,nullptr,v,sizeof(Vertex),6);
         mirror.End(inner);
     }
@@ -88,10 +89,10 @@ int main() {
     Check(!mirror.Active(),"the window drawn: nothing mirrored");
 
     // one the addon keeps for the game: drawn by it, still published; and one drawn moved by the native look
-    Check(!mirror.Begin(info.window,"menu    iteminfo",true,nullptr,nullptr,saved) && mirror.Active() && !mirror.Hiding(),"a window kept: the game draws it, and it is published");
+    Check(!(mirror.Hold(saved),mirror.Begin(info.window,"menu    iteminfo",true,nullptr,nullptr)) && mirror.Active() && !mirror.Hiding(),"a window kept: the game draws it, and it is published");
     mirror.End(saved);
     NativeTransform move; move.dx=50; move.dy=-20; move.k=2; move.ax=100; move.ay=100;
-    Check(mirror.Begin(other.window,"menu    equip   ",true,&move,nullptr,saved),"one moved and larger");
+    Check((mirror.Hold(saved),mirror.Begin(other.window,"menu    equip   ",true,&move,nullptr)),"one moved and larger");
     Quad(v,100,100,200,150,0x80808080); mirror.Record(FVF,nullptr,v,sizeof(Vertex),6);
     mirror.End(saved);
 
@@ -122,17 +123,30 @@ int main() {
     // a stale request, or no viewport: the game's own
     block.Frame=15;
     mirror.Viewport(view);
-    Check(!mirror.Wanted() && !mirror.Begin(command.window,"menu    menuwind",true,nullptr,nullptr,saved) && !mirror.Active(),"a request five frames old: the game draws the group");
+    Check(!mirror.Wanted() && !(mirror.Hold(saved),mirror.Begin(command.window,"menu    menuwind",true,nullptr,nullptr)) && !mirror.Active(),"a request five frames old: the game draws the group");
     mirror.End(saved);
     block.RequestFrame=15; mirror.Publish(15);
-    Check(!mirror.Begin(command.window,"menu    menuwind",true,nullptr,nullptr,saved) && !mirror.Active(),"no viewport known: the game draws it");
+    Check(!(mirror.Hold(saved),mirror.Begin(command.window,"menu    menuwind",true,nullptr,nullptr)) && !mirror.Active(),"no viewport known: the game draws it");
     mirror.End(saved);
     mirror.Publish(15);
     Check(block.Dropped==1,"and that counted as dropped");
 
+    // a window drawn within one mirrored, never settled (it drew nothing): the outer mirrored again after it
+    mirror.Viewport(view);
+    mirror.Hold(saved); mirror.Begin(command.window,"menu    menuwind",true,nullptr,nullptr);
+    {
+        Mirror::Saved inner;
+        mirror.Hold(inner);
+        Check(!mirror.Active(),"held for a window inside it: nothing of it mirrored until it is taken");
+        mirror.End(inner);
+    }
+    Check(mirror.Active() && mirror.Hiding(),"the outer window still mirrored after one that drew nothing");
+    mirror.End(saved);
+    mirror.Publish(16);
+
     // cleared (the hooks given back): nothing held, nothing published
     mirror.Viewport(view);
-    mirror.Begin(command.window,"menu    menuwind",true,nullptr,nullptr,saved);
+    (mirror.Hold(saved),mirror.Begin(command.window,"menu    menuwind",true,nullptr,nullptr));
     mirror.Phase(PHASE_CONTENT); font.AddRef(); Quad(v,0,0,8,8,0x80808080); mirror.Record(FVF,&font,v,sizeof(Vertex),6);
     mirror.End(saved);
     mirror.Clear();

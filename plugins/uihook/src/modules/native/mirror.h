@@ -123,13 +123,16 @@ public:
         for (auto* t:held) if (static_cast<uint32_t>(reinterpret_cast<uintptr_t>(t))==texture) return true;
         return false;
     }
-    // A window about to be drawn: mirrored where it is one of the group (member, its name as the game keeps it) and an
-    // addon asks; t how the native look draws it, or null where as the game does. Returns whether the game's drawing of
-    // it is to be left undrawn. What was under way is given back by End.
+    // Window::Render begun: what was under way kept in saved, given back by End, and nothing mirrored until Begin
     struct Saved { int window; bool hiding; NativeTransform move; bool moved; WindowPhase phase; unsigned depth; int run; ChatBounds frame, all, cursor, selection, scroll; };
-    bool Begin(void* object,const char* name,bool member,const NativeTransform* t,IDirect3DDevice8* device,Saved& saved) {
+    void Hold(Saved& saved) {
         saved={window,hiding,move,moved,phase,depth,run,frameBounds,allBounds,cursorBounds,selectionBounds,scrollBounds};
         window=-1; hiding=false; phase=PHASE_FRAME; depth=0; run=-1;
+    }
+    // The window being drawn, at its first draw (its animation and layout updated by Render): mirrored where it is one
+    // of the group (member, its name as the game keeps it) and an addon asks; t how the native look draws it, or null
+    // where as the game does. Returns whether the game's drawing of it is to be left undrawn.
+    bool Begin(void* object,const char* name,bool member,const NativeTransform* t,IDirect3DDevice8* device) {
         if (!member || !name || !Wanted()) return false;
         auto* w=static_cast<uint8_t*>(object);
         if (building.WindowCount>=MIRROR_WINDOWS) { dropped++; return false; }

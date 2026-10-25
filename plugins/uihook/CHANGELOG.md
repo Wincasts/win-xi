@@ -7,7 +7,14 @@
   working unseen underneath, for the addon to draw them in the winxi look. Revived from the menu mirror (ABI 5,
   retired in 1.58), for the group alone: no names asked for, but those the addon keeps for the game, and its places
   measured where the native look draws the window (its move, its scale), so the native look's mouse works it there.
-  Quads to 1024 a frame. tests/mirror.cpp: a window of the group measured and hidden, one kept, one moved and
+  Quads to 1024 a frame.
+  A window is taken by the native look and the mirror at its first draw (`Settle`: a draw, a text routine, its
+  contents or a control), not as `Window::Render` begins: Render updates the window's animation and layout first,
+  so its place read before was the last frame's (or nothing, as it opened), and a menu opening over the chat log was
+  not yet of the group, and drawn by the game for a frame or more before the mirror hid it. A window is of the group
+  too while it is drawn within a layout target (+8C) that is, as one opening grows into its place. tests/native.cpp:
+  a window half grown, by its place and within its target; tests/mirror.cpp: held as Render begins, taken at its
+  first draw, an inner window that draws nothing leaving the outer mirrored. tests/mirror.cpp: a window of the group measured and hidden, one kept, one moved and
   larger, the textures held two frames, a stale request and no viewport, cleared.
 - `/uihook native frames <fill> <border> <rounding> <thickness> | off` (an experiment; nativeui 0.9's Drawn As Winxi
   Frames): the frames of the windows the game stacks over the chat log left undrawn (the draws in a window's frame

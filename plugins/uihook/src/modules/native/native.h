@@ -193,12 +193,20 @@ public:
     }
     bool Inset(float pixels) { inset=pixels>0 ? pixels : 0; return true; }
     bool MenuScale(float k) { if (!(k>=NATIVE_SCALE_LOW && k<=NATIVE_SCALE_HIGH)) return false; menuScale=k; return true; }
-    // Whether a window of this name and place is one of the group
-    bool GroupMember(const char* name,const int16_t* target) const {
-        if (!Grouping() || !logFrame || !target || target[2]<=0 || target[3]<=0) return false;
+    // Whether a window of this name and place (left, top, width, height) is one of the group: its bottom on the log's
+    // top, its left near the log's. Or, given its layout target (the same), one drawn within a target that is so: a
+    // window opening, grown or slid into its place over some frames.
+    bool GroupMember(const char* name,const int16_t* place,const int16_t* target=nullptr) const {
+        if (!Grouping() || !logFrame || !place || place[2]<=0 || place[3]<=0) return false;
         if (LogWindow(name)) return false;
-        const int bottom=target[1]+target[3];
-        return bottom<=logTop && bottom>=logTop-NATIVE_GROUP_SLACK && target[0]>=0 && target[0]<=logLeft+NATIVE_GROUP_REACH;
+        auto over=[&](const int16_t* r) {
+            const int bottom=r[1]+r[3];
+            return r[2]>0 && r[3]>0 && bottom<=logTop && bottom>=logTop-NATIVE_GROUP_SLACK && r[0]>=0 && r[0]<=logLeft+NATIVE_GROUP_REACH;
+        };
+        if (over(place)) return true;
+        const int slack=NATIVE_GROUP_SLACK;
+        return target && over(target) && place[0]>=target[0]-slack && place[1]>=target[1]-slack
+            && place[0]+place[2]<=target[0]+target[2]+slack && place[1]+place[3]<=target[1]+target[3]+slack;
     }
     bool Group(float x,float y) {
         groupOn=true; groupX=x; groupY=y;
@@ -227,11 +235,11 @@ public:
     }
     // The window about to be drawn, by its name as the game keeps it and where it is drawn: the log's noted, and
     // one of the group given its entry (made, or one long undrawn taken for it)
-    void Note(const char* name,const int16_t* target,uint32_t frame) {
-        if (!name || !target) return;
-        if (!memcmp(name,"menu    logwindo",16)) { logLeft=target[0]; logTop=target[1]; logFrame=frame; return; }
+    void Note(const char* name,const int16_t* place,uint32_t frame,const int16_t* target=nullptr) {
+        if (!name || !place) return;
+        if (!memcmp(name,"menu    logwindo",16)) { logLeft=place[0]; logTop=place[1]; logFrame=frame; return; }
         NativeEntry* e=Find(name,false);
-        const bool member=GroupMember(name,target);
+        const bool member=GroupMember(name,place,target);
         // one that was not of the group (made for the inset before the log was seen) and is one now: the group's offset
         if (e && member && !e->group) { e->group=true; e->dx=groupX; e->dy=groupY; }
         if (e) { e->member=member; return; }

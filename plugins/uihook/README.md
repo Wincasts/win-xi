@@ -562,7 +562,10 @@ chat log is mirrored: its draws are measured and left undrawn, and what it would
 game's art with its texture held for two frames, its elements, the cursor, the element the cursor is on and the
 scrollbar's rows). The window is the game's still, unseen: its controller input, cursor and mouse hit-tests work as
 ever. Its places are measured where the native look draws it (the group's move, Menu Scale), so the addon draws it
-where `/uihook native mouse` gives the mouse to it. A window the addon names in `Kept` (one whose text it could not
+where `/uihook native mouse` gives the mouse to it. A window is taken at its first draw, after `Window::Render` has
+updated its animation and layout (read as Render begins, a menu opening was not yet of the group and the game drew
+it first), and is of the group too while drawn within a layout target (+8C) over the log, as one opening grows into
+its place. A window the addon names in `Kept` (one whose text it could not
 place) is drawn by the game and still published, so the addon can tell when to take it again. Four frames after
 the last request the game draws the group again. The group is told while it is asked for, with no move set.
 `/uihook native` says how many windows were drawn by an addon and what the last frame published.
