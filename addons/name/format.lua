@@ -13,7 +13,8 @@
 --                          set if present, and .partyReplace if a [party] says replace
 -- Options: space=N and color=NAME/#RGB on all tokens, and when=target+checked+nm+relevant and
 -- within=N (block_rules.lua); size=N/gap=N on icons; size=N on party and vendor; replace on [party],
--- its sign in place of the game's icons for a member; decimals=0..2 on distance; type=single/double on
+-- its sign in place of the game's icons for a member; decimals=0..2 on distance; spacing=0..10 on
+-- name, level and distance, screen pixels between its letters in place of the Letter Spacing setting; type=single/double on
 -- [letters] (legacy alias [letter]); exact on [level], the level only once a check has told it, never
 -- the database's range. Options may be separated by commas, semicolons or spaces.
 --
@@ -91,6 +92,7 @@ local function parameters(kind, typed, inherited)
             elseif ((kind == 'icons' or kind == 'party' or kind == 'vendor') and key == 'size') then low, high = 25, 300;
             elseif (kind == 'icons' and key == 'gap') then low, high = 0, 24;
             elseif (kind == 'distance' and key == 'decimals') then low, high = 0, 2;
+            elseif ((kind == 'name' or kind == 'level' or kind == 'distance') and key == 'spacing') then low, high = 0, 10;
             else return nil; end
             part[key] = math.max(low, math.min(high, math.floor(number)));
         end
@@ -194,7 +196,7 @@ function format.Serialize(parts, doubleLetters)
             if (part.color ~= nil) then args[#args + 1] = ('color=#%06X'):format(part.color % 0x1000000); end
             if (part.exact) then args[#args + 1] = 'exact'; end
             if (part.replace) then args[#args + 1] = 'replace'; end
-            for _, field in ipairs({ 'space', 'size', 'gap', 'decimals', 'type', 'when', 'within' }) do
+            for _, field in ipairs({ 'space', 'size', 'gap', 'spacing', 'decimals', 'type', 'when', 'within' }) do
                 local value = field == 'type' and part.kind == 'letter' and doubleLetters and 'double' or part[field];
                 if (value ~= nil) then args[#args + 1] = field .. '=' .. tostring(value); end
             end
