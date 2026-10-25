@@ -13,7 +13,7 @@ H.print = function(label, ...)
     end
 end
 H.print('settings: spells', o.showSpells[1], '| weaponskills', o.showSkills[1], '| abilities', o.showAbilities[1],
-    '| targets', o.showTargets[1], '| only my target off', o.onlyTarget[1] == false, '| seconds', o.seconds[1], '| lines', o.maxLines[1], '| grows from', o.grow)
+    '| targets', o.showTargets[1], '| only my target off', o.onlyTarget[1] == false, '| seconds', o.seconds[1], '| lines', o.maxLines[1], '| grows from', o.grow, '| newest', o.newest)
 
 -- the game: the player, a party member, and some mobs, an NPC and a pet about
 local me = { id = 0x1001, index = 0x400 }
@@ -188,6 +188,12 @@ H.print('the box is not locked, at the theme\'s size:', style.locked == nil and 
 o.locked[1], o.fontSize[1] = true, 18; shown()
 H.print('locked, the mouse goes through it, and the size is its own:', style.locked == true and style.clickThrough == true and style.fontSize == 18)
 o.locked[1], o.fontSize[1] = false, 0
+o.newest = 'Top'
+H.print('the newest at the top: the order the other way about', shown() == 'Orcish Fighter uses Mighty Strikes. | Goblin Smithy starts casting Fire on Tester. | Mad Sheep readies Sheep Song.',
+    colors[1] == o.abilityColor and colors[3] == o.skillColor)
+H.packetData(0x028, action(bat, 6, 0, bat, 0, 100))
+H.print('a new line goes in at the top:', shown():sub(1, 30) == 'Acro Bat uses Mighty Strikes. ')
+o.newest = 'Bottom'
 H.wait(10); shown()
 
 -- the sample, with the settings open
@@ -204,9 +210,9 @@ H.command('/mobcast'); drawn = 0
 H.print('the settings closed: nothing to show', shown() == '' and drawn == 0)
 
 -- the settings made good
-o.seconds[1], o.maxLines[1], o.grow, o.spellColor, o.pos = 99, 'x', 'Up', 'blue', nil
+o.seconds[1], o.maxLines[1], o.grow, o.newest, o.spellColor, o.pos = 99, 'x', 'Up', 'Middle', 'blue', nil
 H.resettle(); o = H.options()
-H.print('bad settings made good:', o.seconds[1] == 30, o.maxLines[1] == 5, o.grow == 'Left', o.spellColor[1] == 0.6, o.pos[1] == 100)
+H.print('bad settings made good:', o.seconds[1] == 30, o.maxLines[1] == 5, o.grow == 'Left', o.newest == 'Bottom', o.spellColor[1] == 0.6, o.pos[1] == 100)
 
 -- fading: with the fade on, the box lingers after its last line to fade out with
 o.fadeInOut[1], o.seconds[1] = true, 1

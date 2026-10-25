@@ -23,6 +23,11 @@ box.DefaultGrow = 'Left'
 local growModes = { Left = 'TopLeft', Center = 'TopCenter', Right = 'TopRight' }
 local growShare = { Left = 0, Center = 0.5, Right = 1 }
 
+-- Where the newest line is: at the bottom, the lines in the order they were said, or at the top, in
+-- the order the other way about, the newest always in the same place under the top edge
+box.Newests = { 'Bottom', 'Top' }
+box.DefaultNewest = 'Bottom'
+
 -- The lines up, the first said at the top: { key, text, color, till }. key is whose line it is and of
 -- what kind (reader.lua's), or nil for one that stands alone. A line said again while it is up stays
 -- up longer, and is not said twice; a line of the same key takes the old one's place. The last lines
@@ -98,7 +103,12 @@ local function DrawContent()
         end
     end
     imgui.PushStyleVar(ImGuiStyleVar_FramePadding, windowPadding)
-    for _, line in ipairs(shown) do
+    local first, last, step = 1, #shown, 1
+    if options.newest == 'Top' then
+        first, last, step = #shown, 1, -1
+    end
+    for index = first, last, step do
+        local line = shown[index]
         if share > 0 then
             imgui.SetCursorPosX(left + (widest - imgui.CalcTextSize(line.text)) * share)
         end

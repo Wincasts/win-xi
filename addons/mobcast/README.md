@@ -40,6 +40,9 @@ Every section collapses with its [-]/[+].
 - **Max Lines** is how many the box holds at once, 1 to 10; past that the oldest goes.
 - **Grow From** is the side that stays where it is as the lines get longer or shorter, Left, Center or
   Right. The lines are set to that side too.
+- **Newest Line** is where a new line goes. Bottom, the lines are in the order they were said, the
+  oldest at the top; Top, the newest is always at the top, just under the box's edge, and the older
+  ones are pushed down. A line that changes, as `starts casting` becoming `casts`, keeps its place.
 - **Lock Window** holds the box where it is and lets the mouse through it to the game. Off, it can be
   dragged.
 - **Font Size** is the lines' size in pixels; Theme Size (0) follows Winxi Theme.
@@ -79,5 +82,5 @@ Where the game has no name, the line says `Spell 999`, `Weaponskill 999` or `Abi
 `reader.lua` reads the packets and makes the lines, `box.lua` draws the window, and
 `tests/mobcast_check.lua` works them through: spells begun, cast, broken off, paralyzed and intimidated; an attack paralyzed; weaponskills
 readied, used and broken off; abilities; targets by the party list and by id; players, NPCs, pets
-and unknowns left alone; each switch; the box's lines, time, lock and size; the sample; hiding and
+and unknowns left alone; each switch; the box's lines, their order, time, lock and size; the sample; hiding and
 fading; bad settings made good.
