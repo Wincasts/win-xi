@@ -38,6 +38,14 @@ How player names are written. Tokens:
 [distance] - distance in yalms.
 Anything else is written as it is.
 
+Options go after a colon, e.g. [name: color=yellow, space=4]:
+Any token - color=yellow or #FF8000; space=0-64, pixels after it; when=target+checked+nm+relevant; within=1-100 yalms.
+[name], [distance] - spacing=0-10, pixels between letters.
+[icons], [party] - size=25-300, % of the name's height.
+[icons] - gap=0-24, pixels between icons.
+[party] - replace, its sign in place of the game's icons.
+[distance] - decimals=0-2.
+
 Example format:
 [party][icons][name] ([distance]y)
 Example result: [party sign][icons] Player Name (12.4y)
@@ -54,6 +62,14 @@ How enemy names are written, targeted and checked ones included. Tokens:
 [distance] - distance in yalms.
 Anything else is written as it is; a token with nothing known is left out.
 
+Options go after a colon, e.g. [name: color=yellow, space=4]:
+Any token - color=yellow or #FF8000; space=0-64, pixels after it; when=target+checked+nm+relevant; within=1-100 yalms.
+[name], [level], [distance] - spacing=0-10, pixels between letters.
+[level] - exact, only a checked level; nocombat, none while it fights.
+[aggro], [checked] - size=25-300, % of the name's height.
+[letters] - type=single or double (AA, AB after Z).
+[distance] - decimals=0-2.
+
 Example format:
 [aggro] Lv [level]. [name] [letters] ([distance]y)
 Example result: [aggro icon] Lv 80-82. Goblin Butcher A (12.4y)
@@ -67,6 +83,13 @@ How NPC names are written. Tokens:
 [icons] - the game's icons, when it gives any.
 [distance] - distance in yalms.
 Anything else is written as it is.
+
+Options go after a colon, e.g. [name: color=yellow, space=4]:
+Any token - color=yellow or #FF8000; space=0-64, pixels after it; when=target+checked+nm+relevant; within=1-100 yalms.
+[name], [distance] - spacing=0-10, pixels between letters.
+[vendor], [icons] - size=25-300, % of the name's height.
+[icons] - gap=0-24, pixels between icons.
+[distance] - decimals=0-2.
 
 Example format:
 [vendor][name] ([distance]y)

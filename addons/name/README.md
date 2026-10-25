@@ -602,6 +602,8 @@ The older `[name:yellow]` colour shorthand remains supported.
 | Every token | `when=target+checked+nm+relevant` | Any subset, combined with AND; omitted / `always` means unconditional |
 | Every token | `within=1`–`100` | Only within this distance in yalms; unavailable distance hides the block |
 | `[icons]`, `[party]`, `[vendor]` | `size=25`–`300` | Icon height as a percentage of name height; defaults to the profile's previous icon size (90% in preferred defaults) |
+| `[aggro]` | `size=25`–`300` | The sign's height as a percentage of name height; default 125 |
+| `[checked]` | `size=25`–`300` | The magnifying glass's size as a percentage of the letters'; default 70 |
 | `[icons]` | `gap=0`–`24` | Screen pixels between icons; default 2 |
 | `[party]` | `replace` | For a member with a sign, leave out the game's icons wherever `[icons]` is |
 | `[distance]` | `decimals=0`–`2` | Decimal places; default 1 |

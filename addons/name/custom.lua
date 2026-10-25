@@ -1570,10 +1570,10 @@ function custom.Frame(options, hook, formats)
                                 iconsHeight = math.max(iconsHeight, tokenHeight);
                             end
                             if (kind == 'aggro' and temper ~= nil) then
-                                width = width + temperSize;
+                                width = width + (part.size and math.floor(height * part.size / 100 + 0.5) or temperSize);
                             end
                             if (kind == 'checked' and not showDetails) then
-                                width = width + (sign and sign[9] * fit * SIGN_SIZE or 0);
+                                width = width + (sign and sign[9] * fit * (part.size and part.size / 100 or SIGN_SIZE) or 0);
                             end
                             local words = partWords(part, kind, written, nameWords, letter);
                             if (kind == 'name' and words ~= '') then nameTint = partColor(part, kind, override, dead, own); end
@@ -1637,8 +1637,9 @@ function custom.Frame(options, hook, formats)
                             end
                             if (kind == 'aggro' and temper ~= nil) then
                                 local u, v = (temper % 4) * 0.25, math.floor(temper / 4) * 0.25;
-                                -- a little larger than the letters, its middle level with theirs, and
-                                -- with the dark edge they have
+                                -- a little larger than the letters, or as the token's size= has it, its middle
+                                -- level with theirs, and with the dark edge they have
+                                local temperSize = part.size and math.floor(height * part.size / 100 + 0.5) or temperSize;
                                 local temperTop = top + math.floor((height - temperSize) * 0.5);
                                 if (huntSign) then
                                     local u0, v0, u1, v1 = special.UV(special.Hunt);
@@ -1649,12 +1650,13 @@ function custom.Frame(options, hook, formats)
                                 pen = pen + temperSize;
                             end
                             if (kind == 'checked' and sign and not showDetails) then
-                                -- smaller than the letters by a set part, whatever size they are, and
-                                -- made smaller about the middle of the line so that it stays level with them
-                                local small = fit * SIGN_SIZE;
+                                -- smaller than the letters by a set part (or the token's size=), whatever size
+                                -- they are, and made smaller about the middle of the line so that it stays level with them
+                                local signSize = part.size and part.size / 100 or SIGN_SIZE;
+                                local small = fit * signSize;
                                 local middle = rungHeight * 0.5;
-                                icons.Quad(pen + sign[1] * small, top + (middle + (sign[2] - middle) * SIGN_SIZE) * fit,
-                                    pen + sign[3] * small, top + (middle + (sign[4] - middle) * SIGN_SIZE) * fit,
+                                icons.Quad(pen + sign[1] * small, top + (middle + (sign[2] - middle) * signSize) * fit,
+                                    pen + sign[3] * small, top + (middle + (sign[4] - middle) * signSize) * fit,
                                     sign[5], sign[6], sign[7], sign[8], part.color or WHITE, SIGN_SLOT);
                                 pen = pen + sign[9] * small;
                             end

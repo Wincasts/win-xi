@@ -133,7 +133,16 @@ for _, key in ipairs({ 'nameFormat', 'monsterFormat', 'npcFormat' }) do
     for _, token in ipairs(tokens[key]) do
         assert(tip:find('[' .. token .. ']', 1, true), key .. ' lists [' .. token .. ']')
     end
-    assert(not tip:find('Options:', 1, true) and not tip:find('decimals', 1, true), 'no options section')
+    -- the options, after the tokens and before the example: what any token takes, and the token's own
+    local options = tip:match('\nOptions go after a colon[^\n]*\n(.-)\n\nExample format:')
+    assert(options ~= nil, key .. ' lists the options between the tokens and the example')
+    for _, option in ipairs({ 'color=', 'space=', 'when=', 'within=', 'spacing=', 'decimals=' }) do
+        assert(options:find(option, 1, true), key .. ' lists ' .. option)
+    end
+    assert(options:find('size=', 1, true), key .. ' lists size=')
+    assert(key ~= 'monsterFormat' or (options:find('nocombat', 1, true) and options:find('exact', 1, true)
+        and options:find('type=', 1, true) and options:find('[aggro], [checked] - size=', 1, true)), 'enemy options')
+    assert(key ~= 'nameFormat' or (options:find('gap=', 1, true) and options:find('replace', 1, true)), 'player options')
     assert(tip:find('[name]', 1, true) and tip:find('[distance]', 1, true))
     local example = assert(tip:match('Example format:\n([^\n]+)\nExample result:'))
     local compiled = require('format').Compile(example)

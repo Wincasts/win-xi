@@ -321,3 +321,15 @@ render(); q = pearl()
 assert(q.Color == 0xFFFF4040 and bit.band(q.Flags, 32) == 0, 'a colour of the format\'s own is not doubled')
 plates.Supports, iconsModule.Place = supports, realPlace; options.nameFormat[1] = '[name]'
 H.print('pearl colour: doubled by the plugin, as before with an older one, a format\'s colour as it is', true)
+
+-- [aggro: size=]: the sign's height as a percentage of the name's, 125 without it; the name moved on by the difference
+options.monsterFormat[1] = '[aggro][name]'; custom.Settle(options)
+put(0, 1, 'Jack'); hook.Count = 1; options.trackedNm[1] = ''
+render(); local usualSign, usualName = first(1), draw.Quads[draw.Entities[1].First + 1]
+local usualHeight, usualAt = usualSign.Y1 - usualSign.Y0, usualName.X0 - usualSign.X0
+options.monsterFormat[1] = '[aggro: size=250][name]'; render()
+local bigSign, bigName = first(1), draw.Quads[draw.Entities[1].First + 1]
+assert(math.abs((bigSign.Y1 - bigSign.Y0) - usualHeight * 2) <= 1, '250%: twice the 125% sign')
+assert(bigName.X0 - bigSign.X0 > usualAt, 'and the name after it moved on')
+options.monsterFormat[1] = '[aggro][name]'
+H.print('[aggro: size=]: the sign sized, the name after it', true)
