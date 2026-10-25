@@ -6,7 +6,7 @@ local options = H.options()
 AshitaCore.GetPluginManager = function() return { IsLoaded = function() return false end } end
 local headers, tabs, ids, marks, widths, disabledIds = {}, {}, {}, {}, {}, {}
 local section, locations = nil, {}
-local expanded = { ['Check Details##name.checkOptions'] = true }
+local expanded = {}
 local inside, offset, disabled = false, nil, false
 local disabledStack, order = {}, {}
 widgets.Header = function(text, first, collapsed)
@@ -47,11 +47,11 @@ imgui.GetContentRegionAvail = function() error('Window widths must not feed back
 local function clear() headers, tabs, ids, marks, disabledIds, locations, order = {}, {}, {}, {}, {}, {}, {} end
 H.tab(2); H.command('/name'); H.frames(1)
 clear(); H.frames(1); H.command('/name')
-assert(table.concat(tabs, '|') == 'General|Names|Health Bars|Statuses|Visibility', 'NM Tracking waits for /name dev')
+assert(table.concat(tabs, '|') == 'General|Names|Health Bars|Cast Bars|Check Details|Statuses|Visibility', 'NM Tracking waits for /name dev')
 H.command('/name dev'); H.command('/name'); clear(); H.frames(1); H.command('/name')
-assert(table.concat(tabs, '|') == 'General|Names|Health Bars|Statuses|Visibility|NM Tracking', '/name dev shows NM Tracking')
+assert(table.concat(tabs, '|') == 'General|Names|Health Bars|Cast Bars|Check Details|Statuses|Visibility|NM Tracking', '/name dev shows NM Tracking')
 H.command('/name dev'); H.command('/name'); clear(); H.frames(1); H.command('/name')
-assert(table.concat(tabs, '|') == 'General|Names|Health Bars|Statuses|Visibility', 'a second /name dev hides it')
+assert(table.concat(tabs, '|') == 'General|Names|Health Bars|Cast Bars|Check Details|Statuses|Visibility', 'a second /name dev hides it')
 assert(table.concat(headers, '|') == 'General Name Appearance|Crowd Decluttering|Distance Thresholds|Player Names|Enemy Names|NPC Names|Diagnostics')
 assert(ids['##name.font'] and ids['##name.fontBold'] and ids['Smooth Font##name.fontSmooth'] and ids['##name.subtargetScale'])
 for index, id in ipairs(order) do
@@ -103,8 +103,9 @@ assert(locations['##name.nameFormat'] == 'Player Names'
     'category format editors remain in their own sections')
 assert(not ids['##name.diagnosticsEnabled'])
 for _, position in ipairs(marks) do assert(position == marks[1] and position > right) end
-for _, field in ipairs({ 'showHealthBar', 'healthBarsCombatOnly', 'healthBarWidth', 'healthBarHeight' }) do
-    assert(not ids['##name.' .. field], 'the health bars have a tab of their own, not a place under General')
+for _, field in ipairs({ 'showHealthBar', 'healthBarsCombatOnly', 'healthBarWidth', 'healthBarHeight',
+        'showCastBar', 'showCheckDetails', 'checkSize', 'abbreviateDifficulty', 'checkDetailsInWords' }) do
+    assert(not ids['##name.' .. field], 'bars and check details have tabs of their own, not a place under Names')
 end
 H.print('Names: shared General text controls, per-category colour overrides, no obsolete toggles', true)
 
@@ -177,12 +178,13 @@ assert(options.nameFormat[1] == 'Player: [name]' and options.npcFormat[1] == '[n
 imgui.Button = record
 imgui.BeginCombo = function(id) return id == '##name.checkDetailsInWords' end
 imgui.Selectable = function(id) return id:find('Text Only', 1, true) ~= nil end
-customSettings.DrawSettings(options); assert(options.checkDetailsInWords[1])
+customSettings.DrawCheck(options); assert(options.checkDetailsInWords[1])
 imgui.BeginCombo = record
 H.print('Category format editors/reset preserve each other', true)
 
 H.tab(3); H.command('/name'); clear(); H.frames(1); H.command('/name')
-assert(table.concat(headers, '|') == 'Health Bars|Cast Bars|Shared Bar Size|Entity Types')
+assert(table.concat(headers, '|') == 'Health Bars|Shared Bar Size|Entity Types')
+assert(not ids['##name.showCastBar'] and not ids['##name.castBarWeaponskills'], 'cast bars have a tab of their own')
 for _, key in ipairs({ 'self', 'party', 'alliance', 'players', 'myPet', 'pets', 'npcs', 'monsters' }) do
     local id = '##name.healthBarTypes.' .. key
     assert(ids[id] and locations[id] == 'Entity Types' and disabledIds[id], 'Entity Types has ' .. key .. ', waiting for Enabled')
@@ -192,15 +194,27 @@ for _, id in ipairs({ '##name.showHealthBar', '##name.healthBarsCombatOnly', '##
     assert(ids[id] and locations[id] == expected, 'Health Bars tab has ' .. id)
 end
 assert(disabledIds['##name.healthBarWidth'] and disabledIds['##name.healthBarsCombatOnly'], 'the rest wait for Enabled')
+H.print('Health Bars: a tab of its own, third, with Enabled, Combat Only, width and height, and Entity Types', true)
+
+options.showCastBar[1]=false
+H.tab(4); H.command('/name'); clear(); H.frames(1); H.command('/name')
+assert(table.concat(headers, '|') == 'Cast Bars|Shared Bar Size', 'Cast Text waits for Enabled')
+assert(ids['##name.showCastBar'] and not ids['##name.castBarWeaponskills'] and disabledIds['##name.healthBarWidth'])
+assert(not ids['##name.showHealthBar'] and not ids['##name.healthBarsCombatOnly'], 'the health bars stay in their tab')
+clear();customSettings.DrawHealthBars(options)
+assert(disabledIds['##name.healthBarWidth'], 'with neither bar on, the shared size waits')
 options.showCastBar[1]=true
 clear();customSettings.DrawHealthBars(options)
+assert(not disabledIds['##name.healthBarWidth'] and disabledIds['##name.healthBarsCombatOnly'],
+    'cast-only mode enables shared dimensions in Health Bars, not HP-only controls')
+clear();customSettings.DrawCastBars(options)
+assert(table.concat(headers, '|') == 'Cast Bars|Cast Text|Shared Bar Size')
 assert(ids['##name.castNameScale'] and ids['##name.castTimerScale'] and ids['##name.castBarPreview'] and ids['##name.castBarAutoWidth'])
 assert(options.castBarAutoWidth[1]==false, 'automatic width is opt-in')
 assert(options.castNameScale[1]==75 and options.castTimerScale[1]==75 and options.castBarPreview==nil)
 local sizes=custom.Defaults({});sizes.castNameScale={999};sizes.castTimerScale={'bad'};custom.Settle(sizes)
 assert(sizes.castNameScale[1]==200 and sizes.castTimerScale[1]==75)
-assert(ids['##name.castBarWeaponskills'] and not disabledIds['##name.healthBarWidth'] and disabledIds['##name.healthBarsCombatOnly'],
-    'cast-only mode enables shared dimensions, not HP-only controls')
+assert(ids['##name.castBarWeaponskills'] and not disabledIds['##name.healthBarWidth'])
 assert(locations['##name.healthBarWidth']=='Shared Bar Size' and locations['##name.showCastBar']=='Cast Bars')
 for _, id in ipairs({ '##name.castShowName', '##name.castShowTimer', '##name.castTextColour', '##name.castNameScale', '##name.castTimerScale' }) do
     assert(locations[id]=='Cast Text', 'Cast Text has ' .. id)
@@ -219,14 +233,32 @@ imgui.Checkbox = function(id, value) if id == '##name.healthBarTypes.monsters' t
 assert(et.Draw('healthBarTypes', mask) and mask[1] == 0xFF, 'and ticking it puts it back')
 imgui.Checkbox = record
 assert(et.Settle(T{ 'bad' })[1] == 0xFF and et.Settle(nil)[1] == 0xFF and et.Settle(T{ 0x1FF })[1] == 0xFF and et.Settle(T{ 0x12 })[1] == 0x12, 'a bad mask is every kind')
-H.print('Health Bars: a tab of its own, third, with Enabled, Combat Only, width and height, and Entity Types', true)
+H.print('Cast Bars: a tab of its own, fourth, with Enabled, Cast Text and the shared bar size', true)
 
--- General: Enable Name first, then the preset and the health bars/statuses switches
+H.tab(5); H.command('/name'); clear(); H.frames(1); H.command('/name')
+assert(table.concat(headers, '|') == 'Check Details')
+for _, id in ipairs({ '##name.showCheckDetails', '##name.checkSize', '##name.abbreviateDifficulty', '##name.checkDetailsInWords' }) do
+    assert(ids[id] and locations[id] == 'Check Details', 'Check Details tab has ' .. id)
+end
+options.showCheckDetails[1] = false
+clear(); customSettings.DrawCheck(options)
+assert(not disabledIds['##name.showCheckDetails'] and disabledIds['##name.checkSize'] and disabledIds['##name.checkDetailsInWords'],
+    'the rest wait for Enabled')
+options.showCheckDetails[1] = true
+clear(); customSettings.DrawCheck(options)
+assert(not disabledIds['##name.checkSize'] and not disabledIds['##name.abbreviateDifficulty'])
+H.print('Check Details: a tab of its own, fifth, with Enabled, Size, Abbreviate Difficulty and Display Style', true)
+
+-- General: Enable Name first, then the preset; each part is switched on in its own tab
 local general = require('general')
 H.tab(1); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(headers, '|') == 'General')
-for _, id in ipairs({ '##name.preset', '##name.drawNames', '##name.general.showHealthBar', '##name.general.showStatuses' }) do
+for _, id in ipairs({ '##name.preset', '##name.drawNames' }) do
     assert(ids[id] and locations[id] == 'General', 'General has ' .. id)
+end
+for _, id in ipairs({ '##name.general.showHealthBar', '##name.general.showStatuses', '##name.showHealthBar',
+        '##name.showCastBar', '##name.showCheckDetails', '##name.showStatuses' }) do
+    assert(not ids[id], 'each part is switched on in its own tab, not General: ' .. id)
 end
 local presets = {}
 for _, preset in ipairs(general.Presets) do presets[#presets + 1] = preset.label end
@@ -251,10 +283,10 @@ assert(options.drawNames[1] and general.Drawing(options))
 options.drawNames[1] = false; clear(); general.DrawSettings(options)
 assert(order[1] == '##name.drawNames' and order[2] == '##name.preset', 'Enable Name precedes Preset')
 assert(not disabledIds['##name.drawNames'], 'Enable Name remains usable while off')
-assert(disabledIds['##name.preset'] and disabledIds['##name.general.showHealthBar'] and disabledIds['##name.general.showStatuses'], 'all other General settings wait for Enable Name')
+assert(disabledIds['##name.preset'], 'all other General settings wait for Enable Name')
 options.drawNames[1] = true
-H.print('General: Enable Name first; presets, bars and statuses disabled while off', true)
-H.tab(5); H.command('/name'); clear(); H.frames(1); H.command('/name')
+H.print('General: Enable Name first; the preset disabled while off', true)
+H.tab(7); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(headers, '|') == 'Players|Pets|NPCs & Monsters|Target')
 H.command('/name diag on')
 expanded.Diagnostics = true
@@ -275,14 +307,14 @@ assert((H.calls.PushTextWrapPos or 0) == wraps + 1)
 imgui.IsItemHovered = function() return false end
 imgui.GetFrameHeightWithSpacing = function() return 20 end
 AshitaCore.GetResourceManager = function() return { GetString = function() return '' end } end
-H.tab(4); H.command('/name'); clear(); H.frames(1); H.command('/name')
+H.tab(6); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(headers, '|') == 'Display|Entity Types|Selected Statuses')
 for _, key in ipairs({ 'self', 'party', 'alliance', 'players', 'myPet', 'pets', 'npcs', 'monsters' }) do
     assert(ids['##name.statusTypes.' .. key] and locations['##name.statusTypes.' .. key] == 'Entity Types', 'statuses\' Entity Types has ' .. key)
 end
 assert(ids['##name.statusOffsetX'] and ids['##name.statusOffsetY'] and not ids['##name.statusTimers'], 'X and Y Offset in Display, and no Timers')
 assert(ids['##name.statusIcons'] and locations['##name.statusIcons'] == 'Display', 'Icons is in Statuses → Display')
-H.command('/name dev'); H.tab(6); H.command('/name'); clear(); H.frames(1); H.command('/name')
+H.command('/name dev'); H.tab(8); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(headers, '|') == 'Tracked Monster')
 local levels = require('levels')
 local original = levels.Placeholders
@@ -297,9 +329,11 @@ H.print('Visibility, diagnostics, statuses/tracking and stable aligned/wrapped l
 options.drawNames[1] = false
 local formatsBefore = options.nameFormat[1] .. options.monsterFormat[1] .. options.npcFormat[1]
 for tab, expected in ipairs({
-    { '##name.preset', '##name.general.showHealthBar' },
+    { '##name.preset' },
     { '##name.font', '##name.fontBold', 'Smooth Font##name.fontSmooth', '##name.nameFormat', '##name.playerIconSource', '##name.diagnosticsEnabled' },
     { '##name.showHealthBar', '##name.healthBarWidth', '##name.healthBarTypes.monsters' },
+    { '##name.showCastBar', '##name.healthBarWidth' },
+    { '##name.showCheckDetails', '##name.checkSize' },
     { '##name.showStatuses', '##name.statusTypes.monsters', '##name.statusSearch' },
     { '##name.showSelf', '##name.alwaysTarget' },
     { '##name.trackedNm' },

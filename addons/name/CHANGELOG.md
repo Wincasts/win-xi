@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.65
+
+- Give Cast Bars and Check Details tabs of their own, after Health Bars: Cast Bars holds what was Health Bars → Cast Bars and Cast Text, with the Shared Bar Size there too; Check Details holds what was under Names → Enemy Names → Check Details, the rest greyed out while Enabled is off. Saved settings are unchanged.
+- Each part a name has is turned on and off in its own tab: the Health Bars and Status Icons switches leave General, which keeps Enable Name and Preset. Presets still set them.
+- Update the menu, statuses, report and visibility checks for the new tabs.
+
 ## 1.64
 
 - Add Health Bars → Cast Text: Show Action Name, Show Timer, Text Colour (White, Name Colour or Custom, with a colour picker) and the Cast Name Size and Timer Size sliders, moved here from Cast Bars. White stays the default.

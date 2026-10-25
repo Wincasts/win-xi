@@ -1,4 +1,5 @@
--- The General tab: a premade look to start from, and the switches for what Name draws.
+-- The General tab: whether Name draws the names, and a premade look to start from. Each part a
+-- name has (health bars, cast bars, check details, statuses) is turned on or off in its own tab.
 --
 --   general.Defaults(defaults)        what is kept: drawNames
 --   general.Drawing(options)          whether Name draws the names, or leaves them to the game and namehook
@@ -79,7 +80,7 @@ local presetIds = {};
 
 function general.DrawSettings(options, save)
     local changed = false;
-    controls.BeginLayout('general', 360, 'Status Icons');
+    controls.BeginLayout('general', 360, 'Enable Name');
     if (controls.Section('General', '##name.generalOptions', true)) then
         if (controls.Checkbox('Enable Name', '##name.drawNames', options.drawNames,
                 tips.Get('name.general.custom_names'))) then
@@ -102,15 +103,6 @@ function general.DrawSettings(options, save)
             imgui.EndCombo();
         end
         controls.Mark(tips.Get('name.general.preset'));
-
-        if (controls.Checkbox('Health Bars', '##name.general.showHealthBar', options.showHealthBar,
-                tips.Get('name.general.health_bars'))) then
-            changed = true;
-        end
-        if (controls.Checkbox('Status Icons', '##name.general.showStatuses', options.showStatuses,
-                tips.Get('name.general.status_icons'))) then
-            changed = true;
-        end
         imgui.EndDisabled();
     end
     controls.EndSection();

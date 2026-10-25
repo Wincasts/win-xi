@@ -36,10 +36,11 @@ Kept for each character. Each is on for names that are shown.
 The menus follow Trigger's layout: named sections, aligned controls, and visible
 `(?)` help marks with wrapped explanations.
 
-The tabs are **General → Names → Health Bars → Statuses → Visibility**, and **NM Tracking** after `/name dev`.
+The tabs are **General → Names → Health Bars → Cast Bars → Check Details → Statuses → Visibility**, and
+**NM Tracking** after `/name dev`. Each part a name can have (health bars, cast bars, check details,
+statuses) is turned on and off in its own tab, with **Enabled** at the top.
 
-- **General:** **Enable Name** first, then **Preset**, a premade look to start from,
-  and the Health Bars / Status Icons switches.
+- **General:** **Enable Name** first, then **Preset**, a premade look to start from.
   A preset sets the three formats, the check line, Health Bars and Combat Only, Status Icons and
   Check Details; font, sizes, colours, visibility and the chosen statuses are left as they are. The
   list says **Custom** when the settings are none of them.
@@ -55,7 +56,7 @@ The tabs are **General → Names → Health Bars → Statuses → Visibility**, 
   Name lets them go at once and the game draws its own as namehook sizes them (`/namehook fontsize`),
   unstretched, Visibility still saying which are shown. Name's health bars and status icons are not
   drawn while it is off. All other Name settings are greyed out across the tabs until enabled again;
-  saved values are kept. **Health Bars** and **Status Icons** are the same switches as in their own tabs.
+  saved values are kept.
 
 - **Rendering readability:** namehook **1.32** adds a smoother eight-direction text
   halo with a subtle downward shadow, and antialiased HP-bar edges that stay smooth
@@ -112,8 +113,7 @@ The tabs are **General → Names → Health Bars → Statuses → Visibility**, 
   (Alliance Party Leader), Alliance Member or Party Member, from `assets/special/`. Beside, it comes
   before the game's icons; Replace, it takes their place. Players outside your party and alliance keep
   the game's icons, and there is none while you are alone. Who leads is read from the party's memory.
-- **Enemy Names:** a directly editable **Enemy Format** and expandable Check Details (Enabled, Size, Abbreviate Difficulty and
-  Display Style: Icons & Text / Text Only). Existing enemy strings are preserved;
+- **Enemy Names:** a directly editable **Enemy Format**. Existing enemy strings are preserved;
   Reset Format restores `[aggro] [name] [letters]` for ordinary, targeted and
   checked enemies alike.
 - **NPC Names:** a directly editable **NPC Format** for non-combat NPCs, independent
@@ -133,6 +133,10 @@ The tabs are **General → Names → Health Bars → Statuses → Visibility**, 
   unless an active cast needs the enabled HP row above it.
   Combat Only requires that particular entity to be alive and Engaged (status 1).
   Targeting/claiming alone is not combat; missing status data hides the bar.
+- **Cast Bars**, a tab of its own: **Enabled**, Show Weaponskills, Auto-scale to Name, Preview,
+  Cast Text and the same Shared Bar Size as Health Bars. See [Cast bars and shared bar layout](#cast-bars-and-shared-bar-layout).
+- **Check Details**, a tab of its own: **Enabled**, Size, Abbreviate Difficulty and Display Style
+  (Icons & Text / Text Only), greyed out while it is off. See [What a check shows](#what-a-check-shows).
   **Entity Types** under it says which kinds of name have a bar: Yourself, Party
   Members, Alliance Members, Other Players, My Pet, Other Pets, NPCs and Monsters,
   all ticked to begin with.
@@ -210,13 +214,13 @@ rebuilds promptly release replaced badge atlases rather than waiting for Lua GC.
 
 ### Cast bars and shared bar layout
 
-In **Health Bars → Cast Bars**, enable cast bars (off by default). When enabled,
+In the **Cast Bars** tab, enable cast bars (off by default). When enabled,
 **Show Weaponskills** also enables readied monster TP moves and weaponskill names;
 that option starts off too. With it, **Text Only for Weaponskills** (on by default)
 shows weaponskills and TP moves as their name and timer alone, with no bar; spells
 keep theirs.
 
-**Health Bars → Cast Text** holds the text under the bar: **Show Action Name** and
+**Cast Bars → Cast Text** holds the text under the bar: **Show Action Name** and
 **Show Timer** (both on), **Text Colour** (White by default, Name Colour, or Custom
 with a colour picker), and **Cast Name Size (%)** and **Timer Size (%)**, which
 independently scale the two text rows relative to the nameplate font (25–200%,
@@ -234,7 +238,7 @@ Cast bars apply to visible names with a matching live
 entity identity; the existing Entity Types and Combat Only controls still filter
 HP bars only.
 
-**Health Bars → Shared Bar Size** contains one **Bar Width / Bar Height** pair for
+**Shared Bar Size**, in both the Health Bars and Cast Bars tabs, contains one **Bar Width / Bar Height** pair for
 both kinds of bar. These reuse the saved `healthBarWidth` / `healthBarHeight` values;
 there is no separate cast-bar size to drift out of alignment. **Auto-scale to Name**
 (off by default) extends the bar to fit the visible **entity name plus visible letter
@@ -663,8 +667,7 @@ explicit `[checked]` in the name format no longer repeats it beside the name.
 - Difficulty is abbreviated by default: **TW** (Too Weak), **IEP** (Incredibly
   Easy Prey), **EP** (Easy Prey), **DC** (Decent Challenge), **EM** (Even Match),
   **T** (Tough), **VT** (Very Tough), **IT** (Incredibly Tough), and **???**
-  (Impossible to Gauge). Turn off **Abbreviate Difficulty** under Names → Enemy Names → Check Details
-  Details to restore the full names. In abbreviated mode, a difficulty shown
+  (Impossible to Gauge). Turn off **Abbreviate Difficulty** in the Check Details tab to restore the full names. In abbreviated mode, a difficulty shown
   without any aggro/link information is still spelled out (for example, Very Tough).
   Impossible to Gauge remains ???. This applies to both icon and words layouts.
 - For an aggressive monster, a sign for each thing it notices you by: sight, true sight, sound, low
