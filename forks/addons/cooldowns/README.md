@@ -20,6 +20,9 @@ overrides are discarded.
   saved per character; seconds cannot be negative, and critical is clamped to warning if necessary.
   Above the thresholds, countdowns retain the shared theme's text color.
   Set both thresholds to zero to disable urgency coloring on running cooldowns.
+- **Show Player Cooldowns** (on by default): show your own ability and spell recasts. Turn it off
+  to list only the pet's cooldowns: the separator goes too, and player recasts are not scanned
+  while hidden. The preview follows it as well.
 - **Show pet cooldowns** (on by default): show observed automaton spell, Bash, Shot, and fitted
   attachment cooldowns below player recasts, separated by a horizontal line styled by winxi.
   The separator appears only when both player and pet cooldowns are visible, with the window's

@@ -64,6 +64,7 @@ check(addon.name == 'cooldowns' and options.windowName == 'Cooldowns', 'folder, 
 check(options.legacySettingsChecked, 'legacy settings migration marked complete')
 check(not H.command('/imrecast') and not H.command('/recast'), 'old commands are not registered aliases')
 check(options.showPetCooldowns, 'pet cooldowns enabled by default')
+check(options.showPlayerCooldowns == true, 'player cooldowns enabled by default')
 check(options.sortByTime == false and options.sortDescending == false, 'time sorting defaults off, ascending selected')
 check(options.warningSeconds == 20 and options.criticalSeconds == 5, 'default color thresholds retain existing behavior')
 check(options.useSharedTheme == nil and options.theme == nil, 'no local theme overrides')
@@ -118,6 +119,13 @@ check(text:find('Provoke', 1, true) and not text:find('WS', 1, true) and not tex
 options.showPetCooldowns = false
 check(not shown():find('Bash', 1, true) and not shown():find('<separator>', 1, true), 'toggle hides pets and separator')
 options.showPetCooldowns = true
+options.showPlayerCooldowns = false
+text = shown()
+check(not text:find('Maneuver', 1, true) and not text:find('Cure IV', 1, true) and text:find('Bash', 1, true)
+    and not text:find('<separator>', 1, true), 'player toggle hides player recasts, keeps pets, no separator')
+options.showPlayerCooldowns = true
+text = shown()
+check(text:find('Maneuver', 1, true) and text:find('<separator>', 1, true), 'player recasts return when re-enabled')
 game.playerTimer, game.spellTimer = 0, 0
 text = shown()
 check(text:find('Bash', 1, true) and not text:find('<separator>', 1, true), 'pet-only window has no leading separator')
@@ -337,8 +345,15 @@ check(H.saves() == priorSaves + 4 and #settingsLabels == 4
     and settingsLabels[1] == 'Ability name color' and settingsLabels[2] == 'Spell name color'
     and settingsLabels[3] == 'Warning countdown color' and settingsLabels[4] == 'Critical countdown color',
     'settings expose and save name colors plus both threshold colors without local window style controls')
-click = 'Show pet cooldowns'
+click = 'Show Player Cooldowns'
 local saves = H.saves()
+text = shown()
+check(not options.showPlayerCooldowns and H.saves() > saves and not text:find('Maneuver (sample)', 1, true)
+    and text:find('Bash', 1, true), 'settings checkbox persists player toggle; samples follow it')
+click = 'Show Player Cooldowns'; shown()
+check(options.showPlayerCooldowns, 'player toggle turns back on')
+click = 'Show pet cooldowns'
+saves = H.saves()
 text = shown()
 check(not options.showPetCooldowns and H.saves() > saves and not text:find('Bash', 1, true), 'settings checkbox persists pet toggle')
 H.command('/cooldowns')

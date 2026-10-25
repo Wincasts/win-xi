@@ -3,6 +3,7 @@ assert(addon.name == 'cooldowns' and options.windowName == 'Cooldowns', 'new add
 assert(options.windowPos[1] == 321 and options.windowPos[2] == 654, 'legacy position imported')
 assert(options.abilityNameColor[1] == 0.2 and options.spellNameColor[1] == 0.5, 'name colors imported')
 assert(options.showPetCooldowns == false, 'disabled pet toggle preserved')
+assert(options.showPlayerCooldowns == true, 'player toggle on after migration from imrecast')
 assert(options.petAutomaton.head == 4 and options.petAutomaton.attachments[1] == 33, 'parts imported')
 assert(options.theme == nil and options.useSharedTheme == nil, 'old local theme not imported')
 assert(COOLDOWNS_IMPORTS == 1 and options.legacySettingsChecked, 'migration runs once')

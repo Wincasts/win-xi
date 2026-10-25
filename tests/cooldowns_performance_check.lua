@@ -78,7 +78,12 @@ options.showPetCooldowns = false
 observed()
 local disabled = profile('pet display disabled')
 assert(not disabled.petUpdates, 'disabled pet display must skip row calculations')
-options.showPetCooldowns, options.sortByTime = true, true
+options.showPetCooldowns, options.showPlayerCooldowns = true, false
+observed()
+local noPlayer = profile('player display disabled')
+assert(not noPlayer.GetSpellTimer and not noPlayer.GetAbilityTimer and noPlayer.petUpdates,
+    'disabled player display must skip recast scans but keep pets')
+options.showPlayerCooldowns, options.sortByTime = true, true
 observed()
 profile('time sorting enabled')
 options.sortByTime, game.unknown = false, true
@@ -91,4 +96,4 @@ assert(not hidden.GetSpellTimer and not hidden.GetAbilityTimer and not hidden.pe
 game.hidden = false
 petRecasts.Timers, table.sort, packets.inbound.action.parse = originalPetTimers, originalSort, originalParse
 string.fmt, imgui.CalcTextSize = originalFormat, originalMeasure
-H.print('Cooldowns performance invariants passed: throttled scans; cached names/misses and text; no disabled pet calculations or steady-state saves; hidden UI skips collection.')
+H.print('Cooldowns performance invariants passed: throttled scans; cached names/misses and text; no disabled player scans or pet calculations, or steady-state saves; hidden UI skips collection.')
