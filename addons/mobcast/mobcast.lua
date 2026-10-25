@@ -1,6 +1,6 @@
 addon.name    = 'mobcast'
 addon.author  = 'win'
-addon.version = '0.1'
+addon.version = '0.2'
 addon.desc    = 'Says in a small window what the enemies about you are casting, readying and using.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
