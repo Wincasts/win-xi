@@ -185,6 +185,38 @@ solid = 0
 for i = 0, block.Count - 1 do if block.Quads[i].Texture == hook.Solid then solid = solid + 1 end end
 H.print('no status under the cursor: no highlight', solid == 0)
 
+-- with the game's hand read from its DAT: the hand at the left of the status in place of the
+-- highlight, its fingertip at the icon's edge, as tall as the icon and over the icons
+local handLib = require('winxi.cursor')
+local handGet = handLib.Get
+local handFrame = { 0, 0, 0.5, 0.25, 32, 20, corners = { -32, -2, 0, -2, -32, 18, 0, 18 } }
+handLib.Get = function() return 0x5000, handFrame end
+block.CursorStatus = 33; block.Frame = 40; block.DrawnFrame = 40; H.frames(1)
+local hands, handQuad = 0, nil
+solid = 0
+for i = 0, block.Count - 1 do
+    local quad = block.Quads[i]
+    if quad.Texture == hook.Solid then solid = solid + 1 end
+    if quad.Texture ~= hook.Solid and block.Textures[quad.Texture] == 0x5000 then hands, handQuad = hands + 1, quad end
+end
+H.print('anchored, the hand: handed over in place of the highlight', hands == 1, solid == 0)
+H.print('its fingertip at Haste\'s left edge, as tall as the icon, written last',
+    handQuad ~= nil and math.abs(handQuad.X1 - (width + 4) * 0.5) < 0.01 and math.abs((handQuad.Y1 - handQuad.Y0) - o.iconSize[1] * 0.5) < 0.01,
+    block.Quads[block.Count - 1] == handQuad)
+o.anchorToDefault[1] = false
+block.Frame = 41; block.DrawnFrame = 41; H.frames(1)
+local function counted(n)
+    local images, rects = H.calls['draw.AddImage'] or 0, H.calls['draw.AddRect'] or 0
+    block.Frame, block.DrawnFrame = n, n; H.frames(1)
+    return (H.calls['draw.AddImage'] or 0) - images, (H.calls['draw.AddRect'] or 0) - rects
+end
+local withImages, withRects = counted(42)
+handLib.Get = handGet
+local withoutImages, withoutRects = counted(43)
+H.print('dragged, the hand: one image more, in place of the highlight', withImages == withoutImages + 1, withRects == 0, withoutRects == 2)
+o.anchorToDefault[1] = true
+block.CursorStatus = 0xFFFF; block.Frame = 44; block.DrawnFrame = 44; H.frames(1)
+
 block.OriginX, block.OriginY = 100, 50
 H.ret.GetMousePos = { 200 + 2, 100 + 2 }; H.ret.IsItemHovered = { true }; H.ret.IsItemClicked = { true }
 local sent = #H.sent

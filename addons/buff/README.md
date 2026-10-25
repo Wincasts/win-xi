@@ -71,13 +71,15 @@ removes it, while no menu of the game's is open.
 
 **The buff selector.** The game's selector (its cursor on the status icons, to remove one) points
 its hand at where the game's own icons would be, which is not where the bar's are once they are a
-size of their own. With the plugin, the hand is put out of sight and the status the game's cursor is
-on has winxi's highlight round it instead (the controller's: a line and a fainter glow outside it),
-anchored or dragged. The selector is still the game's: its keys and the controller move the cursor,
+size of their own. With the plugin, the game's hand is put out of sight and buff draws it again at the
+left of the status the game's cursor is on, pointing at it as the game's menus do: the game's own
+animated hand from its menu DAT, as tall as the icons, anchored or dragged. Where the hand cannot be
+read, the status has winxi's highlight round it instead (the controller's: a line and a fainter glow
+outside it). The selector is still the game's: its keys and the controller move the cursor,
 and its confirm removes the status the cursor is on, as it always has. A click on an icon removes
 that one too.
 Dragged elsewhere, with **Hide Game's Icons** on, the plugin keeps the game's row and its hand away
-in place of changing the game's code. Without the plugin there is no highlight, but a click still
+in place of changing the game's code. Without the plugin there is no hand, but a click still
 removes.
 
 Without the plugin, or with one that did not recognise the client, the anchored bar is a window
