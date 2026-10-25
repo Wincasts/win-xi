@@ -41,6 +41,14 @@ anchor. Icon size, timers and wrapping still use the normal settings; this chang
 the bar, not its individual icons. Theme padding, backgrounds, borders and shadows do not move
 or decorate the anchored bar.
 
+**Grow From** says where a row's icons sit as statuses come and go: **Left**, as the game has them,
+**Right** or **Middle**. Anchored, the bar spans a full row of Icons Per Row from where it is placed,
+and each row sits at its left, its right or in its middle; the mouse finds the icons where they are
+drawn. The dragged window keeps its top left, top right or top middle where it is.
+
+**Show Backdrop** (on by default) gives the dragged window the theme's backdrop, border and shadow.
+Off, its icons and times sit straight over the game. The anchored bar never has one.
+
 Disable anchoring to return to the draggable window. Its saved **Position** (X and Y sliders, or
 drag the window; Lock Position holds it) is kept separately, so adjusting the anchor does not
 overwrite your free-window placement.
