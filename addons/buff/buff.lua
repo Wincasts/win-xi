@@ -184,38 +184,29 @@ local app;
 local dragFrom = nil; -- the mouse and the adjustment as the drag began, while one is going on
 local dragStart = { 0, 0, 0, 0 };
 
--- Not anchored, with the plugin, the bar is the plugin's too, at Position, and dragged the same way;
--- without it the window drags itself.
-local handedOver = false; -- whether the plugin has the bar this frame
-local dragTarget = nil;   -- what the drag going on moves: Anchor Adjustment or Position
-
 local function StartDrag(options)
-    if dragFrom ~= nil or selecting or options.lockPosition[1]
-        or not (options.anchorToDefault[1] or handedOver)
+    if dragFrom ~= nil or selecting or options.lockPosition[1] or not options.anchorToDefault[1]
         or not imgui.IsMouseClicked(ImGuiMouseButton_Left) then
         return;
     end
-    dragTarget = options.anchorToDefault[1] and options.anchorAdjustment or options.pos;
     dragStart[1], dragStart[2] = imgui.GetMousePos();
-    dragStart[3], dragStart[4] = dragTarget[1], dragTarget[2];
+    dragStart[3], dragStart[4] = options.anchorAdjustment[1], options.anchorAdjustment[2];
     dragFrom = dragStart;
 end
 
--- Once a frame: the adjustment or position follows the mouse until the button is let go, and is
--- then saved
+-- Once a frame: the adjustment follows the mouse until the button is let go, and is then saved
 local function FollowDrag(options)
     if dragFrom == nil then
         return;
     end
-    local target = options.anchorToDefault[1] and options.anchorAdjustment or options.pos;
-    if not imgui.IsMouseDown(ImGuiMouseButton_Left) or target ~= dragTarget then
-        dragFrom, dragTarget = nil, nil;
+    if not imgui.IsMouseDown(ImGuiMouseButton_Left) or not options.anchorToDefault[1] then
+        dragFrom = nil;
         app:Save();
         return;
     end
     local mx, my = imgui.GetMousePos();
-    target[1] = math.floor(dragFrom[3] + mx - dragFrom[1] + 0.5);
-    target[2] = math.floor(dragFrom[4] + my - dragFrom[2] + 0.5);
+    options.anchorAdjustment[1] = math.floor(dragFrom[3] + mx - dragFrom[1] + 0.5);
+    options.anchorAdjustment[2] = math.floor(dragFrom[4] + my - dragFrom[2] + 0.5);
 end
 
 -- A status is removed with a right click, or in the selector with any click
@@ -485,44 +476,6 @@ local function HandEmpty(found)
     emptyHanded, lastCount = true, -1;
 end
 
--- Where the bar handed to the plugin starts, in imgui's pixels from where the game puts its first
--- icon: anchored, the Anchor Adjustment; else Position, inside the theme's padding as the window has
--- it. nil until the game has said where its icons go.
-local function BarNudge(options, found)
-    if options.anchorToDefault[1] then
-        return options.anchorAdjustment[1], options.anchorAdjustment[2];
-    end
-    local left, top = hook.Origin(found);
-    if left == nil then
-        return nil;
-    end
-    local pad = theme.For('Padding', false);
-    return math.floor(options.pos[1] + pad - left + 0.5), math.floor(options.pos[2] + pad - top + 0.5);
-end
-
--- The rows of the bar handed over, from its first icon's corner: their left, top, right and bottom,
--- with pad round them
-local function BarBounds(nudgeX, nudgeY, count, perRow, cellWidth, cellHeight, span, align, pad)
-    local rows = math.ceil(count / perRow);
-    local x0, x1 = math.huge, -math.huge;
-    for row = 0, rows - 1 do
-        local index = row * perRow + 1;
-        local left = nudgeX + RowShift(index, count, perRow, cellWidth, span, align);
-        x0 = math.min(x0, left);
-        x1 = math.max(x1, left + RowWidth(math.min(perRow, count - index + 1), cellWidth));
-    end
-    return x0 - pad, nudgeY - pad, x1 + pad, nudgeY + rows * cellHeight + (rows - 1) * rowGap + pad;
-end
-
--- Show Backdrop, for the bar handed over at Position: the theme's background colour behind the rows
--- with its padding round them, and a line of its border colour round that
-local function WriteBackdrop(nudgeX, nudgeY, count, perRow, cellWidth, cellHeight, span, align, alpha, sx, sy)
-    local x0, y0, x1, y1 = BarBounds(nudgeX, nudgeY, count, perRow, cellWidth, cellHeight, span, align,
-        theme.For('Padding', false));
-    hook.Quad(x0 * sx, y0 * sy, x1 * sx, y1 * sy, 0, 0, 0, 0, ARGB(theme.Get().BackgroundColor, alpha), hook.Solid);
-    SolidFrame(x0, y0, x1, y1, 1, ARGB(theme.GameBorderColor(), alpha), sx, sy);
-end
-
 local function WriteHooked(options, found, alpha)
     local height = options.iconSize[1];
     local width = math.floor(height * icons.OwnAspect + 0.5);
@@ -536,8 +489,7 @@ local function WriteHooked(options, found, alpha)
     layout.width, layout.height, layout.perRow, layout.align = cellWidth, cellHeight, perRow, align;
 
     local sx, sy = hook.Scale(found);
-    local nudgeX, nudgeY = BarNudge(options, found);
-    local backdrop = not options.anchorToDefault[1] and options.showBackdrop[1];
+    local nudgeX, nudgeY = options.anchorAdjustment[1], options.anchorAdjustment[2];
     local iconColor = ARGB(opaque, alpha);
     local textColor = ARGB(theme.Get().TextColor, alpha);
     local edgeColor = ARGB(text.EdgeColor(), alpha);
@@ -556,7 +508,7 @@ local function WriteHooked(options, found, alpha)
     madeCount = 0;
     Note(cellWidth); Note(cellHeight); Note(perRow); Note(width); Note(height); Note(useOwn);
     Note(sx); Note(sy); Note(nudgeX); Note(nudgeY); Note(iconColor); Note(textColor); Note(edgeColor);
-    Note(cursorIndex or 0); Note(texture or 0); Note(glyphsMade); Note(baked ~= nil); Note(align); Note(backdrop);
+    Note(cursorIndex or 0); Note(texture or 0); Note(glyphsMade); Note(baked ~= nil); Note(align);
     local sheet = useOwn and icons.MixedSheet() or icons.GameSheet();
     for index, status in ipairs(current) do
         Note(status.id);
@@ -575,9 +527,6 @@ local function WriteHooked(options, found, alpha)
 
     local fontSlot = hook.Texture(texture);
     local count, span = #current, RowWidth(perRow, cellWidth);
-    if backdrop and count > 0 then
-        WriteBackdrop(nudgeX, nudgeY, count, perRow, cellWidth, cellHeight, span, align, alpha, sx, sy);
-    end
     for index, status in ipairs(current) do
         local x = nudgeX + RowShift(index, count, perRow, cellWidth, span, align) + ((index - 1) % perRow) * (cellWidth + gap);
         local y = nudgeY + math.floor((index - 1) / perRow) * (cellHeight + rowGap);
@@ -612,11 +561,23 @@ local function WriteHooked(options, found, alpha)
     return true;
 end
 
+-- The rows of the bar handed over, from its first icon's corner: their left, top, right and bottom
+local function BarBounds(left, top, count, perRow, cellWidth, cellHeight, span, align)
+    local rows = math.ceil(count / perRow);
+    local x0, x1 = math.huge, -math.huge;
+    for row = 0, rows - 1 do
+        local index = row * perRow + 1;
+        local rowLeft = left + RowShift(index, count, perRow, cellWidth, span, align);
+        x0 = math.min(x0, rowLeft);
+        x1 = math.max(x1, rowLeft + RowWidth(math.min(perRow, count - index + 1), cellWidth));
+    end
+    return x0, top, x1, top + rows * cellHeight + (rows - 1) * rowGap;
+end
+
 -- Under the mouse, a status's description, and a right click to remove it: while the game has drawn
 -- the bar and no menu of the game's is open, as one may be over it. An invisible window over the
--- cell the mouse is on takes the click, so that the game does not. Between the icons, and on the
--- backdrop round them, an invisible window over the whole bar takes it instead: anywhere on the bar
--- starts a drag, as anywhere on a window does.
+-- cell the mouse is on takes the click, so that the game does not. Between the icons an invisible
+-- window over the whole bar takes it instead: anywhere on the bar starts a drag.
 local hoverCell = { 0, 0 };
 local hoverPos = { 0, 0 };
 local noPadding = { 0, 0 };
@@ -624,16 +585,14 @@ local hoverFlags = nil;
 
 local function Interact(options, found)
     local left, top = hook.Origin(found);
-    local nudgeX, nudgeY = BarNudge(options, found);
-    if left == nil or nudgeX == nil or #current == 0 then
+    if left == nil or #current == 0 then
         return;
     end
-    left, top = left + nudgeX, top + nudgeY;
+    left, top = left + options.anchorAdjustment[1], top + options.anchorAdjustment[2];
     local mx, my = imgui.GetMousePos();
     local perRow, count = layout.perRow, #current;
     local span = RowWidth(perRow, layout.width);
-    local pad = (not options.anchorToDefault[1] and options.showBackdrop[1]) and theme.For('Padding', false) or 0;
-    local x0, y0, x1, y1 = BarBounds(left, top, count, perRow, layout.width, layout.height, span, layout.align, pad);
+    local x0, y0, x1, y1 = BarBounds(left, top, count, perRow, layout.width, layout.height, span, layout.align);
     if mx < x0 or mx >= x1 or my < y0 or my >= y1 or not hook.Drawn(found) or anchoring.MenuOpen() ~= nil then
         return;
     end
@@ -687,7 +646,7 @@ local function DrawHooked(options, found)
     local wanted = options.isVisible[1];
     local alpha = wanted and 1 or 0;
     if options.fadeInOut[1] then alpha = fade.Presence(anchoredName, wanted); end
-    if alpha <= 0.01 or statuses.Read(current, options.showTimers[1]) == 0 or BarNudge(options, found) == nil then
+    if alpha <= 0.01 or statuses.Read(current, options.showTimers[1]) == 0 then
         HandEmpty(found);
         return;
     end
@@ -793,7 +752,7 @@ local function DrawSettings(options)
         PositionSliders(options.anchorAdjustment, 'Anchor Adjustment', '##buff.anchorAdjustment', true,
             'How far the bar is moved from where the game puts its first icon, in screen pixels, independent of native UI scaling. Zero puts it there.\nDragging the bar sets it too. Ctrl+click to type a number.');
     else
-        if PositionSliders(options.pos, 'Position', '##buff.position', false, 'Where the bar\'s corner is, in screen pixels. Dragging the bar sets it too. Ctrl+click to type a number.\nWith uihook (or legacy buffhook) and Hide Game\'s Icons, the bar is drawn under the game\'s menus and every window, as anchored.') then
+        if PositionSliders(options.pos, 'Position', '##buff.position', false, 'Where the window\'s corner is, in screen pixels. Dragging the window sets it too. Ctrl+click to type a number.') then
             imgui.SetWindowPos(windowName, options.pos);
             anchor.Reset(windowName);
         end
@@ -819,7 +778,7 @@ local function DrawSettings(options)
     end
     widgets.Label('Show Backdrop');
     imgui.Checkbox('##buff.showBackdrop', options.showBackdrop);
-    tips.Hover('The theme\'s backdrop, border and shadow behind the dragged window. Off, the icons and times sit straight over the game.\nThe anchored bar never has one; with uihook the backdrop is the theme\'s Background Color and a line of its border colour.');
+    tips.Hover('The theme\'s backdrop, border and shadow behind the dragged window. Off, the icons and times sit straight over the game.\nThe anchored bar never has one.');
     widgets.Label('Show Time Left');
     imgui.Checkbox('##buff.showTimers', options.showTimers);
     tips.Hover('Writes under each icon how long the status has left: seconds, then minutes (m), then hours (h).');
@@ -855,16 +814,15 @@ local clear = { 0, 0, 0, 0 }; -- the dragged window's backdrop and border with S
 
 ashita.events.register('d3d_present', 'buff_present', function()
     local options = app.options;
-    -- With the plugin, the game's icons are its to stand in for: it draws the bar when the game would
-    -- draw them, under the game's menus and every window, anchored in their place or at Position.
-    -- Not anchored with the game's icons shown, the bar is a window over everything.
+    -- With the plugin, the game's icons are its to stand in for: anchored, it draws the bar in their
+    -- place; dragged elsewhere with them hidden, it draws nothing there, and the game's hand with them
     local found = hook.Block();
     local anchored = options.anchorToDefault[1];
     if found ~= nil and not anchored and not options.hideGameIcons[1] then
         found = nil;
     end
     UpdateGameIcons(options, found ~= nil);
-    selecting, cursorIndex, handedOver = false, nil, false;
+    selecting, cursorIndex = false, nil;
     if not app:BeginFrame() then
         -- an empty bar: the game's icons stay away while the bar is hidden
         if found ~= nil then
@@ -873,11 +831,12 @@ ashita.events.register('d3d_present', 'buff_present', function()
         return;
     end
     FollowDrag(options);
-    -- with the plugin the bar is its, anchored or at Position, under the game's menus and every window
-    handedOver = found ~= nil;
-    if found ~= nil then
+    if found ~= nil and anchored then
         DrawHooked(options, found);
         return;
+    end
+    if found ~= nil then
+        HandEmpty(found);
     end
     -- the window is there only while there is a status to show
     if not options.isVisible[1] and not options.fadeInOut[1] then return; end

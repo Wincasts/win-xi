@@ -2,8 +2,7 @@
 
 ## Unreleased
 
-- The bar handed to the plugin is dragged from anywhere on it, not just from an icon: the gaps between them and Show Backdrop's padding round them take the click too, as the window's did. Its icons keep their tooltips and right click.
-- Not anchored, with the plugin and Hide Game's Icons, the bar at Position is the plugin's too: under the game's menus and every addon's window, dragged as the anchored bar is, its backdrop the theme's colours.
+- The anchored bar is dragged from anywhere on it, the gaps between its icons too, not just from an icon.
 - Grow From: Left, Right or Middle, where a row's icons sit as statuses come and go. Anchored, across a full row of Icons Per Row from where the bar is placed (the mouse finds them there); dragged, the window keeps that side where it is.
 - Show Backdrop: off, the dragged window has no backdrop, border or shadow.
 - The anchored bar is dragged with the left button to move it, still anchored: dragging sets Anchor Adjustment (not in the buff selector, where a click removes a status). Lock Position stops it, for the dragged window too. Anchor Adjustment and Position are X and Y sliders across the screen in place of number boxes.
