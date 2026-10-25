@@ -808,13 +808,26 @@ levels.Set({ Indices = { [300] = { MinLevel = 8, MaxLevel = 10 } }, Names = {} }
 o.monsterFormat[1] = '[name] L[level]'; o.checkedFormat = T{ '[name] [level]!' }
 H.packetData(0x029, message(0x1000 + 300, 9, 0x43, 300, 173)); o.showCheckDetails[1] = false; H.frames(1)
 alive[300].hp = 0; H.frames(1)
-H.print('dead: the range again, quads', draw.Entities[300].Count, '|', levels.Of(300, 'Goblin', 0x1000 + 300))
-alive[300].hp = 100; o.showCheckDetails[1] = true
+assert(levels.Of(300, 'Goblin', 0x1000 + 300) == '9', 'a checked corpse keeps its level while its body lies there')
+H.print('dead: the level kept, quads', draw.Entities[300].Count, '|', levels.Of(300, 'Goblin', 0x1000 + 300))
+alive[300].flags = 0; H.frames(1)
+assert(levels.Of(300, 'Goblin', 0x1000 + 300) == '8-10', 'a checked corpse is forgotten once despawned')
+alive[300].flags = nil; alive[300].hp = 100; H.frames(1)
+assert(levels.Of(300, 'Goblin', 0x1000 + 300) == '8-10', 'the respawn in its place is not the one checked')
+H.packetData(0x029, message(0x1000 + 300, 9, 0x43, 300, 173)); alive[300].hp = 0; H.frames(1)
+alive[300].hp = 100; H.frames(1)
+assert(levels.Of(300, 'Goblin', 0x1000 + 300) == '8-10', 'a corpse respawned out of sight is forgotten as it is seen alive')
+o.showCheckDetails[1] = true
 o.checkedFormat = T{ '' }
 alive[300].hp = 100
 H.packetData(0x029, message(0x1000 + 300, 10, 0x44, 300, 174))
-H.packetData(0x029, message(0x1000 + 300, 0, 0, 300, 6))
-H.print('checked again, then said to be defeated:', levels.Of(300, 'Goblin', 0x1000 + 300))
+H.packetData(0x029, message(0x1000 + 300, 0, 0, 300, 6)); H.frames(1)
+assert(levels.Of(300, 'Goblin', 0x1000 + 300) == '10', 'said to be defeated, health not yet 0: the level kept')
+alive[300].hp = 0; H.frames(1)
+assert(levels.Of(300, 'Goblin', 0x1000 + 300) == '10', 'defeated and grey: the level kept')
+alive[300].flags = 0; H.frames(1)
+H.print('checked again, defeated, then despawned:', levels.Of(300, 'Goblin', 0x1000 + 300))
+alive[300].flags = nil; alive[300].hp = 100
 H.packetData(0x029, message(0x1000 + 300, 10, 0x44, 300, 174))
 alive[300] = nil; H.frames(1)
 H.print('checked again, then gone from sight:', levels.Of(300, 'Goblin', 0x1000 + 300))
