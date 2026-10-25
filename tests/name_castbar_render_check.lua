@@ -159,6 +159,48 @@ local timerOnly=captions();assert(rows(timerOnly)==1 and #timerOnly<#both,'actio
 options.castShowTimer[1]=false
 assert(#captions()==0,'no cast text at all');
 options.castShowName[1],options.castShowTimer[1]=true,true
+-- Cast text in a font of its own: drawn from imgui's texture as it is (4), its letters asked of that font
+local pushed,push,addFont={},imgui.PushFont,imgui.AddFontFromFileTTF
+imgui.PushFont=function(f) pushed[#pushed+1]=f==nil and 'usual' or f end
+local castFace={}
+imgui.AddFontFromFileTTF=function(path) if path:find('georgia.ttf',1,true) then return castFace end end
+for _,q in ipairs(captions()) do assert(q.Texture==0,'the names\' font as before') end
+local function asked(face) for _,f in ipairs(pushed) do if f==face then return true end end return false end
+options.castFont[1]='georgia.ttf';pushed={}
+local own=captions();assert(#own==#both)
+for _,q in ipairs(own) do assert(q.Texture==4,'a font of its own from imgui\'s texture') end
+assert(asked(castFace),'its letters asked of the chosen font')
+options.castFont[1]=custom.CastDefaultFont;pushed={}
+for _,q in ipairs(captions()) do assert(q.Texture==4) end
+assert(asked('usual'),'Default: the usual font')
+options.castFont[1]='missing.ttf'
+for _,q in ipairs(captions()) do assert(q.Texture==0,'a font that will not load: the names\' own') end
+options.showCastBar[1]=false;pushed={};render();options.showCastBar[1]=true
+options.castFont[1]='georgia.ttf';options.showCastBar[1]=false;pushed={};render()
+assert(not asked(castFace),'not asked for while cast bars are off')
+options.showCastBar[1]=true;options.castFont[1]=''
+H.packetData(0x028,raw) -- turning cast bars off forgot the cast
+imgui.PushFont,imgui.AddFontFromFileTTF=push,addFont
+-- A textured cast bar: winxi's art, from the sheet shared with the special signs (6)
+local barArt,image=require('bar_art'),require('gdi.image')
+local load,upload,free=barArt.LoadImage,barArt.Upload,barArt.Free
+barArt.LoadImage=function(path)
+    if path:find('special',1,true) then return image.new(256,128) end
+    return image.new(path:find('front',1,true) and 226 or path:find('fill',1,true) and 204 or 220,28)
+end
+barArt.Upload=function() return {},0x5000 end;barArt.Free=function() end
+options.castBarTexture[1]='glass'
+now=now+2 -- half way, so that there is a fill
+draw.QuadsMax=16384;hook.Frame=hook.Frame+1;assert(custom.Frame(options,hook)==nil)
+local art,plain,captionsAfter=0,0,0
+for i=0,draw.QuadCount-1 do
+    local q=draw.Quads[i]
+    if q.Texture==6 then art=art+1 elseif q.Color==0xFF101010 then plain=plain+1 end
+end
+assert(art==7 and plain==0 and draw.Textures[6]==0x5000,'the cast bar in the art, the sheet published')
+options.castBarTexture[1]='plain'
+assert(#render()==1 and draw.Textures[6]==0,'plain again, the sheet let go')
+barArt.LoadImage,barArt.Upload,barArt.Free=load,upload,free
 options.showHealthBar[1]=true
 -- Font overshoots/descenders must not push cast text into its bar or statuses.
 glyph.Y0,glyph.Y1=-4,20;font.ContainerAtlas.TexData.UniqueID=3

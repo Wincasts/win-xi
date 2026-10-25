@@ -17,6 +17,8 @@ local nameColours = require('name_colours');
 local nameTypes  = require('name_types');
 local entityTypes = require('entity_types');
 local icons      = require('icons');
+local barArt     = require('bar_art');
+local healthbar  = require('healthbar');
 
 local settings = {};
 
@@ -43,6 +45,23 @@ local function getFontFiles()
 end
 
 local warning = { 1.0, 0.6, 0.4, 1.0 };
+
+-- The cast's font: the names' own, the usual one, or a file
+local function DrawCastFont(options)
+    local value, usual = options.castFont, require('custom').CastDefaultFont;
+    local shown = value[1] == '' and 'Same as Names' or (value[1] == usual and DEFAULT_FONT or value[1]);
+    widgets.Label('Font');
+    controls.Width();
+    if (imgui.BeginCombo('##name.castFont', shown)) then
+        if (imgui.Selectable('Same as Names', value[1] == '')) then value[1] = ''; end
+        if (imgui.Selectable(DEFAULT_FONT, value[1] == usual)) then value[1] = usual; end
+        for _, file in ipairs(getFontFiles()) do
+            if (imgui.Selectable(file, value[1] == file)) then value[1] = file; end
+        end
+        imgui.EndCombo();
+    end
+    controls.Mark(tips.Get('name.cast_text.font'));
+end
 
 -- The notorious monster being hunted: a tab of its own
 function settings.DrawTracking(options, save)
@@ -88,6 +107,12 @@ function settings.DrawHealthBars(options, save)
     controls.BeginLayout('healthBars', 360, 'Health Bar Height (px)');
     if (controls.Section('Health Bars', '##name.healthBarOptions', true)) then
         nameTypes.Draw(options);
+        imgui.BeginDisabled(not options.showHealthBar[1]);
+        controls.Choice('Bar Texture', '##name.healthBarTexture', options.healthBarTexture, barArt.Choices(),
+            tips.Get('name.health_bars.texture'));
+        controls.Checkbox('Preview', '##name.healthBarPreview', healthbar.Preview, tips.Get('name.health_bars.preview'));
+        imgui.EndDisabled();
+        if options.showHealthBar[1] then healthbar.PreviewVisible(os.clock()); end
     end
     controls.EndSection();
     if controls.Section('Shared Bar Size', '##name.barSize') then
@@ -119,6 +144,8 @@ function settings.DrawCastBars(options, save)
             imgui.EndDisabled();
             controls.Checkbox('Auto-scale to Name', '##name.castBarAutoWidth', options.castBarAutoWidth,
                 tips.Get('name.cast_bars.auto_width'));
+            controls.Choice('Bar Texture', '##name.castBarTexture', options.castBarTexture, barArt.Choices(),
+                tips.Get('name.cast_bars.texture'));
             local casts = require('castbar');
             controls.Checkbox('Preview', '##name.castBarPreview', casts.Preview, tips.Get('name.cast_bars.preview'));
             casts.PreviewVisible(os.clock());
@@ -126,6 +153,7 @@ function settings.DrawCastBars(options, save)
     end
     controls.EndSection();
     if options.showCastBar[1] and controls.Section('Cast Text', '##name.castTextOptions') then
+        DrawCastFont(options);
         controls.Checkbox('Show Action Name', '##name.castShowName', options.castShowName, tips.Get('name.cast_text.show_name'));
         controls.Checkbox('Show Timer', '##name.castShowTimer', options.castShowTimer, tips.Get('name.cast_text.show_timer'));
         controls.Choice('Text Colour', '##name.castTextColour', options.castTextColour, require('custom').CastTextColours,

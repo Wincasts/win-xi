@@ -625,8 +625,8 @@ void AshitaNameplate::RenderCustom(uint32_t entityIndex, const HookDrawing& draw
 
     // doubled only for a quad itself, as the addon asked: never for its edge
     auto add = [&](const HookQuad& quad, float dx, float dy, DWORD color, bool doubled) {
-        const bool soft = (quad.Flags & QUAD_SOFT_RECT) != 0 && (quad.Flags & QUAD_EDGED) == 0
-            && quad.U0 == quad.U1 && quad.V0 == quad.V1;
+        // a textured one too since 1.37: its texture coordinates go with the points
+        const bool soft = (quad.Flags & QUAD_SOFT_RECT) != 0 && (quad.Flags & QUAD_EDGED) == 0;
         const uint32_t needed = soft ? 30 : 6;
         if (!NameSubmission::Visible(color) || quad.Texture >= HOOK_TEXTURES || textures[quad.Texture] == nullptr || vertexCount + needed > NAME_VERTICES) {
             return;
@@ -656,16 +656,17 @@ void AshitaNameplate::RenderCustom(uint32_t entityIndex, const HookDrawing& draw
             }
             const DWORD inside = FadeColor(color, rect.Coverage);
             const DWORD outside = color & 0x00FFFFFF;
-            auto point = [&](NameGeometry::Point p, DWORD tint) -> NameVertex {
-                return { p.x, p.y, deep, rhw, tint, quad.U0, quad.V0 };
+            auto point = [&](NameGeometry::Point p, NameGeometry::Point within, DWORD tint) -> NameVertex {
+                return { p.x, p.y, deep, rhw, tint, quad.U0 + (quad.U1 - quad.U0) * within.x,
+                    quad.V0 + (quad.V1 - quad.V0) * within.y };
             };
             auto triangle = [&](NameVertex a, NameVertex b, NameVertex c) {
                 *v++ = a; *v++ = b; *v++ = c;
             };
             NameVertex inner[4], outer[4];
             for (int i = 0; i < 4; i++) {
-                inner[i] = point(rect.Inner[i], inside);
-                outer[i] = point(rect.Outer[i], outside);
+                inner[i] = point(rect.Inner[i], rect.InnerAt[i], inside);
+                outer[i] = point(rect.Outer[i], rect.OuterAt[i], outside);
             }
             triangle(inner[0], inner[1], inner[3]);
             triangle(inner[1], inner[2], inner[3]);

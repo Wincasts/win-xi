@@ -55,7 +55,8 @@
 --                                     is and more brightening it, its edge not (namehook 1.36, Feature.Doubled).
 --                                     edgeRadius: independent target-pixel width, including when text edge is zero (1.34).
 --                                     tightEdge: cap an icon halo at one target pixel, no shadow (namehook 1.33).
---                                     softRect: antialias a constant-UV, unedged solid rectangle (namehook 1.32).
+--                                     softRect: antialias an unedged rectangle (namehook 1.32), a textured one too
+--                                     (namehook 1.37, Feature.SoftTexture).
 --   nameplates.EndName()
 -- A quad is a rectangle of a texture: its corners are in pixels of the game's picture, measured from
 -- the point the game puts the name at, and its colour is 0xAARRGGBB. alpha, 0 to 1, fades the whole
@@ -146,7 +147,7 @@ ffi.cdef[[
 local nameplates = {};
 
 nameplates.Plugin = 'namehook';
-nameplates.Feature = { IconOutline = 1, SoftRectangle = 2, TightEdge = 4, Doubled = 8 };
+nameplates.Feature = { IconOutline = 1, SoftRectangle = 2, TightEdge = 4, Doubled = 8, SoftTexture = 16 };
 ffi.cdef[[
     typedef struct {
         char Magic[16];
@@ -513,9 +514,9 @@ function nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged, edg
         -- edged, with explicit edge opacity in Reserved's low byte
         flags, reserved = 3, math.floor(math.max(0, math.min(1, edgeOpacity)) * 255 + 0.5);
     end
-    -- Only solid, unedged rectangles support the screen-space alpha fringe.
-    -- Older namehook builds ignore this flag and draw the original hard rectangle.
-    if (softRect and not edged and u0 == u1 and v0 == v1) then flags = bit.bor(flags, 4); end
+    -- Only unedged rectangles take the screen-space alpha fringe; a textured one since namehook 1.37
+    -- (Feature.SoftTexture). Older builds draw that one, and any with the flag they cannot, hard.
+    if (softRect and not edged) then flags = bit.bor(flags, 4); end
     if (tightEdge and edged) then flags = bit.bor(flags, 8); end
     if (edged and edgeRadius ~= nil) then
         flags = bit.bor(flags, 16);

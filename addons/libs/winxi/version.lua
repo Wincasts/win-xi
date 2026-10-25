@@ -87,6 +87,7 @@
 -- 46: namehook capability checks, independent icon outlines, ClearDrawing and editable tooltip catalogues
 -- 47: nameplates.Capabilities, copied public sidecar metadata for privacy-safe support reports
 -- 48: nameplates.Feature.Doubled and Quad's doubled, a colour doubled as the game's own are (namehook 1.36)
+-- 49: nameplates.Feature.SoftTexture; Quad's softRect on a textured quad too (namehook 1.37)
 return {
-    Number = 48,
+    Number = 49,
 };

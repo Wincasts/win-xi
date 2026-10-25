@@ -219,6 +219,20 @@ Location: Health Bars → Health Bars
 
 Show bars only for the entity whose status is Engaged (1) and HP is above zero. Being targeted or claimed alone is not combat. Missing status data hides the bar. Applies to every type.
 
+
+## name.health_bars.texture
+Label: Bar Texture
+Location: Health Bars → Health Bars
+
+What the bar is drawn in. Plain (the default) is the dark-bordered bar Name has always drawn. The others are WinXI's Bar Textures, the art party's HP bars use, tinted the name's colour. Shared Bar Size still sets its width and height; very small bars are drawn from a smaller copy of the art so they stay clean. The fill's end is softened with namehook 1.37; an older namehook draws it hard. If the art cannot be loaded, the bar is drawn Plain.
+
+
+## name.health_bars.preview
+Label: Preview
+Location: Health Bars → Health Bars
+
+Session-only preview: every name that can have a health bar shows one, emptying and filling again, each name a little apart. Shows bars at full health and out of combat, whatever Combat Only says, so you can tune Bar Texture and Shared Bar Size. Entity Types still apply. Not saved. Stops shortly after you leave this section or close the window.
+
 ## name.health_bars.width
 Label: Bar Width (px)
 Location: Health Bars → Shared Bar Size
@@ -501,6 +515,13 @@ Location: Cast Bars → Cast Bars
 
 Extend the cast bar to fit the visible entity name, counting visible letter badges as part of the name in either token order. Off by default. The saved shared Bar Width remains the minimum, so short names do not shrink the bar. Uses the rendered name/letter span and intervening spaces, not the action caption, vendor/player icons or surrounding distance/check details. Centres both bar rows under that span; an eligible HP row extends with the cast row so they remain aligned. Without an active cast/preview, HP keeps its usual saved width and position. Hidden name/letter tokens are not counted; formats with neither keep the saved width. Height is unchanged, and normal nameplate scaling still applies.
 
+
+## name.cast_bars.texture
+Label: Bar Texture
+Location: Cast Bars → Cast Bars
+
+What the cast bar is drawn in: Plain (the default) or one of WinXI's Bar Textures, as for health bars. It can differ from the health bars' texture. Weaponskills shown as text only have no bar.
+
 ## name.cast_bars.name_scale
 Label: Cast Name Size (%)
 Location: Cast Bars → Cast Text
@@ -518,6 +539,12 @@ Label: Preview
 Location: Cast Bars → Cast Bars
 
 Session-only animated preview under visible names, clearly labelled Preview. Tune shared bar dimensions, cast-name size and timer size without waiting for a cast. Uses the actual cast-bar layout, name colour, auto-width and your real HP row when enabled. With Show Weaponskills on, the sample alternates spell and TP-move styles. Real casts take precedence. No packets, actor records or saved preview setting are created. Stops shortly after leaving this settings section/window, and resets when Name/cast bars are disabled or settings reloaded.
+
+## name.cast_text.font
+Label: Font
+Location: Cast Bars → Cast Text
+
+The font the action name and timer are written in. Same as Names (the default) uses the names' font; Default is the font everything else is written in; or a .ttf from C:\Windows\Fonts. Bold follows the names' Bold. With Smooth Font on, a font of its own is drawn without the smoothing. A font that cannot be loaded falls back to the names' font.
 
 ## name.cast_text.show_name
 Label: Show Action Name

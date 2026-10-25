@@ -141,8 +141,10 @@ statuses) is turned on and off in its own tab, with **Enabled** at the top.
   unless an active cast needs the enabled HP row above it.
   Combat Only requires that particular entity to be alive and Engaged (status 1).
   Targeting/claiming alone is not combat; missing status data hides the bar.
-- **Cast Bars**, a tab of its own: **Enabled**, Show Weaponskills, Auto-scale to Name, Preview,
-  Cast Text and the same Shared Bar Size as Health Bars. See [Cast bars and shared bar layout](#cast-bars-and-shared-bar-layout).
+  **Bar Texture** draws the bars in Plain or one of WinXI's Bar Textures, and **Preview**
+  shows a bar under every name that can have one while its section is open.
+- **Cast Bars**, a tab of its own: **Enabled**, Show Weaponskills, Auto-scale to Name, Bar Texture,
+  Preview, Cast Text (with its own Font) and the same Shared Bar Size as Health Bars. See [Cast bars and shared bar layout](#cast-bars-and-shared-bar-layout).
 - **Check Details**, a tab of its own: **Enabled**, Size, Abbreviate Difficulty and Display Style
   (Icons & Text / Text Only), greyed out while it is off. See [What a check shows](#what-a-check-shows).
   **Entity Types** under it says which kinds of name have a bar: Yourself, Party
@@ -203,6 +205,8 @@ rebuilds promptly release replaced badge atlases rather than waiting for Lua GC.
 | Bar Width / Height (px, Health Bars → Shared Bar Size) | One pair for HP and cast rows of all types, the bar's size under a name at its largest; it shrinks with the name as it goes further away, and grows with a hunted or sub-targeted one. Defaults to **60 × 6 px**, including border. Width: 12–300; height: 3–40. Saved per character |
 | Bold | Makes names and check-detail text heavier. Each letter is drawn twice, a pixel apart. On in the preferred defaults; icons and stars are unchanged |
 | Smooth Font (beside Bold) | Off by default. Uses a cached, area-filtered text atlas generated from 4× rasterised glyphs, with transparent edge guards. Native layout metrics and Bold's one-pixel stroke are retained; icons and badges are unchanged. More atlas memory and a one-time build cost; direct rendering is used while preparing or unavailable |
+| Bar Texture (Health Bars, Cast Bars) | What the bars are drawn in, each kind its own: **Plain** (the dark-bordered bar, to begin with) or one of WinXI's Bar Textures, party's HP art, tinted the name's colour. Drawn from a sheet Name makes of the sets in use and its own signs, at full, half and quarter size, so small bars stay clean. The fill's end is softened with namehook 1.37. Art that will not load leaves the bar Plain |
+| Preview (Health Bars) | Session-only: every name that can have a health bar shows one, emptying and filling again, at full health and out of combat too, while the Health Bars section is open. Entity Types still apply; never saved |
 | Combat Only (Health Bars) | Off by default. Requires each entity's own Engaged status (1) and HP above zero. Missing/invalid data hides the bar; applies to players, enemies, pets/trusts and NPCs |
 | Maximum Name Size (px, General) | Shared nearby text height, 6–48 pixels, for every entity type; independent of bar dimensions |
 | Minimum Name Size (px, General) | Shared distant text height for every type, never more than the maximum |
@@ -230,8 +234,9 @@ that option starts off too. With it, **Text Only for Weaponskills** (on by defau
 shows weaponskills and TP moves as their name and timer alone, with no bar; spells
 keep theirs.
 
-**Cast Bars → Cast Text** holds the text under the bar: **Show Action Name** and
-**Show Timer** (both on), **Text Colour** (White by default, Name Colour, or Custom
+**Cast Bars → Cast Text** holds the text under the bar: **Font** (Same as Names to begin
+with, Default, or a .ttf of `C:\Windows\Fonts`; drawn without Smooth Font's filtering, Bold
+following the names'), **Show Action Name** and **Show Timer** (both on), **Text Colour** (White by default, Name Colour, or Custom
 with a colour picker), and **Cast Name Size (%)** and **Timer Size (%)**, which
 independently scale the two text rows relative to the nameplate font (25–200%,
 default **75%** for the existing appearance). Bar dimensions and nameplate text are

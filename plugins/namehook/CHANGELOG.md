@@ -1,5 +1,10 @@
 # Changelog
 
+## namehook 1.37 — soft textured rectangles
+
+- `QUAD_SOFT_RECT` no longer needs a constant texture coordinate: a textured, unedged quad that asks for it gets the same one-pixel screen-space fringe, each point with the texture coordinate of where it is in the quad (`SoftRectangle::InnerAt`/`OuterAt`), the outer fringe clamped to the quad's edge so it never samples past it. Name uses it for the fill of its textured health and cast bars. The capabilities sidecar says so (`FEATURE_SOFT_TEXTURE`, 16; Build 137). Older plugins draw such a quad hard.
+- tests/test.cpp: the inner and outer points' places within the quad; the capability.
+
 ## namehook 1.36 — doubled colours
 
 - A quad an addon draws can ask for its colour to be doubled as the client's own are (`QUAD_DOUBLED`, Flags bit 5): drawn with `D3DTOP_MODULATE2X`, 0x80 in a channel is the texture as it is and more brightens it. The client draws a linkshell pearl so, and a pearl's colour goes above 0x80; drawn plainly it could be no brighter than the icon, and was darker than the client's. Only the quad is doubled, never its edge or shadow. Such quads are runs of their own (`NameRun::doubled`), the stage put back to `MODULATE` after them. The capabilities sidecar says so (`FEATURE_DOUBLED`, 8; Build 136).

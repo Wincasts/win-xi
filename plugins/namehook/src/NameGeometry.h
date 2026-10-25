@@ -19,6 +19,9 @@ namespace NameGeometry {
 
     struct SoftRectangle {
         Point Inner[4], Outer[4]; // clockwise: top-left, top-right, bottom-right, bottom-left
+        // Where each point is within the quad, 0..1 across and down, for its texture
+        // coordinates. The fringe outside takes the edge's own, never past the quad's.
+        Point InnerAt[4], OuterAt[4];
         float Coverage = 1;
 
         bool Make(Point origin, Point right, Point bottom) {
@@ -44,6 +47,9 @@ namespace NameGeometry {
             Inner[2] = at(1 - iu, 1 - iv); Inner[3] = at(iu, 1 - iv);
             Outer[0] = at(-ou, -ov); Outer[1] = at(1 + ou, -ov);
             Outer[2] = at(1 + ou, 1 + ov); Outer[3] = at(-ou, 1 + ov);
+            InnerAt[0] = { iu, iv }; InnerAt[1] = { 1 - iu, iv };
+            InnerAt[2] = { 1 - iu, 1 - iv }; InnerAt[3] = { iu, 1 - iv };
+            OuterAt[0] = { 0, 0 }; OuterAt[1] = { 1, 0 }; OuterAt[2] = { 1, 1 }; OuterAt[3] = { 0, 1 };
             return true;
         }
     };
