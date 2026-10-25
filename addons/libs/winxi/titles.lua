@@ -26,6 +26,7 @@ local imgui = require('imgui');
 local theme = require('winxi.theme');
 local text = require('winxi.text');
 local fonts = require('winxi.fonts');
+local clip = require('winxi.clip');
 
 local titles = {};
 
@@ -131,7 +132,11 @@ function titles.Draw(words, options)
     -- on whole pixels: see winxi.borders
     clipMin[1], clipMin[2] = math.floor(left - margin - 2 - reach), math.floor(top - 2 - reach);
     clipMax[1], clipMax[2] = math.ceil(left + w + margin + 2 + math.max(drop, reach)), math.ceil(top + h + 2 + math.max(drop, reach));
-    list:PushClipRect(clipMin, clipMax, false);
+    -- kept on the screen (winxi.clip): a title pushed off it is not stretched over all of it
+    if not clip.Push(list, clipMin, clipMax) then
+        if pushed then imgui.PopFont(); end
+        return;
+    end
 
     if current.TitleStyle == 'plate' then
         -- the background, near solid, so that the border does not show through it
