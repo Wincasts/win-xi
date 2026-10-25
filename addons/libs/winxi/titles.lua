@@ -124,16 +124,16 @@ function titles.Draw(words, options)
     local current = theme.Get();
 
     -- the window's own list, so that the title sits with the window among the others, opened up to
-    -- take in what is above the window
+    -- the whole screen to take in what is above the window
     local list = imgui.GetWindowDrawList();
     local drop = current.TitleShadow and (tonumber(current.TitleShadowOffset) or 0) or 0;
     local hazed = current.TitleStyle == 'breakshadow';
     local reach = hazed and 2 * haze or 0;
-    -- on whole pixels: see winxi.borders
+    -- what the title covers, on whole pixels (see winxi.borders): drawn where any of it is on the screen
     clipMin[1], clipMin[2] = math.floor(left - margin - 2 - reach), math.floor(top - 2 - reach);
     clipMax[1], clipMax[2] = math.ceil(left + w + margin + 2 + math.max(drop, reach)), math.ceil(top + h + 2 + math.max(drop, reach));
-    -- kept on the screen (winxi.clip): a title pushed off it is not stretched over all of it
-    if not clip.Push(list, clipMin, clipMax) then
+    -- the whole screen as the clip (winxi.clip): a title's own clip was seen stretched over the screen
+    if not clip.Screen(list, clipMin, clipMax) then
         if pushed then imgui.PopFont(); end
         return;
     end

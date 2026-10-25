@@ -234,7 +234,7 @@ window AddText (208,27) #FFFFFFFF 80%
 window AddText (208,84) #FFFFFFFF 37%
 imgui PopFont
 window PopClipRect
-window PushClipRect (377,191) (396,209) false
+window PushClipRect (0,0) (1920,1080) false
 window AddText (383,193) #F0E6C2FF Alliance
 window PopClipRect
 imgui End
@@ -303,7 +303,7 @@ window AddText (167,117) #F3F37CFF 700
 window AddText (167,163) #F3F37CFF 650
 imgui PopFont
 window PopClipRect
-window PushClipRect (377,191) (396,209) false
+window PushClipRect (0,0) (1920,1080) false
 window AddText (383,193) #F0E6C2FF Alliance 2
 window PopClipRect
 imgui End
@@ -344,7 +344,7 @@ window AddText (167,25) #F8BA80FF 950
 window AddText (167,71) #FFFFFFFF 1000
 imgui PopFont
 window PopClipRect
-window PushClipRect (377,191) (396,209) false
+window PushClipRect (0,0) (1920,1080) false
 window AddText (383,193) #F0E6C2FF Alliance 3
 window PopClipRect
 imgui End
@@ -365,7 +365,7 @@ window AddText (220,48) #FFFFFFFF 44%
 window AddText (98,48) #FFFFFFFF 4.0m
 imgui PopFont
 window PopClipRect
-window PushClipRect (377,191) (396,209) false
+window PushClipRect (0,0) (1920,1080) false
 window AddText (383,193) #F0E6C2FF Target
 window PopClipRect
 imgui End
@@ -625,7 +625,7 @@ over AddImage treasure.png (120,396.5) (141,417.5) (0,0) (1,1) #00000082
 over AddImage treasure.png (119,395.5) (140,416.5) (0,0) (1,1) #00000082
 over AddImage treasure.png (119,397.5) (140,418.5) (0,0) (1,1) #00000082
 over AddImage treasure.png (119,396.5) (140,417.5) (0,0) (1,1) #FFFFFFD9
-window PushClipRect (377,191) (396,209) false
+window PushClipRect (0,0) (1920,1080) false
 window AddText (383,193) #F0E6C2FF Alliance
 window PopClipRect
 imgui End
@@ -694,7 +694,7 @@ window AddText (167,117) #F3F37CFF 700
 window AddText (167,163) #F3F37CFF 650
 imgui PopFont
 window PopClipRect
-window PushClipRect (377,191) (396,209) false
+window PushClipRect (0,0) (1920,1080) false
 window AddText (383,193) #F0E6C2FF Alliance 2
 window PopClipRect
 imgui End
@@ -735,7 +735,7 @@ window AddText (167,25) #F8BA80FF 950
 window AddText (167,71) #FFFFFFFF 1000
 imgui PopFont
 window PopClipRect
-window PushClipRect (377,191) (396,209) false
+window PushClipRect (0,0) (1920,1080) false
 window AddText (383,193) #F0E6C2FF Alliance 3
 window PopClipRect
 imgui End
@@ -756,7 +756,7 @@ window AddText (220,48) #FFFFFFFF 44%
 window AddText (98,48) #FFFFFFFF 4.0m
 imgui PopFont
 window PopClipRect
-window PushClipRect (377,191) (396,209) false
+window PushClipRect (0,0) (1920,1080) false
 window AddText (383,193) #F0E6C2FF Target
 window PopClipRect
 imgui End
@@ -1199,7 +1199,7 @@ over AddImage treasure.png (120,396.5) (141,417.5) (0,0) (1,1) #00000082
 over AddImage treasure.png (119,395.5) (140,416.5) (0,0) (1,1) #00000082
 over AddImage treasure.png (119,397.5) (140,418.5) (0,0) (1,1) #00000082
 over AddImage treasure.png (119,396.5) (140,417.5) (0,0) (1,1) #FFFFFFD9
-window PushClipRect (377,191) (396,209) false
+window PushClipRect (0,0) (1920,1080) false
 window AddText (383,193) #F0E6C2FF Alliance
 window PopClipRect
 imgui End
@@ -1298,7 +1298,7 @@ window AddText (167,209) #F8BA80FF 560
 window AddText (167,255) #F3F37CFF 650
 imgui PopFont
 window PopClipRect
-window PushClipRect (377,191) (396,209) false
+window PushClipRect (0,0) (1920,1080) false
 window AddText (383,193) #F0E6C2FF Alliance 2
 window PopClipRect
 imgui End
@@ -1397,7 +1397,7 @@ window AddText (167,209) #FFFFFFFF 1000
 window AddText (167,255) #F8BA80FF 560
 imgui PopFont
 window PopClipRect
-window PushClipRect (377,191) (396,209) false
+window PushClipRect (0,0) (1920,1080) false
 window AddText (383,193) #F0E6C2FF Alliance 3
 window PopClipRect
 imgui End
@@ -1424,7 +1424,7 @@ imgui PushFont
 window AddText (30,30) #FFFFFFFF +2
 imgui PopFont
 window PopClipRect
-window PushClipRect (377,191) (396,209) false
+window PushClipRect (0,0) (1920,1080) false
 window AddText (383,193) #F0E6C2FF Target
 window PopClipRect
 imgui End

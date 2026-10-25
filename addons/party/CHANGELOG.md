@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1
+
+- A window placed by Automatic Positioning cannot be dragged, as the README says: it was, and imgui laid it
+  out where the drag took it while it was drawn back in its place, so its background seemed to slide under it.
+- Titles no longer stretch across the whole screen (winxi 51, below).
+
 ## 0.3
 
 - Six smooth bar textures (winxisettings → Styles → Bar Texture), shaded from top to foot with nothing along the bar, so the fill looks the same at any HP: Enamel, Enamel (Lit Rim), Enamel (Gradient), Glass Tube, Glass Tube (Deep) and Glass Enamel.
