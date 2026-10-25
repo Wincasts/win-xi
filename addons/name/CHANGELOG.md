@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.70
+
+- Letter Spacing (px), under General Name Appearance after Subtarget Size: extra space between the letters of every name, 0 to 10 px at the name's largest, shrinking with the name as it goes further off. 0, the font's own spacing, to begin with. Everything in the format line is spaced, typed text included; icons, signs, letter badges, check details and cast text are not.
+- `spacing=0`–`10` on `[name]`, `[level]` and `[distance]`: that token's own letter spacing in place of the setting, e.g. `[name: spacing=2]`.
+- Tests: the option parsed, kept within bounds and written back; letters moved apart by the setting and still centred; a token's own spacing.
+
 ## 1.69
 
 - Fix the player's own name vanishing while they are their own target: choosing themselves as a sub target (a spell, an item) and the confirm after it. The game gives that name line no text then; what was written for the character before is kept, icons and all, and with nothing before the entity's name is written.

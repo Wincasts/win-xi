@@ -127,6 +127,7 @@ local settings = {
     labelPlaceholders = function () return T{ true }; end, -- its placeholders are named Placeholder
     huntScale = function () return T{ 100 }; end, -- its name's size, as a percentage of the others'
     subtargetScale = function () return T{ 100 }; end, -- the sub target's name's size, as a percentage of the others'
+    letterSpacing = function () return T{ 0 }; end, -- screen pixels between the letters of a name at its largest
     checkSize = function () return T{ 90 }; end, -- percent of the name's size
     abbreviateDifficulty = function () return T{ true }; end, -- compact difficulty by default
     showCheckDetails = function () return T{ true }; end, -- under a checked monster's name: how hard, what it does
@@ -144,6 +145,7 @@ local settled = {
     { 'iconOutline', 'number', 0, 3 }, { 'iconOutlineOpacity', 'number', 0, 100 },
     { 'checkSize', 'number', 50, 125 }, { 'healthBarWidth', 'number', 12, 300 }, { 'healthBarHeight', 'number', 3, 40 },
     { 'huntScale', 'number', 100, 200 }, { 'subtargetScale', 'number', 50, 200 },
+    { 'letterSpacing', 'number', 0, 10 },
     { 'showCastBar', 'boolean' }, { 'castBarWeaponskills', 'boolean' }, { 'castBarAutoWidth', 'boolean' },
     { 'castNameScale', 'number', 25, 200 }, { 'castTimerScale', 'number', 25, 200 },
     { 'castBarSkillTextOnly', 'boolean' }, { 'castShowName', 'boolean' }, { 'castShowTimer', 'boolean' },
@@ -455,9 +457,11 @@ local function textRun(set, words)
     return run;
 end
 
-local function wordsWidth(set, words, fit)
+-- track, if given, is what is put between one letter and the next, in the picture's pixels
+local function wordsWidth(set, words, fit, track)
     if (words == '') then return 0; end
-    return textRun(set, words).width * fit;
+    local run = textRun(set, words);
+    return run.width * fit + (track and track * math.max(0, #run.glyphs - 1) or 0);
 end
 
 local function fadedColor(color, opacity)
@@ -490,8 +494,9 @@ function letterBadges.Write(set, letter, pen, top, fit, color)
     return pen + width * fit;
 end
 
-local function writeWords(set, words, pen, top, fit, color, slot, opacity)
+local function writeWords(set, words, pen, top, fit, color, slot, opacity, track)
     if (words == '') then return pen; end
+    track = track or 0;
     color = fadedColor(color, opacity);
     -- namehook already multiplies outline opacity by the glyph colour's alpha.
     local run = textRun(set, words);
@@ -501,7 +506,7 @@ local function writeWords(set, words, pen, top, fit, color, slot, opacity)
     for index = 1, #run.glyphs do
         local glyph = run.glyphs[index];
         if (glyph[10]) then
-            local at = pen + run.offsets[index] * fit;
+            local at = pen + run.offsets[index] * fit + track * (index - 1);
             local x0, y0 = at + glyph[1] * fit, top + glyph[2] * fit;
             local x1, y1 = at + glyph[3] * fit, top + glyph[4] * fit;
             local mask = masks and masks[glyph.byte];
@@ -519,7 +524,7 @@ local function writeWords(set, words, pen, top, fit, color, slot, opacity)
             end
         end
     end
-    return pen + run.width * fit;
+    return pen + run.width * fit + track * math.max(0, #run.glyphs - 1);
 end
 
 -- the time left under a status's icon is written in the name's letters
@@ -1233,6 +1238,7 @@ function custom.Frame(options, hook, formats)
     -- being chosen) say a choice is being made
     local subtargetScale = options.subtargetScale ~= nil and math.max(50, math.min(200, options.subtargetScale[1])) / 100 or 1;
     local subtarget = 0;
+    local letterSpacing = options.letterSpacing ~= nil and math.max(0, math.min(10, tonumber(options.letterSpacing[1]) or 0)) or 0;
     local target = AshitaCore:GetMemoryManager():GetTarget();
     if (target ~= nil and (target:GetIsSubTargetActive() == 1 or target:GetSubTargetFlags() ~= SUBTARGET_NONE)) then
         subtarget = target:GetTargetIndex(0);
@@ -1527,6 +1533,10 @@ function custom.Frame(options, hook, formats)
                         letter = written.letter;
                     end
                     height = math.floor(height + 0.5);
+                    -- the space between letters is the setting's, or the token's spacing=, in screen pixels at
+                    -- the name's largest: in the picture's pixels, and shrinking with the name
+                    local spacingAt = scale * height / fullHeight;
+                    local track = letterSpacing * spacingAt;
                     local override = nameColours.Resolve(options, name, entities, colourContext, dead, written.icons);
                     local own = override or nameColor(displayColor);
                     local nameTint = own;
@@ -1557,7 +1567,7 @@ function custom.Frame(options, hook, formats)
                             local words = partWords(part, kind, written, nameWords, letter);
                             if (kind == 'name' and words ~= '') then nameTint = partColor(part, kind, override, dead, own); end
                             width = width + (kind == 'letter' and letterBadges.Width(set, words, fit)
-                                or wordsWidth(set, words, fit));
+                                or wordsWidth(set, words, fit, part.spacing and part.spacing * spacingAt or track));
                             if (kind == 'name' or kind == 'letter') and words ~= '' and width > start then
                                 written.barNameLeft = math.min(written.barNameLeft or start, start);
                                 written.barNameRight = math.max(written.barNameRight or width, width);
@@ -1644,7 +1654,8 @@ function custom.Frame(options, hook, formats)
                             if (kind == 'letter') then
                                 pen = badgePen or writeLetterFallback(set, words, pen, top, fit, badgeColor);
                             else
-                                pen = writeWords(set, words, pen, top, fit, color, nil, textOpacity);
+                                pen = writeWords(set, words, pen, top, fit, color, nil, textOpacity,
+                                    part.spacing and part.spacing * spacingAt or track);
                             end
                             if (kind ~= 'icons' and kind ~= 'party' and kind ~= 'vendor' and pen > start) then
                                 pen = pen + math.floor((part.space or 0) * scale + 0.5);

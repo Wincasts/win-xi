@@ -284,3 +284,19 @@ ffi.copy(hook.Names[0].Text, 'Win'); render(); local plainName = quads(0x408)
 put(0, 0x409, 'Win', plates.Category.Self); ffi.fill(hook.Names[0].Text, 48); render()
 assert(draw.Entities[0x409].Frame == hook.Frame and quads(0x409) == plainName, 'given no text from the start: the entity\'s name')
 H.print('own name given no text: drawn as before, and the entity\'s name with nothing before', true)
+
+-- Letter Spacing: each letter after the first is moved on by the setting, in screen pixels at the name's
+-- largest; a token's spacing= in place of it; nothing else changed
+options.nameFormat[1] = '[name]'; options.letterSpacing = T{ 0 }; custom.Settle(options)
+put(0, 0x408, 'Win', plates.Category.Self); hook.Count = 1
+local function lefts() local at = {}; for k = 0, quads(0x408) - 1 do at[#at + 1] = draw.Quads[draw.Entities[0x408].First + k].X0 end; return at end
+render(); local tight = lefts()
+options.letterSpacing[1] = 3; render(); local spaced = lefts()
+assert(#spaced == #tight and spaced[2] - spaced[1] == tight[2] - tight[1] + 3 and spaced[3] - spaced[1] == tight[3] - tight[1] + 6,
+    'Letter Spacing 3: each letter 3 px further on than the one before')
+assert(spaced[1] == tight[1] - 3, 'the name still centred: the 6 px are shared either side')
+options.nameFormat[1] = '[name: spacing=1]'; render(); local own = lefts()
+assert(own[2] - own[1] == tight[2] - tight[1] + 1, 'a token\'s spacing= in place of the setting')
+options.letterSpacing[1] = 99; custom.Settle(options); assert(options.letterSpacing[1] == 10, 'kept within 0 to 10')
+options.letterSpacing[1] = 0; options.nameFormat[1] = '[name]'
+H.print('Letter Spacing: letters moved apart, centred, a token\'s own spacing, kept within bounds', true)

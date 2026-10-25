@@ -29,8 +29,11 @@ assert(format.Compile('[ ICONS : space = 4 ]')[1].space == 4)
 assert(format.Compile('[icons: size=999 gap=-1 space=999]')[1].size == 300)
 assert(format.Compile('[icons: gap=-1]')[1].gap == 0)
 assert(format.Compile('[distance: decimals=9]')[1].decimals == 2)
+assert(format.Compile('[name: spacing=2]')[1].spacing == 2 and format.Compile('[level: spacing=99]')[1].spacing == 10
+    and format.Compile('[distance: spacing=-3]')[1].spacing == 0, 'spacing= on name, level and distance, kept within 0 to 10')
+assert(format.Serialize(format.Compile('[name: spacing=3, space=4]')) == '[name: space=4, spacing=3]', 'spacing= written back')
 for _, bad in ipairs({ '[name: nope=4]', '[level: decimals=2]', '[icons: size=oops]',
-    '[icons: space=1e999]', '[name:color=nocolour]', '[name:]', '[distance:decimals=nan]' }) do
+    '[icons: space=1e999]', '[name:color=nocolour]', '[name:]', '[distance:decimals=nan]', '[icons: spacing=2]', '[aggro: spacing=2]' }) do
     assert(format.Compile(bad)[1].text == bad, 'invalid/unsupported modifiers must remain literal: ' .. bad)
 end
 assert(format.Compile('[name:yellow]')[1].color == 0xFFFFE040, 'legacy colour syntax must remain supported')

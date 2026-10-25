@@ -238,6 +238,8 @@ function settings.DrawSettings(options, save)
         end
         controls.Slider('Subtarget Size (%)', '##name.subtargetScale', options.subtargetScale, 50, 200, '%d%%',
             tips.Get('name.appearance.subtarget_size'));
+        controls.Slider('Letter Spacing (px)', '##name.letterSpacing', options.letterSpacing, 0, 10, '%d px',
+            tips.Get('name.appearance.letter_spacing'));
         controls.Outline(options.outline, 'Text Outline (px)');
         controls.Outline(options.iconOutline, 'Icon Outline (px)', 'iconOutline', tips.Get('name.appearance.icon_outline'));
         controls.Slider('Icon Outline Opacity (%)', '##name.iconOutlineOpacity', options.iconOutlineOpacity, 0, 100, '%d%%',

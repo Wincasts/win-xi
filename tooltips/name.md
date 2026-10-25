@@ -115,6 +115,12 @@ Location: Names → General Name Appearance
 
 Size of the name under the subtarget cursor while choosing a target. 100% is normal size.
 
+## name.appearance.letter_spacing
+Label: Letter Spacing (px)
+Location: Names → General Name Appearance
+
+Extra space between the letters of every name, in pixels at the name's largest; it shrinks with the name. 0 is the font's own spacing. A [name], [level] or [distance] token's spacing= option sets its own, e.g. [name: spacing=2].
+
 ## name.appearance.icon_outline
 Label: Icon Outline (px)
 Location: Names → General Name Appearance
