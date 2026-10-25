@@ -73,7 +73,8 @@ removes it, while no menu of the game's is open.
 its hand at where the game's own icons would be, which is not where the bar's are once they are a
 size of their own. With the plugin, the game's hand is put out of sight and buff draws it again at the
 left of the status the game's cursor is on, pointing at it as the game's menus do: the game's own
-animated hand from its menu DAT, as tall as the icons, anchored or dragged. Where the hand cannot be
+animated hand from its menu DAT, anchored or dragged. **Cursor Size** is how tall the hand is, as a
+share of an icon's height (60% to begin with). Where the hand cannot be
 read, the status has winxi's highlight round it instead (the controller's: a line and a fainter glow
 outside it). The selector is still the game's: its keys and the controller move the cursor,
 and its confirm removes the status the cursor is on, as it always has. A click on an icon removes
