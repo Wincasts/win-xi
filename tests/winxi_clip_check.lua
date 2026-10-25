@@ -1,7 +1,8 @@
 -- luajit tests/winxi_clip_check.lua
 -- A clip opened past a window (winxi.clip) is kept on the screen: a window's title, shadow and controller
 -- highlight, with the window at or past the screen's edge, never push a clip off it, which Direct3D 8 turns
--- into a refused viewport and the title stretched over the whole screen.
+-- into a refused viewport and the title stretched over the whole screen. A title's clip is the whole screen
+-- itself (clip.Screen): one of its own, on the screen, was still seen stretched.
 package.path = 'addons/libs/?.lua;' .. package.path
 local look = { FrameTitles = true, TitleStyle = 'outline', TitleColor = { 1, 1, 1, 1 }, TitleOffsetX = 8,
     TitleOffsetY = 0, TitleSize = 0, ShadowEnabled = true, ShadowOpacity = 50, ShadowOffset = 4, ShadowBlur = 3,
@@ -62,15 +63,32 @@ reset()
 assert(clip.Push(list, { 10, 10 }, { 20, 20 }) == true); list:PopClipRect()
 assert(clips[1][1] == 10 and clips[1][3] == 20, 'on the screen: as given')
 
+-- clip.Screen: the whole screen where any of what is drawn is on it, nothing where none is
+reset()
+assert(clip.Screen(list, { 300, 300 }, { 360, 320 }) == true); list:PopClipRect()
+assert(clips[1][1] == 0 and clips[1][2] == 0 and clips[1][3] == 1280 and clips[1][4] == 720, 'the whole screen')
+reset()
+assert(clip.Screen(list, { -100, -100 }, { -10, -10 }) == false and #clips == 0, 'wholly off the screen: nothing pushed')
+
+-- a title's clip is the whole screen, wherever its window is: a clip of its own, wholly on the screen,
+-- was still seen stretched over it, and the whole screen's is drawn as it is whatever viewport it gets
+local function wholeScreen(what)
+    onScreen(what)
+    for _, c in ipairs(clips) do
+        assert(c[1] == 0 and c[2] == 0 and c[3] == display.x and c[4] == display.y, what .. ': the whole screen')
+    end
+end
+winX, winY = 300, 300
+reset(); titles.Draw('Alliance 2'); wholeScreen('title in the middle')
 -- a title on a window at the top of the screen: half of it above, before, off the screen
 winX, winY = 100, 0
-reset(); titles.Draw('Party'); onScreen('title at the top'); assert(drawn > 0, 'the title is still drawn')
+reset(); titles.Draw('Party'); wholeScreen('title at the top'); assert(drawn > 0, 'the title is still drawn')
 -- dragged off the left, the title at its right edge still partly on the screen
 winX, winY = -150, 50
-reset(); titles.Draw('Party'); onScreen('title off the left')
+reset(); titles.Draw('Party'); wholeScreen('title off the left')
 -- dragged off the right, the title across the edge
 winX, winY = 1100, 50
-reset(); titles.Draw('Party'); onScreen('title off the right')
+reset(); titles.Draw('Party'); wholeScreen('title off the right')
 -- wholly above the screen: nothing drawn, nothing pushed, the title's font let go
 winX, winY = 100, -200
 look.TitleSize = 20
@@ -80,7 +98,7 @@ look.TitleSize = 0
 -- the break style's haze too
 look.TitleStyle = 'breakshadow'
 winX, winY = 0, 0
-reset(); titles.Draw('Party'); onScreen('break with shadow at the corner')
+reset(); titles.Draw('Party'); wholeScreen('break with shadow at the corner')
 look.TitleStyle = 'outline'
 
 -- a captured shadow beside a window at the screen's edges
@@ -92,4 +110,4 @@ winX, winY = 1400, 800
 reset(); shadow.Draw(true)
 assert(#clips == 0 and drawn == 0 and depth == 0, 'shadow wholly off the screen: nothing drawn')
 
-print('Winxi clip: titles, shadows and clips kept on the screen at every edge passed')
+print('Winxi clip: clips kept on the screen at every edge, titles clipped to the whole screen, passed')

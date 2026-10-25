@@ -90,6 +90,8 @@
 -- 49: nameplates.Feature.SoftTexture; Quad's softRect on a textured quad too (namehook 1.37)
 -- 50: clip.Push, a clip opened past a window kept on the screen; titles, shadows and the controller
 --     highlight go through it, so a window at the screen's edge no longer has them stretched over the screen
+-- 51: clip.Screen, the whole screen as the clip for what reaches past its window; a title's clip is the whole
+--     screen, as one of its own, on the screen, was still seen stretched over it
 return {
-    Number = 50,
+    Number = 51,
 };

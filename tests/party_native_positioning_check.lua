@@ -30,14 +30,25 @@ local places,moves=0,0
 organize.Place=function() places=places+1 end
 organize.Track=function() end
 imgui.SetWindowPos=function() moves=moves+1 end
+local bit,begun=require('bit'),nil
+-- the harness numbers imgui's flags one after another: NoMove a bit of its own, for its own to be seen
+local noMove=ImGuiWindowFlags_NoMove
+ImGuiWindowFlags_NoMove=0x100000
+local begin=imgui.Begin
+imgui.Begin=function(name,open,flags) begun=flags or 0; return begin(name,open,flags) end
 options.automaticPositioning[1]=false
 windows.UpdatePositions()
 windows.Draw(windows.List.party2,function() end)
 assert(places==1 and moves==0,'ordinary manual placement remains in use')
+assert(bit.band(begun,ImGuiWindowFlags_NoMove)==0,'a manually placed window can be dragged')
 options.automaticPositioning[1]=true
 windows.UpdatePositions(250,80,200)
 windows.Draw(windows.List.party2,function() end)
 assert(places==1 and moves==1,'old native flags do not disable ordinary automatic placement')
+-- placed after Begin, so a drag would lay it and its clip out where it was taken, the window drawn back in
+-- its place cut to that clip: not to be dragged
+assert(bit.band(begun,ImGuiWindowFlags_NoMove)~=0,'an automatically placed window cannot be dragged')
+imgui.Begin,ImGuiWindowFlags_NoMove=begin,noMove
 local widgets=require('winxi.widgets')
 local headers={}
 widgets.Header=function(text) headers[#headers+1]=text; return true end

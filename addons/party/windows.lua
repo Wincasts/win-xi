@@ -180,7 +180,9 @@ function windows.Draw(window, content, wanted, growFrom)
     local section = options[window.section]
     if automatic or defaultAnchored then
         automaticWindows[window.name] = true
-        if defaultAnchored then flags=bit.bor(flags,ImGuiWindowFlags_NoMove) end
+        -- placed by SetWindowPos after Begin, so not to be dragged: imgui would lay the window and its clip
+        -- out where the drag took it, and the window, drawn back in its place, be cut to that clip
+        flags=bit.bor(flags,ImGuiWindowFlags_NoMove)
     else
         organize.Place(window.name, section[window.pos])
         if automaticWindows[window.name] then
