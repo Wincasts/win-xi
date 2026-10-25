@@ -527,8 +527,6 @@ function statuses.DrawSettings(options, save)
     end
     controls.EndSection();
     controls.EndLayout();
-    controls.Help('Help / Examples', '##name.statusHelp',
-        tips.Get('name.statuses.help'));
 
     if (changed and save ~= nil) then
         save();

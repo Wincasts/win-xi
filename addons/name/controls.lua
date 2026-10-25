@@ -16,6 +16,11 @@ function controls.Width(width)
     imgui.SetNextItemWidth(uniformWidth or width or 260);
 end
 
+-- The width left for a control with something of the given width beside it on its row
+function controls.WidthBeside(beside)
+    imgui.SetNextItemWidth((uniformWidth or 260) - beside - imgui.GetStyle().ItemSpacing.x);
+end
+
 function controls.BeginLayout(key, width, longestLabel)
     local size = imgui.GetFontSize();
     local known = layouts[key];
@@ -58,15 +63,6 @@ end
 -- Compact expandable help/advanced content within the current section.
 function controls.More(label, id)
     return imgui.TreeNode(label .. id);
-end
-
-function controls.Help(label, id, text)
-    if (controls.More(label, id)) then
-        imgui.PushTextWrapPos((layout and layout.right or 400) + 24);
-        imgui.Text(text);
-        imgui.PopTextWrapPos();
-        imgui.TreePop();
-    end
 end
 
 function controls.Input(label, id, value, minimum, maximum, help)

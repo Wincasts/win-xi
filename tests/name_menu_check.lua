@@ -26,7 +26,10 @@ local function record(id)
 end
 imgui.Checkbox, imgui.InputInt, imgui.SliderInt = record, record, record
 imgui.InputText, imgui.BeginCombo, imgui.RadioButton, imgui.Button = record, record, record, record
-imgui.TreeNode = function(id) ids[id] = true; return expanded[id] == true end
+imgui.TreeNode = function(id)
+    assert(not id:find('Help / Examples', 1, true), 'no Help / Examples dropdowns: ' .. id)
+    ids[id] = true; lastId = id; return expanded[id] == true
+end
 imgui.TreePop = function() end
 imgui.BeginDisabled = function(value)
     disabledStack[#disabledStack + 1] = disabled
@@ -52,7 +55,7 @@ H.command('/name dev'); H.command('/name'); clear(); H.frames(1); H.command('/na
 assert(table.concat(tabs, '|') == 'General|Names|Health Bars|Cast Bars|Check Details|Statuses|Visibility|NM Tracking', '/name dev shows NM Tracking')
 H.command('/name dev'); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(tabs, '|') == 'General|Names|Health Bars|Cast Bars|Check Details|Statuses|Visibility', 'a second /name dev hides it')
-assert(table.concat(headers, '|') == 'General Name Appearance|Crowd Decluttering|Distance Thresholds|Player Names|Enemy Names|NPC Names|Diagnostics')
+assert(table.concat(headers, '|') == 'General Name Appearance|Distance Thresholds|Player Names|Enemy Names|NPC Names|Diagnostics')
 assert(ids['##name.font'] and ids['##name.fontBold'] and ids['Smooth Font##name.fontSmooth'] and ids['##name.subtargetScale'])
 for index, id in ipairs(order) do
     if id == '##name.fontBold' then
@@ -62,8 +65,16 @@ end
 assert(ids['##name.fontSize'] and ids['##name.minSize'], 'shared size controls belong in General')
 assert(ids['0##name.iconOutline0'] and ids['3##name.iconOutline3'] and ids['##name.iconOutlineOpacity'])
 assert(options.iconOutline[1] == 1 and options.iconOutlineOpacity[1] == 100)
-assert(ids['##name.crowdDeclutter'] and ids['##name.distanceColours'])
-assert(disabledIds['##name.crowdThreshold'] and disabledIds['##name.distanceWarning'], 'opt-in policy controls start disabled')
+assert(ids['##name.distanceColours'] and not ids['##name.crowdDeclutter'], 'Crowd Decluttering is in Visibility')
+assert(disabledIds['##name.distanceWarning'], 'opt-in policy controls start disabled')
+for _, key in ipairs({ 'nameFormat', 'monsterFormat', 'npcFormat' }) do
+    local reset = 'Reset##name.' .. (key == 'monsterFormat' and 'resetFormat' or ('reset.' .. key))
+    for index, id in ipairs(order) do
+        if id == '##name.' .. key then
+            assert(order[index + 1] == reset and locations[reset] == locations[id], 'Reset beside ' .. key)
+        end
+    end
+end
 local outlineOptions = custom.Defaults({})
 outlineOptions.iconOutline, outlineOptions.iconOutlineOpacity = {9}, {-1}
 custom.Settle(outlineOptions)
@@ -109,9 +120,19 @@ for _, field in ipairs({ 'showHealthBar', 'healthBarsCombatOnly', 'healthBarWidt
 end
 H.print('Names: shared General text controls, per-category colour overrides, no obsolete toggles', true)
 
+local tokens = {
+    nameFormat = { 'name', 'icons', 'distance' },
+    monsterFormat = { 'name', 'level', 'aggro', 'checked', 'letters', 'distance' },
+    npcFormat = { 'name', 'icons', 'distance' },
+}
 for _, key in ipairs({ 'nameFormat', 'monsterFormat', 'npcFormat' }) do
     assert(not ids['Tokens & Examples##name.formatHelp.' .. key], 'token dropdown must be absent')
-    local tip = assert(help['##name.' .. key], 'format editor must have (?) help')
+    local tip = assert(help['Reset##name.' .. (key == 'monsterFormat' and 'resetFormat' or ('reset.' .. key))],
+        'format editor must have (?) help after its Reset')
+    for _, token in ipairs(tokens[key]) do
+        assert(tip:find('[' .. token .. ']', 1, true), key .. ' lists [' .. token .. ']')
+    end
+    assert(not tip:find('Options:', 1, true) and not tip:find('decimals', 1, true), 'no options section')
     assert(tip:find('[name]', 1, true) and tip:find('[distance]', 1, true))
     local example = assert(tip:match('Example format:\n([^\n]+)\nExample result:'))
     local compiled = require('format').Compile(example)
@@ -120,9 +141,7 @@ for _, key in ipairs({ 'nameFormat', 'monsterFormat', 'npcFormat' }) do
         assert(part.kind ~= 'text' or not part.text:find('[', 1, true), 'example tokens must parse')
     end
 end
-assert(help['##name.nameFormat']:find('[icons]', 1, true))
-assert(help['##name.monsterFormat']:find('[letters]', 1, true))
-assert(help['##name.npcFormat']:find('Mog House (4.2y)', 1, true))
+assert(help['Reset##name.reset.npcFormat']:find('Mog House (4.2y)', 1, true))
 controls.Mark = mark
 options.showHealthBar[1] = true
 clear(); customSettings.DrawHealthBars(options)
@@ -287,7 +306,8 @@ assert(disabledIds['##name.preset'], 'all other General settings wait for Enable
 options.drawNames[1] = true
 H.print('General: Enable Name first; the preset disabled while off', true)
 H.tab(7); H.command('/name'); clear(); H.frames(1); H.command('/name')
-assert(table.concat(headers, '|') == 'Players|Pets|NPCs & Monsters|Target')
+assert(table.concat(headers, '|') == 'Players|Pets|NPCs & Monsters|Target|Crowd Decluttering')
+assert(ids['##name.crowdDeclutter'] and disabledIds['##name.crowdThreshold'] and locations['##name.crowdHold'] == 'Crowd Decluttering')
 H.command('/name diag on')
 expanded.Diagnostics = true
 H.tab(2); H.command('/name'); clear(); H.frames(1); H.command('/name')

@@ -31,57 +31,44 @@ Whether names of this kind have a health bar.
 Label: Player Format
 Location: Names → Player Names
 
-Format for player names. Tokens:
-[name] - player name.
-[icons] - available game status icons.
+How player names are written. Tokens:
+[name] - the player's name.
+[icons] - the game's player icons (and party role icons, with Party Icons on).
 [distance] - distance in yalms.
+Anything else is written as it is.
 
 Example format:
-[icons: space=4][name] ([distance: decimals=1, color=yellow]y)
-Example result: [status icons] Player Name (12.4y)
-
+[icons][name] ([distance]y)
+Example result: [icons] Player Name (12.4y)
 ## name.format.enemy
 Label: Enemy Format
 Location: Names → Enemy Names
 
-Format for all enemy names, including targeted and checked enemies. Tokens:
-[name] - enemy name.
+How enemy names are written, targeted and checked ones included. Tokens:
+[name] - the enemy's name.
+[level] - the level range the area's tables give, or the exact level once checked.
+[aggro] - the sign of whether it is aggressive, once known.
+[checked] - a magnifying glass once a check has told its level.
+[letters] - its spawn-slot letter, in stable entity-index order; [letter] is the same.
 [distance] - distance in yalms.
-[level] - database level range, or exact level after /check. [level: exact] - only the exact level, once checked.
-[aggro] - aggression/difficulty icon when known.
-[checked] - magnifying glass when the exact level is known from /check.
-[letters] - stable spawn-slot letter; [letter] is an alias.
-Use type=double for AA, AB after Z, or type=single to repeat A-Z.
+Anything else is written as it is; a token with nothing known is left out.
 
 Example format:
-[aggro: space=4]Lv [level]. [name] [letters: type=double] ([distance: decimals=1]y)
-Example result: [aggro icon] Lv 80-82. Goblin Butcher AA (12.4y)
-Remove a token to hide its information; unknown values are omitted.
-
+[aggro] Lv [level]. [name] [letters] ([distance]y)
+Example result: [aggro icon] Lv 80-82. Goblin Butcher A (12.4y)
 ## name.format.npc
 Label: NPC Format
 Location: Names → NPC Names
 
-Format for NPC names. Tokens:
-[name] - NPC name.
+How NPC names are written. Tokens:
+[name] - the NPC's name.
+[icons] - the game's icons, when it gives any.
 [distance] - distance in yalms.
-[icons] - game-supplied icons, when present.
+Anything else is written as it is.
 
 Example format:
-[name: color=cyan] ([distance: decimals=1]y)
+[name] ([distance]y)
 Example result: Mog House (4.2y)
-
-## name.format.options
-Label: Format Options
-Location: Names → All format editors
-
-Options: color=yellow (or #RRGGBB), space=0-64 pixels after non-empty tokens.
-[distance]: decimals=0-2. [icons]: size=25-300 (% of name height), gap=0-24 pixels.
-Separate options with commas, spaces or semicolons. Literal text stays where you type it.
-Enabled state colour overrides take precedence over name/spawn-letter token colours; other explicit token colours are unchanged.
-Legacy [name:yellow] and [#FF8000]text[/] still work.
-Default: {default_format}
-
 ## name.format.reset
 Label: Reset Format
 Location: Names → All format editors
@@ -156,13 +143,6 @@ Location: Names → Player Names
 
 A sign of each party and alliance member's place: Alliance Leader, Party Leader, another party's leader, Alliance Member or Party Member. Drawn where [icons] is in Player Format, before the game's icons or in their place; players outside your party and alliance keep the game's icons. None while you are alone.
 
-## name.enemies.letters_help
-Label: Help / Examples
-Location: Names → Enemy Names
-
-Mob Letters use stable entity-index order, not encounter order. Unknown or renamed slots are not labelled.
-Add [letters] to Enemy Format for single letters, or [letters: type=double] for AA, AB, etc. after Z. No token means no letters. Users comparing letters need matching game files, zone tables and token type.
-
 ## name.enemies.check_enabled
 Label: Enabled
 Location: Check Details → Check Details
@@ -179,21 +159,13 @@ Size of check text and icons relative to the name. Applies to both display style
 Label: Abbreviate Difficulty
 Location: Check Details → Check Details
 
-Use short difficulty labels beside detection/link details. Impossible to Gauge stays ???.
+Use short difficulty labels beside detection/link details: TW, IEP, EP, DC, EM, T, VT and IT. Difficulty shown alone is in full words; Impossible to Gauge stays ???.
 
 ## name.enemies.check_style
 Label: Display Style
 Location: Check Details → Check Details
 
-Choose icons with text, or a text-only description.
-
-## name.enemies.check_help
-Label: Help / Examples
-Location: Check Details → Check Details
-
-Text-only example: TW, Sight Aggro, Link: Goblin (Sight).
-Abbreviations: TW, IEP, EP, DC, EM, T, VT and IT. When difficulty is shown alone, full words are used.
-Detection can include Sight, Sound, Blood, Magic, JA, Scent and true senses. Multiple senses are separated by a slash. Link names the monster family and its known Sight/Hearing detection.
+Choose icons with text, or a text-only description, such as: TW, Sight Aggro, Link: Goblin (Sight). Detection can be Sight, Sound, Blood, Magic, JA, Scent and the true senses, several separated by a slash; Link names the monster family and how it detects.
 
 ## name.npcs.vendor_icons
 Label: Vendor Icons
@@ -283,7 +255,7 @@ Enable Name's custom nameplates. Off: the game draws its own, as namehook sizes 
 Label: Enabled
 Location: Statuses → Display
 
-Show the statuses selected below on visible nameplates.
+Show the statuses selected below on visible nameplates. Your own and your party's statuses come from the game; everyone else's from effects seen in server messages, so effects applied out of sight or before you entered the area may be unknown.
 
 ## name.statuses.icons
 Label: Icons
@@ -344,13 +316,6 @@ Label: Selected Only
 Location: Statuses → Selected Statuses
 
 Lists only the statuses that are ticked.
-
-## name.statuses.help
-Label: Help / Examples
-Location: Statuses
-
-Your own and party statuses come from the game. Everyone else's come from effects observed in server messages; effects applied out of sight or before entering the area may be unknown.
-Custom Icons in /wxi selects the icon set, with game icons as fallback.
 
 ## name.visibility.self
 Label: Own Name
@@ -432,19 +397,19 @@ Writes what Name and the namehook plugin are doing now, and what happened lately
 
 ## name.readability.crowd
 Label: Crowd Decluttering
-Location: Names → Crowd Decluttering
+Location: Visibility → Crowd Decluttering
 
 Optional and off by default. In a sustained crowd, simplify ordinary plates to their name, monster letters and aggro cue. Hide secondary text, player/vendor icons, stars, check details, HP bars and status rows. Never move plates or hide their core name. Your target, subtarget, yourself, party, alliance, own pet, whitelisted/charmed players, tracked NM/placeholders and observed active casters (with Cast Bars enabled) stay fully detailed. A deliberately name-less format remains name-less.
 
 ## name.readability.crowd_threshold
 Label: Crowd Threshold (names)
-Location: Names → Crowd Decluttering
+Location: Visibility → Crowd Decluttering
 
 Enter crowd mode when this many wanted, positive-scale name anchors are inside the output window. This is a crowd estimate, not overlap or occlusion detection. Exit only at three fewer names, and apply Hold Time both ways.
 
 ## name.readability.crowd_hold
 Label: Hold Time (ms)
-Location: Names → Crowd Decluttering
+Location: Visibility → Crowd Decluttering
 
 The crowd condition must remain stable this long before details are hidden or restored. Combined with the three-name exit margin, this prevents flicker as people cross the screen edge. Targets and other protected plates remain fully detailed immediately.
 

@@ -47,7 +47,7 @@ local selected, bars, tabShown, tabsIn = nil, {}, 1, {}
 local imgui = setmetatable({}, { __index = function(_, k) return function(...)
     calls[k] = (calls[k] or 0) + 1
     if k == 'GetWindowDrawList' or k == 'GetBackgroundDrawList' or k == 'GetForegroundDrawList' then return drawList end
-    if k == 'GetStyle' then return { WindowRounding = 0, FramePadding = { x = 4, y = 2 }, ItemInnerSpacing = { x = 4, y = 4 } } end
+    if k == 'GetStyle' then return { WindowRounding = 0, FramePadding = { x = 4, y = 2 }, ItemInnerSpacing = { x = 4, y = 4 }, ItemSpacing = { x = 8, y = 4 } } end
     if k == 'GetIO' then return { DisplaySize = { x = 1920, y = 1080 } } end
     if k == 'Selectable' then local label, on = ... if on then selected = label:match('^[^#]+') end end
     -- one tab of a tab bar is showing at a time: the first, unless H.tab has chosen another

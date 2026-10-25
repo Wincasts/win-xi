@@ -114,18 +114,19 @@ statuses) is turned on and off in its own tab, with **Enabled** at the top.
   before the game's icons; Replace, it takes their place. Players outside your party and alliance keep
   the game's icons, and there is none while you are alone. Who leads is read from the party's memory.
 - **Enemy Names:** a directly editable **Enemy Format**. Existing enemy strings are preserved;
-  Reset Format restores `[aggro] [name] [letters]` for ordinary, targeted and
+  Reset restores `[aggro] [name] [letters]` for ordinary, targeted and
   checked enemies alike.
 - **NPC Names:** a directly editable **NPC Format** for non-combat NPCs, independent
   of player/enemy formats. Default: `[name]`.
   **Vendor Icons** (on) draws a coin (`assets/special/vendor.png`) before the name of every NPC that
   sells: gil shops, guild merchants and outpost vendors. The list is `vendor_list.lua`, by area and
   name, made from the Phoenix server's NPC scripts by `tools/build_name_vendors.py`.
-- Each category has **Reset Format**. Hover the format editor's **(?)** for its
-  token list, token options, a complete example format and sample output; there is
-  no separate Tokens & Examples dropdown. Player/NPC strings support `[name]`,
-  `[distance]`, `[icons]`, literal text and colours; enemies additionally support
-  `[level]`, `[aggro]`, `[checked]`, `[letters]`.
+- Each format has its **Reset** button on the same row, after the editor. Hover the
+  **(?)** for every token that kind of name can have, an example format and its
+  result; the token options are under [Token options](#token-options). Player and NPC
+  formats have `[name]`, `[icons]` and `[distance]`; enemy formats have `[name]`,
+  `[level]`, `[aggro]`, `[checked]`, `[letters]` and `[distance]`. There are no Help /
+  Examples dropdowns: what they said is in the (?) beside the setting it is about.
 - **Health Bars**, a tab of its own, has one shared **Enabled** toggle,
   **Combat Only**, and shared **Bar Width/Height** for HP and cast rows, including pets,
   trusts and NPCs. Dimensions and Combat Only stay visible but disabled while bars
@@ -283,7 +284,8 @@ python3 tools/build_name_cast_times.py --server references/Phoenix
 
 ### Optional readability policies
 
-Both additions are **off by default**, under Names. They do not move plate anchors,
+Both additions are **off by default**: Crowd Decluttering at the bottom of the Visibility tab,
+Distance Thresholds under Names. They do not move plate anchors,
 change font size or affect saved formats, and disabling them restores normal presentation.
 
 **Crowd Decluttering** counts wanted, positive-scale, nontransparent anchors projected

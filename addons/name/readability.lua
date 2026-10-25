@@ -103,9 +103,10 @@ function readability.Distance(options, written, identity)
     return band==2 and rgb(options.distanceDangerColor) or (band==1 and rgb(options.distanceWarningColor) or nil);
 end
 function readability.Diagnostics() return ('%d on-screen anchors; decluttering %s'):format(count,active and 'active' or 'inactive'); end
-function readability.DrawSettings(options)
+-- Crowd Decluttering, at the bottom of the Visibility tab
+function readability.DrawCrowd(options)
     local controls, tips = require('controls'), require('winxi.tips');
-    local imgui, widgets = require('imgui'), require('winxi.widgets');
+    local imgui = require('imgui');
     if controls.Section('Crowd Decluttering', '##name.crowdOptions') then
         controls.Checkbox('Enabled', '##name.crowdDeclutter', options.crowdDeclutter, tips.Get('name.readability.crowd'));
         imgui.BeginDisabled(not options.crowdDeclutter[1]);
@@ -114,6 +115,11 @@ function readability.DrawSettings(options)
         imgui.EndDisabled();
     end
     controls.EndSection();
+end
+-- Distance Thresholds, in the Names tab
+function readability.DrawDistance(options)
+    local controls, tips = require('controls'), require('winxi.tips');
+    local imgui, widgets = require('imgui'), require('winxi.widgets');
     if controls.Section('Distance Thresholds', '##name.distanceOptions') then
         controls.Checkbox('Distance Colours', '##name.distanceColours', options.distanceColours, tips.Get('name.readability.distance'));
         imgui.BeginDisabled(not options.distanceColours[1]);
