@@ -6,6 +6,7 @@
 -- the shadow switched off it costs one check.
 local imgui = require('imgui');
 local theme = require('winxi.theme');
+local clip = require('winxi.clip');
 
 local shadow = {};
 
@@ -26,8 +27,9 @@ end
 local function Exterior(drawList, left, top, right, bottom, x, y, w, h, offset, layers, step, packed)
     if right <= left or bottom <= top then return; end
     clipMin[1], clipMin[2], clipMax[1], clipMax[2] = left, top, right, bottom;
-    -- Replace the content clip: the shadow is deliberately outside the window.
-    drawList:PushClipRect(clipMin, clipMax, false);
+    -- Replace the content clip: the shadow is deliberately outside the window. Kept on the screen
+    -- (winxi.clip), and nothing drawn where none of it is.
+    if not clip.Push(drawList, clipMin, clipMax) then return; end
     Layers(drawList, x, y, w, h, offset, layers, step, packed);
     drawList:PopClipRect();
 end

@@ -17,7 +17,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 1
+local winxiNeeded = 50
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -34,6 +34,7 @@ local imgui = require('imgui')
 local widgets = require('winxi.widgets')
 local tooltip = require('winxi.tooltip')
 local game = require('winxi.game')
+local clip = require('winxi.clip')
 local shell = require('winxi.shell')
 local packets = require('winxi.packets')
 local controller = require('winxi.controller')
@@ -1502,16 +1503,19 @@ local function DrawBag(group, key)
         end
         if item == hovered or (itemMenu.open and item == itemMenu.item) or (drag.moving and item == drag.item) then
             local x, y = Spot(left, top, i)
-            drawList:PushClipRect(outline.min, outline.max, false)
-            AddHighlight(x, y, iconSize, drawList)
-            drawList:PopClipRect()
+            -- on the screen (winxi.clip): a clip off it would stretch the highlight over the whole screen
+            if clip.Push(drawList, outline.min, outline.max) then
+                AddHighlight(x, y, iconSize, drawList)
+                drawList:PopClipRect()
+            end
         end
     end
 
     if pad.active then
-        drawList:PushClipRect(outline.min, outline.max, false)
+        -- the grid is laid out even where none of it is on the screen, and only what is drawn is clipped
+        local clipped = clip.Push(drawList, outline.min, outline.max)
         PadItems(items, group, left, top, drawList, windowY)
-        drawList:PopClipRect()
+        if clipped then drawList:PopClipRect() end
     end
 end
 

@@ -43,7 +43,8 @@ H.bag(5, 30, { })
 H.packet(0x00A); H.frames(10)
 
 -- the outline of the item under the mouse is drawn with the grid's clip widened by 3 (the grid,
--- here, at 100, 200 and 400 by 4000), so it is not cut off along the grid's edges
+-- here, at 100, 200 and 400 by 4000), so it is not cut off along the grid's edges, and cut to the
+-- screen (1920 by 1080, winxi.clip)
 local clips = {}
 local draw = imgui.GetWindowDrawList()
 draw.PushClipRect = function(_, minimum, maximum, intersect) clips[#clips + 1] = { minimum[1], minimum[2], maximum[1], maximum[2], intersect } end
@@ -51,9 +52,9 @@ drawn = {}; H.frames(1)
 check('no menu until the item is right-clicked', #drawn == 0)
 local widened = false
 for _, clip in ipairs(clips) do
-    widened = widened or (clip[1] == 97 and clip[2] == 197 and clip[3] == 503 and clip[4] == 4203 and clip[5] == false)
+    widened = widened or (clip[1] == 97 and clip[2] == 197 and clip[3] == 503 and clip[4] == 1080 and clip[5] == false)
 end
-check('the hovered item\'s outline is clipped to the grid widened by 3', widened)
+check('the hovered item\'s outline is clipped to the grid widened by 3, on the screen', widened)
 pressed = 1; H.frames(1); pressed = nil
 drawn = {}; H.frames(1)
 check('right-click opens the item\'s menu', table.concat(drawn, ',') == 'Trade,Equip to Head,Move,Drop,Cancel')

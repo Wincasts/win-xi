@@ -1,8 +1,8 @@
 addon.name = 'chatbox'
 addon.author = 'win'
-addon.version = '0.15.0'
+addon.version = '0.15.1'
 addon.desc = 'WinXI native-backed chat, input and expanded history, with an optional chat-owned three-slot info panel.'
-local winxiNeeded = 32
+local winxiNeeded = 50
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -18,6 +18,7 @@ local bit = require('bit')
 local shell = require('winxi.shell')
 local window = require('winxi.window')
 local theme = require('winxi.theme')
+local clip = require('winxi.clip')
 local widgets = require('winxi.widgets')
 local controller = require('winxi.controller')
 local fonts = require('winxi.fonts')
@@ -796,10 +797,13 @@ local panelOnlyOptions = {
 local white, light = { 1, 1, 1, 1 }, { 1, 1, 1, 0.07 }
 
 -- The game's right-pointing cursor (as party's), its point at the box's left edge on the given row;
--- drawn out past the window's edge, so the clip is opened. '>' where the art cannot be read.
+-- drawn out past the window's edge, so the clip is opened, as far as the screen (winxi.clip). '>' where the
+-- art cannot be read.
+local cursorFrom, cursorTo = { 0, 0 }, { 0, 0 }
 local function DrawCursor(list, edge, rowTop, fontSize)
     local handle, art = cursorArt.Get()
-    list:PushClipRect({ 0, 0 }, { edge + 4096, rowTop + 4096 }, false)
+    cursorTo[1], cursorTo[2] = edge + 4096, rowTop + 4096
+    if not clip.Push(list, cursorFrom, cursorTo) then return end
     if handle then
         local height = fontSize + 2
         local width = height * art[5] / art[6]

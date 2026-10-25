@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.15.1
+
+- The chat cursor's clip is kept on the screen (winxi.clip, winxi 50): it reached 4096 pixels past the box,
+  off the screen, where Direct3D 8 can stretch what is in a clip over the whole screen.
+
 ## 0.15.0
 
 - Anchor Above Info Panel is removed: chatbox no longer moves the game's command, magic, ability,

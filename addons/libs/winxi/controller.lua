@@ -51,6 +51,7 @@
 local bit = require('bit');
 local imgui = require('imgui');
 local sound = require('winxi.sound');
+local clip = require('winxi.clip');
 
 local controller = {};
 
@@ -451,11 +452,13 @@ function controller.Highlight(binding)
     local rounding = WindowRounding();
 
     -- the window's own list, so that the line sits with the window among the others, opened up to
-    -- take in its very edge; the colour is worked out each time, as it takes in the window's fade
+    -- take in its very edge (on the screen: winxi.clip); the colour is worked out each time, as it takes in the window's fade
     local drawList = imgui.GetWindowDrawList();
     clipMin[1], clipMin[2] = x - 1, y - 1;
     clipMax[1], clipMax[2] = x + w + 1, y + h + 1;
-    drawList:PushClipRect(clipMin, clipMax, false);
+    if not clip.Push(drawList, clipMin, clipMax) then
+        return true;
+    end
 
     -- one pixel, laid half a pixel in so it falls on the edge's own pixels and is not smeared over two
     highlightMin[1], highlightMin[2] = x + 0.5, y + 0.5;
