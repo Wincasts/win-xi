@@ -11,9 +11,8 @@ addon.link    = 'https://github.com/Wincasts/win-xi';
 --   /buff           shows or hides the window (it only appears while there is a status to show)
 --   /buff config    opens or closes the settings
 --
--- In the game's buff selector, with the plugin loaded, the status the game's cursor is on has
--- winxi's highlight round it in place of the game's hand, which points at where the game's icons would
--- be; a click on an icon then removes it. The game's own confirm (a controller's A, Enter) removes the
+-- In the game's buff selector, with the plugin loaded, the game's hand (which points at where the
+-- game's icons would be) is drawn again at the left of the status the game's cursor is on; a click on an icon then removes it. The game's own confirm (a controller's A, Enter) removes the
 -- one its cursor is on, as it always has: the controller is the game's.
 --
 -- Anchored to the game's icons' place, with the buffhook plugin loaded, the bar is drawn by the
@@ -51,6 +50,7 @@ local fade = require('winxi.fade');
 local style = require('winxi.style');
 local controller = require('winxi.controller');
 local anchor = require('winxi.anchor');
+local hand = require('winxi.cursor');
 local bit = require('bit');
 
 local windowName = 'winxi.buff';
@@ -234,6 +234,7 @@ end
 -- a window: a line, and a fainter one just outside it
 local cursorGlow = { 0, 0, 0, 0 };
 local cursorMin, cursorMax = { 0, 0 }, { 0, 0 };
+local handUvA, handUvB = { 0, 0 }, { 0, 0 };
 
 local function GlowColor()
     local color = controller.HighlightColor;
@@ -241,7 +242,33 @@ local function GlowColor()
     return cursorGlow;
 end
 
+-- The game's hand, as its menus point with it (the right-pointing anc_s, read from its menu DAT),
+-- at the left of the status the selector's cursor is on: its fingertip, the pivot, at the icon's
+-- left edge, the hand as tall as the icon and in the middle of its height. nil where the hand could
+-- not be read: the highlight is drawn round the status instead.
+local handLeft, handTop, handRight, handBottom = 0, 0, 0, 0;
+local function HandAt(x, y, height)
+    local handle, frame = hand.Get();
+    if handle == nil then
+        return nil;
+    end
+    local corners, scale = frame.corners, height / frame[6];
+    local pivotY = y + (height - (corners[8] + corners[2]) * scale) / 2;
+    handLeft, handTop = x + corners[1] * scale, pivotY + corners[2] * scale;
+    handRight, handBottom = x + corners[7] * scale, pivotY + corners[8] * scale;
+    return handle, frame;
+end
+
 local function DrawCursor(drawList, x, y, width, height)
+    local handle, frame = HandAt(x, y, height);
+    if handle ~= nil then
+        cursorMin[1], cursorMin[2], cursorMax[1], cursorMax[2] = handLeft, handTop, handRight, handBottom;
+        handUvA[1], handUvA[2], handUvB[1], handUvB[2] = frame[1], frame[2], frame[3], frame[4];
+        -- over the window's edge, where it points at a row's first status
+        local over = imgui.GetForegroundDrawList ~= nil and imgui.GetForegroundDrawList() or drawList;
+        over:AddImage(handle, cursorMin, cursorMax, handUvA, handUvB, white);
+        return;
+    end
     cursorMin[1], cursorMin[2], cursorMax[1], cursorMax[2] = x - 2, y - 2, x + width + 2, y + height + 2;
     drawList:AddRect(cursorMin, cursorMax, imgui.GetColorU32(GlowColor()), 2, 0, 2);
     cursorMin[1], cursorMin[2], cursorMax[1], cursorMax[2] = x, y, x + width, y + height;
@@ -509,6 +536,12 @@ local function WriteHooked(options, found, alpha)
     Note(cellWidth); Note(cellHeight); Note(perRow); Note(width); Note(height); Note(useOwn);
     Note(sx); Note(sy); Note(nudgeX); Note(nudgeY); Note(iconColor); Note(textColor); Note(edgeColor);
     Note(cursorIndex or 0); Note(texture or 0); Note(glyphsMade); Note(baked ~= nil); Note(align);
+    -- the hand's frame, as it moves: written afresh with each, while the selector is open
+    local handle, handFrame = nil, nil;
+    if cursorIndex ~= nil then
+        handle, handFrame = hand.Get();
+    end
+    Note(handFrame or false);
     local sheet = useOwn and icons.MixedSheet() or icons.GameSheet();
     for index, status in ipairs(current) do
         Note(status.id);
@@ -532,7 +565,7 @@ local function WriteHooked(options, found, alpha)
         local y = nudgeY + math.floor((index - 1) / perRow) * (cellHeight + rowGap);
 
         local left = x + (cellWidth - width) / 2;
-        if index == cursorIndex then
+        if index == cursorIndex and handle == nil then
             SolidFrame(left - 4, y - 4, left + width + 4, y + height + 4, 2, ARGB(GlowColor(), alpha), sx, sy);
             SolidFrame(left - 2, y - 2, left + width + 2, y + height + 2, 2, ARGB(controller.HighlightColor, alpha), sx, sy);
         end
@@ -557,6 +590,15 @@ local function WriteHooked(options, found, alpha)
             local pen = math.floor(x + (cellWidth - LabelWidth(label)) / 2);
             WriteWords(baked, label, pen, y + height + timerGap, sx, sy, textColor, edgeColor, fontSlot);
         end
+    end
+    -- the hand over the icons, at the left of the cursor's status, over the one before it
+    if handle ~= nil and cursorIndex <= count then
+        local index = cursorIndex;
+        local x = nudgeX + RowShift(index, count, perRow, cellWidth, span, align) + ((index - 1) % perRow) * (cellWidth + gap);
+        local y = nudgeY + math.floor((index - 1) / perRow) * (cellHeight + rowGap);
+        HandAt(x + (cellWidth - width) / 2, y, height);
+        hook.Quad(handLeft * sx, handTop * sy, handRight * sx, handBottom * sy,
+            handFrame[1], handFrame[2], handFrame[3], handFrame[4], iconColor, hook.Texture(handle));
     end
     return true;
 end
