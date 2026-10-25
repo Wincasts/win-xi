@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.71
+
+- `[level: nocombat]`: the level is left out while the monster is in combat (engaged and alive, as Combat Only health bars have it), and written again once it is not, its corpse included. Typed text round it stays. `nocombat=false` is the same as leaving it off.
+- Tests: the option parsed, only on `[level]`, written back; the level left out in combat, back out of it and on the corpse.
+
 ## 1.70
 
 - Letter Spacing (px), under General Name Appearance after Subtarget Size: extra space between the letters of every name, 0 to 10 px at the name's largest, shrinking with the name as it goes further off. 0, the font's own spacing, to begin with. Everything in the format line is spaced, typed text included; icons, signs, letter badges, check details and cast text are not.

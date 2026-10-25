@@ -16,7 +16,7 @@
 -- its sign in place of the game's icons for a member; decimals=0..2 on distance; spacing=0..10 on
 -- name, level and distance, screen pixels between its letters in place of the Letter Spacing setting; type=single/double on
 -- [letters] (legacy alias [letter]); exact on [level], the level only once a check has told it, never
--- the database's range. Options may be separated by commas, semicolons or spaces.
+-- the database's range; nocombat on [level], nothing while the monster is in combat (block_rules.lua). Options may be separated by commas, semicolons or spaces.
 --
 -- A colour is #RRGGBB, #RGB or one of the names below.
 --   [name:#FF8000]  [distance:yellow]   that one thing in that colour
@@ -65,11 +65,15 @@ local function parameters(kind, typed, inherited)
         any = true;
         local key, value = entry:match('^(%a+)=(.+)$');
         if (key == nil and kind == 'level' and entry == 'exact') then key, value = 'exact', 'true'; end
+        if (key == nil and kind == 'level' and entry == 'nocombat') then key, value = 'nocombat', 'true'; end
         if (key == nil and kind == 'party' and entry == 'replace') then key, value = 'replace', 'true'; end
         if (key == nil) then key, value = 'color', entry; end
         if (kind == 'level' and key == 'exact') then
             if (value ~= 'true' and value ~= 'false') then return nil; end
             part.exact = value == 'true' or nil;
+        elseif (kind == 'level' and key == 'nocombat') then
+            if (value ~= 'true' and value ~= 'false') then return nil; end
+            part.nocombat = value == 'true' or nil;
         elseif (kind == 'party' and key == 'replace') then
             if (value ~= 'true' and value ~= 'false') then return nil; end
             part.replace = value == 'true' or nil;
@@ -143,7 +147,8 @@ local function parse(text)
                 found.party = found.party or thing == 'party';
                 found.vendor = found.vendor or thing == 'vendor';
                 found.partyReplace = found.partyReplace or (thing == 'party' and part.replace == true);
-                found.rules = found.rules or part.when ~= nil or part.within ~= nil;
+                found.rules = found.rules or part.when ~= nil or part.within ~= nil or part.nocombat == true;
+                found.ruleCombat = found.ruleCombat or part.nocombat == true;
                 found.ruleDistance = found.ruleDistance or part.within ~= nil;
                 found.doubleLetters = found.doubleLetters or (thing == 'letter' and part.type == 'double');
             elseif (color(typed) ~= nil) then
@@ -195,6 +200,7 @@ function format.Serialize(parts, doubleLetters)
             local args = {};
             if (part.color ~= nil) then args[#args + 1] = ('color=#%06X'):format(part.color % 0x1000000); end
             if (part.exact) then args[#args + 1] = 'exact'; end
+            if (part.nocombat) then args[#args + 1] = 'nocombat'; end
             if (part.replace) then args[#args + 1] = 'replace'; end
             for _, field in ipairs({ 'space', 'size', 'gap', 'spacing', 'decimals', 'type', 'when', 'within' }) do
                 local value = field == 'type' and part.kind == 'letter' and doubleLetters and 'double' or part[field];

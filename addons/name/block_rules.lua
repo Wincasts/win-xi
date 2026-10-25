@@ -3,7 +3,8 @@
 --   rules.Normalize(value)        'target+checked+nm+relevant' as typed, in a fixed order, '' for always,
 --                                 or nil for what is no condition
 --   rules.Visible(part, context)  whether the part is written: context is the name's record, with
---                                 ruleTarget, ruleChecked, ruleDistance, monster, words, level and letter
+--                                 ruleTarget, ruleChecked, ruleDistance, ruleCombat, monster, words, level
+--                                 and letter. A [level: nocombat] is not written while ruleCombat is set
 local rules = {};
 rules.Order = { 'target', 'checked', 'nm', 'relevant' };
 local valid = { target = true, checked = true, nm = true, relevant = true };
@@ -32,6 +33,7 @@ local function relevant(part, context)
 end
 function rules.Visible(part, context)
     if (part.within and (context.ruleDistance == nil or context.ruleDistance > part.within)) then return false; end
+    if (part.nocombat and context.ruleCombat) then return false; end
     if (not part.when) then return true; end
     if (part.ruleWhen ~= part.when) then
         part.requireTarget, part.requireChecked = rules.Has(part, 'target'), rules.Has(part, 'checked');

@@ -607,6 +607,7 @@ The older `[name:yellow]` colour shorthand remains supported.
 | `[distance]` | `decimals=0`–`2` | Decimal places; default 1 |
 | `[name]`, `[level]`, `[distance]` | `spacing=0`–`10` | Screen pixels between this token's letters at the name's largest, shrinking with the name, in place of **Letter Spacing** |
 | `[level]` | `exact` | Only the exact level, once the monster is checked: nothing before then, nor for one impossible to gauge, where `[level]` writes the database's range. Text around it stays |
+| `[level]` | `nocombat` | Nothing while the monster is in combat (engaged and alive, as **Combat Only** health bars have it); its level again once it is not. Text around it stays |
 | `[letters]` / `[letter]` | `type=single` / `type=double` | Repeat A–Z, or continue AA, AB, etc. after Z; default single |
 
 ```text
@@ -615,6 +616,7 @@ The older `[name:yellow]` colour shorthand remains supported.
 [icons: space=4][name] ([distance: decimals=2, color=yellow]y)
 [aggro: space=4]Lv [level: color=yellow, space=6][name]
 [name: spacing=2] ([distance: spacing=0]y)
+[aggro] Lv [level: nocombat] [name]
 ```
 
 With no explicit `space`, icons, party signs and the vendor coin use the profile's previous icon spacing (4 px in
