@@ -25,7 +25,7 @@ local text=diag.ReportText()
 for _,secret in ipairs({'SecretCharacter','SecretUser','SecretChat','SecretMonster','C:\\Users','traceback','[name]'}) do
     assert(not text:find(secret,1,true),'privacy leak: '..secret)
 end
-for _,expected in ipairs({'Name 1.74','WinXI','48','1.35','API 1; mask 0x7','Filtered font','Letter badge atlas',
+for _,expected in ipairs({'Name 1.75','WinXI','48','1.35','API 1; mask 0x7','Filtered font','Letter badge atlas',
     'bundled fallback','source failure (details omitted)','Lua errors recorded: 2','texture: 1 brief'}) do
     assert(text:find(expected,1,true),'missing fact: '..expected)
 end

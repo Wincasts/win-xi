@@ -344,3 +344,30 @@ assert(bit.band(softened.Flags, 3) == 3 and bit.band(softened.Reserved, 0xFF) ==
 assert(bit.band(sign.Reserved, 0xFF) == 255, 'the icon\'s edge as Icon Outline Opacity has it')
 options.textOutlineOpacity[1] = 999; custom.Settle(options); assert(options.textOutlineOpacity[1] == 100, 'kept within 0 to 100')
 H.print('Text Outline Opacity: the text\'s edge alone, kept within bounds', true)
+
+-- [space]: a gap of its own, only between two things written
+iconsModule.Place = function(byte) return byte == 0x92 and { 0, 0, 0.1, 0.1 } or realPlace(byte) end
+put(0, 0x408, 'Win', plates.Category.Self); hook.Count = 1
+local function layout(format, text)
+    options.nameFormat[1] = format; ffi.fill(hook.Names[0].Text, 48); ffi.copy(hook.Names[0].Text, text); render()
+    local at, quadsOf = {}, quads(0x408)
+    for k = 0, quadsOf - 1 do local q = draw.Quads[draw.Entities[0x408].First + k]; at[#at + 1] = { x = q.X0, icon = q.Texture == 1 } end
+    local name = nil; for _, q in ipairs(at) do if not q.icon then name = name or q.x end end
+    return { first = at[1].x, name = name, count = quadsOf }
+end
+local tight = layout('[icons: space=0][name]', '\146 Win')
+local gapped = layout('[icons][space: 8][name]', '\146 Win')
+assert(gapped.name - gapped.first == tight.name - tight.first + 8, '[space: 8]: the name 8 px further from the icon')
+assert(gapped.first == tight.first - 4, 'and the line still centred')
+local attribute = layout('[icons: space=8][name]', '\146 Win')
+assert(attribute.first == gapped.first and attribute.name == gapped.name, '[icons][space: 8] as [icons: space=8]: the icons\' own spacing gives way')
+local default = layout('[icons][space][name]', '\146 Win')
+assert(default.name - default.first == tight.name - tight.first + 4, '[space]: 4 px without a size')
+local summed = layout('[icons][space: 3][space: 5][name]', '\146 Win')
+assert(summed.name - summed.first == gapped.name - gapped.first, 'two together are the two sizes')
+local plain = layout('[name]', 'Win')
+assert(layout('[icons][space: 8][name]', 'Win').first == plain.first, 'no icons: no gap before the name')
+assert(layout('[name][space: 8]', 'Win').first == plain.first, 'nothing after: no gap at the end')
+assert(layout('[name][space: 8][distance]', 'Win').first == plain.first, 'nothing written after it: no gap')
+iconsModule.Place = realPlace; options.nameFormat[1] = '[name]'
+H.print('[space]: a gap between icons and name, none at the ends nor beside what writes nothing, two summed', true)

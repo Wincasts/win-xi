@@ -215,6 +215,7 @@ rebuilds promptly release replaced badge atlases rather than waiting for Lua GC.
 | Enemy Format | How an enemy's name is written |
 | `[icons]` | The game's player icons at this position in the string. Omit to hide them; mastery stars are independent |
 | `[icons: size=90, gap=2, space=4]` | Icons at 90% of name height, with 2 px between icons and 4 px after the group. No spacing is reserved when there are no icons |
+| `[space]`, `[space: 8]` | A gap of its own, 4 px or as many screen pixels as given (0–64, `size=` the same), only between two things that are written: none at either end of the line, nor beside a token that writes nothing. `[icons][space: 4][name]` is `[icons: space=4][name]`: an icon token followed by a `[space]` gives up its own spacing |
 | Check Details → Enabled | Under the name of a monster you have checked: how hard a fight it is, what it does, and what it links with. See [What a check shows](#what-a-check-shows) |
 | Check Details → Size (%) | Scale check-detail text and icons from 50% to 125% of the name size; 75% in the preferred defaults. Applies to either layout |
 | Abbreviate Difficulty | On by default: TW, IEP, EP, DC, EM, T, VT and IT alongside aggro/link information. Difficulty alone uses full words; Impossible to Gauge stays ???. Off restores full difficulty names in either layout |
@@ -571,7 +572,8 @@ rank differently.
 Each format is a line of text. In it `[name]` stands for the name, `[distance]` for how
 far the character is from you, in yalms to a tenth, as the game measures it, and `[level]` for the
 levels a monster can be. `[icons]` draws player icons at that point in the string, `[party]` a party
-or alliance member's sign and `[vendor]` the coin of an NPC that sells.
+or alliance member's sign and `[vendor]` the coin of an NPC that sells. `[space]` is a gap of 4 px,
+`[space: N]` one of N: only between two things written, so a member with no icons has none before the name.
 Everything else is written as you type it.
 
 | Format | Written |

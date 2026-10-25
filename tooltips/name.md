@@ -36,6 +36,7 @@ How player names are written. Tokens:
 [party] - a party or alliance member's sign: Alliance Leader, Party Leader, another party's leader, Alliance Member or Party Member. None while you are alone.
 [icons] - the game's player icons.
 [distance] - distance in yalms.
+[space] - a gap: [space: 8] for 8 px, 4 without. Only between two things written.
 Anything else is written as it is.
 
 Options go after a colon, e.g. [name: color=yellow, space=4]:
@@ -60,6 +61,7 @@ How enemy names are written, targeted and checked ones included. Tokens:
 [checked] - a magnifying glass once a check has told its level.
 [letters] - its spawn-slot letter, in stable entity-index order; [letter] is the same.
 [distance] - distance in yalms.
+[space] - a gap: [space: 8] for 8 px, 4 without. Only between two things written.
 Anything else is written as it is; a token with nothing known is left out.
 
 Options go after a colon, e.g. [name: color=yellow, space=4]:
@@ -82,6 +84,7 @@ How NPC names are written. Tokens:
 [vendor] - a coin for an NPC that sells: gil shops, guild merchants and outpost vendors.
 [icons] - the game's icons, when it gives any.
 [distance] - distance in yalms.
+[space] - a gap: [space: 8] for 8 px, 4 without. Only between two things written.
 Anything else is written as it is.
 
 Options go after a colon, e.g. [name: color=yellow, space=4]:

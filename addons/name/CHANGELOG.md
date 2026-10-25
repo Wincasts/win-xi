@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.75
+
+- `[space]`, a gap of its own in a format: `[space]` is 4 px, `[space: N]` (or `size=N`) N screen pixels, 0 to 64, scaled as `space=` is. It is only put between two things written: never at either end of the line, nor beside a token that writes nothing, so `[icons][space: 4][name]` leaves no gap for a player with no icons. Two together are their sizes added. An `[icons]`, `[party]` or `[vendor]` without its own `space=` followed by a `[space]` gives up its own spacing, so `[icons][space: 4][name]` lays out as `[icons: space=4][name]`. `space=` on a token works as before; saved and default formats are unchanged.
+- The format tips list `[space]`.
+- Tests: parsed, clamped and written back; the gap between icon and name, centred; as `space=` would; 4 px without a size; two summed; none without icons, at the end, or before what writes nothing.
+
 ## 1.74
 
 - Text Outline Opacity (%), under General Name Appearance after Text Outline: the outline round text alone (names, levels, distances, check details and cast text) from 0% to 100%, as Icon Outline Opacity is for icons. 100% to begin with, the outline as it was.

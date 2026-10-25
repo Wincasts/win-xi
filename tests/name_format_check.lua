@@ -34,6 +34,12 @@ assert(format.Compile('[name: spacing=2]')[1].spacing == 2 and format.Compile('[
 assert(format.Compile('[aggro: size=200]')[1].size == 200 and format.Compile('[checked: size=10]')[1].size == 25,
     'size= on [aggro] and [checked], kept within 25 to 300')
 assert(format.Serialize(format.Compile('[aggro: size=150, space=4]')) == '[aggro: space=4, size=150]', 'size= written back')
+assert(format.Compile('[space]')[1].kind == 'space' and format.Compile('[space]')[1].size == nil, '[space] a token, its size the default')
+assert(format.Compile('[space: 8]')[1].size == 8 and format.Compile('[space: size=99]')[1].size == 64
+    and format.Compile('[space:0]')[1].size == 0, '[space: N] and size=, kept within 0 to 64')
+assert(format.Compile('[space: wide]')[1].kind == 'text' and format.Compile('[space: yellow]')[1].kind == 'space',
+    'a word is no size (a colour, as on any token, is taken and has nothing to colour)')
+assert(format.Serialize(format.Compile('[icons][space: 6][name]')) == '[icons: space=0][space: size=6][name]', '[space] written back, the icons\' spacing given way to it')
 local calm = format.Compile('Lv [level: nocombat, exact]')
 assert(calm[2].nocombat and calm[2].exact and calm.rules and calm.ruleCombat, '[level: nocombat] a rule of its own')
 assert(format.Compile('[level: nocombat=false]')[1].nocombat == nil and format.Compile('[name: nocombat]')[1].text == '[name: nocombat]',

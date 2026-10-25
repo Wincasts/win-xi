@@ -3,7 +3,7 @@
 -- magnifying glass on a monster its player has checked and [aggro] for the sign that a monster is
 -- aggressive or is not, [letter] for the experimental mob spawn-slot letter, [icons] for player icons,
 -- [party] for a party or alliance member's sign of their place in it, [vendor] for the coin of an NPC
--- that sells, and everything else is written as it is.
+-- that sells, [space] for a gap of its own, and everything else is written as it is.
 --
 --   format.Compile(text)   the line taken apart, kept by the line: a list of parts, each
 --                          { kind = 'text', 'name', 'distance', 'level', 'checked' or 'aggro', text =
@@ -11,6 +11,8 @@
 --                          ('letter', 'icons', 'party' and 'vendor' are also kinds)
 --                          with .distance, .level, .checked, .aggro, .letter, .icons, .party and .vendor
 --                          set if present, and .partyReplace if a [party] says replace
+-- [space], [space: N] or [space: size=N]: N screen pixels (4 without), only between two things written:
+-- not at either end of the line, nor beside a token that writes nothing.
 -- Options: space=N and color=NAME/#RGB on all tokens, and when=target+checked+nm+relevant and
 -- within=N (block_rules.lua); size=N/gap=N on icons; size=N on party, vendor, aggro and checked; replace on [party],
 -- its sign in place of the game's icons for a member; decimals=0..2 on distance; spacing=0..10 on
@@ -35,7 +37,7 @@ format.Colors = {
 };
 
 format.Things = { name = true, distance = true, level = true, checked = true, aggro = true, letter = true, letters = true, icons = true,
-    party = true, vendor = true };
+    party = true, vendor = true, space = true };
 
 -- A colour as it is typed, as 0xFFRRGGBB, or nil if it is not one
 local function color(typed)
@@ -67,6 +69,7 @@ local function parameters(kind, typed, inherited)
         if (key == nil and kind == 'level' and entry == 'exact') then key, value = 'exact', 'true'; end
         if (key == nil and kind == 'level' and entry == 'nocombat') then key, value = 'nocombat', 'true'; end
         if (key == nil and kind == 'party' and entry == 'replace') then key, value = 'replace', 'true'; end
+        if (key == nil and kind == 'space' and tonumber(entry) ~= nil) then key, value = 'size', entry; end
         if (key == nil) then key, value = 'color', entry; end
         if (kind == 'level' and key == 'exact') then
             if (value ~= 'true' and value ~= 'false') then return nil; end
@@ -94,6 +97,7 @@ local function parameters(kind, typed, inherited)
             if (key == 'space') then low, high = 0, 64;
             elseif (key == 'within') then low, high = 1, 100;
             elseif ((kind == 'icons' or kind == 'party' or kind == 'vendor' or kind == 'aggro' or kind == 'checked') and key == 'size') then low, high = 25, 300;
+            elseif (kind == 'space' and key == 'size') then low, high = 0, 64;
             elseif (kind == 'icons' and key == 'gap') then low, high = 0, 24;
             elseif (kind == 'distance' and key == 'decimals') then low, high = 0, 2;
             elseif ((kind == 'name' or kind == 'level' or kind == 'distance') and key == 'spacing') then low, high = 0, 10;
@@ -165,6 +169,15 @@ local function parse(text)
         end
     end
     flush();
+
+    -- an icon token followed by a [space] has that gap in place of the icons' own spacing
+    for index, part in ipairs(found) do
+        local nextPart = found[index + 1];
+        if ((part.kind == 'icons' or part.kind == 'party' or part.kind == 'vendor') and part.space == nil
+                and nextPart ~= nil and nextPart.kind == 'space') then
+            part.space = 0;
+        end
+    end
 
     -- what the font cannot write is left out
     for _, part in ipairs(found) do
