@@ -8,6 +8,7 @@
 #include <algorithm>
 #include "../../drawcontext.h"
 #include "native.h"
+#include "mirror.h"
 #include "skinmodule.h"
 #include "../chat/chat.h"
 #include "../window/mouse.h"
@@ -17,6 +18,7 @@ public:
     NativeLook look;
     DrawContext* ctx=nullptr;
     SkinModule* skin=nullptr;       // a moved draw given the skin's colours
+    const Mirror* mirror=nullptr;   // the group's mirror, for /uihook native to say what it does
     uint8_t* menuManager=nullptr;   // the game's menu manager: the screen's size in the game's units at +80
     std::vector<uint8_t> scaledVertices;  // a draw's vertices, moved
     // /uihook native mouse: the game's mouse given each window where it is drawn (off to begin with). inputHooked: the
@@ -94,6 +96,12 @@ public:
         if (SUCCEEDED(device->GetViewport(&viewport)) && ctx->ScreenSize(device,viewport,size) && look.PanelDue(size[0],size[1],ctx->Frame(),rect))
             NativePanel(rect,look.panelStyle,panel);
         return true;
+    }
+    // How the window being drawn is drawn moved (its group offset, its scale), for the mirror to measure it so; false
+    // where it is drawn where the game puts it
+    bool CurrentMove(NativeTransform& t) {
+        auto* device=ctx->Device(); D3DVIEWPORT8 viewport={}; float size[2]={};
+        return device && SUCCEEDED(device->GetViewport(&viewport)) && ctx->ScreenSize(device,viewport,size) && look.Transform(size[0],size[1],t);
     }
     // /uihook native: the window being drawn taken, where it is one named, for its draws to be moved and tinted
     NativeLook::Saved Enter(void* window) {
@@ -232,6 +240,13 @@ public:
             if (look.Grouping()) {
                 snprintf(line,sizeof(line),"  group over the chat log: %.0f, %.0f; the log's top %d at its left %d (%s)",look.groupX,look.groupY,
                     look.logTop,look.logLeft,look.logFrame ? "seen" : "not drawn yet");
+                chat->Write(0,false,line);
+            }
+            if (mirror && mirror->shared) {
+                const MirrorShared& m=*mirror->shared;
+                snprintf(line,sizeof(line),"  the group's mirror (ABI 6): %s; %s; %u windows drawn by an addon since loading; the last frame published %u windows, %u runs, %u quads; %u dropped",
+                    m.Supported ? "supported" : "the window hooks not found", mirror->Wanted() ? "an addon draws the group now" : "no addon asking",
+                    mirror->windowsMirrored,m.Published.WindowCount,m.Published.RunCount,m.Published.QuadCount,m.Dropped);
                 chat->Write(0,false,line);
             }
             if (look.framesOn) {

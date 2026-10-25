@@ -30,6 +30,7 @@
 #include "../census/diagnostics.h"
 #include "../native/skinmodule.h"
 #include "../native/nativemodule.h"
+#include "../native/mirror.h"
 #include "../../drawcontext.h"
 #include "../../slots.h"
 #include "clip.h"
@@ -93,6 +94,10 @@ static DrawContext Draws;       // what the parts share for each draw (drawconte
 static SkinModule Skins;        // /uihook skin: the game's textures drawn with pictures of a skin's in their place
 static NativeModule Native;     // /uihook native: windows' draws moved and scaled
 static DiagnosticsModule Diag;  // /uihook census and textures
+// The group's mirror (mirror ABI 6, native/mirror.h): zero in the DLL's file, its magic written as the module
+// initializes; supported where the window hooks are taken
+static MirrorShared MirrorBlock;
+static Mirror GroupMirror;
 // The game's mouse handler in its message loop (window/mouse.h), taken so a message on a window drawn elsewhere is
 // given to it at the same place on the game's own (the native look's Mouse)
 static void __cdecl GameInput(MSG);
@@ -422,7 +427,9 @@ public:
             }
         }
         // The window hooks, and with them the game's mouse handler
-        if (module.lpBaseOfDll && TakeWindowHooks(static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage))
+        memcpy(MirrorBlock.Magic,"UIHOOK-MIRROR",14); MirrorBlock.Version=6; MirrorBlock.Size=sizeof(MirrorShared);
+        GroupMirror.shared=&MirrorBlock; Native.mirror=&GroupMirror;
+        if (module.lpBaseOfDll && TakeWindowHooks(static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage) && (MirrorBlock.Supported=MIRROR_SUPPORTED))
             Native.inputHooked=Take(InputDetour,static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage);
         core->GetChatManager()->Write(0,false, Shared.Hooked ?
             (Shared.SupportedMask & 8 ? "[uihook:party] Party/target hooks ready (native arrows preserved). /pt native [target] on; unload hideparty first." :
@@ -471,9 +478,11 @@ public:
     }
     bool Direct3DInitialize(IDirect3DDevice8*) override { return true; }
     void Direct3DPresent(const RECT*,const RECT*,HWND,const RGNDATA*) override {
+        GroupMirror.Publish(Shared.Frame);
         Diag.Present();
         ++Shared.Frame;
-        Diag.Counted();
+        Diag.Counted(); MirrorBlock.Frame=Shared.Frame;
+        Native.look.mirrorOn=GroupMirror.Wanted();
         Hud.Frame=Chat.Frame=Menus.Frame=Shared.Frame;
         ChatReadReset(); // the regions found readable last frame are asked about again
         if (ChatWanted()) SampleChat(false);
@@ -515,6 +524,7 @@ public:
         Draws.NewDraw();
         const UINT n=t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0;
         Diag.MemoryDraw(data,n,stride,t==D3DPT_TRIANGLELIST ? 6 : t==D3DPT_TRIANGLESTRIP && count==2 ? 4 : 0);
+        MirrorDraw(data,n,stride);
         Measure(true,data,stride,n);
         if (!blocking && PanelFrame(data,n,stride)) return true;
         const SkinModule::SkinSwap skin=Skins.Begin(data,n,stride);
@@ -526,6 +536,7 @@ public:
         Draws.NewDraw();
         const void* first=data ? static_cast<const uint8_t*>(data)+size_t(min)*stride : nullptr;
         Diag.MemoryDraw(first,vertices,stride,4);
+        MirrorDraw(first,vertices,stride);
         Measure(true,data,stride,vertices);
         if (!blocking && PanelFrame(first,vertices,stride)) return true;
         const SkinModule::SkinSwap skin=Skins.Begin(first,vertices,stride);
@@ -533,6 +544,13 @@ public:
         return Skins.End(skin,done,[&](IDirect3DDevice8* d) {
             return d->DrawIndexedPrimitiveUP(t,min,vertices,count,indices,format,Skins.Vertices(skin,data,min+vertices,stride),stride);
         });
+    }
+    // A draw from memory of a window of the group mirrored: measured for the mirror (as the native look draws it); one
+    // left undrawn still counted into the window's bounds, which the native look places it by
+    void MirrorDraw(const void* first,UINT count,UINT stride) {
+        if (!GroupMirror.Active()) return;
+        GroupMirror.Draw(core->GetDirect3DDevice(),first,stride,count);
+        if (GroupMirror.Hiding() && first && stride>=8) Native.look.Gather(first,count,stride);
     }
     static_assert(sizeof(NativePanelVertex)==sizeof(PartyVertex),"a panel is drawn in the party's states, of its vertex format");
     // /uihook native frames: a draw of the frame's art of a window over the chat log left undrawn, and with its first
@@ -580,6 +598,7 @@ public:
         return true;
     }
     void GiveWindowHooks() {
+        MirrorBlock.Supported=0; MirrorBlock.RequestFrame=0; GroupMirror.Clear(); Native.look.mirrorOn=false;
         Give(InputDetour); Native.inputHooked=false;
         Diag.Stop();
         GiveContentCall(); Give(TextBitmapDetour); Give(TextScaledDetour); Give(TextFontDetour);
@@ -1024,10 +1043,11 @@ public:
         // the selection art in a skinned full log measured (drawn or not), so its rows are published lit
         const bool measure=expandedSkin && !cursor && ChatSelectionColor(color) && !chatMeasure && selectionCount<8;
         if (measure) { selectionBounds[selectionCount]=ChatBounds(); chatMeasure=&selectionBounds[selectionCount]; }
+        const WindowPhase mirrorWas=cursor ? GroupMirror.Phase(PHASE_CURSOR) : GroupMirror.Element(color);
         const WindowPhase nativeWas=Native.look.Phase(cursor ? PHASE_CURSOR : PHASE_ELEMENT);
         ForwardChatWindowArt(reinterpret_cast<ChatWindowSprite>(ChatControls.targets[cursor ? CHAT_ART_CURSOR : CHAT_ART_SELECTION]),
             expandedSkin && !Mirrored(),ControlsActive(),controlStyle,cursor,blocking,sprite,x,y,sx,sy,color,a,b,c);
-        Native.look.Phase(nativeWas);
+        GroupMirror.Phase(mirrorWas); Native.look.Phase(nativeWas);
         if (measure) { if (chatMeasure->vertices) selectionCount++; chatMeasure=nullptr; }
     }
     // The scrollbar: its page, count and rows above the view read and its bounds measured in a skinned full
@@ -1039,9 +1059,11 @@ public:
         const bool was=blocking;
         if (ChatHidden(replaceControls,CHAT_REPLACE_SCROLL,measure && controlsValid)) blocking=true;
         if (measure) { scrollBounds=ChatBounds(); chatMeasure=&scrollBounds; }
-        const WindowPhase nativeWas=Native.look.Phase(PHASE_SCROLL);
+        ChatScrollInfo mirrorInfo;
+        if (GroupMirror.Active() && ChatScrollRead(object,mirrorInfo)) GroupMirror.Scrollbar(mirrorInfo);
+        const WindowPhase mirrorWas=GroupMirror.Phase(PHASE_SCROLL),nativeWas=Native.look.Phase(PHASE_SCROLL);
         ForwardChatScroll(reinterpret_cast<ChatScrollDraw>(ChatControls.targets[CHAT_ART_SCROLL]),ControlsActive(),controlStyle,object);
-        Native.look.Phase(nativeWas);
+        GroupMirror.Phase(mirrorWas); Native.look.Phase(nativeWas);
         chatMeasure=nullptr; blocking=was;
         if (!measure) return;
         Chat.ScrollFrame=0;
@@ -1105,6 +1127,13 @@ public:
     }
     void Render(void* window) {
         struct NativeScope { NativeLook::Saved was; ~NativeScope() { Native.look.Leave(was); } } nativeScope{Native.Enter(window)};
+        // one of the group, while an addon draws the group: measured as the native look draws it, and left undrawn
+        // (given back before the native look's entry, being declared after it)
+        struct MirrorScope { Mirror::Saved saved; ~MirrorScope() { GroupMirror.End(saved); } } mirrorScope;
+        NativeTransform mirrorMove;
+        const bool member=Native.look.Member();
+        const bool mirrorHidden=GroupMirror.Begin(window,member ? Native.look.current->name : nullptr,member,
+            member && Native.CurrentMove(mirrorMove) ? &mirrorMove : nullptr,core->GetDirect3DDevice(),mirrorScope.saved);
         DiagnosticsModule::Window diagnosed(Diag,window);
         int index=-1;
         for (int i=0;i<4;i++) {
@@ -1145,7 +1174,7 @@ public:
             : index==3 ? ReplayTargets() : index>=0 && Replay(static_cast<unsigned>(index));
         if (defer) primaryDeferred=Shared.Frame;
         else if (chatIndex==1 && primaryDeferred==Shared.Frame) { Replay(8); primaryDeferred=0; }
-        blocking=replaced;
+        blocking=replaced || mirrorHidden;
         expandedSkin=chatIndex==3 && replaced && expandedCapture;
         // a full log drawn afresh: its tabs, scrollbar and rows measured again, or not at all if the game leaves them out
         if (chatIndex==3) { Chat.TabFrame=Chat.ScrollFrame=Chat.TextFrame=0; chatViewportKnown=false; chatMeasure=nullptr; measuringTabs=false; rowCount=0; textUsed=0; selectionCount=0; }
@@ -1191,24 +1220,27 @@ static void __fastcall DrawExpandedChat(void* owner,void*) {
 // Each text route heard, then the game's own, unchanged; a text call within one counted as nested
 static int32_t __cdecl TextBitmap(int32_t x,int32_t y,const char* text,uint32_t colour,uint32_t sx,uint32_t sy,uint32_t centred) {
     Diag.TextBegin(TEXT_BITMAP,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
+    GroupMirror.TextBegin(TEXT_BITMAP,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
     Native.look.text++;
     const int32_t end=reinterpret_cast<int32_t(__cdecl*)(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t)>(TextBitmapDetour.trampoline)(x,y,text,colour,sx,sy,centred);
     Native.look.text--;
-    Diag.TextEnd(); return end;
+    Diag.TextEnd(); GroupMirror.TextEnd(); return end;
 }
 static int32_t __cdecl TextScaled(int32_t x,int32_t y,const char* text,uint32_t colour,uint32_t flag,uint32_t sx,uint32_t sy) {
     Diag.TextBegin(TEXT_SCALED,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
+    GroupMirror.TextBegin(TEXT_SCALED,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
     Native.look.text++;
     const int32_t end=reinterpret_cast<int32_t(__cdecl*)(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t)>(TextScaledDetour.trampoline)(x,y,text,colour,flag,sx,sy);
     Native.look.text--;
-    Diag.TextEnd(); return end;
+    Diag.TextEnd(); GroupMirror.TextEnd(); return end;
 }
 static uint32_t __fastcall TextFont(void* font,void*,int32_t x,int32_t y,const char* text,uint32_t a,uint32_t colour,uint32_t flags,uint32_t sx,uint32_t sy) {
     Diag.TextBegin(TEXT_FONT,x,y,text,colour);
+    GroupMirror.TextBegin(TEXT_FONT,x,y,text,colour);
     Native.look.text++;
     const uint32_t result=reinterpret_cast<uint32_t(__fastcall*)(void*,void*,int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t)>(TextFontDetour.trampoline)(font,nullptr,x,y,text,a,colour,flags,sx,sy);
     Native.look.text--;
-    Diag.TextEnd(); return result;
+    Diag.TextEnd(); GroupMirror.TextEnd(); return result;
 }
 // A mouse message on its way to the game, given to it as the native look says (or kept from it)
 static void __cdecl GameInput(MSG message) {
@@ -1218,9 +1250,9 @@ static void __cdecl GameInput(MSG message) {
 // A window's contents drawn, as Window::Render would, with the native look told they are being drawn
 static void __fastcall DrawContent(void* owner,void*) {
     void* draw=(*static_cast<void***>(owner))[4];
-    Native.look.Phase(PHASE_CONTENT);
+    Native.look.Phase(PHASE_CONTENT); GroupMirror.Phase(PHASE_CONTENT);
     reinterpret_cast<void(__fastcall*)(void*,void*)>(draw)(owner,nullptr);
-    Native.look.Phase(PHASE_AFTER);
+    Native.look.Phase(PHASE_AFTER); GroupMirror.Phase(PHASE_AFTER);
 }
 static void __fastcall RenderWindow(void* window,void*) {
     if (PartyHook::Instance) PartyHook::Instance->Render(window);

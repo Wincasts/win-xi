@@ -553,6 +553,23 @@ a window's frame by both: what it is grown from, and what a draw must touch to b
 together, with Window::Render, or not at all (`src/modules/window/window.h`;
 `tests/check_window_client.py` checks them against a dump of the client).
 
+## The group's mirror (1.59; the menu mirror's, 0.96–1.57, for the group alone)
+
+`src/modules/native/mirror.h`, mirror ABI 6 (`UIHOOK-MIRROR`, version 6). While an addon renews `RequestFrame` each
+frame (nativeui's Drawn As Winxi, through its `groupmirror.lua`), every window of the native look's group over the
+chat log is mirrored: its draws are measured and left undrawn, and what it would have drawn is published at Present
+(its frame's place, each run of text with its bytes, colour and place measured from its glyphs, each quad of the
+game's art with its texture held for two frames, its elements, the cursor, the element the cursor is on and the
+scrollbar's rows). The window is the game's still, unseen: its controller input, cursor and mouse hit-tests work as
+ever. Its places are measured where the native look draws it (the group's move, Menu Scale), so the addon draws it
+where `/uihook native mouse` gives the mouse to it. A window the addon names in `Kept` (one whose text it could not
+place) is drawn by the game and still published, so the addon can tell when to take it again. Four frames after
+the last request the game draws the group again. The group is told while it is asked for, with no move set.
+`/uihook native` says how many windows were drawn by an addon and what the last frame published.
+
+ABI 5 mirrored any window an addon named, with a mouse map of its own; ABI 6 is the group's alone, and the mouse is
+the native look's.
+
 ## The menu mirror, retired (0.96–1.57)
 
 The mirror left a menu undrawn while the game kept it open and working, and published what it would have drawn
@@ -602,7 +619,7 @@ always given, so nothing is left held). Ashita, imgui and every addon see each m
 the game's: its place is the screen's, and the game scrolls where its own cursor is. Not yet tried in game: the
 game may set the cursor's place itself (SetCursorPos) in some flows, at the game's own place.
 
-`frames` (1.59, an experiment; nativeui's Winxi Frames) draws the group's frames as panels in the colours given.
+`frames` (1.59, an experiment; nativeui's Drawn As Winxi Frames) draws the group's frames as panels in the colours given.
 While it is on the group is told even with no move. A draw made in a window of the group, in its frame (before its
 contents), not text, whose texture is the frame's art (the texture census's corners `72D3D795`, top and bottom
 `3C8984C5`, sides `1023C0C5` and striped background `92C145C5`, each pointer's pixels read once and again when
