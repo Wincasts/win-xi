@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Grow From: Left, Right or Middle, where a row's icons sit as statuses come and go. Anchored, across a full row of Icons Per Row from where the bar is placed (the mouse finds them there); dragged, the window keeps that side where it is.
+- Show Backdrop: off, the dragged window has no backdrop, border or shadow.
 - The anchored bar is dragged with the left button to move it, still anchored: dragging sets Anchor Adjustment (not in the buff selector, where a click removes a status). Lock Position stops it, for the dragged window too. Anchor Adjustment and Position are X and Y sliders across the screen in place of number boxes.
 - In the selector, the game's hand no longer comes back beside the highlight now and then (uihook 1.58).
 - The controller is the game's again: its confirm in the selector removes the status the cursor is on, as it always has, so buff no longer takes A, and its Controller section (Controller Navigation, Controller Sounds, Controller Type) is gone.

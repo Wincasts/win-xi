@@ -50,6 +50,7 @@ local hook = require('hook');
 local fade = require('winxi.fade');
 local style = require('winxi.style');
 local controller = require('winxi.controller');
+local anchor = require('winxi.anchor');
 local bit = require('bit');
 
 local windowName = 'winxi.buff';
@@ -73,7 +74,35 @@ local defaults = T{
     fontFile = '',          -- empty inherits the Winxi theme font
     fontSize = T{ 0 },      -- zero inherits the current font size
     hideGameIcons = T{ true },
+    growFrom = 'Left',      -- which way a row grows as statuses come: Left, Right or Middle
+    showBackdrop = T{ true }, -- the dragged window's backdrop, border and shadow
 };
+
+-- Grow From: where a row's icons sit across the bar. Anchored, the bar is as wide as a full row of
+-- Icons Per Row, from where it is placed: Left keeps them at its left, as the game does, Right at its
+-- right and Middle in its middle. The dragged window holds the matching corner of itself still.
+local growAligns = { Left = 0, Right = 1, Middle = 0.5 };
+local growCorners = { Left = 'TopLeft', Right = 'TopRight', Middle = 'TopCenter' };
+local growModes = { 'Left', 'Right', 'Middle' };
+
+local function GrowAlign(options)
+    return growAligns[options.growFrom] or 0;
+end
+
+-- How wide count cells are, side by side
+local function RowWidth(count, cellWidth)
+    return count * cellWidth + (count - 1) * gap;
+end
+
+-- How far right of the bar's left the row the index-th of count statuses is in starts, in a bar
+-- span wide
+local function RowShift(index, count, perRow, cellWidth, span, align)
+    if align == 0 then
+        return 0;
+    end
+    local first = index - (index - 1) % perRow;
+    return math.floor(align * (span - RowWidth(math.min(perRow, count - first + 1), cellWidth)) + 0.5);
+end
 
 -- The time left as the window writes it: seconds under a minute, then minutes, then hours. Each is
 -- made once.
@@ -229,6 +258,8 @@ local function LabelWidth(label)
     return width;
 end
 
+local fullSpan = false; -- whether the bar being drawn is anchored: as wide as a full row, for Grow From
+
 local function DrawStatusesContent(options)
     local height = options.iconSize[1];
     local width = math.floor(height * icons.OwnAspect + 0.5);
@@ -243,9 +274,14 @@ local function DrawStatusesContent(options)
 
     local drawList = imgui.GetWindowDrawList();
     local textColor = theme.Get().TextColor;
+    local count, align = #current, GrowAlign(options);
+    local span = RowWidth(fullSpan and perRow or math.min(count, perRow), cell[1]);
+    local left = imgui.GetCursorPosX();
     for index, status in ipairs(current) do
         if index > 1 and (index - 1) % perRow ~= 0 then
             imgui.SameLine(0, gap);
+        elseif align ~= 0 then
+            imgui.SetCursorPosX(left + RowShift(index, count, perRow, cell[1], span, align));
         end
 
         local x, y = imgui.GetCursorScreenPos();
@@ -379,7 +415,7 @@ local function SolidFrame(x0, y0, x1, y1, thickness, color, sx, sy)
 end
 
 -- Where the bar's cells are, this frame, for the mouse: in imgui's pixels from the bar's corner
-local layout = { width = 0, height = 0, perRow = 1 };
+local layout = { width = 0, height = 0, perRow = 1, align = 0 };
 
 -- Everything the bar handed over is made from, in order, this frame and the last that wrote it. The
 -- bar changes as a time does, about once a second: a frame whose are the same as the last's hands
@@ -449,7 +485,8 @@ local function WriteHooked(options, found, alpha)
     if showTimers then MeasureTimers(); end
     local cellWidth = showTimers and math.max(width, widest) or width;
     local cellHeight = showTimers and height + timerGap + textHeight or height;
-    layout.width, layout.height, layout.perRow = cellWidth, cellHeight, perRow;
+    local align = GrowAlign(options);
+    layout.width, layout.height, layout.perRow, layout.align = cellWidth, cellHeight, perRow, align;
 
     local sx, sy = hook.Scale(found);
     local nudgeX, nudgeY = options.anchorAdjustment[1], options.anchorAdjustment[2];
@@ -471,7 +508,7 @@ local function WriteHooked(options, found, alpha)
     madeCount = 0;
     Note(cellWidth); Note(cellHeight); Note(perRow); Note(width); Note(height); Note(useOwn);
     Note(sx); Note(sy); Note(nudgeX); Note(nudgeY); Note(iconColor); Note(textColor); Note(edgeColor);
-    Note(cursorIndex or 0); Note(texture or 0); Note(glyphsMade); Note(baked ~= nil);
+    Note(cursorIndex or 0); Note(texture or 0); Note(glyphsMade); Note(baked ~= nil); Note(align);
     local sheet = useOwn and icons.MixedSheet() or icons.GameSheet();
     for index, status in ipairs(current) do
         Note(status.id);
@@ -489,8 +526,9 @@ local function WriteHooked(options, found, alpha)
     lastCount, emptyHanded = madeCount, false;
 
     local fontSlot = hook.Texture(texture);
+    local count, span = #current, RowWidth(perRow, cellWidth);
     for index, status in ipairs(current) do
-        local x = nudgeX + ((index - 1) % perRow) * (cellWidth + gap);
+        local x = nudgeX + RowShift(index, count, perRow, cellWidth, span, align) + ((index - 1) % perRow) * (cellWidth + gap);
         local y = nudgeY + math.floor((index - 1) / perRow) * (cellHeight + rowGap);
 
         local left = x + (cellWidth - width) / 2;
@@ -538,16 +576,21 @@ local function Interact(options, found)
     end
     left, top = left + options.anchorAdjustment[1], top + options.anchorAdjustment[2];
     local mx, my = imgui.GetMousePos();
-    local column = math.floor((mx - left) / (layout.width + gap));
+    local perRow = layout.perRow;
     local row = math.floor((my - top) / (layout.height + rowGap));
-    if column < 0 or row < 0 or column >= layout.perRow then
+    if row < 0 then
+        return;
+    end
+    left = left + RowShift(row * perRow + 1, #current, perRow, layout.width, RowWidth(perRow, layout.width), layout.align);
+    local column = math.floor((mx - left) / (layout.width + gap));
+    if column < 0 or column >= perRow then
         return;
     end
     local x, y = left + column * (layout.width + gap), top + row * (layout.height + rowGap);
     if mx > x + layout.width or my > y + layout.height then
         return;
     end
-    local status = current[row * layout.perRow + column + 1];
+    local status = current[row * perRow + column + 1];
     if status == nil or not hook.Drawn(found) or anchoring.MenuOpen() ~= nil then
         return;
     end
@@ -686,6 +729,7 @@ local function DrawSettings(options)
     else
         if PositionSliders(options.pos, 'Position', '##buff.position', false, 'Where the window\'s corner is, in screen pixels. Dragging the window sets it too. Ctrl+click to type a number.') then
             imgui.SetWindowPos(windowName, options.pos);
+            anchor.Reset(windowName);
         end
     end
     widgets.Lock(options.lockPosition, '##buff.lockPosition', { label = 'Lock Position',
@@ -699,6 +743,17 @@ local function DrawSettings(options)
     widgets.Label('Icons Per Row');
     imgui.SliderInt('##buff.perRow', options.perRow, 1, 32);
     widgets.PopControlWidth();
+    widgets.Label('Grow From');
+    for index, mode in ipairs(growModes) do
+        if index > 1 then imgui.SameLine(); end
+        if imgui.RadioButton(mode .. '##buff.growFrom', options.growFrom == mode) then
+            options.growFrom = mode;
+        end
+        tips.Hover('Which way a row grows as statuses come and go. Left keeps the icons at the left of the bar, as the game does; Right keeps them at its right; Middle keeps them in its middle.\nAnchored, the bar spans a full row of Icons Per Row from where it is placed. Dragged, the window keeps that side of itself where it is.');
+    end
+    widgets.Label('Show Backdrop');
+    imgui.Checkbox('##buff.showBackdrop', options.showBackdrop);
+    tips.Hover('The theme\'s backdrop, border and shadow behind the dragged window. Off, the icons and times sit straight over the game.\nThe anchored bar never has one.');
     widgets.Label('Show Time Left');
     imgui.Checkbox('##buff.showTimers', options.showTimers);
     tips.Hover('Writes under each icon how long the status has left: seconds, then minutes (m), then hours (h).');
@@ -730,6 +785,7 @@ ashita.events.register('unload', 'buff_unload', function()
 end);
 
 local windowExtra = {}; -- for the dragged window: whether it is locked
+local clear = { 0, 0, 0, 0 }; -- the dragged window's backdrop and border with Show Backdrop off
 
 ashita.events.register('d3d_present', 'buff_present', function()
     local options = app.options;
@@ -764,10 +820,16 @@ ashita.events.register('d3d_present', 'buff_present', function()
     end
     selecting = anchoring.SelectorOpen();
     FindCursor(found);
+    fullSpan = anchored;
     if anchored then
         anchoring.Draw(anchoredName, options, DrawStatuses);
     else
         windowExtra.locked = options.lockPosition[1] or nil;
+        local look = app.windowStyle;
+        local backdrop = options.showBackdrop[1];
+        look.background, look.border = (not backdrop) and clear or nil, (not backdrop) and clear or nil;
+        look.shadow = (not backdrop) and false or nil;
+        look.growFrom = growCorners[options.growFrom];
         app:Window(options.isVisible, DrawStatuses, windowExtra);
     end
 end);

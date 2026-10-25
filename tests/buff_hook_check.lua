@@ -95,6 +95,21 @@ H.frames(1)
 H.print('not while a menu of the game\'s is open, as it may be over the bar', H.calls.Begin == begins)
 menu = ''
 
+-- Grow From: the row at the right of a full row of Icons Per Row (16), or in its middle; the mouse
+-- finds the icons where they are drawn
+block.Frame, block.DrawnFrame = 16, 16; H.frames(1)
+local x0, x1 = block.Quads[0].X0, block.Quads[1].X0 -- as Left has them
+local step = x1 - x0 -- a cell and a gap, in the game's pixels
+o.growFrom = 'Right'; block.Frame, block.DrawnFrame = 16, 16; H.frames(1)
+H.print('Grow From Right: the two icons at the end of the row', block.Quads[0].X0 == x0 + 14 * step, block.Quads[1].X0 == x1 + 14 * step)
+H.ret.GetMousePos = { 200 + 2, 100 + 2 }; begins = H.calls.Begin; block.Frame, block.DrawnFrame = 17, 17; H.frames(1)
+H.print('nothing to hover where they were', H.calls.Begin == begins)
+H.ret.GetMousePos = { 200 + 14 * step * 2 + 2, 100 + 2 }; begins = H.calls.Begin; block.Frame, block.DrawnFrame = 18, 18; H.frames(1)
+H.print('the first where it is drawn', H.calls.Begin == begins + 1)
+o.growFrom = 'Middle'; block.Frame, block.DrawnFrame = 19, 19; H.frames(1)
+H.print('Grow From Middle: in the middle of the row', block.Quads[0].X0 == x0 + 7 * step)
+o.growFrom = 'Left'; H.ret.GetMousePos = { 200 + 2, 100 + 2 }
+
 -- dragged with the left button: the adjustment follows the mouse, and is saved as it is let go;
 -- not with Lock Position on, nor in the selector, where a click removes a status
 local function drag(n, dx, dy)

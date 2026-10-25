@@ -182,6 +182,30 @@ package.loaded.scaling, imgui.GetIO = savedScaling, savedIO
 o.fadeInOut[1] = true
 imgui.SetNextWindowPos = originalPlace
 
+-- the dragged window: Show Backdrop off leaves its background clear; Grow From Right lays it out to
+-- be measured, and the second row (Icons Per Row 2) starts a cell in, under the first row's right
+local savedPush, savedX = imgui.PushStyleColor, imgui.SetCursorPosX
+local clearPushed, rowStarts = 0, {}
+imgui.PushStyleColor = function(_, color)
+    if type(color) == 'table' and color[1] == 0 and color[2] == 0 and color[3] == 0 and color[4] == 0 then clearPushed = clearPushed + 1 end
+end
+imgui.SetCursorPosX = function(x) rowStarts[#rowStarts + 1] = x end
+H.ret.GetCursorPosX, H.ret.GetItemRectSize = { 8 }, { 100, 40 }
+under(1, 40); under(2, 33, 90); under(3, 251, 7200)
+o.anchorToDefault[1], o.fadeInOut[1], o.perRow[1] = false, false, 2
+H.frames(1)
+local cleared = clearPushed
+o.showBackdrop[1] = false
+clearPushed = 0; H.frames(1)
+H.print('Show Backdrop off: a clear background and border', clearPushed > cleared)
+o.growFrom = 'Right'; rowStarts = {}
+local measured = H.calls.GetItemRectSize or 0
+H.frames(1)
+H.print('Grow From Right: measured', (H.calls.GetItemRectSize or 0) > measured, '| the short row moved right', #rowStarts > 0 and rowStarts[#rowStarts] > 8)
+imgui.PushStyleColor, imgui.SetCursorPosX = savedPush, savedX
+H.ret.GetCursorPosX, H.ret.GetItemRectSize = nil, nil
+o.growFrom, o.showBackdrop[1], o.perRow[1], o.fadeInOut[1], o.anchorToDefault[1] = 'Left', true, 16, true, oldAnchor
+
 -- the game's own icons: three places changed, and put back; the row and the rest apart
 local native = require('native')
 local written, at = {}, { ['75??8B4E0851B9'] = 100, ['7D??33C05EC20400C6'] = 200, ['85C00F??????????6A0232DBE8'] = 300 }
