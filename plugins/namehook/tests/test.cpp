@@ -143,7 +143,7 @@ static uint32_t CategoryOf(const XiModel* model) {
 int main() {
     CHECK(sizeof(HookCapabilities) == 32);
     CHECK(NamehookCapabilities.Size == sizeof(HookCapabilities) && NamehookCapabilities.Version == 1);
-    CHECK((NamehookCapabilities.Features & FEATURE_EDGE_RADIUS) != 0 && (NamehookCapabilities.Features & FEATURE_DOUBLED) != 0 && NamehookCapabilities.Build == 136);
+    CHECK((NamehookCapabilities.Features & FEATURE_EDGE_RADIUS) != 0 && (NamehookCapabilities.Features & FEATURE_DOUBLED) != 0 && (NamehookCapabilities.Features & FEATURE_SOFT_TEXTURE) != 0 && NamehookCapabilities.Build == 137);
     {
         const NameBounds bounds{ -50, -10, 50, 10 };
         CHECK(!bounds.Intersects(-60, 540, 0, 0, 1920, 1080));
@@ -264,6 +264,15 @@ int main() {
 			};
 			CHECK(std::fabs(distance(rect.Inner[0]) - 0.5f) < 0.00001f);
 			CHECK(std::fabs(distance(rect.Outer[0]) + 0.5f) < 0.00001f);
+		}
+		// a textured rectangle's points carry where they are in it; the fringe stops at its edge
+		{
+			NameGeometry::SoftRectangle rect;
+			CHECK(rect.Make({ 0, 0 }, { 100, 0 }, { 0, 8 }));
+			CHECK(std::fabs(rect.InnerAt[0].x - 0.005f) < 0.00001f && std::fabs(rect.InnerAt[0].y - 0.0625f) < 0.00001f);
+			CHECK(std::fabs(rect.InnerAt[2].x - 0.995f) < 0.00001f && std::fabs(rect.InnerAt[2].y - 0.9375f) < 0.00001f);
+			CHECK(rect.OuterAt[0].x == 0 && rect.OuterAt[0].y == 0 && rect.OuterAt[2].x == 1 && rect.OuterAt[2].y == 1);
+			CHECK(rect.OuterAt[1].x == 1 && rect.OuterAt[1].y == 0 && rect.OuterAt[3].x == 0 && rect.OuterAt[3].y == 1);
 		}
 		NameGeometry::SoftRectangle tiny;
 		CHECK(tiny.Make({ 0, 0 }, { 0.25f, 0 }, { 0, 4 }));

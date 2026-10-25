@@ -42,7 +42,7 @@ local rules = require('block_rules');
 local diag = require('diag');
 
 local custom = {};
-local fontPipeline = { Readability = require('readability'), Castbar = require('castbar') };
+local fontPipeline = { Readability = require('readability'), Castbar = require('castbar'), BarArt = require('bar_art') };
 
 local STAR          = 0xAD; -- the star of the Job Mastery stars: a small one, a large one, a small one
 local FADE_SHRUNK   = 0.15; -- the last part of a name's distance over which it fades out
@@ -119,11 +119,14 @@ local settings = {
     castShowTimer = function () return T{ true }; end,
     castTextColour = function () return T{ 'white' }; end, -- custom.CastTextColours
     castTextColor = function () return T{ 1, 1, 1, 1 }; end, -- for custom
+    castFont = function () return T{ '' }; end, -- the cast's words: '' the names' font, CAST_DEFAULT_FONT the usual one, or a file of FONT_FOLDER
+    castBarTexture = function () return T{ 'plain' }; end, -- bar_art.Choices
     showHealthBar = function () return T{ false }; end, -- shared by every entity type
     healthBarsCombatOnly = function () return T{ false }; end,
     healthBarWidth = function () return T{ 60 }; end,
     healthBarHeight = function () return T{ 6 }; end,
     healthBarCategories = function () return T{ 0xFF }; end, -- which kinds of name have one: entity_types
+    healthBarTexture = function () return T{ 'plain' }; end, -- bar_art.Choices
     tokenFormatVersion = function () return 0; end,
     trackedNm = function () return T{ '' }; end, -- the notorious monster being hunted, by name, or nothing
     labelPlaceholders = function () return T{ true }; end, -- its placeholders are named Placeholder
@@ -152,7 +155,7 @@ local settled = {
     { 'showCastBar', 'boolean' }, { 'castBarWeaponskills', 'boolean' }, { 'castBarAutoWidth', 'boolean' },
     { 'castNameScale', 'number', 25, 200 }, { 'castTimerScale', 'number', 25, 200 },
     { 'castBarSkillTextOnly', 'boolean' }, { 'castShowName', 'boolean' }, { 'castShowTimer', 'boolean' },
-    { 'castTextColour', 'string' },
+    { 'castTextColour', 'string' }, { 'castFont', 'string' }, { 'castBarTexture', 'string' }, { 'healthBarTexture', 'string' },
     { 'showHealthBar', 'boolean' }, { 'healthBarsCombatOnly', 'boolean' }, { 'labelPlaceholders', 'boolean' }, { 'playerIconSource', 'string' },
     { 'abbreviateDifficulty', 'boolean' }, { 'fontBold', 'boolean' }, { 'fontSmooth', 'boolean' },
     { 'trackedNm', 'string' }, { 'nameFormat', 'string' }, { 'monsterFormat', 'string' }, { 'npcFormat', 'string' },
@@ -286,6 +289,9 @@ function custom.Settle(options)
     local castColour = false;
     for _, choice in ipairs(custom.CastTextColours) do castColour = castColour or choice.key == options.castTextColour[1]; end
     if (not castColour) then options.castTextColour[1] = settings.castTextColour()[1]; end
+    for _, key in ipairs({ 'healthBarTexture', 'castBarTexture' }) do
+        if not fontPipeline.BarArt.Valid(options[key][1]) then options[key][1] = settings[key]()[1]; end
+    end
     if (type(options.castTextColor) ~= 'table') then options.castTextColor = settings.castTextColor(); end
     for i = 1, 3 do
         local n = options.castTextColor[i];
@@ -727,7 +733,7 @@ local function glyphSet(font, height, key, smooth)
     end
     set.glyphs[PROBE] = now;
     set.baked, set.smoothBaked = baked, raster;
-    set.checked = frame;
+    set.checked, set.height = frame, height;
 
     imgui.PopFont();
     return set;
@@ -1111,6 +1117,7 @@ end
 function custom.Deactivate()
     fontPipeline.Castbar.Reset();
     if not fontPipeline.active then return end
+    fontPipeline.BarArt.Release();
     fontPipeline.active = false;
     nameplates.ClearDrawing();
     fontPipeline.Readability.Reset();
@@ -1142,6 +1149,29 @@ function custom.Diagnostics()
     };
 end
 
+-- The cast's words in a font of their own (castFont): '' the names' font, CAST_DEFAULT_FONT the one
+-- everything else is written in, or a file. Its letters are kept at the names' rungs, under keys of
+-- their own, and drawn from imgui's texture as it is (SLOT.Sign), never the smoothed names' sheet.
+local CAST_DEFAULT_FONT = 'default';
+custom.CastDefaultFont = CAST_DEFAULT_FONT;
+function fontPipeline.CastFont(options)
+    local file = options.showCastBar[1] and options.castFont and options.castFont[1] or '';
+    local font = nil;
+    if file ~= '' and file ~= CAST_DEFAULT_FONT then
+        font = getFont(file);
+        if font == nil then file = ''; end -- would not load: the names' own, as the names do
+    end
+    fontPipeline.castFont, fontPipeline.castKey = font, file ~= '' and ('cast:' .. file .. ':') or nil;
+end
+
+-- The cast's letters at a rung's height, or nil for the names' own
+function fontPipeline.CastSet(height)
+    if fontPipeline.castKey == nil or height == nil then return nil; end
+    local set = glyphSet(fontPipeline.castFont, height, fontPipeline.castKey .. height);
+    if set ~= nil then set.textSlot = SLOT.Sign; end
+    return set;
+end
+
 -- Both rows use the same geometry. Cast labels and timer are below the bar;
 -- include their foot in the layout so below-name statuses cannot overlap them.
 function fontPipeline.CastCaption(set, words, left, right, under, fit, nominal, gap, opacity, color)
@@ -1163,11 +1193,16 @@ function fontPipeline.WriteCast(entry, set, left, right, under, scale, fit, heig
     local bottom = under;
     if not (entry.kind == 'skill' and options.castBarSkillTextOnly[1]) then
         bottom = healthbar.Bar(left, right, under, scale, entry.progress,
-            fadedColor(color, opacity), width, barHeight, 0xFF203048);
+            fadedColor(color, opacity), width, barHeight, 0xFF203048, options.castBarTexture[1]);
         if bottom == under then return under; end
     end
     local showName, showTimer = options.castShowName[1], options.castShowTimer[1];
     if not (showName or showTimer) then return bottom; end
+    local own = fontPipeline.CastSet(set.height);
+    if own ~= nil then
+        own.syntheticBold = set.syntheticBold;
+        set = own;
+    end
     local mode, textColor = options.castTextColour[1], WHITE;
     if (mode == 'name') then textColor = color;
     elseif (mode == 'custom') then
@@ -1239,7 +1274,8 @@ function custom.Frame(options, hook, formats)
     local labelPlaceholders = options.labelPlaceholders ~= nil and options.labelPlaceholders[1];
     local coins = vendors.Begin(npcFormat.vendor);
     local ranks = roles.Begin(AshitaCore:GetMemoryManager(), nameFormat.party or monsterFormat.party or npcFormat.party);
-    local huntTexture = (trackedName ~= '' or coins or ranks) and sheet(special.Sheet) or 0;
+    -- the signs share their texture with the bars' art while a bar is textured: then that sheet holds both
+    local huntTexture = fontPipeline.BarArt.Begin(options) or ((trackedName ~= '' or coins or ranks) and sheet(special.Sheet) or 0);
     coins, ranks = coins and huntTexture ~= 0, ranks and huntTexture ~= 0;
     local huntScale = options.huntScale ~= nil and math.max(100, math.min(200, options.huntScale[1])) / 100 or 1;
     nameplates.SetTexture(special.Slot, huntTexture);
@@ -1262,6 +1298,7 @@ function custom.Frame(options, hook, formats)
     frame = frame + 1;
 
     local font = getFont(options.font);
+    fontPipeline.CastFont(options);
     local badgeFont = monsterFormat.letter and getFont(letterBadges.Font) or nil;
     levels.DoubleLetters(monsterFormat.doubleLetters == true);
     local fullSize, leastSize = nameTypes.Bounds(options);
@@ -1309,6 +1346,7 @@ function custom.Frame(options, hook, formats)
         for rung = 1, rungs do
             local rungHeight = heights[rung];
             nameSet(font, rungHeight, bold);
+            fontPipeline.CastSet(rungHeight);
             if (signsApart) then
                 glyphSet(nil, rungHeight, -rungHeight);
             end
@@ -1374,7 +1412,7 @@ function custom.Frame(options, hook, formats)
     local memory = AshitaCore:GetMemoryManager();
     local entities = askedOnce(memory.GetEntity ~= nil and memory:GetEntity() or nil);
     local colourContext = nameColours.Context(options, memory);
-    healthbar.Begin(filteredAtlas and filteredAtlas.white);
+    healthbar.Begin(filteredAtlas and filteredAtlas.white, now);
 
     -- a monster that was checked and has died is forgotten before any level is written; what is
     -- written of a level is kept until what is known of levels changes
@@ -1713,11 +1751,12 @@ function custom.Frame(options, hook, formats)
                         written.barWidth = math.max(written.barWidth, (written.barRight - written.barLeft) / written.barScale);
                     end
                     if (not written.simplified and options.showHealthBar[1] and bit.band(options.healthBarCategories[1], name.Category) ~= 0
-                            and (not options.healthBarsCombatOnly[1] or nameColours.InCombat(name, entities))) then
+                            and (healthbar.previewing or not options.healthBarsCombatOnly[1] or nameColours.InCombat(name, entities))) then
                         -- the bar is its saved size under a name at its largest, and shrinks with the name
                         -- as it goes further away (or grows with it, hunted or under the sub-target cursor)
                         under = healthbar.Write(name, entities, written.barLeft, written.barRight,
-                            under, written.barScale, fill, written.barWidth, options.healthBarHeight[1], written.cast ~= nil);
+                            under, written.barScale, fill, written.barWidth, options.healthBarHeight[1], written.cast ~= nil,
+                            options.healthBarTexture[1]);
                     end
                     if written.cast then
                         under = fontPipeline.WriteCast(written.cast, set, written.barLeft, written.barRight, under,

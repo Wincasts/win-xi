@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.76
+
+- Bar Texture for health bars (Health Bars → Health Bars) and for cast bars (Cast Bars → Cast Bars), each its own: Plain (the bar as it was, and to begin with) or one of WinXI's Bar Textures, the art party's HP bars are drawn in, tinted the name's colour and drawn as WinXI draws it (the back and front in three, their ends kept to the bar's height, the fill squeezed to how far it goes). The plugin's eight textures are all taken, so the sets in use are packed with Name's own signs (special.png) into one sheet of the addon's own (`bar_art.lua`), at their own size and at a half and a quarter of it, and a bar is drawn from the copy nearest its height: the plugin samples without mipmaps. The fill's end is softened as the plain bar's is with namehook 1.37. Art that will not load leaves the bar Plain.
+- Health Bars → Preview: while it is on and its section is open, every name that can have a health bar has one, emptying and filling again, each name a little apart, at full health and out of combat too (Combat Only is set aside, Entity Types are not). Session-only, as the cast bars' Preview.
+- Cast Bars → Cast Text → Font: the action name and timer in a font of their own: Same as Names (to begin with), Default, or a .ttf of `C:\Windows\Fonts`. Its letters are kept at the names' sizes and drawn from imgui's texture as it is, not the Smooth Font sheet; Bold follows the names'. A font that will not load is the names' own. Size and colour were already there (Cast Name Size, Timer Size, Text Colour).
+- Needs WinXI 49 (namehook 1.37 for the softened fill).
+- Tests: the textures settled, the sheet made once from the signs and the set's art and let go, the signs remapped into it, seven quads from the shared sheet in the plain bar's place, the copy by height, plain where the set is not in the sheet, no retry every frame after a failure; the preview over time, per name, gone once its control is not drawn; the cast text in its own font, Default and a missing one; a textured cast bar through the whole frame.
+
 ## 1.75
 
 - `[space]`, a gap of its own in a format: `[space]` is 4 px, `[space: N]` (or `size=N`) N screen pixels, 0 to 64, scaled as `space=` is. It is only put between two things written: never at either end of the line, nor beside a token that writes nothing, so `[icons][space: 4][name]` leaves no gap for a player with no icons. Two together are their sizes added. An `[icons]`, `[party]` or `[vendor]` without its own `space=` followed by a `[space]` gives up its own spacing, so `[icons][space: 4][name]` lays out as `[icons: space=4][name]`. `space=` on a token works as before; saved and default formats are unchanged.

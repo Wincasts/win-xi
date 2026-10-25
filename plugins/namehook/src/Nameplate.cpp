@@ -260,7 +260,7 @@ static Nameplate* Instance = nullptr;
 extern "C" {
 __declspec(dllexport) HookCapabilities NamehookCapabilities = {
     "NAMEHOOKCAPS", sizeof(HookCapabilities), 1,
-    FEATURE_EDGE_RADIUS | FEATURE_SOFT_RECT | FEATURE_TIGHT_EDGE | FEATURE_DOUBLED,
+    FEATURE_EDGE_RADIUS | FEATURE_SOFT_RECT | FEATURE_TIGHT_EDGE | FEATURE_DOUBLED | FEATURE_SOFT_TEXTURE,
     NAMEHOOK_VERSION_MAJOR * 100 + NAMEHOOK_VERSION_MINOR
 };
 }

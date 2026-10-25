@@ -70,7 +70,7 @@ The `name` addon, in `addons/name` of this project, is a settings window for the
 Since 1.35, `NamehookCapabilities` is a separately exported 32-byte sidecar:
 `char Magic[16] = "NAMEHOOKCAPS"`, followed by four uint32 fields: Size (32),
 Version (1), Features (mask values 1: explicit edge radius, 2: soft rectangles, 4:
-tight edges, 8: doubled colours), and Build (major × 100 + minor). It does not change ABI 3. WinXI 46
+tight edges, 8: doubled colours, 16: soft textured rectangles), and Build (major × 100 + minor). It does not change ABI 3. WinXI 46
 provides `nameplates.Supports(mask, hook)` and optional `nameplates.Problem(mask)`;
 older consumers can ignore it. WinXI 47 also provides `nameplates.Capabilities(hook)`,
 a copied `{version, features, build}` table for support reports (nil when unavailable).
@@ -79,6 +79,10 @@ Missing/unsupported sidecars never imply support.
 Since 1.36 a quad with `QUAD_DOUBLED` (Flags bit 5) has its colour doubled as the client's own are
 (`D3DTOP_MODULATE2X`): 0x80 in a channel is the texture as it is and more brightens it, as the client
 draws a linkshell pearl. Its edge is never doubled. Older plugins ignore the bit and draw the colour as it is.
+
+Since 1.37 `QUAD_SOFT_RECT` works on a textured quad too (`FEATURE_SOFT_TEXTURE`, 16): each point of the
+fringe takes the texture coordinate of where it is in the quad, the fringe outside the quad its edge's own,
+never past the quad's. Older plugins draw a textured quad with the flag hard, as before.
 
 The plugin keeps one block in its own memory, `HookShared` in `src/Nameplate.h`. An addon finds it in `namehook.dll` by its first 16 bytes, reads the names in it, and writes the settings in it.
 

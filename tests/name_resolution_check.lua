@@ -74,11 +74,12 @@ assert(nameplates.BeginDrawing(hook) == 2 and draw.Reserved == 0)
 nameplates.BeginName(5, 1, 0, 0)
 nameplates.Quad(1, 2, 3, 4, 0, 0, 1, 1, 0xFFFFFFFF)
 assert(draw.Quads[0].X0 == 1 and draw.Quads[0].X1 == 3)
--- Optional AA changes flags only, and cannot accidentally feather a textured glyph.
+-- Optional AA changes flags only; a textured quad asking for it gets it too (namehook 1.37 feathers it,
+-- an older one draws it hard), and nothing that does not ask is feathered.
 nameplates.Quad(1, 2, 3, 4, 0.5, 0.5, 0.5, 0.5, 0xFFFFFFFF, 0, false, nil, true)
 assert(draw.Quads[1].Flags == 4 and draw.Quads[1].X0 == 1 and draw.Quads[1].X1 == 3)
 nameplates.Quad(1, 2, 3, 4, 0, 0, 1, 1, 0xFFFFFFFF, 0, false, nil, true)
-assert(draw.Quads[2].Flags == 0, 'textured quads cannot request solid-rectangle AA')
+assert(draw.Quads[2].Flags == 4, 'a textured quad can ask for the rectangle AA (the textured bars)')
 nameplates.Quad(1, 2, 3, 4, 0.5, 0.5, 0.5, 0.5, 0xFFFFFFFF, 0, true, 0.75, true)
 assert(draw.Quads[3].Flags == 3 and draw.Quads[3].Reserved == 191, 'outlined quads retain existing edge flags')
 nameplates.Quad(1, 2, 3, 4, 0, 0, 1, 1, 0xFFFFFFFF, 3, true, 1, nil, true)
