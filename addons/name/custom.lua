@@ -310,9 +310,15 @@ local function nameColor(color)
     return 0xFF000000 + part(bit.band(bit.rshift(color, 16), 0xFF)) * 0x10000 + part(bit.band(bit.rshift(color, 8), 0xFF)) * 0x100 + part(bit.band(color, 0xFF));
 end
 
--- the game keeps the pearl's colour the other way about
-local function pearlColor(color)
-    return 0xFF000000 + part(bit.band(color, 0xFF)) * 0x10000 + part(bit.band(bit.rshift(color, 8), 0xFF)) * 0x100 + part(bit.band(bit.rshift(color, 16), 0xFF));
+-- the game keeps the pearl's colour the other way about. A pearl's colour can be more than 0x80, which
+-- the game draws brighter than the icon itself: doubled, it is given as it is for the plugin to double
+-- as the game does; otherwise as the others are, where more than 0x80 is no brighter
+local function pearlColor(color, doubled)
+    local red, green, blue = bit.band(color, 0xFF), bit.band(bit.rshift(color, 8), 0xFF), bit.band(bit.rshift(color, 16), 0xFF);
+    if (doubled) then
+        return 0xFF000000 + red * 0x10000 + green * 0x100 + blue;
+    end
+    return 0xFF000000 + part(red) * 0x10000 + part(green) * 0x100 + part(blue);
 end
 
 local function darkColor()
@@ -1238,6 +1244,8 @@ function custom.Frame(options, hook, formats)
     -- being chosen) say a choice is being made
     local subtargetScale = options.subtargetScale ~= nil and math.max(50, math.min(200, options.subtargetScale[1])) / 100 or 1;
     local subtarget = 0;
+    -- the plugin doubles a pearl's colour as the game does
+    local pearlDoubled = nameplates.Supports(nameplates.Feature.Doubled, hook);
     local letterSpacing = options.letterSpacing ~= nil and math.max(0, math.min(10, tonumber(options.letterSpacing[1]) or 0)) or 0;
     local target = AshitaCore:GetMemoryManager():GetTarget();
     if (target ~= nil and (target:GetIsSubTargetActive() == 1 or target:GetSubTargetFlags() ~= SUBTARGET_NONE)) then
@@ -1621,7 +1629,7 @@ function custom.Frame(options, hook, formats)
                             if (kind == 'name') then fill = color; end
                             if (kind == 'icons') then
                                 pen = pen + inline.WriteIcons(part, written, pen, top, height, scale,
-                                    options.iconSize[1], options.iconSpacing[1], pearlColor(name.IconColor));
+                                    options.iconSize[1], options.iconSpacing[1], pearlColor(name.IconColor, pearlDoubled), pearlDoubled);
                             end
                             if (kind == 'party' or kind == 'vendor') then
                                 pen = pen + inline.WriteSign(part, kind == 'party' and written.role or coin, pen, top, height, scale,

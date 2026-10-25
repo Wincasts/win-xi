@@ -5,6 +5,7 @@
 // merging adjacent aliases preserves vertex order, blending and depth exactly.
 struct NameRun {
     uint32_t texture, first, count, maxAlpha;
+    bool doubled; // drawn with its colour doubled (QUAD_DOUBLED)
     bool WritesDepth(uint32_t threshold) const { return maxAlpha >= threshold; }
 };
 
@@ -13,9 +14,9 @@ namespace NameSubmission {
 
     template<class Texture>
     void Append(NameRun* runs, uint32_t& runCount, uint32_t slot,
-            uint32_t first, uint32_t vertices, uint32_t color, Texture* const* textures) {
-        if (runCount == 0 || textures[runs[runCount - 1].texture] != textures[slot]) {
-            runs[runCount++] = { slot, first, 0, 0 };
+            uint32_t first, uint32_t vertices, uint32_t color, Texture* const* textures, bool doubled = false) {
+        if (runCount == 0 || textures[runs[runCount - 1].texture] != textures[slot] || runs[runCount - 1].doubled != doubled) {
+            runs[runCount++] = { slot, first, 0, 0, doubled };
         }
         auto& run = runs[runCount - 1];
         run.count += vertices;

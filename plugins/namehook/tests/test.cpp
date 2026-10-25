@@ -143,7 +143,7 @@ static uint32_t CategoryOf(const XiModel* model) {
 int main() {
     CHECK(sizeof(HookCapabilities) == 32);
     CHECK(NamehookCapabilities.Size == sizeof(HookCapabilities) && NamehookCapabilities.Version == 1);
-    CHECK((NamehookCapabilities.Features & FEATURE_EDGE_RADIUS) != 0 && NamehookCapabilities.Build == 135);
+    CHECK((NamehookCapabilities.Features & FEATURE_EDGE_RADIUS) != 0 && (NamehookCapabilities.Features & FEATURE_DOUBLED) != 0 && NamehookCapabilities.Build == 136);
     {
         const NameBounds bounds{ -50, -10, 50, 10 };
         CHECK(!bounds.Intersects(-60, 540, 0, 0, 1920, 1080));
@@ -182,6 +182,13 @@ int main() {
         CHECK(count == 2 && runs[1].count == 12 && runs[1].WritesDepth(128));
         NameSubmission::Append(runs, count, 0, 24, 6, 0xFFFFFFFF, textures);
         CHECK(count == 3 && runs[2].first == 24); // no reordering across a different texture
+        // a doubled quad is a run of its own, though of the same texture, and not doubled the next
+        NameSubmission::Append(runs, count, 0, 30, 6, 0xFF8F1F8F, textures, true);
+        CHECK(count == 4 && runs[3].doubled && !runs[2].doubled && runs[3].first == 30);
+        NameSubmission::Append(runs, count, 0, 36, 6, 0xFF8F1F8F, textures, true);
+        CHECK(count == 4 && runs[3].count == 12);
+        NameSubmission::Append(runs, count, 0, 42, 6, 0xFF000000, textures);
+        CHECK(count == 5 && !runs[4].doubled);
     }
 	Clock = FakeClock;
 	static_assert(offsetof(Entity, Name) == 0x7C);

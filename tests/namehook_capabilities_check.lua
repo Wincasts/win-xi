@@ -43,5 +43,5 @@ loaded=true;assert(plates.Supports(1), 'unload/reload clears capability ownershi
 package.loaded['winxi.version']={Number=45}
 addon={}
 local ok,reason=pcall(dofile,'addons/name/name.lua')
-assert(not ok and tostring(reason):find('needs winxi 47',1,true), 'outdated WinXI must fail before loading newer modules')
+assert(not ok and tostring(reason):find('needs winxi 48',1,true), 'outdated WinXI must fail before loading newer modules')
 print('namehook capabilities: old ABI retained, missing/malformed/unknown features rejected, bounded scans and reload recovery passed')

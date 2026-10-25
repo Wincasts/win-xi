@@ -86,6 +86,7 @@
 --     a capsule's rim round party's bars, and BarFrameOpacity
 -- 46: namehook capability checks, independent icon outlines, ClearDrawing and editable tooltip catalogues
 -- 47: nameplates.Capabilities, copied public sidecar metadata for privacy-safe support reports
+-- 48: nameplates.Feature.Doubled and Quad's doubled, a colour doubled as the game's own are (namehook 1.36)
 return {
-    Number = 47,
+    Number = 48,
 };

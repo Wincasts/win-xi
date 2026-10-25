@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.72
+
+- Linkshell pearls are as bright as the game's. The game draws a pearl's colour doubled, 0x80 being the icon as it is and more brightening it, and a pearl's colour goes above 0x80; Name capped it at the icon's own brightness, so pearls of bright colours were darker than the game's (by about an eighth on a channel of 0x8F, by nearly half at 0xF0). With namehook 1.36 the pearl is given its colour as the game has it and drawn doubled, its outline not; with an older namehook it is drawn as before. A colour of the format's own (`[icons: color=…]`) is not doubled. Needs winxi 48 (`nameplates.Feature.Doubled`).
+- Tests: the pearl's colour and flag with namehook 1.36 and an older one, and a format's colour not doubled.
+
 ## 1.71
 
 - `[level: nocombat]`: the level is left out while the monster is in combat (engaged and alive, as Combat Only health bars have it), and written again once it is not, its corpse included. Typed text round it stays. `nocombat=false` is the same as leaving it off.

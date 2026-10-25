@@ -25,7 +25,7 @@ struct HookCapabilities {
     char Magic[16];
     uint32_t Size, Version, Features, Build;
 };
-enum : uint32_t { FEATURE_EDGE_RADIUS = 1, FEATURE_SOFT_RECT = 2, FEATURE_TIGHT_EDGE = 4 };
+enum : uint32_t { FEATURE_EDGE_RADIUS = 1, FEATURE_SOFT_RECT = 2, FEATURE_TIGHT_EDGE = 4, FEATURE_DOUBLED = 8 };
 
 // What a name is over. Every name is in exactly one category, and a category's names are shown or
 // hidden together.
@@ -140,6 +140,8 @@ enum : uint32_t {
     QUAD_SOFT_RECT = 1 << 2, // constant-UV, unedged rectangle: one-pixel screen-space alpha fringe (1.32)
     QUAD_EDGE_RADIUS = 1 << 4, // Reserved bits 8..23: explicit radius in 1/256 target pixels (1.34)
     QUAD_TIGHT_EDGE = 1 << 3, // edged icon: cap halo at one target pixel and omit downward shadow (1.33)
+    QUAD_DOUBLED = 1 << 5, // its colour doubled as the client's own are: 0x80 is the texture as it is, more brightens
+                           // it (MODULATE2X), as the client draws a linkshell pearl; its edge never doubled (1.36)
 };
 
 // One rectangle of a name an addon has drawn: a letter, or an icon.
