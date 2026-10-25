@@ -21,7 +21,7 @@
 
 addon.name      = 'cooldowns';
 addon.author    = 'atom0s, Thorny, RZN, lin, win';
-addon.version   = '2.1';
+addon.version   = '2.2';
 addon.desc      = 'Displays ability and spell recast times.';
 addon.link      = 'https://ashitaxi.com/';
 
@@ -64,6 +64,7 @@ local Defaults = T{
     windowPos = { 100, 100 },
     abilityNameColor = { unpack(DefaultColors.abilityNameColor) },
     spellNameColor = { unpack(DefaultColors.spellNameColor) },
+    showPlayerCooldowns = true,
     showPetCooldowns = true,
     sortByTime = false,
     sortDescending = false,
@@ -106,6 +107,7 @@ local function MigrateSettings()
         Config.legacySettingsChecked = true
     end
     Config.windowName = 'Cooldowns'
+    if type(Config.showPlayerCooldowns) ~= 'boolean' then Config.showPlayerCooldowns = true end
     if Config.showPetCooldowns == nil then Config.showPetCooldowns = true end
     if type(Config.sortByTime) ~= 'boolean' then Config.sortByTime = false end
     if type(Config.sortDescending) ~= 'boolean' then Config.sortDescending = false end
@@ -137,6 +139,7 @@ local SchJp = 0
 -- The /cooldowns settings window: whether it is open
 local ShowConfig = { false }
 local ShowSamples = { false } -- preview only; never saved
+local ShowPlayerCooldowns = { Config.showPlayerCooldowns }
 local ShowPetCooldowns = { Config.showPetCooldowns }
 local SortByTime = { Config.sortByTime }
 local WarningSeconds = { Config.warningSeconds }
@@ -189,6 +192,7 @@ local function UpdateSettings(s)
     if (s ~= nil) then
         Config = s
         MigrateSettings()
+        ShowPlayerCooldowns[1] = Config.showPlayerCooldowns
         ShowPetCooldowns[1] = Config.showPetCooldowns
         SortByTime[1] = Config.sortByTime
         WarningSeconds[1], CriticalSeconds[1] = Config.warningSeconds, Config.criticalSeconds
@@ -388,6 +392,11 @@ local function DrawConfigContent()
     end
     Imgui.TextDisabled('Countdowns only. Critical cannot exceed warning; values must be non-negative.')
     Imgui.Separator()
+    if Imgui.Checkbox('Show Player Cooldowns', ShowPlayerCooldowns) then
+        Config.showPlayerCooldowns = ShowPlayerCooldowns[1]
+        Settings.save()
+    end
+    Imgui.TextDisabled('Your own ability and spell recasts.')
     if Imgui.Checkbox('Show pet cooldowns', ShowPetCooldowns) then
         Config.showPetCooldowns = ShowPetCooldowns[1]
         Settings.save()
@@ -520,7 +529,10 @@ local function OnPresent()
         LastJob, LastSubJob, LastOwner = playerJob, subjob, owner
     end
     local now = os.clock()
-    if now >= NextPlayerScan then
+    if not Config.showPlayerCooldowns then
+        -- Hidden player recasts are not scanned; showing them again scans at once.
+        PlayerTimers, NextPlayerScan = {}, 0
+    elseif now >= NextPlayerScan then
         PlayerTimers = CollectPlayerTimers(mmPlayer, memory:GetRecast(), AshitaCore:GetResourceManager(), playerJob)
         PlayerCollectedAt, NextPlayerScan = now, now + ScanInterval
     end
@@ -536,10 +548,12 @@ local function OnPresent()
             { name = 'Maneuver (sample)', timer = 1800, kind = 'ability' },
             { name = 'Cure IV (sample)', timer = 720, kind = 'spell' } }
         petTimers = PetRecasts.Samples()
-    elseif #timers == 0 and #petTimers == 0 and ShowConfig[1] then
+    end
+    if not Config.showPlayerCooldowns then timers = {} end
+    if not Config.showPetCooldowns then petTimers = {} end
+    if #timers == 0 and #petTimers == 0 and ShowConfig[1] then
         timers[#timers + 1] = { name = 'Sample', timer = 3600 }
     end
-    if not Config.showPetCooldowns then petTimers = {} end
 
     SortTimers(timers)
     SortTimers(petTimers)
