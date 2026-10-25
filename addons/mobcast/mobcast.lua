@@ -1,6 +1,6 @@
 addon.name    = 'mobcast'
 addon.author  = 'win'
-addon.version = '0.2'
+addon.version = '0.3'
 addon.desc    = 'Says in a small window what the enemies about you are casting, readying and using.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -58,6 +58,7 @@ local defaults = T{
     seconds = T{ firstSeconds },
     maxLines = T{ firstLines },
     grow = 'Left',
+    newest = 'Bottom',
     pos = T{ firstPos[1], firstPos[2] },
     locked = T{ false },
     fontSize = T{ 0 },
@@ -83,6 +84,11 @@ end
 local growIds = { } -- a side the box grows from -> its button's label
 for _, grow in ipairs(box.Grows) do
     growIds[grow] = grow .. '##mobcast.grow'
+end
+
+local newestIds = { } -- where the newest line is -> its button's label
+for _, newest in ipairs(box.Newests) do
+    newestIds[newest] = newest .. '##mobcast.newest'
 end
 
 local function DrawEnemies(options)
@@ -122,6 +128,18 @@ local function DrawBox(options)
         end
     end
     tooltip.Hover('The side of the box that stays where it is as what it says gets longer or shorter. Its lines are set to that side too.')
+
+    widgets.Label('Newest Line')
+    for index, newest in ipairs(box.Newests) do
+        if index > 1 then
+            imgui.SameLine()
+        end
+        if imgui.RadioButton(newestIds[newest], options.newest == newest) and options.newest ~= newest then
+            options.newest = newest
+            Save()
+        end
+    end
+    tooltip.Hover('Where a new line goes. Bottom, the lines are in the order they were said, the oldest at the top. Top, the newest is always at the top and the older ones are pushed down.')
 
     widgets.Lock(options.locked, '##mobcast.locked', { onChanged = Save })
 
@@ -189,6 +207,11 @@ local function Complete(options)
         grows = grows or options.grow == grow
     end
     if not grows then options.grow = box.DefaultGrow end
+    local newests = false
+    for _, newest in ipairs(box.Newests) do
+        newests = newests or options.newest == newest
+    end
+    if not newests then options.newest = box.DefaultNewest end
     for _, kind in ipairs(shared.kinds) do
         Colored(options, kind.color, firstColors[kind.color])
     end
