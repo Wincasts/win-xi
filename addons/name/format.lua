@@ -12,7 +12,7 @@
 --                          with .distance, .level, .checked, .aggro, .letter, .icons, .party and .vendor
 --                          set if present, and .partyReplace if a [party] says replace
 -- Options: space=N and color=NAME/#RGB on all tokens, and when=target+checked+nm+relevant and
--- within=N (block_rules.lua); size=N/gap=N on icons; size=N on party and vendor; replace on [party],
+-- within=N (block_rules.lua); size=N/gap=N on icons; size=N on party, vendor, aggro and checked; replace on [party],
 -- its sign in place of the game's icons for a member; decimals=0..2 on distance; spacing=0..10 on
 -- name, level and distance, screen pixels between its letters in place of the Letter Spacing setting; type=single/double on
 -- [letters] (legacy alias [letter]); exact on [level], the level only once a check has told it, never
@@ -93,7 +93,7 @@ local function parameters(kind, typed, inherited)
             local low, high;
             if (key == 'space') then low, high = 0, 64;
             elseif (key == 'within') then low, high = 1, 100;
-            elseif ((kind == 'icons' or kind == 'party' or kind == 'vendor') and key == 'size') then low, high = 25, 300;
+            elseif ((kind == 'icons' or kind == 'party' or kind == 'vendor' or kind == 'aggro' or kind == 'checked') and key == 'size') then low, high = 25, 300;
             elseif (kind == 'icons' and key == 'gap') then low, high = 0, 24;
             elseif (kind == 'distance' and key == 'decimals') then low, high = 0, 2;
             elseif ((kind == 'name' or kind == 'level' or kind == 'distance') and key == 'spacing') then low, high = 0, 10;

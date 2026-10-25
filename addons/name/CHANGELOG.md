@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.73
+
+- `size=25`–`300` on `[aggro]` (the sign's height as a percentage of the name's, 125 without it; the hunt sign too) and `[checked]` (the magnifying glass as a percentage of the letters, 70 without it), as `[icons]`, `[party]` and `[vendor]` have it.
+- The format editors' (?) tips list the options again, between the tokens and the example: what any token takes (`color`, `space`, `when`, `within`) and each token's own (`spacing`, `size`, `gap`, `replace`, `decimals`, `exact`, `nocombat`, `type`), only those of the tokens that format has.
+- Tests: `size=` parsed, clamped and written back, only where it belongs; the aggro sign sized and the name moved on; each format tip lists its options.
+
 ## 1.72
 
 - Linkshell pearls are as bright as the game's. The game draws a pearl's colour doubled, 0x80 being the icon as it is and more brightening it, and a pearl's colour goes above 0x80; Name capped it at the icon's own brightness, so pearls of bright colours were darker than the game's (by about an eighth on a channel of 0x8F, by nearly half at 0xF0). With namehook 1.36 the pearl is given its colour as the game has it and drawn doubled, its outline not; with an older namehook it is drawn as before. A colour of the format's own (`[icons: color=…]`) is not doubled. Needs winxi 48 (`nameplates.Feature.Doubled`).
