@@ -66,17 +66,24 @@ check('nothing printed', #H.printed == 0)
 
 -- a window whose text could not be placed: left to the game, and taken again once it is measured whole a while
 GROUP.windows = { Command(), Question(false) }
+local drawn = H.calls['draw.AddText'] or 0
+H.frames(3)
+check('text unplaced a few frames, as a window opening: still drawn here, not left to the game', not Kept('comyn') and (H.calls['draw.AddText'] or 0) > drawn)
+GROUP.windows = { Command(), Question() }
 H.frames(1)
-H.frames(1)
-check('text unplaced: the window kept for the game', Kept('comyn') and not Kept('playermo'))
+GROUP.windows = { Command(), Question(false) }
+H.frames(7)
+check('measured whole between: counted afresh', not Kept('comyn'))
+H.frames(2)
+check('text unplaced eight frames in a row: the window kept for the game', Kept('comyn') and not Kept('playermo'))
 local kept = Question(); kept.hidden, kept.kept = false, true
 GROUP.windows = { Command(), kept }
 H.frames(1)
-check('measured whole: still the game\'s a moment', Kept('comyn'))
-H.wait(0.3); H.frames(1); H.frames(1)
-check('measured whole a while: drawn in winxi again', not Kept('comyn'))
+check('measured whole a frame: still the game\'s', Kept('comyn'))
+H.frames(2)
+check('measured whole two frames in a row: drawn in winxi again', not Kept('comyn'))
 GROUP.windows = { Command(), (function() local w = Question(); w.rect = nil; return w end)() }
-H.frames(1); H.frames(1)
+H.frames(9)
 check('no place measured: kept for the game', Kept('comyn'))
 H.wait(3); GROUP.windows = { Command(), Question() }; H.frames(1); H.frames(1)
 check('two seconds on: asked of the mirror again', not Kept('comyn'))

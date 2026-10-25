@@ -33,8 +33,9 @@ where the game put them.
   at the row the cursor is on, its fingertip on the row's left edge so that it hangs out over the box's; the
   scrollbar. The game's own stays open unseen underneath, so
   the controller works it as ever and the mouse clicks it where it is drawn (with Move Right, Move Down or Menu
-  Scale, while Mouse Follows Menus is on). One whose text cannot all be placed is left to the game for a couple of
-  seconds and taken again once it measures whole; the settings say which.
+  Scale, while Mouse Follows Menus is on). One whose text cannot all be placed for eight frames in a row (a window
+  opening often measures badly for a frame or two, and is drawn as far as it is measured meanwhile) is left to the
+  game for up to two seconds, and taken again once it measures whole two frames in a row; the settings say which.
 
 Both follow the theme as it changes.
 

@@ -7,7 +7,10 @@
     of them the game's (`/uihook native frames`).
   - Winxi: each drawn again whole in the winxi look from uihook's mirror of the group (mirror ABI 6,
     `groupmirror.lua`, its reader revived from winxi.nativemirror; `groupdraw.lua`, its drawing from the menus
-    addon), the game's own working unseen underneath: the box only as large as what the window holds, its button
+    addon), the game's own working unseen underneath. A window that measures badly is left to the game only after
+    eight bad frames in a row, drawn as far as it is measured meanwhile, and taken again after two whole frames: left
+    to it at the first bad frame, as a window opening often has, the game's menu showed for a quarter second first.
+    Also: the box only as large as what the window holds, its button
     bars square winxi buttons (the one the cursor is on in the Highlight Color, told by the game's warm tint), the
     game's hand hanging over the box's left edge, its fingertip on the row's. One that cannot be measured whole is left to the game a
     while, and the settings say so.

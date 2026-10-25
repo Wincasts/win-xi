@@ -24,12 +24,16 @@ local groupmirror = require('groupmirror')
 local view = {}
 local mirror = groupmirror.new()
 
--- A window whose place, or whose text's, could not be measured is left to the game for a while, so it is never
--- unseen or half drawn: its name -> the time until which it is the game's, and why. One left to it is taken again
--- once it has been measured whole for MEASURED_SECONDS.
-local nativeUntil, nativeWhy, measuredSince = {}, {}, {}
+-- A window whose place, or whose text's, cannot be measured is left to the game for a while, so it is never unseen or
+-- half drawn for long: its name -> the time until which it is the game's, and why. A window often measures badly for
+-- its first frame or two (its text not yet placed as it opens), so it is left to the game only after BAD_FRAMES bad
+-- frames in a row, drawn here as far as it is measured meanwhile: left to it at once, the game's menu showed for the
+-- quarter second it took to be taken again. One left to it is taken again once measured whole WHOLE_FRAMES in a row.
+local nativeUntil, nativeWhy = {}, {}
+local badFrames, wholeFrames = {}, {}
 local FALLBACK_SECONDS = 2
-local MEASURED_SECONDS = 0.25
+local BAD_FRAMES = 8
+local WHOLE_FRAMES = 2
 
 local function GiveBack(name, why, now)
     nativeUntil[name] = now + FALLBACK_SECONDS
@@ -247,7 +251,7 @@ local function Layout(window)
     if not layout.button then
         layout.row = CursorRow(window, words)
         local lit = window.selection
-        if not layout.row and lit and Height(lit) < Height(window.rect) / 2 then layout.row = lit end
+        if not layout.row and lit and window.rect and Height(lit) < Height(window.rect) / 2 then layout.row = lit end
     end
     local holds = Holds(window, buttons, words, spelled, used)
     layout.box = holds and { holds[1] - BOX_PAD, holds[2] - BOX_PAD, holds[3] + BOX_PAD, holds[4] + BOX_PAD } or window.rect
@@ -257,6 +261,7 @@ end
 local function DrawWindow(list, window)
     local layout = Layout(window)
     local box = layout.box
+    if not box then return end -- nothing of it measured yet: nothing to draw this frame
     frame.Draw({ left = box[1], top = box[2], width = Width(box), height = Height(box) }, function()
         list:PushClipRect({ box[1] - 24, box[2] - 24 }, { box[3] + 24, box[4] + 24 }, true)
         local ok, err = pcall(DrawContents, list, window, box, layout)
@@ -265,6 +270,14 @@ local function DrawWindow(list, window)
     end, { title = layout.title })
     -- over the frame's border, which it hangs across
     DrawHand(list, window, layout)
+end
+
+-- Why a window cannot be drawn whole, or nil
+local function Problem(window, width, height)
+    if not window.rect then return 'its place could not be measured' end
+    local missing = Unplaced(window)
+    if missing > 0 then return ('%d of its %d pieces of text could not be placed'):format(missing, #window.runs) end
+    if OffScreen(window, width, height) > 0 then return 'some of its text was printed off the screen' end
 end
 
 local hostFlags = bit.bor(ImGuiWindowFlags_NoDecoration, ImGuiWindowFlags_NoInputs, ImGuiWindowFlags_NoBackground,
@@ -288,26 +301,31 @@ local function Draw()
     -- under every other window of imgui's, as the game's menus are
     if imgui.Begin('##nativeui.group', true, hostFlags) then
         local list = imgui.GetWindowDrawList()
+        local seen = {}
         for _, window in ipairs(windows) do
             local name = window.name
+            local why = Problem(window, width, height)
+            seen[name] = true
             if window.kept then
-                -- the game's for now: taken again once measured whole for a while
-                if window.rect and Unplaced(window) == 0 and OffScreen(window, width, height) == 0 then
-                    measuredSince[name] = measuredSince[name] or now
-                    if now - measuredSince[name] >= MEASURED_SECONDS then nativeUntil[name], measuredSince[name] = now, nil end
+                -- the game's for now: taken again once measured whole a few frames in a row
+                wholeFrames[name] = not why and (wholeFrames[name] or 0) + 1 or nil
+                if (wholeFrames[name] or 0) >= WHOLE_FRAMES then nativeUntil[name], wholeFrames[name] = now, nil end
+            elseif why then
+                badFrames[name] = (badFrames[name] or 0) + 1
+                if badFrames[name] >= BAD_FRAMES then
+                    GiveBack(name, why, now)
+                    badFrames[name] = nil
                 else
-                    measuredSince[name] = nil
+                    DrawWindow(list, window)
                 end
-            elseif not window.rect then
-                GiveBack(name, 'its place could not be measured', now)
-            elseif Unplaced(window) > 0 then
-                GiveBack(name, ('%d of its %d pieces of text could not be placed'):format(Unplaced(window), #window.runs), now)
-            elseif OffScreen(window, width, height) > 0 then
-                GiveBack(name, 'some of its text was printed off the screen', now)
             else
+                badFrames[name] = nil
                 DrawWindow(list, window)
             end
         end
+        -- a window closed starts afresh when it opens again
+        for name in pairs(badFrames) do if not seen[name] then badFrames[name] = nil end end
+        for name in pairs(wholeFrames) do if not seen[name] then wholeFrames[name] = nil end end
     end
     imgui.End()
     fonts.Pop(pushed)
