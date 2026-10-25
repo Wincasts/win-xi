@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.60
+
+- No blink of the party, alliance and target windows, the clock and compass, or chatbox's logs while imgui makes
+  its font texture again (its atlas grown or made afresh: reloading name, which loads its font and writes every
+  name size, did it). A capture refused for imgui's texture not being ready keeps the slot's last capture, drawn
+  again for up to eight frames in a row (`PARTY_HOLD_FRAMES`, `party/hold.h`), this frame's commands consumed as a
+  capture's are, so neither the game's window nor imgui's shows; past eight it is refused as before. A replay no
+  longer needs the font texture to be the one it was taken with: its runs hold their textures (AddRef), the old
+  atlas among them, so a capture taken before the atlas was made again draws as it was; that check, which left the
+  slot to the game for the frame after every rebuild, goes, with `Font()`. Ashita's log has an info line as a hold
+  begins and as a capture is taken again after one. Buffs are not covered: their quads are the addon's, of
+  whichever atlas it saw.
+- tests/party.cpp: kept for the texture alone, eight frames, only a fresh capture; the old atlas held by a capture
+  outlives the renderer's reference. tests/run.sh: all pass. Not yet tried in game.
+
 ## 1.59
 
 - The group's mirror (mirror ABI 6, `native/mirror.h`; nativeui 0.9's Drawn As Winxi): while an addon asks each
