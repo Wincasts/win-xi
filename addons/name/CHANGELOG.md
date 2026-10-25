@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.69
+
+- Fix the player's own name vanishing while they are their own target: choosing themselves as a sub target (a spell, an item) and the confirm after it. The game gives that name line no text then; what was written for the character before is kept, icons and all, and with nothing before the entity's name is written.
+- Tests: the own name given no text, drawn as it was, and the entity's name with nothing before. The report check expects 1.69 (it was left at 1.67 by 1.68).
+
 ## 1.68
 
 - Keep a checked monster's level after it dies, while its body is there with grey health, in place of going back to the range. The check is forgotten once the client stops showing the body, or once its place is seen alive again (respawned out of sight). The defeat message only notes the death, as the health may not yet read 0.

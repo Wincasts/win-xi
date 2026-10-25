@@ -272,3 +272,15 @@ H.print('kept within 50 to 200', options.subtargetScale[1] == 200)
 options.subtargetScale = 'big'; custom.Settle(options)
 H.print('of another shape, made good', options.subtargetScale[1] == 100)
 AshitaCore.GetMemoryManager = manager
+
+-- The game gives the player's own name no text while they are their own target or sub target:
+-- the name is drawn all the same, as it was, its icons with it; with nothing before, the entity's name
+options.nameFormat[1] = '[icons][name]'; custom.Settle(options)
+put(0, 0x408, 'Win', plates.Category.Self); ffi.copy(hook.Names[0].Text, '\146 Win'); hook.Count = 1
+render(); local own = quads(0x408)
+ffi.fill(hook.Names[0].Text, 48); hook.Names[0].Flags = plates.Flag.Wanted + plates.Flag.Target; render()
+assert(draw.Entities[0x408].Frame == hook.Frame and quads(0x408) == own, 'own name, given no text, drawn as it was')
+ffi.copy(hook.Names[0].Text, 'Win'); render(); local plainName = quads(0x408)
+put(0, 0x409, 'Win', plates.Category.Self); ffi.fill(hook.Names[0].Text, 48); render()
+assert(draw.Entities[0x409].Frame == hook.Frame and quads(0x409) == plainName, 'given no text from the start: the entity\'s name')
+H.print('own name given no text: drawn as before, and the entity\'s name with nothing before', true)
