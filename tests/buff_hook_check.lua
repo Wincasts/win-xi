@@ -142,23 +142,42 @@ H.print('a plugin that took nothing: a window', H.calls.Begin > begins, '| said'
 block.Hooked = 1; block.Frame = 20; H.frames(1)
 H.print('the plugin again: handed over, the row given back', block.SubmitFrame == 20, written[100] == 101 and written[200] == 201)
 
--- not anchored: a window; with the game's icons hidden, the plugin keeps them, and its hand, away
-o.anchorToDefault[1] = false; block.Frame = 21; begins = H.calls.Begin
+-- not anchored, with the game's icons hidden: the plugin has the bar still, at Position (in the
+-- theme's padding), under the game's menus as anchored; dragged, Position follows the mouse
+local pad = require('winxi.theme').For('Padding', false)
+o.anchorToDefault[1] = false; o.showBackdrop[1] = false; o.pos[1], o.pos[2] = 300, 150
+block.Frame, block.DrawnFrame = 21, 21; begins = H.calls.Begin
 H.frames(1)
-H.print('draggable: a window, and an empty bar handed over', H.calls.Begin > begins, block.SubmitFrame == 21 and block.Count == 0,
+H.print('at Position: handed over, not a window', block.SubmitFrame == 21 and block.Count > 0, H.calls.Begin == begins,
     '| the row left to the plugin', written[100] == 101 and written[200] == 201)
-o.hideGameIcons[1] = false; block.Frame = 22; H.frames(1)
-H.print('draggable, the game\'s icons shown: nothing handed over', block.SubmitFrame == 21, '| nothing hidden', written[300] == 301)
+H.print('the first icon at Position', block.Quads[0].X0 == x0 + (300 + pad - 200) * 0.5, block.Quads[0].Y0 == (150 + pad - 100) * 0.5)
+local icons0 = block.Count
+o.showBackdrop[1] = true; block.Frame, block.DrawnFrame = 22, 22; H.frames(1)
+H.print('Show Backdrop: the theme\'s background and a line round it, first', block.Count == icons0 + 5,
+    block.Quads[0].Texture == hook.Solid, block.Quads[0].X0 == (300 - 200) * 0.5)
+o.showBackdrop[1] = false
+H.ret.GetMousePos = { 300 + pad + 2, 150 + pad + 2 }; H.ret.IsItemHovered = { true }; H.ret.IsMouseClicked = { true }; H.ret.IsMouseDown = { true }
+block.Frame, block.DrawnFrame = 23, 23; H.frames(1)
+H.ret.IsMouseClicked = { false }; H.ret.GetMousePos = { 300 + pad + 22, 150 + pad + 12 }
+block.Frame, block.DrawnFrame = 24, 24; H.frames(1)
+H.print('dragged: Position follows the mouse', o.pos[1] == 320 and o.pos[2] == 160, '| the adjustment left alone', o.anchorAdjustment[1] == 0)
+H.ret.IsMouseDown = { false }; H.ret.IsItemHovered = { false }; H.ret.GetMousePos = { 0, 0 }
+block.Frame, block.DrawnFrame = 25, 25; H.frames(1)
+o.hideGameIcons[1] = false; block.Frame = 26; begins = H.calls.Begin; H.frames(1)
+H.print('the game\'s icons shown: a window, nothing handed over', H.calls.Begin > begins, block.SubmitFrame == 25, '| nothing hidden', written[300] == 301)
 o.hideGameIcons[1] = true
 
 -- The buff selector: the status the game's cursor is on has the highlight round it, drawn by the
--- plugin anchored, and in the window dragged; a click on an icon removes it
+-- plugin, anchored or not; a click on an icon removes it
 menu = 'menu    buff    '
 block.CursorStatus = 33
+local function highlighted()
+    local solid = 0
+    for i = 0, block.Count - 1 do if block.Quads[i].Texture == hook.Solid then solid = solid + 1 end end
+    return solid
+end
 block.Frame = 30; block.DrawnFrame = 30; H.frames(1)
-local rects = H.calls['draw.AddRect'] or 0
-block.Frame = 31; block.DrawnFrame = 31; H.frames(1)
-H.print('dragged: the highlight drawn round the cursor\'s status', (H.calls['draw.AddRect'] or 0) == rects + 2)
+H.print('at Position: the highlight handed over round the cursor\'s status', highlighted() == 8)
 o.anchorToDefault[1] = true
 block.Frame = 32; block.DrawnFrame = 32; H.frames(1)
 local solid, around = 0, true
