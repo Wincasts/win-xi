@@ -826,9 +826,11 @@ ashita.events.register('d3d_present', 'buff_present', function()
     else
         windowExtra.locked = options.lockPosition[1] or nil;
         local look = app.windowStyle;
-        local backdrop = options.showBackdrop[1];
-        look.background, look.border = (not backdrop) and clear or nil, (not backdrop) and clear or nil;
-        look.shadow = (not backdrop) and false or nil;
+        if options.showBackdrop[1] then
+            look.background, look.border, look.shadow = nil, nil, nil;
+        else
+            look.background, look.border, look.shadow = clear, clear, false;
+        end
         look.growFrom = growCorners[options.growFrom];
         app:Window(options.isVisible, DrawStatuses, windowExtra);
     end

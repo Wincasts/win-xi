@@ -196,8 +196,14 @@ o.anchorToDefault[1], o.fadeInOut[1], o.perRow[1] = false, false, 2
 H.frames(1)
 local cleared = clearPushed
 o.showBackdrop[1] = false
+local shadow = require('winxi.shadow')
+local savedShadow, shadows = shadow.Draw, 0
+shadow.Draw = function() shadows = shadows + 1 end
 clearPushed = 0; H.frames(1)
-H.print('Show Backdrop off: a clear background and border', clearPushed > cleared)
+H.print('Show Backdrop off: a clear background and border, and no shadow', clearPushed > cleared, shadows == 0)
+o.showBackdrop[1] = true; H.frames(1)
+H.print('Show Backdrop on: the shadow again', shadows == 1)
+o.showBackdrop[1] = false; shadow.Draw = savedShadow
 o.growFrom = 'Right'; rowStarts = {}
 local measured = H.calls.GetItemRectSize or 0
 H.frames(1)
