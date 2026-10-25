@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.2
+
+- `/vis terrain` is off by default: drawing the terrain the zone would hide costs frames in big zones, and with the fog at stock most of it is fogged out. A terrain on saved before 2.2 (when on was the default) is turned off once, and vis says so at load; `/vis terrain on` brings it back.
+
 ## 2.1 — first release
 
 - Draw distance for the world and for entities (`/vis world`, `/vis entity`), with the fog kept where you want it (`/vis fog`), objects drawn as far as the terrain (`/vis objects`) and keeping their detail (`/vis detail`), and distant terrain the zone would hide (`/vis terrain`). It replaces the stock drawdistance addon.

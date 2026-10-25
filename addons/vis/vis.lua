@@ -1,6 +1,6 @@
 addon.name    = 'vis';
 addon.author  = 'win';
-addon.version = '2.1';
+addon.version = '2.2';
 addon.desc    = 'World and entity draw distance with the fog kept where you want it: general values, a preset for cities, the outdoors and dungeons, and a zone\'s own, saved per character.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -53,11 +53,12 @@ local defaults = T{
     fog     = 1.0,
     objects = 0,      -- zone-object ranges: n times stock; 0 = the same as world
     detail  = 0,      -- how much further objects keep their detailed mesh; 0 = the same as world
-    terrain = true,   -- draw distant terrain the zone's visibility lists would hide
+    terrain = false,  -- draw distant terrain the zone's visibility lists would hide
     zones   = T{},    -- zone id (as a string) -> the values set for that zone alone
     kinds   = T{ city = T{}, outdoors = T{}, dungeon = T{} }, -- the values set for every zone of a kind
     seeded  = false,  -- whether the city and dungeon presets were given their starting world x2
     adopted = false,  -- whether this character's drawscale settings were looked for, to copy
+    terrainOff = false, -- whether a terrain on saved before 2.2, when on was the default, was turned off
 };
 local VALUES = { 'world', 'entity', 'fog', 'objects', 'detail', 'terrain' };
 local KINDS = { city = 'a city', outdoors = 'outdoors', dungeon = 'a dungeon' };
@@ -90,6 +91,7 @@ local state = T{
     view     = nil,    -- the visibility-list site, from view.find
     moved    = nil,    -- what to say of fov and square saved before 2.0, said once at load
     adopted  = nil,    -- drawscale's settings were copied to vis's, to say once
+    terrainOff = nil,  -- a saved terrain on was turned off, the default from 2.2, to say once
 };
 
 -- The client's memory, as the detail and view modules see it.
@@ -440,7 +442,7 @@ local function apply()
         end
         if (state.detailMem ~= 0) then detail.set(mem, state.detail, detailValue()); end
     end
-    if (state.view ~= nil) then view.setVis(mem, state.view, s.terrain ~= false); end
+    if (state.view ~= nil) then view.setVis(mem, state.view, s.terrain == true); end
 end
 
 local function rescan()
@@ -496,7 +498,7 @@ local function status()
     say(('objects x%.2f%s%s, detail x%.2f%s, terrain %s.'):format(
         objectsValue(), (s.objects == nil or s.objects <= 0) and ' (same as world)' or '', objectsState,
         detailValue(), (s.detail == nil or s.detail <= 0) and ' (same as world)' or '',
-        s.terrain ~= false and 'on' or 'off'));
+        s.terrain == true and 'on' or 'off'));
     local own, kind = layerText(ownValues()), layerText(kindValues());
     if (own == nil and kind == nil) then
         say('All from the general values.');
@@ -512,7 +514,7 @@ local function help()
     say('/vis fog <n> - the fog: n times stock, whatever world is. 1 keeps the stock fog.');
     say('/vis objects <n> - buildings, trees and props: n times stock. 0 = the same as world.');
     say('/vis detail <n> - how much further objects keep their detailed mesh. 0 = the same as world.');
-    say('/vis terrain on|off - on: draw distant terrain the zone would hide from your area. off: stock.');
+    say('/vis terrain on|off - on: draw distant terrain the zone would hide from your area. off (the default): stock.');
     say('The field of view and true proportions are the lens plugin\'s: /lens fov, /lens middle and /lens square.');
     say('Those set the general values. Over them, for every zone of a kind, and over those, for one zone:');
     say('/vis city|outdoors|dungeon <setting> <value> - the kind\'s preset; <setting> clear takes it out again, clear alone the whole preset.');
@@ -619,6 +621,11 @@ local function settle(s)
     local changed = moveToLens(s);
     if (renameVis(s)) then changed = true; end
     if (s.adopted ~= true) then s.adopted, changed = true, true; end
+    -- terrain was on by default until 2.2 and saved so; off once, as the default is now
+    if (s.terrainOff ~= true) then
+        if (s.terrain == true) then s.terrain, state.terrainOff = false, true; end
+        s.terrainOff, changed = true, true;
+    end
     if (changed) then settings.save(); end
     settleGeneral(s);
     if (type(s.zones) ~= 'table') then s.zones = T{}; end
@@ -751,13 +758,17 @@ local function guarded(name, fn)
 end
 
 -- What a load or a change of character found to say: drawscale's settings brought over, and fov and
--- square gone to lens. Each said once.
+-- square gone to lens, and terrain turned off. Each said once.
 local function sayNotes()
     if (state.adopted) then
         say('Your drawscale settings are vis\'s now. vis replaces drawscale: take /addon load drawscale out of your startup script.');
         state.adopted = nil;
     end
     if (state.moved) then say(state.moved); state.moved = nil; end
+    if (state.terrainOff) then
+        say('terrain is off now, the default from vis 2.2: it costs frames in big zones and the fog hides most of it. /vis terrain on brings it back.');
+        state.terrainOff = nil;
+    end
 end
 
 settings.register('settings', 'settings_update', guarded('settings', function (s)

@@ -177,6 +177,8 @@ H.print('/vis objects 3', H.command('/vis objects 3') == true, H.options().objec
 H.print('/vis objects 0 is the same as world', H.command('/vis objects 0') == true, H.options().objects == 0, lastSaid():find('objects x2.00 (same as world)', 1, true) ~= nil)
 H.print('/vis detail 4', H.command('/vis detail 4') == true, H.options().detail == 4, lastSaid():find('detail x4.00', 1, true) ~= nil,
     '| too much refused', H.command('/vis detail 101') == true, H.options().detail == 4)
+H.print('terrain off to begin with', H.options().terrain == false, H.options().terrainOff == true)
+H.command('/vis terrain on')
 H.print('/vis terrain off', H.command('/vis terrain off') == true, H.options().terrain == false, lastSaid():find('terrain off', 1, true) ~= nil,
     '| terrain alone toggles', H.command('/vis terrain') == true, H.options().terrain == true, '| a bad word refused', H.command('/vis terrain maybe') == true, H.options().terrain == true)
 H.print('/vis fov points to lens', H.command('/vis fov 60') == true, H.options().fov == nil, lastSaid():find('fov is the lens plugin\'s now: /lens fov <n>', 1, true) ~= nil,
@@ -292,3 +294,18 @@ H.print('settled: the zone\'s set kept', store.zones['230'] ~= nil and store.zon
     '| presets: the bad value dropped', store.kinds.dungeon.world == nil, store.kinds.dungeon.fog == 0.5, '| not reseeded', next(store.kinds.city) == nil, '| a preset that was not a table', type(store.kinds.outdoors) == 'table')
 H.command('/vis')
 H.print('after settling, in 230, its own apply', said():find('In zone 230 (230), a city', 1, true) ~= nil, said():find('world x4.00', 1, true) ~= nil)
+
+-- terrain off by default from 2.2: a terrain on saved by 2.1 is turned off once, and said; one set after is kept
+store.terrainOff, store.terrain = nil, true
+local n = #H.printed
+H.resettle()
+local note = table.concat(H.printed, '\n', n + 1)
+H.print('a 2.1 terrain on turned off', store.terrain == false, store.terrainOff == true, '| and said', note:find('terrain is off now, the default from vis 2.2', 1, true) ~= nil)
+H.command('/vis terrain on')
+n = #H.printed
+H.resettle()
+H.print('a terrain on set after stays on', store.terrain == true, '| and nothing said', table.concat(H.printed, '\n', n + 1):find('terrain is off now', 1, true) == nil)
+store.terrainOff, store.terrain = nil, false
+n = #H.printed
+H.resettle()
+H.print('a 2.1 terrain off is quiet', store.terrain == false, store.terrainOff == true, table.concat(H.printed, '\n', n + 1):find('terrain is off now', 1, true) == nil)

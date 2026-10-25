@@ -28,10 +28,12 @@ patch the same places in the game.
 - `/vis detail <n>` is how much further objects keep their detailed mesh. Objects swap between
   three meshes at two fixed distances; this moves both switch points out by `n`. `0`, the default,
   follows world.
-- `/vis terrain on|off` (default on) draws distant terrain the zone's visibility lists would hide
+- `/vis terrain on|off` (default off) draws distant terrain the zone's visibility lists would hide
   from your area. Zones carry precomputed lists of what is visible from where, and terrain off the
   list is never drawn however far the draw distance goes, popping in as you cross into the next area.
-  On costs some frames in big zones. `/vis terrain` alone toggles it.
+  On costs frames in big zones, and with the fog at stock most of what it adds is fogged out anyway;
+  it was the default until 2.2, and a terrain on saved before then is turned off once, said at load.
+  `/vis terrain` alone toggles it.
 
 The field of view and the world's true proportions were `fov` and `square` until 2.0 and
 are the [lens](../../plugins/lens) plugin's now: `/lens fov`, `/lens middle` and `/lens square`, with
