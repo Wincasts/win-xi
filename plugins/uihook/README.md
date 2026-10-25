@@ -574,6 +574,9 @@ controller input, cursor and text). `addons/nativeui` gives it its settings.
 /uihook native inset <pixels> [quiet]  the top bar that much shorter at each end, every window either side moved in with it
 /uihook native size <factor> [quiet]   every framed window that much larger, from its corner of the screen
 /uihook native mouse on|off [quiet]    the game's mouse given each window where it is drawn (an experiment)
+/uihook native frames <fill> <border> <rounding> <thickness> [quiet]
+                                       the group's frames drawn as panels (an experiment): colours AARRGGBB, pixels
+/uihook native frames off [quiet]      the group's frames the game's again
 ```
 
 The group (1.38) is told each frame by where the game draws each window (+3A; 1.38 read its layout target, +8C,
@@ -598,6 +601,16 @@ where the game puts a window drawn elsewhere, with nothing drawn there, is kept 
 always given, so nothing is left held). Ashita, imgui and every addon see each message as it was. The wheel is
 the game's: its place is the screen's, and the game scrolls where its own cursor is. Not yet tried in game: the
 game may set the cursor's place itself (SetCursorPos) in some flows, at the game's own place.
+
+`frames` (1.59, an experiment; nativeui's Winxi Frames) draws the group's frames as panels in the colours given.
+While it is on the group is told even with no move. A draw made in a window of the group, in its frame (before its
+contents), not text, whose texture is the frame's art (the texture census's corners `72D3D795`, top and bottom
+`3C8984C5`, sides `1023C0C5` and striped background `92C145C5`, each pointer's pixels read once and again when
+unseen 120 frames) is left undrawn, and still counted into the window's bounds. With the window's first such draw
+a frame, the panel is drawn in colour alone, in the party's drawing states: filled over the window's frame as last
+drawn, moved as its draws are, then its border inside its edge, the corners rounded. It is under all else of the
+window's: the elements drawn in the frame (the command menu's pictured words, its buttons), the contents, the
+hand. Only draws from memory are told; the skin is not asked for a frame left undrawn. Not yet tried in game.
 
 The first experiment's commands for one window at a time (`move`, `scale` and `tint`, 1.25–1.27) were taken out
 in 1.58: nothing used them once the group, the inset and the size did it for every window.

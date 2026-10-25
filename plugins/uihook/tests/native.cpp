@@ -91,6 +91,51 @@ int main() {
     group.Group(10,-100);
     Check(cm->dx==10 && cm->dy==-100,"a new offset for every one of it");
     Check(group.GroupOff()==2 && !group.Any(),"the group off: its entries gone");
+    // the group's frames drawn as panels: the group told with no move
+    {
+        NativeLook panels;
+        NativePanelStyle style; style.fill=0xCC272743; style.border=0x66787A7C; style.rounding=3; style.thickness=1;
+        panels.Frames(style);
+        Check(panels.Any() && panels.Grouping() && !panels.groupOn,"frames on: the group told, not moved");
+        panels.Note("menu    logwindo",log,1); panels.Note("menu    menuwind",command,1);
+        NativeEntry* m=panels.Find("menu    menuwind",false);
+        Check(m && m->group && m->member && m->dx==0 && m->dy==0,"the command menu of the group, where the game puts it");
+        saved=panels.Enter("menu    menuwind",1);
+        Check(panels.FrameDraw(),"its frame's draws may be the frame's art");
+        panels.text++; Check(!panels.FrameDraw(),"not its title's text"); panels.text--;
+        V fd[2]={{16,1200,0,1,0,0,0},{128,1288,0,1,0,0,0}}; panels.Gather(fd,2,sizeof(V));
+        panels.Phase(PHASE_CONTENT); Check(!panels.FrameDraw(),"not its contents"); panels.Phase(PHASE_FRAME);
+        panels.Leave(saved);
+        saved=panels.Enter("menu    menuwind",2);
+        float rect[4]={};
+        Check(panels.PanelDue(3440,1440,2,rect) && Near(rect[0],16) && Near(rect[1],1200) && Near(rect[2],128) && Near(rect[3],1288),"its panel over its frame as last drawn");
+        Check(!panels.PanelDue(3440,1440,2,rect),"once a frame");
+        panels.Leave(saved);
+        panels.Group(20,-40);
+        saved=panels.Enter("menu    menuwind",3);
+        Check(panels.PanelDue(3440,1440,3,rect) && Near(rect[0],36) && Near(rect[1],1160),"moved with the group");
+        panels.Leave(saved);
+        Check(panels.GroupOff()==1 && m->name[0] && m->dx==0 && m->dy==0 && panels.Grouping(),"the move off, frames on: the entry kept, not moved");
+        saved=panels.Enter("menu    menuwind",4);
+        panels.Note("menu    menuwind",right,4);
+        Check(!panels.FrameDraw(),"placed elsewhere: the game's frame");
+        panels.Leave(saved);
+        Check(panels.FramesOff()==1 && !panels.Any(),"frames off too: its entries gone");
+        std::vector<NativePanelVertex> tri;
+        const float r[4]={10,20,110,70};
+        NativePanel(r,style,tri);
+        const unsigned perCorner=unsigned(3/2)+3,n=4*perCorner;
+        Check(tri.size()==size_t(n)*3+size_t(n)*6,"a fill and a border of triangles round its rounded outline");
+        float lo[2]={1e9f,1e9f},hi[2]={-1e9f,-1e9f};
+        for (auto& v:tri) { lo[0]=(std::min)(lo[0],v.x); lo[1]=(std::min)(lo[1],v.y); hi[0]=(std::max)(hi[0],v.x); hi[1]=(std::max)(hi[1],v.y); }
+        Check(Near(lo[0],9.5f) && Near(lo[1],19.5f) && Near(hi[0],109.5f) && Near(hi[1],69.5f),"within its rectangle, a pixel's middle at its .5");
+        Check(tri[0].colour==style.fill && tri.back().colour==style.border && Near(tri[0].rhw,1),"the fill first, the border over it");
+        style.border=0; NativePanel(r,style,tri);
+        Check(tri.size()==size_t(n)*3,"a border wholly clear not drawn");
+        style.rounding=0; NativePanel(r,style,tri);
+        Check(tri.size()==12,"square: a point a corner");
+        Check(NativeFrameHash(0x92C145C5u) && NativeFrameHash(0x72D3D795u) && !NativeFrameHash(0x30CDD9D4u) && !NativeFrameHash(0x9E2854A3u),"the frame's art, not the menu font or the buttons");
+    }
     // the sides brought in
     NativeLook sides;
     sides.Inset(100);

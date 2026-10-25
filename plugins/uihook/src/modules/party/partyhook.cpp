@@ -516,6 +516,7 @@ public:
         const UINT n=t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0;
         Diag.MemoryDraw(data,n,stride,t==D3DPT_TRIANGLELIST ? 6 : t==D3DPT_TRIANGLESTRIP && count==2 ? 4 : 0);
         Measure(true,data,stride,n);
+        if (!blocking && PanelFrame(data,n,stride)) return true;
         const SkinModule::SkinSwap skin=Skins.Begin(data,n,stride);
         const bool done=Block() || Native.Draw(t,0,n,count,nullptr,D3DFMT_UNKNOWN,data,stride) || ScaleIcon(t,count,data,stride);
         return Skins.End(skin,done,[&](IDirect3DDevice8* d) { return d->DrawPrimitiveUP(t,count,Skins.Vertices(skin,data,n,stride),stride); });
@@ -526,11 +527,28 @@ public:
         const void* first=data ? static_cast<const uint8_t*>(data)+size_t(min)*stride : nullptr;
         Diag.MemoryDraw(first,vertices,stride,4);
         Measure(true,data,stride,vertices);
+        if (!blocking && PanelFrame(first,vertices,stride)) return true;
         const SkinModule::SkinSwap skin=Skins.Begin(first,vertices,stride);
         const bool done=Block() || Native.Draw(t,min,vertices,count,indices,format,data,stride) || ClockDraw(t,min,vertices,count,indices,format,data,stride);
         return Skins.End(skin,done,[&](IDirect3DDevice8* d) {
             return d->DrawIndexedPrimitiveUP(t,min,vertices,count,indices,format,Skins.Vertices(skin,data,min+vertices,stride),stride);
         });
+    }
+    static_assert(sizeof(NativePanelVertex)==sizeof(PartyVertex),"a panel is drawn in the party's states, of its vertex format");
+    // /uihook native frames: a draw of the frame's art of a window over the chat log left undrawn, and with its first
+    // a frame the panel drawn in its place (the native look's), in colour alone
+    bool PanelFrame(const void* first,UINT count,UINT stride) {
+        if (!Native.FrameArt(first,count,stride)) return false;
+        auto* device=core->GetDirect3DDevice();
+        if (Native.panel.empty() || !device || !MakeStates(device) || FAILED(device->CaptureStateBlock(saved))) return true;
+        device->ApplyStateBlock(states);
+        device->SetTextureStageState(0,D3DTSS_COLOROP,D3DTOP_SELECTARG2);
+        device->SetTextureStageState(0,D3DTSS_ALPHAOP,D3DTOP_SELECTARG2);
+        Draws.scaling=true;
+        if (SUCCEEDED(device->DrawPrimitiveUP(D3DPT_TRIANGLELIST,UINT(Native.panel.size()/3),Native.panel.data(),sizeof(NativePanelVertex)))) Native.panelsDrawn++;
+        Draws.scaling=false;
+        device->ApplyStateBlock(saved);
+        return true;
     }
     // The clock's draws moved by its shift
     bool ClockDraw(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) {
