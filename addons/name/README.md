@@ -86,6 +86,8 @@ statuses) is turned on and off in its own tab, with **Enabled** at the top.
   switching it back on builds a fresh atlas. ImGui owns the shared source atlas
   and may retain that allocation until it reclaims/rebuilds it. No further plugin
   update is required for filtered text.
+  **Text Outline Opacity (%)** (0–100, default 100%) softens the outline round text alone (names,
+  levels, distances, check details and cast text), as Icon Outline Opacity does for icons.
   **Icon outlines** have independent **Icon Outline (px)** (0–3) and
   **Icon Outline Opacity (%)** (0–100) controls. Defaults are 1 px and 100%, applied
   uniformly to player, party-role, vendor, aggro/passive, sense and check icons.
@@ -101,7 +103,7 @@ statuses) is turned on and off in its own tab, with **Enabled** at the top.
   reload every addon using WinXI, plus namehook. Deployment still requires confirmation
   and backups; no automatic compilation or live writes happen while developing.
 - **General Name Appearance:** common Font, Bold, Maximum/Minimum Name Size,
-  Subtarget Size, Letter Spacing, Text Outline, Icon Outline and Icon Outline Opacity. One maximum/minimum pair applies to every entity type,
+  Subtarget Size, Letter Spacing, Text Outline, Text Outline Opacity, Icon Outline and Icon Outline Opacity. One maximum/minimum pair applies to every entity type,
   including players, pets, enemies and NPCs.
 - **Player Names:** a directly editable **Player Format**, including inline player
   icons through `[icons]` instead of a separate checkbox. The format applies to your

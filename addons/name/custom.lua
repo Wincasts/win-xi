@@ -99,6 +99,7 @@ local settings = {
     minSize     = function () return T{ 10 }; end,    -- shared distant name size for every entity category
     iconOutline = function () return T{ 1 }; end,
     iconOutlineOpacity = function () return T{ 100 }; end,
+    textOutlineOpacity = function () return T{ 100 }; end, -- the text's dark edge, as a percentage of its own
     outline     = function () return T{ 1 }; end,     -- how thick the dark edge round them is, in pixels
     font        = function () return ''; end,         -- a file of FONT_FOLDER, or nothing for the font everything else is in
     iconFormatVersion = function () return 0; end,
@@ -143,6 +144,7 @@ local settings = {
 -- What Settle makes good: the setting, the kind of value it holds, and for a number its bounds
 local settled = {
     { 'iconOutline', 'number', 0, 3 }, { 'iconOutlineOpacity', 'number', 0, 100 },
+    { 'textOutlineOpacity', 'number', 0, 100 },
     { 'checkSize', 'number', 50, 125 }, { 'healthBarWidth', 'number', 12, 300 }, { 'healthBarHeight', 'number', 3, 40 },
     { 'huntScale', 'number', 100, 200 }, { 'subtargetScale', 'number', 50, 200 },
     { 'letterSpacing', 'number', 0, 10 },
@@ -504,9 +506,11 @@ local function writeWords(set, words, pen, top, fit, color, slot, opacity, track
     if (words == '') then return pen; end
     track = track or 0;
     color = fadedColor(color, opacity);
-    -- namehook already multiplies outline opacity by the glyph colour's alpha.
+    -- namehook already multiplies outline opacity by the glyph colour's alpha; Text Outline Opacity
+    -- softens the text's edge alone (nil, the edge as it is)
     local run = textRun(set, words);
     local quad = nameplates.Quad;
+    local edgeOpacity = fontPipeline.textEdgeOpacity;
     local masks = slot == nil and set.filtered or nil;
     slot = slot or set.textSlot or SLOT.Font;
     for index = 1, #run.glyphs do
@@ -523,10 +527,10 @@ local function writeWords(set, words, pen, top, fit, color, slot, opacity, track
                 x1, y1 = x1 + mask.padX * fit, y1 + mask.padY * fit;
                 u0, v0, u1, v1, atSlot = uv.u0, uv.v0, uv.u1, uv.v1, SLOT.Font;
             end
-            quad(x0, y0, x1, y1, u0, v0, u1, v1, color, atSlot, true);
+            quad(x0, y0, x1, y1, u0, v0, u1, v1, color, atSlot, true, edgeOpacity);
             if (run.stroke > 0) then
                 local shift = run.stroke * fit;
-                quad(x0 + shift, y0, x1 + shift, y1, u0, v0, u1, v1, color, atSlot, true);
+                quad(x0 + shift, y0, x1 + shift, y1, u0, v0, u1, v1, color, atSlot, true, edgeOpacity);
             end
         end
     end
@@ -1274,6 +1278,8 @@ function custom.Frame(options, hook, formats)
     local rungs = #heights;
     local bold = options.fontBold[1];
     smoothFont = options.fontSmooth ~= nil and options.fontSmooth[1] == true;
+    local textOutline = options.textOutlineOpacity ~= nil and tonumber(options.textOutlineOpacity[1]) or 100;
+    fontPipeline.textEdgeOpacity = textOutline < 100 and math.max(0, textOutline) / 100 or nil;
     nameplates.SetTexture(SIGN_SLOT, texture);
 
     -- the magnifying glass is in the font everything else is written in: with a font of the player's
