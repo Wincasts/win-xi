@@ -25,6 +25,13 @@ local categories = packets.inbound.action.categories
 --
 -- A spell finished names the spell as what the action is; a mob's weaponskill done, and an ability,
 -- which is used at once with no beginning sent, name the move the same way.
+--
+-- One that comes to nothing is sent as a spell finished, its first result with the animation of an
+-- interruption (508) and a message saying why. A spell is stopped at its end by paralysis (84, the
+-- chat log's "is paralyzed") or intimidation (106), and names the spell; then its casting is sent
+-- broken off, as if it were, which is not said again here. An attack, an ability or an item stopped
+-- the same way names nothing (an attack came out as "casts Spell 0"), and is left alone: the box is
+-- for what is coming, not a swing that missed it.
 local kindsStarting = { [categories.SpellStart] = 'spell', [categories.WeaponskillStart] = 'skill' }
 local kindsDone = {
     [categories.SpellFinish] = 'spell',
@@ -40,11 +47,20 @@ local actionCategory = 82                            -- 4 bits
 local actionWhat = 86                                -- 32 bits
 local actionFirstTarget = 150                        -- its id (32 bits), how many results (4), then each result
 local actionResults = actionFirstTarget + 32         -- how many results the first target has
+local actionResultAnimation = actionFirstTarget + 36 + 5 -- the first result's animation: 12 bits
 local actionResultParam = actionFirstTarget + 36 + 27 -- the first result's number: 17 bits
 local actionResultMessage = actionResultParam + 17   -- and its message: 10 bits
 
 -- The two letters that begin what a broken-off action is, as the packet lays them: 's' then 'p'
 local brokenOff = 0x7073
+
+-- An action that came to nothing, and the messages of a spell stopped at its end, by what stopped it
+local animationInterrupted = 508
+local stoppedBy = { [84] = 'paralyzed', [106] = 'intimidated' }
+
+-- The enemies whose spell was just stopped (server id -> true): the broken-off casting sent after it
+-- is not said, so that the line says what stopped it
+local stopped = { }
 
 ---------------------------------------------------------------------------------------------------
 -- Who and what
@@ -140,7 +156,9 @@ end
 -- log says that, and without
 local phrases = {
     spell = { start = '%s starts casting %s on %s.', startAlone = '%s starts casting %s.',
-              doneAlone = '%s casts %s.', broken = '%s\'s casting is interrupted.' },
+              doneAlone = '%s casts %s.', broken = '%s\'s casting is interrupted.',
+              paralyzed = '%s is paralyzed and stops casting %s.',
+              intimidated = '%s is intimidated and stops casting %s.' },
     skill = { start = '%s readies %s on %s.', startAlone = '%s readies %s.',
               doneAlone = '%s uses %s.', broken = '%s is interrupted.' },
     ability = { done = '%s uses %s on %s.', doneAlone = '%s uses %s.' },
@@ -157,10 +175,16 @@ local function OnAction(e)
         end
         if bit.band(Bits(data, actionWhat, 32), 0xFFFF) == brokenOff then
             phase = 'broken'
+            local actorId = Bits(data, actionActor, 32)
+            if kind == 'spell' and stopped[actorId] then
+                stopped[actorId] = nil
+                return
+            end
         elseif Bits(data, actionResults, 4) == 0 or Bits(data, actionResultMessage, 10) == 0 then
             return
         else
             id = Bits(data, actionResultParam, 17)
+            stopped[Bits(data, actionActor, 32)] = nil
         end
     else
         kind = kindsDone[category]
@@ -168,6 +192,17 @@ local function OnAction(e)
             return
         end
         phase, id = 'done', Bits(data, actionWhat, 32)
+        if Bits(data, actionResults, 4) > 0 and Bits(data, actionResultAnimation, 12) == animationInterrupted then
+            -- come to nothing: a spell stopped is said so, and anything else not at all
+            local by = stoppedBy[Bits(data, actionResultMessage, 10)]
+            if kind ~= 'spell' or by == nil or id == 0 then
+                return
+            end
+            phase = by
+            stopped[Bits(data, actionActor, 32)] = true
+        elseif id == 0 and kind == 'spell' then
+            return
+        end
     end
     local wanted = kind == 'spell' and options.showSpells or kind == 'skill' and options.showSkills or options.showAbilities
     if not wanted[1] then
@@ -196,6 +231,8 @@ local function OnAction(e)
     local words
     if phase == 'broken' then
         words = phrase.broken:format(actor.Name)
+    elseif phase == 'paralyzed' or phase == 'intimidated' then
+        words = phrase[phase]:format(actor.Name, ActionName(kind, id))
     else
         local name = ActionName(kind, id)
         local withTarget, alone = phrase[phase], phrase[phase .. 'Alone']

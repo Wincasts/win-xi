@@ -43,14 +43,15 @@ local entities = {
 function GetEntity(index) return entities[index] end
 
 -- an action packet, packed a bit at a time as the game packs it: who acts, the kind of action, what
--- the action is, the first target, and its first result's number and message
-local function action(actor, category, what, target, number, message, results)
+-- the action is, the first target, and its first result's number, message and animation
+local function action(actor, category, what, target, number, message, results, animation)
     local bits = {}
     local function put(offset, length, value)
         for i = 0, length - 1 do bits[offset + i] = math.floor(value / 2 ^ i) % 2 end
     end
     put(40, 32, actor); put(72, 6, 1); put(82, 4, category); put(86, 32, what or 0)
     put(150, 32, target or 0); put(182, 4, results or 1); put(213, 17, number or 0); put(230, 10, message or 0)
+    put(191, 12, animation or 0)
     local bytes = {}
     for index = 0, 40 do
         local byte = 0
@@ -93,6 +94,25 @@ H.print('broken off, the line says so:', shown() == 'Acro Bat\'s casting is inte
 H.wait(10); shown()
 H.packetData(0x028, action(bat, 8, cast, 0x1002, 144, 0))
 H.print('a spell the game says nothing of: nothing', shown() == '')
+H.packetData(0x028, action(bat, 8, cast, me.id, 144, 327))
+H.packetData(0x028, action(bat, 4, 144, me.id, 0, 84, 1, 508))
+H.packetData(0x028, action(bat, 8, castBroken, bat, 144, 0, 1, 508))
+H.print('paralyzed at the end of a spell, the line says so, and not interrupted after:',
+    shown() == 'Acro Bat is paralyzed and stops casting Fire.')
+H.packetData(0x028, action(bat, 8, castBroken, bat, 144, 0))
+H.print('a later spell broken off is said again:', shown() == 'Acro Bat\'s casting is interrupted.')
+H.wait(10); shown()
+H.packetData(0x028, action(bat, 8, cast, me.id, 144, 327))
+H.packetData(0x028, action(bat, 4, 144, me.id, 0, 106, 1, 508))
+H.packetData(0x028, action(bat, 8, castBroken, bat, 144, 0, 1, 508))
+H.print('intimidated, the same:', shown() == 'Acro Bat is intimidated and stops casting Fire.')
+H.wait(10); shown()
+H.packetData(0x028, action(bat, 4, 0, me.id, 0, 84, 1, 508))
+H.print('an attack paralyzed: nothing, not Spell 0', shown() == '')
+H.packetData(0x028, action(bat, 4, 0, me.id, 0, 78, 1, 508))
+H.print('a move out of range: nothing', shown() == '')
+H.packetData(0x028, action(bat, 4, 0, me.id, 0, 0))
+H.print('a spell finished with no spell: nothing', shown() == '')
 H.packetData(0x028, action(bat, 8, cast, 0x1002, 144, 327))
 H.print('a party member as the target, by the party list:', shown() == 'Acro Bat starts casting Fire on Friend.')
 H.packetData(0x028, action(bat, 8, cast, akbaba, 144, 327))
