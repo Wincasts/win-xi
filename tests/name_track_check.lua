@@ -108,16 +108,19 @@ put(3, 0x402, 'Babubu', plates.Category.Npc); put(4, 0x403, 'Kohlo-Lakolo', plat
 hook.Count = 5; render()
 local coin = first(0x402)
 H.print('bundled Port Windurst: Babubu sells, Kohlo-Lakolo does not', vendorList[240]['Babubu'] == true, vendorList[240]['Kohlo-Lakolo'] == nil)
-H.print('Vendor Icons: the coin before a vendor\'s name, none for another NPC or a monster of the name',
+H.print('[vendor]: the coin before a vendor\'s name, none for another NPC or a monster of the name',
     quads(0x402) == 1 + #'Babubu', coin.Texture == 6, coin.U0 == 0.25 and coin.U1 == 0.5 and coin.V1 == 0.5, draw.Textures[6] == 0x9999,
     quads(0x403) == #'Kohlo-Lakolo', first(1).Texture ~= 6 or options.trackedNm[1] ~= '')
 local after = draw.Quads[draw.Entities[0x402].First + 1]
 H.print('the name follows it, the whole of it centred', after.X0 > coin.X1, math.abs(coin.X0 + draw.Quads[draw.Entities[0x402].First + quads(0x402) - 1].X1) <= 1)
 zoneOf = 1; render()
 H.print('an area with no vendors: no coin', quads(0x402) == #'Babubu', draw.Textures[6] == 0)
-zoneOf = 240; options.showVendorIcons[1] = false; render()
-H.print('Vendor Icons off: no coin, and the sheet not asked for', quads(0x402) == #'Babubu', draw.Textures[6] == 0)
-options.showVendorIcons[1] = true
+zoneOf = 240; local npcFormat = options.npcFormat[1]; options.npcFormat[1] = '[name]'; render()
+H.print('no [vendor]: no coin, and the sheet not asked for', quads(0x402) == #'Babubu', draw.Textures[6] == 0)
+options.npcFormat[1] = '[name][vendor: space=4]'; render()
+local last = draw.Quads[draw.Entities[0x402].First + quads(0x402) - 1]
+H.print('[vendor] after the name: the coin last', quads(0x402) == 1 + #'Babubu', last.Texture == 6)
+options.npcFormat[1] = npcFormat
 AshitaCore.GetMemoryManager = managerOf
 hook.Count = 4
 
@@ -154,7 +157,8 @@ local function signed(index, sign)
     local q, want = first(index), uv(sign)
     return q.Texture == 6 and q.U0 == want[1] and q.V0 == want[2] and q.U1 == want[3] and q.V1 == want[4]
 end
-H.print('Party Icons default: Beside Game Icons', options.partyIcons[1] == 'beside')
+local playerFormat = options.nameFormat[1]
+H.print('[party] before [icons] to begin with', playerFormat == '[party: space=2][icons: space=4][name]')
 render()
 H.print('alliance leader, party leader, party member, the other party\'s leader, alliance member',
     signed(0x401, special.AllianceLeader), signed(0x402, special.PartyLeader), signed(0x403, special.PartyMember),
@@ -162,17 +166,16 @@ H.print('alliance leader, party leader, party member, the other party\'s leader,
 H.print('beside: the sign, then the game\'s icon, then the name; an outsider keeps only the game\'s',
     quads(0x403) == 2 + #'Cat', draw.Quads[draw.Entities[0x403].First + 1].Texture == 1, quads(0x402) == 1 + #'Ben',
     quads(0x408) == 1 + #'Fay', first(0x408).Texture == 1)
-options.partyIcons[1] = 'replace'; render()
+options.nameFormat[1] = '[party: replace, space=4][icons: space=4][name]'; render()
 H.print('replace: the sign in place of the game\'s icon; an outsider keeps the game\'s',
     quads(0x403) == 1 + #'Cat', signed(0x403, special.PartyMember), quads(0x408) == 1 + #'Fay', first(0x408).Texture == 1)
-options.partyIcons[1] = 'beside'; leaders = { 0x1502, 0, 0, alliance = 0x1502 }; members = { [0] = 0x1501, 0x1502, 0x1503 }; render()
+options.nameFormat[1] = playerFormat; leaders = { 0x1502, 0, 0, alliance = 0x1502 }; members = { [0] = 0x1501, 0x1502, 0x1503 }; render()
 H.print('no alliance: its leader is the party\'s, and the others are party members', signed(0x402, special.PartyLeader), signed(0x401, special.PartyMember), quads(0x406) == #'Dan')
 members = { [0] = 0x1501 }; leaders = { 0x1501, 0, 0, alliance = 0x1501 }; render()
 H.print('alone: no sign, nor the sheet', quads(0x401) == #'Ann', quads(0x403) == 1 + #'Cat', draw.Textures[6] == 0)
-members = { [0] = 0x1501, 0x1502 }; options.partyIcons[1] = 'off'; render()
-H.print('Party Icons Off: none', quads(0x401) == #'Ann', quads(0x402) == #'Ben', draw.Textures[6] == 0)
-options.partyIcons[1] = 'sideways'; custom.Settle(options)
-H.print('an unknown mode is made Beside', options.partyIcons[1] == 'beside')
+members = { [0] = 0x1501, 0x1502 }; options.nameFormat[1] = '[icons: space=4][name]'; render()
+H.print('no [party]: none', quads(0x401) == #'Ann', quads(0x402) == #'Ben', draw.Textures[6] == 0)
+options.nameFormat[1] = playerFormat
 AshitaCore.GetMemoryManager = managerOf
 iconSheet.Begin = realBegin; realBegin(function() return 0 end)
 put(0, 1, 'Jack'); put(1, 2, 'Hare'); put(2, 3, 'Hare'); put(3, 0x401, 'Jack', plates.Category.Player)

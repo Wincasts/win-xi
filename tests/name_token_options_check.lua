@@ -7,14 +7,17 @@ local function old(shown)
     local options = {}
     custom.Defaults(options)
     options.nameFormat[1], options.showIcons = '[name] ([distance]y)', { shown } -- as a file saved before the formats has it
+    options.npcFormat[1] = '[name]'
     options.iconSize[1], options.iconSpacing[1] = 90, 7
     return options
 end
 local o = old(true)
 custom.Settle(o)
 local parts = format.Compile(o.nameFormat[1])
-assert(parts[1].kind == 'icons' and parts[1].size == 90 and parts[1].space == 7,
-    'migration preserves visible icons and legacy size/spacing')
+assert(parts[1].kind == 'party' and parts[1].space == 2 and parts[2].kind == 'icons' and parts[2].size == 90 and parts[2].space == 7,
+    'migration preserves visible icons and legacy size/spacing, Party Icons Beside before them')
+assert(o.npcFormat[1] == '[vendor: space=7][name]' and o.partyIcons == nil and o.showVendorIcons == nil,
+    'Vendor Icons becomes [vendor] with the old spacing, and the switches go')
 o.nameFormat[1] = '[name]'
 custom.Settle(o)
 assert(o.nameFormat[1] == '[name]', 'migration must not put icons back after user removes the token')
@@ -28,6 +31,37 @@ o.nameFormat[1] = '[name][icons: space=4]'
 custom.Settle(o)
 assert(o.nameFormat[1] == '[name][icons: space=4]' and o.npcFormat[1] == npc,
     'settling must not reorder explicit icon tokens or affect NPC formats')
+-- Party Icons and Vendor Icons as they were saved: each mode brought into the formats once
+local function signs(mode, coin, player)
+    local options = {}
+    custom.Defaults(options)
+    options.signFormatVersion = nil
+    options.nameFormat[1], options.npcFormat[1] = player or '[icons: space=4][name]', '[name]'
+    options.partyIcons, options.showVendorIcons = mode and { mode }, coin ~= nil and { coin } or nil
+    options.iconSpacing[1] = 4
+    custom.Settle(options)
+    return options
+end
+o = signs('beside', true)
+assert(o.nameFormat[1] == '[party: space=2][icons: space=4][name]' and o.npcFormat[1] == '[vendor: space=4][name]', 'beside, coin on')
+o = signs('replace', false)
+assert(o.nameFormat[1] == '[party: replace, space=4][icons: space=4][name]' and o.npcFormat[1] == '[name]', 'replace, coin off')
+assert(format.Compile(o.nameFormat[1]).partyReplace, 'replace is an attribute of [party]')
+o = signs('off', nil)
+assert(o.nameFormat[1] == '[icons: space=4][name]' and o.npcFormat[1] == '[vendor: space=4][name]', 'off; the coin was on by default')
+o = signs('sideways', true, '[name] [icons: gap=3]')
+assert(o.nameFormat[1] == '[name] [party: space=3][icons: gap=3]', 'an unknown mode is Beside, as far off as the icons are apart')
+o = signs('beside', true, '[name]')
+assert(o.nameFormat[1] == '[name]', 'no [icons], no sign, as before')
+o = signs(nil, nil); local again = o.nameFormat[1]; o.nameFormat[1] = '[name]'; custom.Settle(o)
+assert(again == '[party: space=2][icons: space=4][name]' and o.nameFormat[1] == '[name]', 'once only: a removed [party] stays removed')
+o = {}; custom.Defaults(o); custom.Settle(o)
+assert(o.nameFormat[1] == '[party: space=2][icons: space=4][name]' and o.npcFormat[1] == '[vendor: space=4][name]', 'fresh formats are as they were')
+assert(format.Compile('[party: replace=maybe]')[1].kind == 'text', 'a bad replace is text')
+local sign = format.Compile('[vendor: size=150, space=4]')[1]
+local sw, ss = inline.SignWidth(sign, 1, 20, 2, 90, 7)
+assert(sw == 38 and ss == 30 and inline.SignWidth(sign, nil, 20, 2, 90, 7) == 0, 'a sign is one icon and its space, or nothing at all')
+
 local written = { icons = { 0x92, 0xAC } }
 local token = format.Compile('[icons: size=150 gap=3 space=4]')[1]
 local width, size = inline.IconWidth(token, written, 20, 2, 90, 7)

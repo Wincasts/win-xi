@@ -33,13 +33,14 @@ Location: Names → Player Names
 
 How player names are written. Tokens:
 [name] - the player's name.
-[icons] - the game's player icons (and party role icons, with Party Icons on).
+[party] - a party or alliance member's sign: Alliance Leader, Party Leader, another party's leader, Alliance Member or Party Member. None while you are alone.
+[icons] - the game's player icons.
 [distance] - distance in yalms.
 Anything else is written as it is.
 
 Example format:
-[icons][name] ([distance]y)
-Example result: [icons] Player Name (12.4y)
+[party][icons][name] ([distance]y)
+Example result: [party sign][icons] Player Name (12.4y)
 ## name.format.enemy
 Label: Enemy Format
 Location: Names → Enemy Names
@@ -62,13 +63,14 @@ Location: Names → NPC Names
 
 How NPC names are written. Tokens:
 [name] - the NPC's name.
+[vendor] - a coin for an NPC that sells: gil shops, guild merchants and outpost vendors.
 [icons] - the game's icons, when it gives any.
 [distance] - distance in yalms.
 Anything else is written as it is.
 
 Example format:
-[name] ([distance]y)
-Example result: Mog House (4.2y)
+[vendor][name] ([distance]y)
+Example result: [coin] Babubu (4.2y)
 ## name.format.reset
 Label: Reset Format
 Location: Names → All format editors
@@ -137,12 +139,6 @@ Location: Names → Player Names
 
 The selected player-icon source could not be loaded; Name tries the bundled atlas instead. Your source selection is retained. Game DAT failures retry at most every ten seconds; reloading Name or switching sources also retries. Custom file loads retry through the shared image loader. Reason: {reason}
 
-## name.players.party_icons
-Label: Party Icons
-Location: Names → Player Names
-
-A sign of each party and alliance member's place: Alliance Leader, Party Leader, another party's leader, Alliance Member or Party Member. Drawn where [icons] is in Player Format, before the game's icons or in their place; players outside your party and alliance keep the game's icons. None while you are alone.
-
 ## name.enemies.check_enabled
 Label: Enabled
 Location: Check Details → Check Details
@@ -166,12 +162,6 @@ Label: Display Style
 Location: Check Details → Check Details
 
 Choose icons with text, or a text-only description, such as: TW, Sight Aggro, Link: Goblin (Sight). Detection can be Sight, Sound, Blood, Magic, JA, Scent and the true senses, several separated by a slash; Link names the monster family and how it detects.
-
-## name.npcs.vendor_icons
-Label: Vendor Icons
-Location: Names → NPC Names
-
-A coin before the name of every NPC that sells: shops, guild merchants and outpost vendors, as the Phoenix server's scripts have them.
 
 ## name.appearance.outline
 Label: Text Outline (px)
@@ -373,25 +363,25 @@ Your target's name is shown though names like it are hidden. Your own is not: wi
 
 ## name.diagnostics.enabled
 Label: Enable Diagnostics
-Location: Names → Diagnostics
+Location: General → Diagnostics
 
 Record renderer problems and write a log when custom names stop.
 
 ## name.diagnostics.in_view
 Label: Names In View
-Location: Names → Diagnostics
+Location: General → Diagnostics
 
 The names the game had to draw last frame: near enough, and on screen.
 
 ## name.diagnostics.custom_names
 Label: Custom Names
-Location: Names → Diagnostics
+Location: General → Diagnostics
 
 Whether Name is drawing the names. When it stops for more than half a second the game draws its own, the reason is said in the chat log once, and a log is written.
 
 ## name.diagnostics.log
 Label: Diagnostic Log
-Location: Names → Diagnostics
+Location: General → Diagnostics
 
 Writes what Name and the namehook plugin are doing now, and what happened lately, to a small text file in config\addons\name\logs. This detailed log can contain character names, paths, formats and raw errors. For sharing, prefer Write Report, which omits them.
 
@@ -445,7 +435,7 @@ Tint only distance tokens without an explicit token colour. Nameplate fading sti
 
 ## name.diagnostics.report
 Label: Support Report
-Location: Names → Diagnostics
+Location: General → Diagnostics
 
 Write a shareable report to config\addons\name\logs. Includes Name/WinXI/namehook capability-build versions, capability flags, display and draw counts, generated atlas dimensions, artwork source/fallback and recorded failure counts. Omits character/entity names, chat, paths, format strings, raw errors and history. Available without enabling diagnostics; recent failure history is collected only with diagnostics on. /name report also works when Enable Name is off. Nothing is uploaded.
 

@@ -31,19 +31,20 @@ function general.Drawing(options)
     return options.drawNames == nil or options.drawNames[1] ~= false;
 end
 
-local PLAYER = '[icons: space=4][name]';
+local PLAYER = '[party: space=2][icons: space=4][name]';
+local NPC = '[vendor: space=4][name]';
 general.Presets = {
     { key = 'default', label = 'Default', help = tips.Get('name.presets.default'),
-        values = { nameFormat = PLAYER, monsterFormat = '[aggro] [name] [letters]', npcFormat = '[name]',
+        values = { nameFormat = PLAYER, monsterFormat = '[aggro] [name] [letters]', npcFormat = NPC,
             showHealthBar = false, healthBarsCombatOnly = false, showStatuses = true, showCheckDetails = true } },
     { key = 'minimal', label = 'Minimal', help = tips.Get('name.presets.minimal'),
         values = { nameFormat = '[name]', monsterFormat = '[name]', npcFormat = '[name]',
             showHealthBar = false, healthBarsCombatOnly = false, showStatuses = false, showCheckDetails = false } },
     { key = 'robust', label = 'Robust', help = tips.Get('name.presets.robust'),
-        values = { nameFormat = PLAYER, monsterFormat = '[aggro: space=4]Lv [level]. [name] [letters] ([distance: decimals=1]y)', npcFormat = '[name]',
+        values = { nameFormat = PLAYER, monsterFormat = '[aggro: space=4]Lv [level]. [name] [letters] ([distance: decimals=1]y)', npcFormat = NPC,
             showHealthBar = true, healthBarsCombatOnly = false, showStatuses = true, showCheckDetails = true } },
     { key = 'immersive', label = 'Immersive', help = tips.Get('name.presets.immersive'),
-        values = { nameFormat = PLAYER, monsterFormat = '[name]', npcFormat = '[name]',
+        values = { nameFormat = PLAYER, monsterFormat = '[name]', npcFormat = NPC,
             showHealthBar = true, healthBarsCombatOnly = true, showStatuses = false, showCheckDetails = false } },
 };
 

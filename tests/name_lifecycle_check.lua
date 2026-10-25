@@ -49,7 +49,7 @@ local roles=require('roles')
 local scans=0
 local roster={GetMemberIsActive=function(_,slot) return slot<2 end,GetMemberServerId=function(_,slot) return slot+1 end}
 local memory={GetParty=function() scans=scans+1;return roster end}
-assert(roles.Begin({partyIcons={'replace'}},memory,true) and roles.Of(1) and roles.Replace())
-assert(not roles.Begin({partyIcons={'replace'}},memory,false) and scans==1 and roles.Of(1)==nil and not roles.Replace(),
-    'formats without [icons] skip party scans and clear old role state')
+assert(roles.Begin(memory,true) and roles.Of(1))
+assert(not roles.Begin(memory,false) and scans==1 and roles.Of(1)==nil,
+    'formats without [party] skip party scans and clear old role state')
 H.print('Name lifecycle: enable off, plugin loss, old DLL, recovery and settings reload release caches once',true)

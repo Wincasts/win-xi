@@ -1,7 +1,8 @@
--- The coin beside a vendor's name: which NPCs sell, by vendor_list.lua (tools/build_name_vendors.py),
+-- The coin of [vendor] beside a vendor's name: which NPCs sell, by vendor_list.lua (tools/build_name_vendors.py),
 -- the names of the NPCs whose scripts open a shop, for each area.
 --
---   vendors.Begin(options)    each frame: whether any name here can have the coin
+--   vendors.Begin(wanted)     each frame: whether any name here can have the coin; wanted, whether a
+--                             format has [vendor]
 --   vendors.Of(written, name) whether this one is a vendor; written is custom's parse of it, which
 --                             keeps the answer while the character and the area are the same
 local ffi = require('ffi');
@@ -11,9 +12,9 @@ local vendors = {};
 
 local here = nil; -- the area's vendors while the coin is wanted, or nothing
 
-function vendors.Begin(options)
+function vendors.Begin(wanted)
     here = nil;
-    if (options.showVendorIcons == nil or not options.showVendorIcons[1]) then
+    if (not wanted) then
         return false;
     end
     local memory = AshitaCore:GetMemoryManager();
