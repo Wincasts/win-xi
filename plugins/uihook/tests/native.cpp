@@ -91,6 +91,20 @@ int main() {
     group.Group(10,-100);
     Check(cm->dx==10 && cm->dy==-100,"a new offset for every one of it");
     Check(group.GroupOff()==2 && !group.Any(),"the group off: its entries gone");
+    // a window opening: drawn within its layout target, which is over the log, before it reaches its place
+    {
+        NativeLook opening; opening.Group(0,-300);
+        const int16_t logPlace[4]={16,1290,658,134},target[4]={16,1200,112,88};
+        opening.Note("menu    logwindo",logPlace,1);
+        const int16_t growing[4]={16,1230,112,30},elsewhere[4]={3312,47,112,202};
+        Check(!opening.GroupMember("menu    menuwind",growing),"half grown, by its place alone: not of the group");
+        Check(opening.GroupMember("menu    menuwind",growing,target),"half grown within its target over the log: of the group");
+        Check(!opening.GroupMember("menu    menuwind",elsewhere,target),"drawn elsewhere with its target over the log (the Master menu): not of it");
+        const int16_t away[4]={16,100,112,88};
+        Check(!opening.GroupMember("menu    menuwind",growing,away),"a target not over the log: by its place alone");
+        opening.Note("menu    menuwind",growing,2,target);
+        Check(opening.Find("menu    menuwind",false) && opening.Find("menu    menuwind",false)->member,"noted with its target: its entry of the group");
+    }
     // the group's frames drawn as panels: the group told with no move
     {
         NativeLook panels;

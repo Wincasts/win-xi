@@ -104,18 +104,27 @@ public:
         return device && SUCCEEDED(device->GetViewport(&viewport)) && ctx->ScreenSize(device,viewport,size) && look.Transform(size[0],size[1],t);
     }
     // /uihook native: the window being drawn taken, where it is one named, for its draws to be moved and tinted
-    NativeLook::Saved Enter(void* window) {
-        if (!look.Any()) return look.Enter(nullptr,ctx->Frame());
+    // Window::Render begun: what was under way kept, to be given back after it, and nothing taken until the window is
+    // settled. Render updates the window's animation and layout first, and only then draws: its place (+3A) read
+    // before that is the last frame's, or nothing on its first, so a window opening over the chat log was not yet of
+    // the group, and the game drew it whole for a frame or more before the mirror hid it.
+    NativeLook::Saved Hold() { return look.Enter(nullptr,ctx->Frame()); }
+    // The window being drawn taken, at its first draw (its animation and layout updated): where it is one named, for
+    // its draws to be moved and tinted, and one of the group noted
+    void Settle(void* window) {
+        if (!look.Any()) return;
         void* header=nullptr; char name[16];
         if (!window || !ChatRead(static_cast<uint8_t*>(window)+4,&header,4) || !header
-            || !ChatRead(static_cast<uint8_t*>(header)+0x46,name,16)) return look.Enter(nullptr,ctx->Frame());
-        // where the game draws it (+3A: left, top, right, bottom), not its layout target (+8C), which for some is over the
-        // chat log while they are drawn elsewhere (the Master and Automaton menu, beside the main menu)
-        int16_t drawn[4];
+            || !ChatRead(static_cast<uint8_t*>(header)+0x46,name,16)) return;
+        // where the game draws it (+3A: left, top, right, bottom); its layout target (+8C) too, which a window opening
+        // grows into, but which for some is over the chat log while they are drawn elsewhere (the Master and Automaton
+        // menu, beside the main menu), so it counts only for one drawn within it
+        int16_t drawn[4],target[4];
         const bool placed=ChatRead(static_cast<uint8_t*>(window)+0x3a,drawn,sizeof(drawn)) && drawn[2]>drawn[0] && drawn[3]>drawn[1];
+        const bool targeted=ChatRead(static_cast<uint8_t*>(window)+WINDOW_TARGET,target,sizeof(target));
         if (look.Grouping() && placed) {
             const int16_t place[4]={drawn[0],drawn[1],int16_t(drawn[2]-drawn[0]),int16_t(drawn[3]-drawn[1])};
-            look.Note(name,place,ctx->Frame());
+            look.Note(name,place,ctx->Frame(),targeted ? target : nullptr);
         }
         // the same in pixels, for one drawn the first time to be placed at once
         float pixels[4]; uint8_t scaled=0; int16_t dims[2]={640,480};
@@ -125,7 +134,7 @@ public:
             const float sx=scaled ? dims[0]/640.0f : 1.0f,sy=scaled ? dims[1]/480.0f : 1.0f;
             pixels[0]=drawn[0]*sx; pixels[1]=drawn[1]*sy; pixels[2]=drawn[2]*sx; pixels[3]=drawn[3]*sy;
         }
-        return look.Enter(name,ctx->Frame(),hint ? pixels : nullptr);
+        look.Enter(name,ctx->Frame(),hint ? pixels : nullptr);
     }
     // A screen-space draw of a window with an entry: counted into its bounds; then, where it is moved, drawn so in its
     // place (its vertices copied and moved). vertices: from min, as an indexed draw's are.
