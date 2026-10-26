@@ -20,10 +20,9 @@
 - **Lock-On Brackets** (Target tab → Lock-On, on to begin with): while you are locked on to your target, a
   [ and a ] stand outside the left and right of its window, enclosing the frame without touching it, in the **Bracket Color** (white to begin with),
   edged with the theme's Text Outline. The sample target shows them while the settings are open.
-- **Fishing**: while a fish is on the line, uihook's target replacement lets the game's own target window
-  draw, as the game draws the fish's stamina gauge with it (away from the window), and Party's target windows
-  step aside so a target is not shown twice. The window
-  is replaced again once the fight ends.
+- **Fishing**: while a fish is on the line, uihook's party replacement lets the game's own party list draw,
+  as the game draws the fish's stamina gauge with it (in the middle of the screen), and Party's party windows
+  step aside so the party is not shown twice. The list is replaced again once the fight ends.
 - **TP Ready Color** (Style → Warnings): the colour TP of 1000 or more is written in, blue to begin with.
   Flash TP When Ready pulses it toward a lighter shade of the chosen colour.
 - The value offsets reach further: 140 either way across, enough to put a figure anywhere along a frame from
