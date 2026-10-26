@@ -89,8 +89,8 @@ static void CheckTaking() {
 
     Check(reinterpret_cast<Function>(icon)() == 42 && reinterpret_cast<Function>(time)() == 7, "the made functions run as made");
 
-    Detour iconDetour = { "55 56 57 E8 ?? ?? ?? ?? 5F 5E 5D C3", ICON_STOLEN, ICON_CALL_AT, reinterpret_cast<void*>(&Replacement), nullptr, nullptr, {} };
-    Detour timeDetour = { "83 EC 10 53 56 57 B8 07", TIME_STOLEN, TIME_CALL_AT, reinterpret_cast<void*>(&Replacement), nullptr, nullptr, {} };
+    Detour iconDetour = { "55 56 57 E8 ?? ?? ?? ?? 5F 5E 5D C3", ICON_STOLEN, ICON_CALL_AT, reinterpret_cast<void*>(&Replacement), nullptr, nullptr, {}, {} };
+    Detour timeDetour = { "83 EC 10 53 56 57 B8 07", TIME_STOLEN, TIME_CALL_AT, reinterpret_cast<void*>(&Replacement), nullptr, nullptr, {}, {} };
 
     Check(Take(iconDetour, code, 1000), "a function shaped like the icon callback is taken");
     Running = &iconDetour;

@@ -50,22 +50,25 @@ static ChatControlDiscovery DiscoverChatControls(uint8_t* begin,size_t size,uint
     memcpy(out.calls,calls,sizeof(calls)); memcpy(out.targets,targets,sizeof(targets));
     return out;
 }
-struct ChatControlCalls : ChatControlDiscovery { uint8_t saved[CHAT_ART_COUNT][5]={}; };
+struct ChatControlCalls : ChatControlDiscovery { uint8_t saved[CHAT_ART_COUNT][5]={}; CodeSite<WindowsCodeMemory> sites[CHAT_ART_COUNT]; };
 static bool TakeChatControls(ChatControlCalls& out,const ChatControlDiscovery& found,void* const replacements[CHAT_ART_COUNT]) {
     // Validate the entire group before changing even one site. E8 stays E8 (same native return address).
     for (unsigned i=0;i<CHAT_ART_COUNT;i++)
         if (out.calls[i] || !found.calls[i] || !found.targets[i] || !replacements[i]
             || !VerifyCall(found.calls[i],found.targets[i])) return false;
+    // every one or none: those written given back where one will not go in
     for (unsigned i=0;i<CHAT_ART_COUNT;i++) {
         out.calls[i]=found.calls[i]; out.targets[i]=found.targets[i]; memcpy(out.saved[i],out.calls[i],5);
-        uint8_t patch[5]={0xe8,0,0,0,0};
-        const int32_t distance=Distance(out.calls[i]+5,replacements[i]); memcpy(patch+1,&distance,4);
-        WriteCode(out.calls[i],patch,5);
+        if (!WriteCall(out.sites[i],out.calls[i],replacements[i])) {
+            if (out.sites[i].Abandoned) StrandCode();
+            for (unsigned j=0;j<i;j++) GiveSite(out.sites[j]);
+            out=ChatControlCalls(); return false;
+        }
     }
     return true;
 }
 static void GiveChatControls(ChatControlCalls& out) {
-    for (unsigned i=0;i<CHAT_ART_COUNT;i++) if (out.calls[i]) WriteCode(out.calls[i],out.saved[i],5);
+    for (unsigned i=0;i<CHAT_ART_COUNT;i++) if (out.calls[i]) GiveSite(out.sites[i]);
     out=ChatControlCalls();
 }
 struct ChatControlStyle {
@@ -173,7 +176,7 @@ static inline bool ChatHidden(uint32_t replace,uint32_t bit,bool active) { retur
 #define CHAT_ROWS_CALL 0xaa
 #define CHAT_ROW_SITE_CALL 17
 using ChatRowDraw = void(__cdecl*)(const uint16_t*,ChatRowHeader,int32_t,int32_t,uint32_t,uint32_t,void*,uint32_t);
-struct ChatTextSite { uint8_t* call=nullptr; uint8_t* target=nullptr; uint8_t saved[5]={}; };
+struct ChatTextSite { uint8_t* call=nullptr; uint8_t* target=nullptr; uint8_t saved[5]={}; CodeSite<WindowsCodeMemory> site; };
 static ChatTextSite DiscoverChatText(uint8_t* begin,size_t size,uint8_t* fullDraw) {
     ChatTextSite out;
     if (!fullDraw || !ChatWithin(fullDraw,begin,size)) return out;
@@ -192,12 +195,13 @@ static ChatTextSite DiscoverChatText(uint8_t* begin,size_t size,uint8_t* fullDra
 static bool TakeChatText(ChatTextSite& out,const ChatTextSite& found,void* replacement) {
     if (out.call || !found.call || !found.target || !replacement || !VerifyCall(found.call,found.target)) return false;
     out.call=found.call; out.target=found.target; memcpy(out.saved,out.call,5);
-    uint8_t patch[5]={0xe8,0,0,0,0};
-    const int32_t distance=Distance(out.call+5,replacement); memcpy(patch+1,&distance,4);
-    WriteCode(out.call,patch,5);
+    if (!WriteCall(out.site,out.call,replacement)) {
+        if (out.site.Abandoned) StrandCode();
+        out=ChatTextSite(); return false;
+    }
     return true;
 }
 static void GiveChatText(ChatTextSite& out) {
-    if (out.call) WriteCode(out.call,out.saved,5);
+    if (out.call) GiveSite(out.site);
     out=ChatTextSite();
 }

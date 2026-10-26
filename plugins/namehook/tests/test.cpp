@@ -146,6 +146,34 @@ static void TestCodePatches() {
 		CHECK(!raced.Commit() && raced.Code.Writes == 0 && raced.Code.Bytes[0] == 0);
 	}
 	{
+		// one site on its own (CodeSite, uihook's and lens's): written over what is there, given back only while
+		// it holds what was written; another's write left; put back as found, nothing lost; a write that fails at
+		// once leaves it as it was, one that goes in part leaves it abandoned; written twice refused
+		static const uint8_t call[5] = { 0xE8, 1, 2, 3, 4 };
+		CodeSite<FakeCode> site;
+		for (int i = 0; i < 256; i++) { site.Code.Bytes[i] = static_cast<uint8_t>(i); }
+		CHECK(site.Write(20, call, 5) && site.Code.Bytes[20] == 0xE8 && site.Original[0] == 20 && site.Written);
+		CHECK(!site.Write(20, call, 5)); // written already
+		CHECK(site.Restore() && site.Code.Bytes[20] == 20 && !site.Written && !site.Abandoned);
+		CHECK(site.Write(20, call, 5));
+		site.Code.Bytes[21] = 0x99;
+		CHECK(!site.Restore() && site.Abandoned && site.Code.Bytes[21] == 0x99 && site.Code.Bytes[20] == 0xE8);
+		CodeSite<FakeCode> back;
+		for (int i = 0; i < 256; i++) { back.Code.Bytes[i] = static_cast<uint8_t>(i); }
+		CHECK(back.Write(40, call, 5));
+		for (int i = 40; i < 45; i++) { back.Code.Bytes[i] = static_cast<uint8_t>(i); }
+		CHECK(back.Restore() && !back.Abandoned);
+		CodeSite<FakeCode> refused;
+		refused.Code.WritesLeft = 0;
+		CHECK(!refused.Write(0, call, 5) && !refused.Abandoned && refused.Code.Bytes[0] == 0);
+		CodeSite<FakeCode> torn;
+		torn.Code.FailOnce = 0; torn.Code.Partial = true;
+		CHECK(!torn.Write(0, call, 5) && torn.Abandoned && !torn.Written);
+		CodeSite<FakeCode> big;
+		uint8_t seventeen[17] = {};
+		CHECK(!big.Write(0, seventeen, 17) && !big.Write(250, call, 10));
+	}
+	{
 		// the real code memory: a write across an executable read-only page and a read-only one is made,
 		// each page given back its own protection; nothing is written where nothing can be read
 		SYSTEM_INFO info;

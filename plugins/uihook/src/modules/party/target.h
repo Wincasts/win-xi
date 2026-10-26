@@ -47,6 +47,7 @@ struct ArrowCalls {
     uint8_t* sub=nullptr;
     uint8_t* sprite=nullptr;
     uint8_t mainSaved[5]={}, subSaved[5]={};
+    CodeSite<WindowsCodeMemory> mainSite, subSite; // the two calls, written and given back only while ours
 };
 static bool VerifyCall(uint8_t* call,uint8_t* target) {
     if (!call || call[0]!=0xe8) return false;
@@ -54,9 +55,9 @@ static bool VerifyCall(uint8_t* call,uint8_t* target) {
     return call+5+distance==target;
 }
 static void GiveArrows(ArrowCalls& arrows) {
-    if (arrows.main) WriteCode(arrows.main,arrows.mainSaved,5);
-    if (arrows.sub) WriteCode(arrows.sub,arrows.subSaved,5);
-    arrows.main=arrows.sub=arrows.sprite=nullptr;
+    if (arrows.main) GiveSite(arrows.mainSite);
+    if (arrows.sub) GiveSite(arrows.subSite);
+    arrows=ArrowCalls();
 }
 static bool TakeArrows(ArrowCalls& arrows,uint8_t* begin,size_t size,void* replacement) {
     uint8_t* main=UniquePattern(begin,size,MAIN_ARROW_PATTERN);
@@ -68,11 +69,15 @@ static bool TakeArrows(ArrowCalls& arrows,uint8_t* begin,size_t size,void* repla
     // Verify BOTH before writing either. E8 remains E8: this preserves the caller's return address.
     arrows.main=main; arrows.sub=sub; arrows.sprite=sprite;
     memcpy(arrows.mainSaved,main,5); memcpy(arrows.subSaved,sub,5);
-    uint8_t* calls[2]={main,sub};
-    for (uint8_t* call : calls) {
-        uint8_t jump[5]={0xe8,0,0,0,0};
-        int32_t distance=Distance(call+5,replacement); memcpy(jump+1,&distance,4);
-        WriteCode(call,jump,5);
+    // both or neither: the first given back where the second will not go in
+    if (!WriteCall(arrows.mainSite,main,replacement)) {
+        if (arrows.mainSite.Abandoned) StrandCode();
+        arrows=ArrowCalls(); return false;
+    }
+    if (!WriteCall(arrows.subSite,sub,replacement)) {
+        GiveSite(arrows.mainSite);
+        if (arrows.subSite.Abandoned) StrandCode();
+        arrows=ArrowCalls(); return false;
     }
     return true;
 }

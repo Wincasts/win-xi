@@ -62,16 +62,16 @@ static ClockTextCall TextCall;
 template<int Icon> static void __fastcall DrawClockIcon(void*,void*,int32_t,int32_t,uint32_t,uint32_t,uint32_t);
 static ClockIconCalls IconCalls;
 static HudShared Hud = { "UIHOOK-HUD", HUD_VERSION, sizeof(HudShared), 0, 1, 0, {}, {}, 0xffff, {}, 0, {}, {}, {}, 0, 0, 0, 0 };
-static Detour CompassDetour = { COMPASS_DRAW_PATTERN, 6, -1, reinterpret_cast<void*>(&RenderCompass), nullptr, nullptr, {} };
-static Detour ClockDetour = { CLOCK_DRAW_PATTERN, 6, -1, reinterpret_cast<void*>(&RenderClock), nullptr, nullptr, {} };
+static Detour CompassDetour = { COMPASS_DRAW_PATTERN, 6, -1, reinterpret_cast<void*>(&RenderCompass), nullptr, nullptr, {}, {} };
+static Detour ClockDetour = { CLOCK_DRAW_PATTERN, 6, -1, reinterpret_cast<void*>(&RenderClock), nullptr, nullptr, {}, {} };
 // Sprite::Draw(this, x, y, sx, sy, color, flags1, flags2, flags3): preserve all eight stack
 // words verbatim, including float bit patterns and signed shorts promoted by the native caller.
 static void __fastcall DrawTargetArrow(void*,void*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t);
 static ArrowCalls Arrows;
 static PartyShared Shared = { "PARTYHOOK", PARTY_VERSION, sizeof(PartyShared), 0, 0, 1, {}, 0, 0, 0, 0, 0, 0, 0, {} };
-static Detour WindowDetour = { WINDOW_PATTERN, WINDOW_STOLEN, -1, reinterpret_cast<void*>(&RenderWindow), nullptr, nullptr, {} };
+static Detour WindowDetour = { WINDOW_PATTERN, WINDOW_STOLEN, -1, reinterpret_cast<void*>(&RenderWindow), nullptr, nullptr, {}, {} };
 static void __fastcall DrawExpandedChat(void*,void*);
-static Detour ExpandedChatDetour = { CHAT_FULL_DRAW_PATTERN, 5, -1, reinterpret_cast<void*>(&DrawExpandedChat), nullptr, nullptr, {} };
+static Detour ExpandedChatDetour = { CHAT_FULL_DRAW_PATTERN, 5, -1, reinterpret_cast<void*>(&DrawExpandedChat), nullptr, nullptr, {}, {} };
 static void __fastcall DrawChatTab(void*,void*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t);
 static void __fastcall DrawChatSelection(void*,void*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t);
 static void __fastcall DrawChatCursor(void*,void*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t);
@@ -86,11 +86,11 @@ static ChatTextSite ChatText;
 static int32_t __cdecl TextBitmap(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t);
 static int32_t __cdecl TextScaled(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t);
 static uint32_t __fastcall TextFont(void*,void*,int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t);
-static Detour TextBitmapDetour = { TEXT_BITMAP_PATTERN, TEXT_BITMAP_STOLEN, -1, reinterpret_cast<void*>(&TextBitmap), nullptr, nullptr, {} };
-static Detour TextScaledDetour = { TEXT_SCALED_PATTERN, TEXT_SCALED_STOLEN, -1, reinterpret_cast<void*>(&TextScaled), nullptr, nullptr, {} };
-static Detour TextFontDetour = { TEXT_FONT_PATTERN, TEXT_FONT_STOLEN, -1, reinterpret_cast<void*>(&TextFont), nullptr, nullptr, {} };
+static Detour TextBitmapDetour = { TEXT_BITMAP_PATTERN, TEXT_BITMAP_STOLEN, -1, reinterpret_cast<void*>(&TextBitmap), nullptr, nullptr, {}, {} };
+static Detour TextScaledDetour = { TEXT_SCALED_PATTERN, TEXT_SCALED_STOLEN, -1, reinterpret_cast<void*>(&TextScaled), nullptr, nullptr, {}, {} };
+static Detour TextFontDetour = { TEXT_FONT_PATTERN, TEXT_FONT_STOLEN, -1, reinterpret_cast<void*>(&TextFont), nullptr, nullptr, {}, {} };
 static void __fastcall DrawContent(void*,void*);
-struct ContentCallSite { uint8_t* call=nullptr; uint8_t saved[5]={}; };
+struct ContentCallSite { uint8_t* call=nullptr; uint8_t saved[5]={}; CodeSite<WindowsCodeMemory> site; };
 static ContentCallSite ContentCall;
 static DrawContext Draws;       // what the parts share for each draw (drawcontext.h)
 static SkinModule Skins;        // /uihook skin: the game's textures drawn with pictures of a skin's in their place
@@ -107,7 +107,7 @@ static void __cdecl GameInput(MSG);
 // The keys an addon keeps from the game's chat editor, in the same handler (window/keys.h; independent keys ABI 1)
 static KeysShared KeysBlock = { "UIHOOK-KEYS", 1, sizeof(KeysShared), 0, 0, {}, 0, 0 };
 static GameKeys Keys;
-static Detour InputDetour = { GAME_INPUT_PATTERN, GAME_INPUT_STOLEN, -1, reinterpret_cast<void*>(&GameInput), nullptr, nullptr, {} };
+static Detour InputDetour = { GAME_INPUT_PATTERN, GAME_INPUT_STOLEN, -1, reinterpret_cast<void*>(&GameInput), nullptr, nullptr, {}, {} };
 // The five bytes mov edx,[ecx]; call [edx+10] made a call to ours, which makes the same call: the
 // return address the game's own, the owner still in ecx
 static bool TakeContentCall(uint8_t* begin,size_t size,uint8_t* render) {
@@ -117,13 +117,14 @@ static bool TakeContentCall(uint8_t* begin,size_t size,uint8_t* render) {
     static const uint8_t expected[5]={0x8b,0x11,0xff,0x52,0x10};
     if (memcmp(call,expected,5)) return false;
     ContentCall.call=call; memcpy(ContentCall.saved,call,5);
-    uint8_t jump[5]={0xe8,0,0,0,0};
-    const int32_t distance=Distance(call+5,reinterpret_cast<void*>(&DrawContent)); memcpy(jump+1,&distance,4);
-    WriteCode(call,jump,5);
+    if (!WriteCall(ContentCall.site,call,reinterpret_cast<void*>(&DrawContent))) {
+        if (ContentCall.site.Abandoned) StrandCode();
+        ContentCall=ContentCallSite(); return false;
+    }
     return true;
 }
 static void GiveContentCall() {
-    if (ContentCall.call) WriteCode(ContentCall.call,ContentCall.saved,5);
+    if (ContentCall.call) GiveSite(ContentCall.site);
     ContentCall=ContentCallSite();
 }
 

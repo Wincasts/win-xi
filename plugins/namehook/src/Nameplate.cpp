@@ -25,7 +25,7 @@ If not, see <https://www.gnu.org/licenses/>.
 #include "Nameplate.h"
 
 #include "findsignature.h"
-#include "CodePatch.h"
+#include "../../common/CodePatch.h"
 #include "InstructionLength.h"
 
 // No copyright is claimed on the following "fair use for interoperability" section.

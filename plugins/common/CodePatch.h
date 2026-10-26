@@ -1,5 +1,5 @@
 #pragma once
-// namehook's writes to the client's code, in one place: each site's bytes as they were found are kept,
+// The plugins' writes to the client's code, in one place (namehook's first, now uihook's and lens's too): each site's bytes as they were found are kept,
 // a site is written only over those and taken back only while it still holds what was written, every
 // write gets the page protection it needs and flushes the instruction cache, and a set of sites goes in
 // whole or not at all.
@@ -280,3 +280,80 @@ struct CodePatches {
 		}
 	}
 };
+
+// One site on its own, as a hook takes a call or a function's first bytes: what CodePatches does for each of its
+// sites, for one of up to 16 bytes, small enough to keep beside each hook. Write takes the bytes there now as the
+// original and writes over them; Restore gives them back only while the site holds what was written, and leaves
+// a site something else has changed since (Abandoned), as it found it.
+template <typename Memory>
+struct CodeSite {
+    uintptr_t At = 0;
+    uint32_t Size = 0;
+    bool Written = false;
+    bool Abandoned = false;
+    uint8_t Original[16] = {};
+    uint8_t Bytes[16] = {};
+    Memory Code {};
+
+    bool Holds(const uint8_t* bytes) {
+        uint8_t now[16];
+        return Code.Read(At, now, Size) && memcmp(now, bytes, Size) == 0;
+    }
+
+    // False where the site is written already, too large, cannot be read or cannot be written; a write that went
+    // in only in part leaves the site abandoned
+    bool Write(uintptr_t at, const uint8_t* bytes, size_t size) {
+        if (Written || size == 0 || size > sizeof(Bytes)) {
+            return false;
+        }
+        uint8_t was[16];
+        if (!Code.Read(at, was, size)) {
+            return false;
+        }
+        At = at;
+        Size = static_cast<uint32_t>(size);
+        Abandoned = false;
+        memcpy(Original, was, size);
+        memcpy(Bytes, bytes, size);
+        if (!Code.Write(at, bytes, size)) {
+            Abandoned = !Holds(Original);
+            return false;
+        }
+        Written = true;
+        return true;
+    }
+
+    // True where the original is back, or the site was never written; false where it is left abandoned
+    bool Restore() {
+        if (!Written) {
+            return !Abandoned;
+        }
+        Written = false;
+        if (!Holds(Bytes)) {
+            Abandoned = !Holds(Original);
+            return !Abandoned;
+        }
+        if (!Code.Write(At, Original, Size)) {
+            Abandoned = true;
+            return false;
+        }
+        return true;
+    }
+};
+
+// Whether this DLL has left a site behind that the client may still go through into it: then it is pinned (kept
+// loaded), and a later load refuses. One for each DLL that includes this header.
+inline bool& CodeStranded() {
+    static bool stranded = false;
+    return stranded;
+}
+
+inline void StrandCode() {
+    if (CodeStranded()) {
+        return;
+    }
+    CodeStranded() = true;
+    HMODULE self = nullptr;
+    GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN,
+        reinterpret_cast<LPCWSTR> (&CodeStranded), &self);
+}

@@ -22,6 +22,7 @@
 #include "projection.h"
 #include "camera.h"
 #include "settings.h"
+#include "../../common/CodePatch.h"
 
 // Exported, so that the compiler keeps it although nothing here reads it, and so that another plugin
 // (namehook) can find it by name
@@ -73,6 +74,7 @@ class Lens : public IPlugin {
     uint32_t m_CAddr = 0;       // the game's constant C (192), 0 when not found
     double m_C = 0;
     std::vector<uintptr_t> m_FovSites;  // its loads that a projection's field of view is made from
+    std::vector<CodeSite<WindowsCodeMemory>> m_FovPatches; // each load's operand as lens writes it, given back only while lens's
     uintptr_t m_GameGlobal = 0; // the global holding the game object, 0 when not found
     uint8_t* m_Page = nullptr;  // lens's own values the game's code reads: C at 0, the battle pair at 16 and 20;
                                 // kept allocated at release, for a thread still reading them
@@ -88,6 +90,7 @@ class Lens : public IPlugin {
     uintptr_t m_BattleSite[2] = {}; // the fld and fadd of the battle min and max, 0 when not found
     uint32_t m_BattleConst[2] = {}, m_NormalConst[2] = {};
     bool m_BattlePatched = false, m_BattleForeign = false;
+    CodeSite<WindowsCodeMemory> m_BattlePatches[2];
     double m_BattleInPlay[2] = {};  // the pair lens has set, for the status
     struct { int middle = -1, mode = -1; double strength = -1, aspect = -1, fov = 0; bool capped = false; } m_MiddleCache;
 
@@ -99,7 +102,7 @@ public:
     const char* GetAuthor() const override { return "win"; }
     const char* GetDescription() const override { return "The world through a Panini or cylindrical projection, for wide screens without stretched edges."; }
     const char* GetLink() const override { return "https://github.com/Wincasts/win-xi"; }
-    double GetVersion() const override { return 0.92; }
+    double GetVersion() const override { return 0.93; }
     uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseCommands | Ashita::PluginFlags::UseDirect3D); }
 
     bool Initialize(IAshitaCore* core, ILogManager*, uint32_t) override {
@@ -432,13 +435,48 @@ private:
         }
         return m_Page;
     }
-    // Four bytes of the game's code.
-    static void WriteCode(uintptr_t at, uint32_t value) {
-        DWORD old = 0;
-        if (!VirtualProtect(reinterpret_cast<void*>(at), 4, PAGE_EXECUTE_READWRITE, &old)) return;
-        memcpy(reinterpret_cast<void*>(at), &value, 4);
-        VirtualProtect(reinterpret_cast<void*>(at), 4, old, &old);
-        FlushInstructionCache(GetCurrentProcess(), reinterpret_cast<void*>(at), 4);
+    // An operand of the game's code pointed at value, through each site (CodePatch.h): all of them or none, the
+    // written given back where one will not go in. Given back only while it is still lens's: one something else has
+    // pointed elsewhere since is left to it. The page lens points them at is never freed, so a load left pointing
+    // there, lens unloaded, still reads it: lens need not be kept loaded for it.
+    static bool WriteAll(CodeSite<WindowsCodeMemory>* sites, const uintptr_t* at, size_t count, const uint32_t* values) {
+        for (size_t i = 0; i < count; ++i) {
+            uint8_t bytes[4];
+            memcpy(bytes, &values[i], 4);
+            if (!sites[i].Write(at[i], bytes, 4)) {
+                for (size_t j = 0; j < i; ++j) sites[j].Restore();
+                return false;
+            }
+        }
+        return true;
+    }
+    static void RestoreAll(CodeSite<WindowsCodeMemory>* sites, size_t count) {
+        for (size_t i = 0; i < count; ++i) sites[i].Restore();
+    }
+    void PatchFov(uint32_t ours) {
+        std::vector<uintptr_t> at(m_FovSites.size());
+        std::vector<uint32_t> values(m_FovSites.size(), ours);
+        for (size_t i = 0; i < m_FovSites.size(); ++i) at[i] = m_FovSites[i] + 2;
+        m_FovPatches.assign(m_FovSites.size(), CodeSite<WindowsCodeMemory>());
+        m_FovPatched = WriteAll(m_FovPatches.data(), at.data(), at.size(), values.data());
+        // given back as the game's own C, whatever was there (an earlier lens's own, left by it)
+        if (m_FovPatched) for (auto& site : m_FovPatches) memcpy(site.Original, &m_CAddr, 4);
+    }
+    void UnpatchFov() {
+        RestoreAll(m_FovPatches.data(), m_FovPatches.size());
+        m_FovPatched = false;
+    }
+    void PatchBattle(const float* ours) {
+        const uintptr_t at[2] = { m_BattleSite[0] + 2, m_BattleSite[1] + 2 };
+        const uint32_t values[2] = { static_cast<uint32_t>(reinterpret_cast<uintptr_t>(ours)), static_cast<uint32_t>(reinterpret_cast<uintptr_t>(ours + 1)) };
+        m_BattlePatches[0] = CodeSite<WindowsCodeMemory>();
+        m_BattlePatches[1] = CodeSite<WindowsCodeMemory>();
+        m_BattlePatched = WriteAll(m_BattlePatches, at, 2, values);
+        if (m_BattlePatched) for (int i = 0; i < 2; ++i) memcpy(m_BattlePatches[i].Original, &m_BattleConst[i], 4);
+    }
+    void UnpatchBattle() {
+        RestoreAll(m_BattlePatches, 2);
+        m_BattlePatched = false;
     }
     // The field of view asked for, in degrees, 0 for the game's own: fov as set, or the one keeping middle up
     // the middle through the warp as it is (worked out again only when something it rests on changes).
@@ -477,14 +515,12 @@ private:
                             if (!SafeRead(site + 2, &now, 4) || (now != m_CAddr && now != ours)) m_FovForeign = true;
                         }
                         if (!m_FovForeign) {
-                            for (uintptr_t site : m_FovSites) WriteCode(site + 2, ours);
-                            m_FovPatched = true;
+                            PatchFov(ours);
                         }
                     }
                 }
             } else if (m_FovPatched) {
-                for (uintptr_t site : m_FovSites) WriteCode(site + 2, m_CAddr);
-                m_FovPatched = false;
+                UnpatchFov();
             } else {
                 m_FovForeign = false;
             }
@@ -525,22 +561,20 @@ private:
                     if (!SafeRead(m_BattleSite[i] + 2, &now, 4) || (now != m_BattleConst[i] && now != mine)) m_BattleForeign = true;
                 }
                 if (!m_BattleForeign) {
-                    for (int i = 0; i < 2; ++i) WriteCode(m_BattleSite[i] + 2, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(ours + i)));
-                    m_BattlePatched = true;
+                    PatchBattle(ours);
                 }
             }
         } else if (m_BattlePatched) {
-            for (int i = 0; i < 2; ++i) WriteCode(m_BattleSite[i] + 2, m_BattleConst[i]);
-            m_BattlePatched = false;
+            UnpatchBattle();
         } else {
             m_BattleForeign = false;
         }
     }
     // The game's own projection and camera back, at release; lens's page stays allocated.
     void RestoreProjection() {
-        if (m_BattlePatched) for (int i = 0; i < 2; ++i) WriteCode(m_BattleSite[i] + 2, m_BattleConst[i]);
+        if (m_BattlePatched) UnpatchBattle();
         m_BattlePatched = false;
-        if (m_FovPatched) for (uintptr_t site : m_FovSites) WriteCode(site + 2, m_CAddr);
+        if (m_FovPatched) UnpatchFov();
         m_FovPatched = false;
         if (m_Squared && m_GameGlobal) {
             uint32_t object = 0, k = 0;
