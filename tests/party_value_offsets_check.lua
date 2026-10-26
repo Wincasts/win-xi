@@ -65,4 +65,22 @@ saved.target.hpOffset[1], saved.target.hpOffset[2] = -10, -10
 local hp4 = Target()
 assert(hp4[1] < hp[1] and hp4[2] < hp[2], 'HP % moved left and up')
 draw.Text = text
-H.print('Value positioning: party offsets on Party, the target\'s own on Target, taken once from the TP offset, drawn apart', true)
+
+-- the sliders reach across a whole frame, either way, and past a line's top and bottom
+local imgui, widgets, config = require('imgui'), require('winxi.widgets'), require('config')
+local header, slider = widgets.Header, imgui.SliderInt
+local ranges = {}
+widgets.Header = function() return true end
+imgui.SliderInt = function(id, box, min, max) ranges[id] = { min, max }; return false end
+for _, tab in ipairs(config.Tabs) do
+    if tab.name == 'Party' or tab.name == 'Target' then tab.draw(saved) end
+end
+widgets.Header, imgui.SliderInt = header, slider
+for _, id in ipairs({ 'target.hpOffset', 'target.distanceOffset', 'style.hpOffset', 'style.mpOffset', 'style.tpOffset' }) do
+    local x, y = ranges['##xiframes.' .. id .. 'X'], ranges['##xiframes.' .. id .. 'Y']
+    assert(x and x[1] == -140 and x[2] == 140, id .. ' across: ' .. tostring(x and x[2]))
+    assert(y and y[1] == -40 and y[2] == 40, id .. ' down')
+end
+local frameUnits = 163.2 / options.Unit
+assert(140 >= frameUnits, 'across is at least a frame\'s width')
+H.print('Value positioning: party offsets on Party, the target\'s own on Target, taken once from the TP offset, drawn apart, reaching across a whole frame', true)

@@ -86,7 +86,9 @@ function controls.offset(entry, value)
         end
         box[1] = tonumber(value[axis]) or 0
         imgui.PushItemWidth(offsetSliderWidth)
-        if imgui.SliderInt(Id(entry, axis == 1 and 'X' or 'Y'), box, -entry.reach, entry.reach, axis == 1 and 'X %d' or 'Y %d') then
+        -- reach: how far either way, or { across, down } where the two differ
+        local reach = type(entry.reach) == 'table' and entry.reach[axis] or entry.reach
+        if imgui.SliderInt(Id(entry, axis == 1 and 'X' or 'Y'), box, -reach, reach, axis == 1 and 'X %d' or 'Y %d') then
             value[axis] = box[1]
         end
         imgui.PopItemWidth()
