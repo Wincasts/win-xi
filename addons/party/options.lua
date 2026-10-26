@@ -25,6 +25,10 @@ local options = { }
 
 options.Version = 2
 
+-- How far a figure can be moved: across, from one side of a frame (136 units wide) to the other whichever
+-- end it starts at; down, past the top and bottom of a line (32 units high)
+local valueReach = { 140, 40 }
+
 local unitsNote = '\nThe number is in the frames\' own units, so it keeps its proportion as the scale changes.'
 
 -- A distance in the settings is in units of this many pixels at a scale of 100: what the frames were
@@ -36,7 +40,8 @@ options.Unit = 1.2
 -- The kinds of entry:
 --   check     a checkbox                        default true or false
 --   slider    a whole number between two        default, min, max, format
---   offset    two sliders, across and down      default { x, y }, reach: how far either way
+--   offset    two sliders, across and down      default { x, y }, reach: how far either way, or
+--                                               { across, down } where the two differ
 --   choice    one of several, as radio buttons  default, choices: { key, label }, two to a line
 --   dropdown  one of several, as a combo        default, choices: { key, label }
 --   font      a font of C:\Windows\Fonts, as a combo   default '': the theme's font
@@ -92,11 +97,11 @@ options.Tabs = {
           tooltip = 'How big the alliance\'s other two parties are drawn, both alike, on top of the Scale in Style. Your own party is left as it is.' },
         { kind = 'gap' },
         -- kept in style, as they were when they were on the Style tab
-        { kind = 'offset', section = 'style', key = 'hpOffset', label = 'HP Value Offset', default = { -6, 0 }, reach = 40,
+        { kind = 'offset', section = 'style', key = 'hpOffset', label = 'HP Value Offset', default = { -6, 0 }, reach = valueReach,
           tooltip = 'Moves the HP value of your party, the alliance and pets from its usual place: X to the right, Y down. Less than 0 moves it left or up.' .. unitsNote },
-        { kind = 'offset', section = 'style', key = 'mpOffset', label = 'MP Value Offset', default = { -2, 0 }, reach = 40,
+        { kind = 'offset', section = 'style', key = 'mpOffset', label = 'MP Value Offset', default = { -2, 0 }, reach = valueReach,
           tooltip = 'Moves the MP value of your party, the alliance and pets from its usual place: X to the right, Y down. Less than 0 moves it left or up.' .. unitsNote },
-        { kind = 'offset', section = 'style', key = 'tpOffset', label = 'TP Value Offset', default = { -3, -2 }, reach = 40,
+        { kind = 'offset', section = 'style', key = 'tpOffset', label = 'TP Value Offset', default = { -3, -2 }, reach = valueReach,
           tooltip = 'Moves the TP value of your party and the alliance from its usual place: X to the right, Y down. Less than 0 moves it left or up.' .. unitsNote },
         { kind = 'place', section = 'party', key = 'pos1', label = 'Alliance 1 Position', default = { 2098, 1215 }, window = 'party1' },
         { kind = 'place', section = 'party', key = 'pos2', label = 'Alliance 2 Position', default = { 2098, 333 }, window = 'party2' },
@@ -116,9 +121,9 @@ options.Tabs = {
           tooltip = 'Letters: a letter under the window for each of the usual debuffs, lit while it is on.\nIcons: an icon beside the window for every status seen to take hold on the target, drawn as your party\'s buffs are:\nthe Buff Icon Size, Buff Spacing and Buff Distance of the Style tab, and Custom Icons of Winxi Theme.' },
         { kind = 'gap' },
         -- defaults as the target's figures were drawn when they followed the party's TP offset (-3, -2)
-        { kind = 'offset', section = 'target', key = 'hpOffset', label = 'HP % Offset', default = { 0, -2 }, reach = 40,
+        { kind = 'offset', section = 'target', key = 'hpOffset', label = 'HP % Offset', default = { 0, -2 }, reach = valueReach,
           tooltip = 'Moves the target\'s HP percentage from its usual place: X to the right, Y down. Less than 0 moves it left or up.' .. unitsNote },
-        { kind = 'offset', section = 'target', key = 'distanceOffset', label = 'Distance Offset', default = { -3, -2 }, reach = 40,
+        { kind = 'offset', section = 'target', key = 'distanceOffset', label = 'Distance Offset', default = { -3, -2 }, reach = valueReach,
           tooltip = 'Moves the target\'s distance from its usual place: X to the right, Y down. Less than 0 moves it left or up.' .. unitsNote },
         { kind = 'place', section = 'target', key = 'mainPos', label = 'Target Position', default = { 2098, 865 }, window = 'main' },
         { kind = 'place', section = 'target', key = 'subPos', label = 'Sub-Target Position', default = { 34, 296 }, window = 'sub' },

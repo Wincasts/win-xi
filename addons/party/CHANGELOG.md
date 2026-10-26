@@ -9,6 +9,8 @@
   The Target tab has one of its own, **HP % Offset** and **Distance Offset**: a target's HP percentage and
   distance no longer go with the party's TP offset. Settings from before give them that offset once, so they
   stay where they were.
+- The value offsets reach further: 140 either way across, enough to put a figure anywhere along a frame from
+  either end, and 40 up or down, past a line's top and bottom (40 both ways before).
 - Behavior → uihook: Hook Into uihook is **Use uihook**, no longer marked experimental. The title is followed in
   green by the plugin found and its version, e.g. [uihook 1.60 found]. The explanations of Use uihook, Party,
   Target and Follow Default UI Behavior are in a (?) after each, not the control's own tooltip. The native
