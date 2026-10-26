@@ -7,7 +7,7 @@
 // index 0..2: party/alliance; 3..5: main/sub/target-of-target (replayed together at targetwi).
 // capture=1 copies and consumes its drawing, 0 submits empty, -1 releases only this slot.
 // PARTY_PASS_OUTSIDE added to 0 or 1 (party/alliance only, where SupportedMask has PARTY_PASS_SUPPORTED): the
-// game's own drawing that falls wholly outside the window is let through, the rest replaced as ever (a hooked
+// game's own drawing that falls wholly to the left or right of the window is let through, the rest replaced as ever (a hooked
 // fish's stamina gauge, which the game draws with its party list in the middle of the screen).
 // index=-1: release all submissions immediately (addon unload, disabled, organize).
 // Visibility-rule hiding instead renews empty submissions so native lists remain suppressed.

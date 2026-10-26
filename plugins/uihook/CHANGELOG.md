@@ -5,10 +5,13 @@
 - Party: a party window's replacement can let the game's own drawing outside the window through, for the stamina
   gauge of a hooked fish, which the game draws with its party list in the middle of the screen. `capture` 0 or 1
   for index 0 to 2 with `PARTY_PASS_OUTSIDE` (4) added asks for it; `SupportedMask` bit 4 (`PARTY_PASS_SUPPORTED`)
-  says it can be asked. A draw handed with its vertices that lies wholly outside the window's rectangle (last
-  read as the window is drawn, grown by 8 pixels) is drawn; everything else is replaced as before. Party ABI 3
-  unchanged. `DrawOutside` (placement.h); tests/party.cpp: a gauge mid-screen outside, a row, a frame piece
-  reaching in and a shadow within the margin not, nothing without positions. Not yet tried in game.
+  says it can be asked. A draw handed with its vertices that lies wholly to the left or right of the window (its
+  rectangle read as the window is drawn, its sides moved out 8 pixels) is drawn; everything else is replaced as
+  before, what is above or below the window in its columns too: the pet bar the game draws just above the list
+  showed with the gauge while everything outside the window was let through. Party ABI 3 unchanged.
+  `DrawOutside` (placement.h); tests/party.cpp: a gauge mid-screen and beside the list at any height outside, a
+  row, a frame piece reaching in, a shadow within the margin and the pet bar above not, nothing without
+  positions. Not yet tried in game.
 
 ## 1.64
 

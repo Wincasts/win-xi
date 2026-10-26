@@ -178,6 +178,10 @@ int main() {
         Check(!DrawOutside(edge,4,sizeof(V),list,1000,500,PARTY_PASS_MARGIN),"a frame piece reaching into the list is its own");
         V shade[4]={{790,450,0,1,0,0,0},{795,450,0,1,0,0,0},{790,460,0,1,0,0,0},{795,460,0,1,0,0,0}};
         Check(!DrawOutside(shade,4,sizeof(V),list,1000,500,PARTY_PASS_MARGIN),"a shadow within the margin is its own");
+        V pet[4]={{820,330,0,1,0,0,0},{980,330,0,1,0,0,0},{820,380,0,1,0,0,0},{980,380,0,1,0,0,0}};
+        Check(!DrawOutside(pet,4,sizeof(V),list,1000,500,PARTY_PASS_MARGIN),"the pet bar above the list, in its columns, is its own");
+        V high[4]={{400,20,0,1,0,0,0},{600,20,0,1,0,0,0},{400,40,0,1,0,0,0},{600,40,0,1,0,0,0}};
+        Check(DrawOutside(high,4,sizeof(V),list,1000,500,PARTY_PASS_MARGIN),"beside the list at any height is outside");
         V bad[2]={{NAN,0,0,1,0,0,0},{0,0,0,1,0,0,0}};
         Check(!DrawOutside(bad,2,sizeof(V),list,1000,500,PARTY_PASS_MARGIN) && !DrawOutside(nullptr,4,sizeof(V),list,1000,500,8)
             && !DrawOutside(gauge,0,sizeof(V),list,1000,500,8) && !DrawOutside(gauge,4,4,list,1000,500,8),
