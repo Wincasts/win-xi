@@ -40,8 +40,32 @@ caps.Version=1;caps.Features=0;reset();assert(not plates.Supports(1))
 caps.Features=7;reset();assert(plates.Supports(1))
 loaded=false;assert(not plates.Supports(1))
 loaded=true;assert(plates.Supports(1), 'unload/reload clears capability ownership and scan throttle')
+-- A reloaded DLL can restart Sequence and can reuse the original block address.
+hook.Sequence,hook.Count=1,1
+hook.Names[0].EntityIndex=11
+assert(plates.Find(11).EntityIndex==11)
+reset()
+hook.Names[0].EntityIndex=22
+assert(plates.Find(11)==nil and plates.Find(22).EntityIndex==22,
+    'observed reload must invalidate places even at the same address/sequence')
+local replacement=ffi.new('namehook_t')
+replacement.Sequence,replacement.Count=1,1
+replacement.Names[0].EntityIndex=33
+assert(plates.Find(33,replacement).EntityIndex==33 and plates.Find(22,replacement)==nil,
+    'explicit hook owners with equal sequences must not share lookup caches')
+replacement.Names[0].EntityIndex=44
+assert(plates.Find(33,replacement)==nil, 'lookup must never return a different entity')
+-- An observed unload must discard cached writers without dereferencing them.
+local stale={Textures={[0]=123}}
+for i=1,20 do
+    if debug.getupvalue(plates.SetTexture,i)=='draw' then debug.setupvalue(plates.SetTexture,i,stale);break end
+end
+loaded=false;assert(plates.Hook()==nil)
+plates.SetTexture(0,456)
+assert(stale.Textures[0]==123, 'unload must drop stale writer pointers')
+loaded=true
 package.loaded['winxi.version']={Number=45}
 addon={}
 local ok,reason=pcall(dofile,'addons/name/name.lua')
-assert(not ok and tostring(reason):find('needs winxi 49',1,true), 'outdated WinXI must fail before loading newer modules')
-print('namehook capabilities: old ABI retained, missing/malformed/unknown features rejected, bounded scans and reload recovery passed')
+assert(not ok and tostring(reason):match('needs winxi %d+ or newer'), 'outdated WinXI must fail before loading newer modules')
+print('namehook capabilities: old ABI retained, missing/malformed/unknown features rejected, bounded scans, lookup ownership, stale writers and reload recovery passed')

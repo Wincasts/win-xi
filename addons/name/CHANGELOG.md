@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.79
+
+- Unloading Name now invalidates its published drawing buffer and relinquishes its claim before releasing owned textures, including a texture submitted before the plugin's first scene consumes it. Cleanup remains idempotent.
+- Textured-bar cleanup runs only after cached DLL writers have been discarded: losing/unloading namehook cannot leave bar teardown writing into its old draw buffer. WinXI's shared name lookup also forgets its entity-to-slot cache on observed plugin unload/rebinding, even when the DLL reuses the same address and sequence.
+- Remove a temporary table from target-colour pulse checks. Formats, sizes, colours and rendering order are unchanged.
+- Regression tests cover textured-bar teardown ordering, addon unload/claim release, lookup ownership across reload, and stale writer invalidation. The minimum-WinXI test no longer embeds an outdated version string.
+
 ## 1.78
 
 - A name over someone under Invisible is never drawn, whatever Visibility, the whitelist or Always Show Target would have; nor is it counted toward Crowd Decluttering. Who is invisible is the server's word: the flag Phoenix sends for Invisible in another player's update (0x0D, the u32 at 0x20, bit 29, with the general update) and in your own status (0x37, the u32 at 0x2C, bit 15), sent again each time a status effect comes or goes. It is forgotten when the player leaves your area or you change areas. Someone already invisible when Name is loaded is known from their next update. With Enable Name off, the game's own names are left to the game.

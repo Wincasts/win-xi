@@ -21,6 +21,7 @@ If not, see <https://www.gnu.org/licenses/>.
 #include "../Nameplate.h"
 #include "../NameBounds.h"
 #include "../NameSubmission.h"
+#include "../NameStateBlocks.h"
 
 #include "exports.h"
 // the lens plugin's warp, which bends the world picture names are drawn into (plugins/lens)
@@ -632,23 +633,10 @@ bool AshitaNameplate::MakeNameStates() {
         return true;
     }
 
-    if (m_NameStates == 0) {
-        m_Device->BeginStateBlock();
-        SetNameStates(m_Device);
-        if (FAILED(m_Device->EndStateBlock(&m_NameStates))) {
-            m_NameStates = 0;
-        }
-    }
-    if (m_SavedStates == 0) {
-        m_Device->BeginStateBlock();
-        SetNameStates(m_Device);
-        if (FAILED(m_Device->EndStateBlock(&m_SavedStates))) {
-            m_SavedStates = 0;
-        }
-    }
-
-    // without both, nothing is drawn this frame, and they are not tried for again until the next
-    if (m_NameStates == 0 || m_SavedStates == 0) {
+    // Do not record state changes unless BeginStateBlock succeeded. Without both
+    // blocks, skip drawing rather than risking changes to the client's live state.
+    if (!NameStateBlocks::Record(m_Device, m_NameStates, SetNameStates)
+            || !NameStateBlocks::Record(m_Device, m_SavedStates, SetNameStates)) {
         m_CanDraw = false;
         m_PopupsCanDraw = false;
         return false;
@@ -837,11 +825,11 @@ void AshitaNameplate::RenderCustom(uint32_t slot, const HookDrawing& drawing, co
     // The client's state is captured before the first name of a run, and put back after each; while the
     // client draws nothing itself between two names (ClientDrew), what was captured is still its state,
     // and is not captured again. Off (keepstates off), it is captured before every name as it was.
-    if (!m_StatesCaptured || !KeepsStates()) {
-        device->CaptureStateBlock(m_SavedStates);
-        m_StatesCaptured = true;
+    if (!NameStateBlocks::Activate(device, m_SavedStates, m_NameStates, m_StatesCaptured, KeepsStates())) {
+        m_CanDraw = false;
+        m_PopupsCanDraw = false;
+        return;
     }
-    device->ApplyStateBlock(m_NameStates);
     if (over) {
         device->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
     }
@@ -877,7 +865,10 @@ void AshitaNameplate::RenderCustom(uint32_t slot, const HookDrawing& drawing, co
         }
     }
 
-    device->ApplyStateBlock(m_SavedStates);
+    if (!NameStateBlocks::Restore(device, m_SavedStates, m_StatesCaptured)) {
+        m_CanDraw = false;
+        m_PopupsCanDraw = false;
+    }
 }
 
 void AshitaNameplate::PublishNames(bool frameDone) {

@@ -10,6 +10,7 @@
 #include "../src/Nameplate.cpp"
 #include "../src/NameBounds.h"
 #include "../src/NameSubmission.h"
+#include "../src/NameStateBlocks.h"
 #include "../../lens/src/warp.h"
 
 #include <string>
@@ -164,10 +165,104 @@ static uint32_t CategoryOf(const XiModel* model) {
 	return Classify(model->pEntity, flags);
 }
 
+struct FakeStateDevice {
+    HRESULT begin = S_OK, end = S_OK, capture = S_OK, applyNames = S_OK, restore = S_OK;
+    int begun = 0, ended = 0, configured = 0, captures = 0, applications = 0, restores = 0;
+    HRESULT BeginStateBlock() { begun++; return begin; }
+    HRESULT EndStateBlock(DWORD* token) { ended++; *token = SUCCEEDED(end) ? 1 : 0; return end; }
+    HRESULT CaptureStateBlock(DWORD) { captures++; return capture; }
+    HRESULT ApplyStateBlock(DWORD token) {
+        if (token == 1) { applications++; return applyNames; }
+        restores++; return restore;
+    }
+};
+
 int main() {
+    {
+        FakeStateDevice device;
+        DWORD token = 0;
+        auto configure = [](FakeStateDevice* d) { d->configured++; };
+        device.begin = E_FAIL;
+        CHECK(!NameStateBlocks::Record(&device, token, configure));
+        CHECK(token == 0 && device.configured == 0 && device.ended == 0);
+        device.begin = S_OK; device.end = E_FAIL;
+        CHECK(!NameStateBlocks::Record(&device, token, configure) && token == 0);
+        device.end = S_OK;
+        CHECK(NameStateBlocks::Record(&device, token, configure) && token == 1);
+        const int begun = device.begun;
+        CHECK(NameStateBlocks::Record(&device, token, configure) && device.begun == begun);
+        bool captured = false;
+        device.capture = E_FAIL;
+        CHECK(!NameStateBlocks::Activate(&device, 2, 1, captured, true));
+        CHECK(!captured && device.applications == 0);
+        device.capture = S_OK;
+        CHECK(NameStateBlocks::Activate(&device, 2, 1, captured, true) && captured);
+        const int captures = device.captures;
+        CHECK(NameStateBlocks::Activate(&device, 2, 1, captured, true) && device.captures == captures);
+        CHECK(NameStateBlocks::Activate(&device, 2, 1, captured, false) && device.captures == captures + 1);
+        CHECK(NameStateBlocks::Restore(&device, 2, captured) && captured);
+        device.applyNames = E_FAIL;
+        const int restores = device.restores;
+        CHECK(!NameStateBlocks::Activate(&device, 2, 1, captured, true));
+        CHECK(!captured && device.restores == restores + 1);
+        device.applyNames = S_OK;
+        CHECK(NameStateBlocks::Activate(&device, 2, 1, captured, true) && captured);
+        device.restore = E_FAIL;
+        CHECK(!NameStateBlocks::Restore(&device, 2, captured) && !captured);
+    }
+    // Scanning must bound the complete signature, including wildcard prefixes/suffixes.
+    {
+        constexpr auto prefixed = MakeSig<"??ABCD">();
+        constexpr auto suffixed = MakeSig<"ABCD??EF">();
+        constexpr auto single = MakeSig<"AA??">();
+        const uint8_t bytes[] = { 0xAB, 0xCD, 0, 0xEF };
+        CHECK(prefixed.Find() == nullptr); // FFXiMain.dll is absent in this test process
+        CHECK(prefixed.FindIn(nullptr, 0) == nullptr);
+        CHECK(prefixed.FindIn(bytes, 0) == nullptr);
+        CHECK(prefixed.FindIn(bytes, 1) == nullptr);
+        CHECK(prefixed.FindIn(bytes, sizeof(bytes)) == nullptr); // no byte before the literal
+        CHECK(suffixed.FindIn(bytes, 3) == nullptr); // literal fits but suffix does not
+        CHECK(suffixed.FindIn(bytes, sizeof(bytes)) == bytes);
+        const uint8_t valid[] = { 0, 0xAB, 0xCD };
+        CHECK(prefixed.FindIn(valid, sizeof(valid)) == valid); // match at the final legal start
+        const uint8_t oneByte[] = { 0, 0xAA, 0 };
+        CHECK(single.FindIn(oneByte, sizeof(oneByte)) == oneByte + 1);
+        const uint8_t malformed[] = { 1, 0x83, 0xAB }; // truncated encoded literal
+        CHECK(FindSigIn(malformed, sizeof(malformed), bytes, sizeof(bytes)) == nullptr);
+        const uint8_t insideLiteral[] = { 2, 0x81, 0xAB, 0xCD };
+        CHECK(FindSigIn(insideLiteral, sizeof(insideLiteral), bytes, sizeof(bytes)) == nullptr);
+        // Guard pages turn prefix/suffix overreads into deterministic test failures.
+        SYSTEM_INFO info{};
+        GetSystemInfo(&info);
+        auto* pages = static_cast<uint8_t*>(VirtualAlloc(nullptr, info.dwPageSize * 4, MEM_RESERVE, PAGE_NOACCESS));
+        CHECK(pages != nullptr);
+        if (pages != nullptr) {
+            auto* page = static_cast<uint8_t*>(VirtualAlloc(pages + info.dwPageSize, info.dwPageSize * 2, MEM_COMMIT, PAGE_READWRITE));
+            CHECK(page != nullptr);
+            if (page != nullptr) {
+                page[0] = 0xAB; page[1] = 0xCD;
+                CHECK(prefixed.FindIn(page, 3) == nullptr);
+                uint8_t* tail = page + info.dwPageSize * 2 - 3;
+                tail[0] = 0xAB; tail[1] = 0xCD; tail[2] = 0;
+                CHECK(suffixed.FindIn(tail, 3) == nullptr);
+                // A full image scan skips the first/last reserved pages, but may
+                // match across two adjacent readable pages of different protection.
+                const auto encoded = rleize<"12345678">();
+                uint8_t* cross = page + info.dwPageSize - 2;
+                cross[0] = 0x12; cross[1] = 0x34; cross[2] = 0x56; cross[3] = 0x78;
+                DWORD oldProtect = 0;
+                CHECK(VirtualProtect(page + info.dwPageSize, info.dwPageSize, PAGE_READONLY, &oldProtect));
+                CHECK(FindReadableSig(encoded.data(), encoded.size(), pages, info.dwPageSize * 4) == cross);
+                const auto absent = rleize<"12345679">();
+                CHECK(FindReadableSig(absent.data(), absent.size(), pages, info.dwPageSize * 4) == nullptr);
+            }
+            VirtualFree(pages, 0, MEM_RELEASE);
+        }
+        CHECK(drawName3V2PatchLocationSig.FindIn(bytes, sizeof(bytes)) == nullptr);
+    }
     CHECK(sizeof(HookCapabilities) == 32);
     CHECK(NamehookCapabilities.Size == sizeof(HookCapabilities) && NamehookCapabilities.Version == 1);
-    CHECK((NamehookCapabilities.Features & FEATURE_EDGE_RADIUS) != 0 && (NamehookCapabilities.Features & FEATURE_DOUBLED) != 0 && (NamehookCapabilities.Features & FEATURE_SOFT_TEXTURE) != 0 && NamehookCapabilities.Build == 138);
+    CHECK((NamehookCapabilities.Features & FEATURE_EDGE_RADIUS) != 0 && (NamehookCapabilities.Features & FEATURE_DOUBLED) != 0 && (NamehookCapabilities.Features & FEATURE_SOFT_TEXTURE) != 0 && NamehookCapabilities.Build == NAMEHOOK_VERSION_MAJOR * 100 + NAMEHOOK_VERSION_MINOR);
     {
         const NameBounds bounds{ -50, -10, 50, 10 };
         CHECK(!bounds.Intersects(-60, 540, 0, 0, 1920, 1080));

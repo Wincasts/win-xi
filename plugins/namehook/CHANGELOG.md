@@ -1,5 +1,11 @@
 # Changelog
 
+## namehook 1.39 — scanner bounds and state-block failure handling
+
+- Bound the whole decoded signature, including wildcard prefixes and trailing runs, before forming a candidate pointer. Missing modules, short images and malformed run encodings fail closed. Scan only committed readable image regions, retaining matches across adjacent readable protection regions. Literal/wildcard runs longer than 128 bytes are split, and one-byte literal needles are supported.
+- Check state-block begin/end, capture and apply results. Failed capture does not mark cached state valid or proceed with drawing; failed name-state application attempts restoration, and failed application/restoration invalidates the run and stops further custom drawing until reinitialized. ABI 3 and capabilities are unchanged apart from the build number.
+- Tests cover absent/short images, prefix/suffix bounds beside guard pages, final-position matches, malformed encodings and a fake device's state-record/capture/apply/restore failures and recovery.
+
 ## namehook 1.38 — damage popups listed, and claimable
 
 - The client's damage popups (its numbers and "Miss!" over whoever was hit) go through the plugin. The damage patch, which already set their size, hands each to `OnDamagePopup` as the client is about to draw it, with its object, colour, place in the world, size factor and letter size. It is listed in a new block, `HookPopups` (magic `NAMEHOOKPOPUPS`, version 1), found apart from `HookShared` as the bubbles are, so ABI 3 is unchanged: an id kept while it is drawn, its text (`:` for a miss, drawn by the client's font as "Miss!"), who was hit and who hit them (from the effect's generator, reached through the popup's `+0xFC`: the actors at its `+0x40` and `+0x3C`, read from the running game for every popup, looked for among the entities' actors by the host), its colour and fading, and its place on screen as for a name. Each hit makes two popups, the number and a darker copy.
