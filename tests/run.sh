@@ -141,6 +141,7 @@ luajit tests/chatbubbles_check.lua
 luajit tests/chatbubbles_npc_check.lua
 luajit tests/chatbubbles_colors_check.lua
 run chatbubbles addons/chatbubbles/chatbubbles.lua chatbubbles_config_check.lua
+run chatbubbles addons/chatbubbles/chatbubbles.lua chatbubbles_absent_check.lua
 luajit tests/hideparty_cursor_check.lua
 luajit tests/winxi_lens_check.lua || exit 1
 luajit tests/map_files_check.lua
@@ -191,6 +192,7 @@ run zoneinfo-more tests/zoneinfo_fixture.lua zoneinfo_more_styles_check.lua
 echo
 run name addons/name/name.lua name_check.lua
 run damage addons/damage/damage.lua damage_check.lua
+run damage addons/damage/damage.lua damage_absent_check.lua
 run name addons/name/name.lua name_token_options_check.lua
 run name addons/name/name.lua name_types_check.lua
 run name addons/name/name.lua name_colours_check.lua

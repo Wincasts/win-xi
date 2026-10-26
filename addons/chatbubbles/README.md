@@ -223,6 +223,9 @@ coverage depends on the current ImGui font.
 
 ## If nothing appears
 
+Without namehook nothing can be drawn: chatbubbles says so once in the chat log (`The namehook plugin is
+not loaded: /load namehook`), keeps nothing while it waits, and draws again as soon as namehook is loaded.
+
 Run `/chatbubbles test`, then `/chatbubbles status` **while the test is active**.
 
 - A compatibility warning means the updated DLL is not installed/loaded.

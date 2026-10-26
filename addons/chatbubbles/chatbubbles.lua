@@ -1,6 +1,6 @@
 addon.name = 'chatbubbles';
 addon.author = 'win';
-addon.version = '0.96';
+addon.version = '0.97';
 addon.desc = 'Configurable chat bubbles anchored by namehook, in the world or on the screen.';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
@@ -62,6 +62,9 @@ local app; -- the shell's: the settings, their window and the command
 local function report(text)
     app:Say(text);
 end
+
+local missingCleared = false; -- cleared since namehook was last found missing
+local problemSaid = nil;      -- why namehook cannot be used, as last said in the chat log
 
 ashita.events.register('load', 'chatbubbles_load', function ()
     report('Requires namehook 1.24+. /chatbubbles opens the settings; Say and NPC dialogue are enabled by default.');
@@ -228,7 +231,19 @@ ashita.events.register('d3d_present', 'chatbubbles_present', function ()
     end
     local active = prune(now);
     local hook = nameplates.Hook();
-    if (hook == nil) then clear(); return; end
+    if (hook == nil) then
+        -- Nothing can be drawn without namehook: what was waiting is let go of (once, and again only when
+        -- something new comes), and why is said once in the chat log, as damage does
+        if (active > 0 or not missingCleared) then clear(); end
+        missingCleared = true;
+        local problem = nameplates.Problem();
+        if (problem ~= problemSaid) then
+            problemSaid = problem;
+            if (problem ~= nil) then report(problem); end
+        end
+        return;
+    end
+    missingCleared, problemSaid = false, nil;
     -- Publish an empty frame too, so expired speech disappears immediately: and with Draw On Screen
     -- every frame is empty, the world's bubbles gone the frame it is turned on
     local onScreen = appearance.onScreen ~= nil and appearance.onScreen[1] == true;
