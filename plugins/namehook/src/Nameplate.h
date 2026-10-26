@@ -215,6 +215,46 @@ struct HookBubbles {
     HookDraw Draw;
 };
 
+// The damage numbers (and "Miss!") the client pops up over whoever was hit: found by magic, like the
+// bubbles, without changing HookShared. The list is of those the client drew, or would have drawn, last
+// frame: one off screen is not drawn, and is not listed.
+#define HOOK_POPUPS_MAX 64
+#define HOOK_POPUP_TEXT_SIZE 20 // the client draws 16 characters at most
+
+enum : uint32_t {
+    POPUP_DRAWN     = 1 << 0, // drawn by the client: not claimed
+    POPUP_ON_SCREEN = 1 << 1, // ScreenX, ScreenY and Depth are filled in
+    POPUP_OWNER     = 1 << 2, // EntityIndex is whose it is
+};
+
+struct HookPopup {
+    uint32_t Id;          // the same for as long as the popup is drawn, a new one for each; never 0
+    uint32_t Object;      // the client's object that draws it
+    uint32_t EntityIndex; // whose it is, with POPUP_OWNER
+    uint32_t Flags;       // POPUP_*
+    uint32_t Color;       // as the client draws it, 0xAARRGGBB with 0x80 for full: the alpha is its fading
+    uint32_t FirstFrame;  // the HookShared::Frame it was first listed in
+    float X, Y, Z;        // where the client puts it in the world
+    float Scale;          // the client's size for it, before the damage font size
+    float Width, Height;  // and after: what the client draws a letter at
+    float ScreenX, ScreenY, Depth; // the same point on screen, as for a name
+    char Text[HOOK_POPUP_TEXT_SIZE];
+};
+
+struct HookPopups {
+    char Magic[16];       // "NAMEHOOKPOPUPS"
+    uint32_t Version;     // 1
+    uint32_t Size;
+    uint32_t PopupSize;
+    uint32_t Hooked;      // 1 while the client's popups go through the plugin
+    uint32_t Claimed;     // written by an addon: not 0, the client draws no popups, the addon does
+    uint32_t ClaimFrame;  // HookShared::Frame the claim was last made in; it lapses as a name claim does
+    uint32_t Frame;       // HookShared::Frame of the list
+    uint32_t Count;
+    uint32_t Sequence;    // goes up each time the list is made ready
+    HookPopup Popups[HOOK_POPUPS_MAX];
+};
+
 // What the plugin asks of its host once a frame, for sorting names into categories. An id or index of
 // 0 is none.
 struct FrameFacts {
@@ -286,6 +326,12 @@ class Nameplate {
         virtual void DrawBubble([[maybe_unused]] uint32_t entityIndex, [[maybe_unused]] const HookDrawing& drawing,
             [[maybe_unused]] const HookQuad* quads, [[maybe_unused]] const float* position) {}
 
+        // The entity whose actor this is (the client's object for it), or HOOK_ENTITIES for none. Asked
+        // once for each new damage popup, of the popup's object and what it points to.
+        virtual uint32_t GetActorEntity([[maybe_unused]] uintptr_t actor) {
+            return HOOK_ENTITIES;
+        }
+
         // A look at what the client is drawing on at the moment it draws a name, said in the chat log.
         // Asked for by the probe command, and called from the client's name drawing code, once.
         virtual void ProbeScene() {}
@@ -321,7 +367,9 @@ class Nameplate {
         int SaveWhitelist();
         void ParseWhitelistCommand(const char* cmd);
         void ParseCategoryCommand(const char* cmd, int show);
+        void ParsePopupsCommand(const char* cmd);
         void SayStatus();
+        void SayPopups();
 
         NameplateSettings Settings;
 };

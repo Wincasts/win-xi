@@ -1,5 +1,13 @@
 # Changelog
 
+## namehook 1.38 — damage popups listed, and claimable
+
+- The client's damage popups (its numbers and "Miss!" over whoever was hit) go through the plugin. The damage patch, which already set their size, hands each to `OnDamagePopup` as the client is about to draw it, with its object, colour, place in the world, size factor and letter size. It is listed in a new block, `HookPopups` (magic `NAMEHOOKPOPUPS`, version 1), found apart from `HookShared` as the bubbles are, so ABI 3 is unchanged: an id kept while it is drawn, its text, whose it is (the object, or the pointers at its `+0xFC`, looked for among the entities' actors by the host), its colour and fading, and its place on screen as for a name.
+- An addon can claim the popups (`HookPopups::Claimed`, `ClaimFrame`): the client then draws none, and they are still listed. The claim lapses as a name claim does. Nothing is drawn in their place yet.
+- The extra code runs only where the client's code around the patch is as read from the running game (the point put in `[esp+0x14]` before it, the function's end `0xAE` after its start); otherwise the patch jumps past it, the popups are not listed and the client draws them as before. `/namehook status` says which.
+- `/namehook popups` says last frame's popups in the chat log; `/namehook popups watch on|off` says each new one as it appears.
+- tests/test.cpp: the patch's jumps, a popup listed once a frame with its owner and screen place, its id kept and renewed, the names not made ready again for popups alone, the claim and its lapse, a full list, the command and the watch.
+
 ## namehook 1.37 — soft textured rectangles
 
 - `QUAD_SOFT_RECT` no longer needs a constant texture coordinate: a textured, unedged quad that asks for it gets the same one-pixel screen-space fringe, each point with the texture coordinate of where it is in the quad (`SoftRectangle::InnerAt`/`OuterAt`), the outer fringe clamped to the quad's edge so it never samples past it. Name uses it for the fill of its textured health and cast bars. The capabilities sidecar says so (`FEATURE_SOFT_TEXTURE`, 16; Build 137). Older plugins draw such a quad hard.

@@ -89,6 +89,10 @@ struct TestPlugin : public Nameplate {
 	uint32_t GetSpawnFlags(uint32_t entityIndex) override {
 		return (entityIndex == 300) ? 0x10 : 0x02;
 	}
+	uintptr_t actor = 0; // the one actor the host knows, entity 0x123's
+	uint32_t GetActorEntity(uintptr_t pointer) override {
+		return (pointer != 0 && pointer == actor) ? 0x123 : HOOK_ENTITIES;
+	}
 };
 
 static XiModel models[16];
@@ -143,7 +147,7 @@ static uint32_t CategoryOf(const XiModel* model) {
 int main() {
     CHECK(sizeof(HookCapabilities) == 32);
     CHECK(NamehookCapabilities.Size == sizeof(HookCapabilities) && NamehookCapabilities.Version == 1);
-    CHECK((NamehookCapabilities.Features & FEATURE_EDGE_RADIUS) != 0 && (NamehookCapabilities.Features & FEATURE_DOUBLED) != 0 && (NamehookCapabilities.Features & FEATURE_SOFT_TEXTURE) != 0 && NamehookCapabilities.Build == 137);
+    CHECK((NamehookCapabilities.Features & FEATURE_EDGE_RADIUS) != 0 && (NamehookCapabilities.Features & FEATURE_DOUBLED) != 0 && (NamehookCapabilities.Features & FEATURE_SOFT_TEXTURE) != 0 && NamehookCapabilities.Build == 138);
     {
         const NameBounds bounds{ -50, -10, 50, 10 };
         CHECK(!bounds.Intersects(-60, 540, 0, 0, 1920, 1080));
@@ -964,7 +968,8 @@ int main() {
 	// what is shown and hidden is said back
 	plugin.said.clear();
 	plugin.ParseCommand("/namehook status", true);
-	CHECK(plugin.said.size() == 4 && plugin.said[0] == "Shown: self, party, alliance, mypet, pets, monsters" && plugin.said[1] == "Hidden: players, npcs");
+	CHECK(plugin.said.size() == 5 && plugin.said[0] == "Shown: self, party, alliance, mypet, pets, monsters" && plugin.said[1] == "Hidden: players, npcs");
+	CHECK(plugin.said.size() == 5 && plugin.said[4].find("damage popups were not recognised") != std::string::npos);
 
 	// before its own settings are first saved there is nothing to read: the defaults, and no whitelist
 	wchar_t path[MAX_PATH];
@@ -1088,6 +1093,143 @@ int main() {
 	// the game's own "names off" still wins
 	namesOff = true;
 	CHECK(!ShouldDrawNameplate(mob) && !ShouldDrawNameplate(buddy));
+
+	// Damage popups: the patch hands each to the plugin, which lists it and says whether the client
+	// draws it
+	{
+		CHECK(strcmp(Popups.Magic, "NAMEHOOKPOPUPS") == 0 && Popups.Version == 1);
+		CHECK(Popups.Size == sizeof(HookPopups) && Popups.PopupSize == sizeof(HookPopup));
+		// the patch: the skip written where it is not hooked goes on to the client's code after the patch;
+		// a claimed popup jumps to the function's end, 0xAE from the patch's start
+		CHECK(DRAWDAMAGE_PATCH_POPUP_LOCATION + 2 + DrawDamage_PopupSkip[1] == DRAWDAMAGE_PATCH_SIZE);
+		CHECK(DrawDamage_Patch[0x53] == 0x0F && DrawDamage_Patch[0x54] == 0x84);
+		int32_t jump;
+		memcpy(&jump, &DrawDamage_Patch[0x55], sizeof(jump));
+		CHECK(0x59 + jump == DRAWDAMAGE_END_OFFSET);
+		uint32_t address;
+		memcpy(&address, &DrawDamage_Patch[DRAWDAMAGE_PATCH_POPUP_ADDRESS_LOCATION], sizeof(address));
+		CHECK(address == 0x12345678 && DrawDamage_Patch[DRAWDAMAGE_PATCH_POPUP_ADDRESS_LOCATION - 1] == 0xB8);
+
+		uint32_t width = 1000, height = 500;
+		Globals.pWindowWidth = &width;
+		Globals.pWindowHeight = &height;
+		static const float identity[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
+
+		// the client's object: what +FC points to points to the actor
+		static uint8_t object[0x200] = {};
+		static uint8_t inner[4] = {};
+		uintptr_t innerAt = reinterpret_cast<uintptr_t> (inner);
+		memcpy(object + POPUP_OBJECT_OWNER, &innerAt, 4);
+		const uint32_t actor = 0x0BADF00D;
+		memcpy(inner, &actor, 4);
+		plugin.actor = actor;
+		strcpy(reinterpret_cast<char*> (object + POPUP_OBJECT_TEXT), "1234567890ABCDEFGHIJ"); // drawn to 16
+		const float at[3] = { 0.5f, -0.5f, 3.0f }, size[2] = { 2.0f, 3.0f }, scale = 0.75f;
+
+		plugin.Publish(nullptr, nullptr, true);
+		const uint32_t names = Shared.Sequence;
+		CHECK(OnDamagePopup(object, 0x80FFFFFF, at, size, &scale));
+		CHECK(OnDamagePopup(object, 0x80FFFFFF, at, size, &scale)); // twice in a frame, listed once
+		CHECK(plugin.WantsPublish(false));
+		plugin.Publish(identity, identity, false);
+		CHECK(Shared.Sequence == names); // the names are not made ready again for popups alone
+		CHECK(Popups.Count == 1 && Popups.Frame == Shared.Frame);
+		const HookPopup first = Popups.Popups[0];
+		CHECK(first.Id != 0 && strcmp(first.Text, "1234567890ABCDEF") == 0);
+		CHECK(first.Flags == (POPUP_DRAWN | POPUP_ON_SCREEN | POPUP_OWNER) && first.EntityIndex == 0x123 && PopupOwnerBy[0] == 3);
+		CHECK(first.Color == 0x80FFFFFF && first.Scale == 0.75f && first.Width == 2.0f && first.Height == 3.0f && first.Z == 3.0f);
+		CHECK(first.ScreenX == 750.0f && first.ScreenY == 375.0f && first.Depth == 1.0f);
+		CHECK(first.Object == static_cast<uint32_t>(reinterpret_cast<uintptr_t> (object)) && PopupOwner[0][0] == innerAt && PopupOwner[0][1] == actor);
+		plugin.Publish(nullptr, nullptr, true);
+		CHECK(Popups.Count == 1); // made ready, and not taken away as the frame ended
+
+		// drawn again: the same popup; a frame without any, none
+		const float fading = 0.5f;
+		CHECK(OnDamagePopup(object, 0x40FFFFFF, at, size, &fading));
+		plugin.Publish(nullptr, nullptr, true);
+		CHECK(Popups.Count == 1 && Popups.Popups[0].Id == first.Id && Popups.Popups[0].FirstFrame == first.FirstFrame
+			&& Popups.Popups[0].Color == 0x40FFFFFF && (Popups.Popups[0].Flags & POPUP_ON_SCREEN) == 0);
+		plugin.Publish(nullptr, nullptr, true);
+		CHECK(Popups.Count == 0);
+
+		// new text in the same object is a new popup, and so is the same after it has been gone a while
+		object[POPUP_OBJECT_TEXT] = '9';
+		OnDamagePopup(object, 0x80FFFFFF, at, size, &scale);
+		plugin.Publish(nullptr, nullptr, true);
+		const uint32_t second = Popups.Popups[0].Id;
+		CHECK(second != first.Id);
+		for (int i = 0; i < HOOK_DRAW_FRAMES + 1; i++) {
+			plugin.Publish(nullptr, nullptr, true);
+		}
+		OnDamagePopup(object, 0x80FFFFFF, at, size, &scale);
+		plugin.Publish(nullptr, nullptr, true);
+		CHECK(Popups.Popups[0].Id != second);
+
+		// whose: the object itself, or nobody's known
+		plugin.actor = static_cast<uint32_t>(reinterpret_cast<uintptr_t> (object));
+		object[POPUP_OBJECT_TEXT] = '8';
+		OnDamagePopup(object, 0x80FFFFFF, at, size, &scale);
+		plugin.Publish(nullptr, nullptr, true);
+		CHECK(Popups.Popups[0].EntityIndex == 0x123 && PopupOwnerBy[0] == 1);
+		plugin.actor = 0;
+		object[POPUP_OBJECT_TEXT] = '7';
+		OnDamagePopup(object, 0x80FFFFFF, at, size, &scale);
+		plugin.Publish(nullptr, nullptr, true);
+		CHECK((Popups.Popups[0].Flags & POPUP_OWNER) == 0 && Popups.Popups[0].EntityIndex == HOOK_ENTITIES && PopupOwnerBy[0] == 0);
+
+		// claimed: listed, not drawn by the client; the claim lapses as a name claim does
+		Popups.Claimed = 1;
+		Popups.ClaimFrame = Shared.Frame;
+		CHECK(!OnDamagePopup(object, 0x80FFFFFF, at, size, &scale));
+		plugin.Publish(nullptr, nullptr, true);
+		CHECK(Popups.Count == 1 && (Popups.Popups[0].Flags & POPUP_DRAWN) == 0);
+		for (int i = 0; i < FRAMES_IN(HOOK_CLAIM_TIME) + 2; i++) {
+			plugin.Publish(nullptr, nullptr, true);
+		}
+		CHECK(OnDamagePopup(object, 0x80FFFFFF, at, size, &scale));
+		plugin.Publish(nullptr, nullptr, true);
+		Popups.Claimed = 0;
+
+		// more than the list holds: the rest drawn by the client, unlisted
+		static uint8_t many[HOOK_POPUPS_MAX + 1][0x200] = {};
+		for (auto& one : many) {
+			one[POPUP_OBJECT_TEXT] = '5';
+			CHECK(OnDamagePopup(one, 0x80FFFFFF, at, size, &scale));
+		}
+		plugin.Publish(nullptr, nullptr, true);
+		CHECK(Popups.Count == HOOK_POPUPS_MAX);
+
+		// the command, and its watch
+		Popups.Hooked = 1;
+		plugin.said.clear();
+		OnDamagePopup(object, 0x80FFFFFF, at, size, &scale);
+		plugin.Publish(nullptr, nullptr, true);
+		plugin.ParseCommand("/namehook popups", true);
+		CHECK(plugin.said.size() == 2 && plugin.said[0].find("1 damage popups last frame") == 0
+			&& plugin.said[1].find("\"7234567890ABCDEF\" whose not known") != std::string::npos);
+		plugin.said.clear();
+		plugin.ParseCommand("/namehook popups watch on", true);
+		CHECK(plugin.said.size() == 1 && PopupsWatched);
+		object[POPUP_OBJECT_TEXT] = '6';
+		OnDamagePopup(object, 0x80FFFFFF, at, size, &scale);
+		OnDamagePopup(object, 0x80FFFFFF, at, size, &scale);
+		plugin.Publish(nullptr, nullptr, true);
+		CHECK(plugin.said.size() == 2 && plugin.said[1].find("\"6234567890ABCDEF\"") != std::string::npos);
+		OnDamagePopup(object, 0x80FFFFFF, at, size, &scale);
+		plugin.Publish(nullptr, nullptr, true);
+		CHECK(plugin.said.size() == 2); // said once
+		plugin.ParseCommand("/nh popups watch off", true);
+		CHECK(!PopupsWatched);
+		plugin.ParseCommand("/nh popups watch maybe", true);
+		CHECK(plugin.errors.size() == 1 && plugin.errors[0] == "popups");
+		plugin.errors.clear();
+		Popups.Hooked = 0;
+		plugin.said.clear();
+		plugin.ParseCommand("/namehook popups", true);
+		CHECK(plugin.said.size() == 1 && plugin.said[0].find("not recognised") != std::string::npos);
+		Globals.pWindowWidth = nullptr;
+		Globals.pWindowHeight = nullptr;
+	}
 
 	printf(failures == 0 ? "all checks passed\n" : "%d checks FAILED\n", failures);
 	return failures == 0 ? 0 : 1;

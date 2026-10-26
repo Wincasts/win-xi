@@ -14,6 +14,9 @@
 
 BITS 32
 
+;-0x37 (not patched: the point the popup is drawn at, in [esp+0x14..0x1c])
+; 8b 08 89 4c 24 14 8b 50 04 89 54 24 18 8b 40 08 8d 4c 24 10 89 44 24 1c
+
 ; 0x10040D24
 LEA  ECX, [ESP + 0x20]                                ; W THEN H (d9 5c 24 20             fstp   DWORD PTR [esp+0x20])
 LEA  EDX, [ESP + 0x08]                                ; param 3  (d8 4c 24 08             fmul   DWORD PTR [esp+0x8])
@@ -24,10 +27,26 @@ MOV  EDX, ECX                                         ; EDX is safe to be trashe
 MOV  ESI, ECX                                         ; ESI final result must be preserved
 AND  EDX, 0xFFFFFF
 CMP  EDX, 0x808080
-JNZ  .DONE
+JNZ  .POPUP
 MOV  EAX, [EDI + 0x194]                               ; EAX is safe to be trashed
 AND  ESI, 0xFF000000
 OR   ESI, EAX
+
+.POPUP:                                               ; offset 0x35: "JMP .DONE" (eb 41) here when not hooked
+PUSH ECX                                              ; the colour the client sets, kept
+LEA  EAX, [ESP + 0x0C]                                ; the size factor, [esp+0x08] before the push
+PUSH EAX
+LEA  EAX, [ESP + 0x28]                                ; W then H, [esp+0x20]
+PUSH EAX
+LEA  EAX, [ESP + 0x20]                                ; the point, [esp+0x14]
+PUSH EAX
+MOV  ECX, EDI                                         ; the popup's object
+MOV  EDX, ESI                                         ; its colour
+MOV  EAX, 0x12345678                                  ; patch with OnDamagePopup, offset 0x4A
+CALL EAX                                              ; fastcall, pops its three stack arguments
+POP  ECX
+TEST AL, AL
+JZ   0xAE - 0x78 + .DONE                              ; claimed: to the function's end (5f 5e 83 c4 40 c3), offset 0x53
 JMP  .DONE
 
 ; pad

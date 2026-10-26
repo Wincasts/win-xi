@@ -142,11 +142,11 @@ static constexpr uint8_t DrawDamage_Patch[DRAWDAMAGE_PATCH_SIZE] = {
   0x8d, 0x4c, 0x24, 0x20, 0x8d, 0x54, 0x24, 0x08, 0xb8, 0x78, 0x56, 0x34,
   0x12, 0xff, 0xd0, 0x8b, 0x0d, 0x78, 0x56, 0x34, 0x12, 0x89, 0xca, 0x89,
   0xce, 0x81, 0xe2, 0xff, 0xff, 0xff, 0x00, 0x81, 0xfa, 0x80, 0x80, 0x80,
-  0x00, 0x75, 0x51, 0x8b, 0x87, 0x94, 0x01, 0x00, 0x00, 0x81, 0xe6, 0x00,
-  0x00, 0x00, 0xff, 0x09, 0xc6, 0xeb, 0x41, 0x90, 0x90, 0x90, 0x90, 0x90,
-  0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
-  0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
-  0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+  0x00, 0x75, 0x0e, 0x8b, 0x87, 0x94, 0x01, 0x00, 0x00, 0x81, 0xe6, 0x00,
+  0x00, 0x00, 0xff, 0x09, 0xc6, 0x51, 0x8d, 0x44, 0x24, 0x0c, 0x50, 0x8d,
+  0x44, 0x24, 0x28, 0x50, 0x8d, 0x44, 0x24, 0x20, 0x50, 0x89, 0xf9, 0x89,
+  0xf2, 0xb8, 0x78, 0x56, 0x34, 0x12, 0xff, 0xd0, 0x59, 0x84, 0xc0, 0x0f,
+  0x84, 0x55, 0x00, 0x00, 0x00, 0xeb, 0x1d, 0x90, 0x90, 0x90, 0x90, 0x90,
   0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
   0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90
 };
@@ -154,6 +154,20 @@ static constexpr uint8_t DrawDamage_Patch[DRAWDAMAGE_PATCH_SIZE] = {
 #define DRAWDAMAGE_PATCH_CALL_ADDRESS_LOCATION 0x09
 #define DRAWDAMAGE_PATCH_COLOR_ADDRESS_LOCATION 0x11
 #define DRAWDAMAGE_PATCH_OLD_COLOR_ADDRESS_LOCATION 0x3E
+// Where the popup is handed to the plugin, and the address of the function it is handed to. Without the
+// client's code around the patch as expected, a short jump past it is written there in its place.
+#define DRAWDAMAGE_PATCH_POPUP_LOCATION 0x35
+#define DRAWDAMAGE_PATCH_POPUP_ADDRESS_LOCATION 0x4A
+static constexpr uint8_t DrawDamage_PopupSkip[2] = { 0xEB, DRAWDAMAGE_PATCH_SIZE - DRAWDAMAGE_PATCH_POPUP_LOCATION - 2 };
+// What the patch counts on outside itself: the point the popup is drawn at put in [esp+0x14] before it
+// (from 0x37 bytes before), and the function's end, which a claimed popup jumps to, 0xAE after its start
+#define DRAWDAMAGE_POSITION_OFFSET 0x37
+static constexpr uint8_t DrawDamage_Position[] = {
+  0x8b, 0x08, 0x89, 0x4c, 0x24, 0x14, 0x8b, 0x50, 0x04, 0x89, 0x54, 0x24,
+  0x18, 0x8b, 0x40, 0x08, 0x8d, 0x4c, 0x24, 0x10, 0x89, 0x44, 0x24, 0x1c
+};
+#define DRAWDAMAGE_END_OFFSET 0xAE
+static constexpr uint8_t DrawDamage_End[] = { 0x5f, 0x5e, 0x83, 0xc4, 0x40, 0xc3 };
 
 #define LINE_CALLS_MAX 8
 
@@ -279,6 +293,7 @@ static struct {
 // which is in the DLL's file: this is large, and empty until an addon fills it.
 static HookDraw Draw;
 static HookBubbles Bubbles = { "NAMEBUBBLES", 2, sizeof(HookBubbles), sizeof(HookDraw), {}, {} };
+static HookPopups Popups = { "NAMEHOOKPOPUPS", 1, sizeof(HookPopups), sizeof(HookPopup), 0, 0, 0, 0, 0, 0, {} };
 
 // The frame whose first name has been seen, so that what is done once a frame is done then
 static uint32_t NamesFrame = 0xFFFFFFFF;
@@ -916,6 +931,160 @@ static void __fastcall GetDamageNumberScale(float* wh, const float* pS) {
 	}
 }
 
+// What the client's object for a damage popup holds, where the drawing function reads it
+#define POPUP_OBJECT_OWNER 0xFC  // a pointer to a pointer: the function reads both
+#define POPUP_OBJECT_TEXT 0x198  // the text, of which 16 characters are drawn
+
+// The popups gathered as the client draws them this frame, made ready by Publish; and how each new one
+// came to be known as whose (for /namehook popups)
+static struct {
+	uint32_t Count;
+	HookPopup Popups[HOOK_POPUPS_MAX];
+	uint32_t Owner[HOOK_POPUPS_MAX][2]; // the pointer at POPUP_OBJECT_OWNER, and the one it points to
+	uint32_t OwnerBy[HOOK_POPUPS_MAX];  // 0 unknown, 1 the object itself, 2 the first pointer, 3 the second
+	bool Changed;
+	bool Published;
+} PopupFilling;
+
+// Last frame's, as /namehook popups says them
+static uint32_t PopupOwner[HOOK_POPUPS_MAX][2];
+static uint32_t PopupOwnerBy[HOOK_POPUPS_MAX];
+
+// Each popup seen lately, so that one drawn frame after frame keeps its id: the same object with the
+// same text within HOOK_DRAW_FRAMES of the last frame it was drawn in
+static struct {
+	uint32_t Object;
+	uint32_t LastFrame;
+	HookPopup Popup;     // as first seen: its id, owner and first frame
+	uint32_t Owner[2];
+	uint32_t OwnerBy;
+} RecentPopups[HOOK_POPUPS_MAX];
+static uint32_t NextPopupId = 1;
+
+// /namehook popups watch: each new popup said in the chat log as the frame ends, until turned off
+static bool PopupsWatched = false;
+static uint32_t PopupsToSay = 0;
+static HookPopup PopupSaying[HOOK_POPUPS_MAX];
+static uint32_t PopupSayingBy[HOOK_POPUPS_MAX];
+
+// The popup claim last seen made, and when; it lapses as a name claim does
+static uint32_t PopupClaimSeen = 0xFFFFFFFF;
+static uint64_t PopupClaimTime = 0;
+
+static void NotePopupClaim() {
+	if (Popups.ClaimFrame != PopupClaimSeen) {
+		PopupClaimSeen = Popups.ClaimFrame;
+		PopupClaimTime = FrameTime;
+	}
+}
+
+static bool IsPopupClaimed() {
+	NotePopupClaim();
+	return Popups.Claimed != 0 && FrameTime - PopupClaimTime <= HOOK_CLAIM_TIME;
+}
+
+static uint32_t ReadPointer(uintptr_t at) {
+	return (at != 0) ? ReadOperand(at) : 0;
+}
+
+// A damage popup the client is about to draw: at position (three floats), its letters size (two) and
+// its own size factor (one). Listed for addons, and drawn by the client (true) unless an addon has
+// claimed the popups. Called from the client's drawing function for it, through DrawDamage_Patch.
+static bool __fastcall OnDamagePopup(const uint8_t* object, uint32_t color, const float* position, const float* size, const float* scale) {
+	if (object == nullptr) {
+		return true;
+	}
+
+	const bool drawn = !IsPopupClaimed();
+	const uint32_t address = static_cast<uint32_t>(reinterpret_cast<uintptr_t> (object));
+	char text[HOOK_POPUP_TEXT_SIZE] = {};
+	memcpy(text, object + POPUP_OBJECT_TEXT, strnlen(reinterpret_cast<const char*> (object + POPUP_OBJECT_TEXT), 16));
+
+	// drawn twice in one frame, it is listed once, as last drawn
+	uint32_t slot = 0;
+	while (slot < PopupFilling.Count && PopupFilling.Popups[slot].Object != address) {
+		slot++;
+	}
+	if (slot == PopupFilling.Count) {
+		if (PopupFilling.Count == HOOK_POPUPS_MAX) {
+			return drawn;
+		}
+		PopupFilling.Count++;
+	}
+
+	// one seen lately keeps what was found of it; a new one is given an id and its owner looked for
+	size_t recent = HOOK_POPUPS_MAX, oldest = 0;
+	for (size_t i = 0; i < HOOK_POPUPS_MAX; i++) {
+		if (RecentPopups[i].Object == address && RecentPopups[i].Popup.Id != 0
+				&& Shared.Frame - RecentPopups[i].LastFrame <= HOOK_DRAW_FRAMES
+				&& strcmp(RecentPopups[i].Popup.Text, text) == 0) {
+			recent = i;
+			break;
+		}
+		if (Shared.Frame - RecentPopups[i].LastFrame > Shared.Frame - RecentPopups[oldest].LastFrame || RecentPopups[i].Popup.Id == 0) {
+			oldest = i;
+		}
+	}
+	if (recent == HOOK_POPUPS_MAX) {
+		recent = oldest;
+		auto& seen = RecentPopups[recent];
+		seen.Object = address;
+		seen.Popup = {};
+		seen.Popup.Id = NextPopupId++;
+		if (NextPopupId == 0) {
+			NextPopupId = 1;
+		}
+		seen.Popup.Object = address;
+		seen.Popup.FirstFrame = Shared.Frame;
+		seen.Popup.EntityIndex = HOOK_ENTITIES;
+		memcpy(seen.Popup.Text, text, sizeof(text));
+		seen.Owner[0] = ReadPointer(address + POPUP_OBJECT_OWNER);
+		seen.Owner[1] = ReadPointer(seen.Owner[0]);
+		seen.OwnerBy = 0;
+		const uint32_t candidates[3] = { address, seen.Owner[0], seen.Owner[1] };
+		for (uint32_t c = 0; c < 3 && Instance != nullptr && seen.OwnerBy == 0; c++) {
+			const uint32_t index = (candidates[c] != 0) ? Instance->GetActorEntity(candidates[c]) : HOOK_ENTITIES;
+			if (index < HOOK_ENTITIES) {
+				seen.Popup.EntityIndex = index;
+				seen.Popup.Flags |= POPUP_OWNER;
+				seen.OwnerBy = c + 1;
+			}
+		}
+		if (PopupsWatched && PopupsToSay < HOOK_POPUPS_MAX) {
+			PopupSayingBy[PopupsToSay] = seen.OwnerBy;
+			PopupSaying[PopupsToSay++] = seen.Popup;
+		}
+	}
+	RecentPopups[recent].LastFrame = Shared.Frame;
+
+	HookPopup& popup = PopupFilling.Popups[slot];
+	popup = RecentPopups[recent].Popup;
+	popup.Flags = (popup.Flags & POPUP_OWNER) | (drawn ? POPUP_DRAWN : 0);
+	popup.Color = color;
+	popup.X = position[0];
+	popup.Y = position[1];
+	popup.Z = position[2];
+	popup.Scale = *scale;
+	popup.Width = size[0];
+	popup.Height = size[1];
+	PopupFilling.Owner[slot][0] = RecentPopups[recent].Owner[0];
+	PopupFilling.Owner[slot][1] = RecentPopups[recent].Owner[1];
+	PopupFilling.OwnerBy[slot] = RecentPopups[recent].OwnerBy;
+	PopupFilling.Changed = true;
+
+	if (PopupsWatched && popup.FirstFrame == Shared.Frame) {
+		// the watch says it with what it was drawn at the first time
+		for (uint32_t i = PopupsToSay; i-- > 0;) {
+			if (PopupSaying[i].Id == popup.Id) {
+				PopupSaying[i] = popup;
+				break;
+			}
+		}
+	}
+
+	return drawn;
+}
+
 static bool __fastcall ShouldDrawNameplate(const XiModel* pModel) {
 	if (*Globals.pNamesOff) {
 		return false;
@@ -1113,6 +1282,7 @@ bool Nameplate::ParseCommand(const char* cmd, bool includesName) {
 	// keepstates on|off
 	// whitelist add|remove <name>...
 	// whitelist list|clear
+	// popups [watch on|off]
 
 	int ret = 0;
 
@@ -1256,6 +1426,8 @@ bool Nameplate::ParseCommand(const char* cmd, bool includesName) {
 	} else if (eat_space_token_match_and_advance(cmd, "whitelist")
 			|| eat_space_token_match_and_advance(cmd, "wl")) {
 		ParseWhitelistCommand(cmd);
+	} else if (eat_space_token_match_and_advance(cmd, "popups")) {
+		ParsePopupsCommand(cmd);
 	} else {
 		ShowMessage(MESSAGE::SHORT_HELP);
 	}
@@ -1295,6 +1467,101 @@ void Nameplate::ParseCategoryCommand(const char* cmd, int show) {
 	}
 }
 
+// One popup in the chat log: by is how its owner was found, as PopupFilling::OwnerBy has it, and owner
+// the two pointers it was looked for in
+static void SayPopup(Nameplate* plugin, const HookPopup& popup, uint32_t by, const uint32_t owner[2]) {
+	char whose[96];
+	if ((popup.Flags & POPUP_OWNER) != 0) {
+		const char* name = "";
+		for (uint32_t i = 0; i < Shared.Count && i < HOOK_NAMES_MAX; i++) {
+			if (Shared.Names[i].EntityIndex == popup.EntityIndex) {
+				name = Shared.Names[i].Name;
+				break;
+			}
+		}
+		static const char* const ways[] = { "", "the object", "its +FC", "what its +FC points to" };
+		StringCbPrintfA(whose, sizeof(whose), "on %s%s0x%03X (by %s)", name, name[0] != '\0' ? " " : "",
+			static_cast<unsigned>(popup.EntityIndex), ways[by < 4 ? by : 0]);
+	} else {
+		StringCbCopyA(whose, sizeof(whose), "whose not known");
+	}
+
+	char screen[48];
+	if ((popup.Flags & POPUP_ON_SCREEN) != 0) {
+		StringCbPrintfA(screen, sizeof(screen), "screen %.0f,%.0f", popup.ScreenX, popup.ScreenY);
+	} else {
+		StringCbCopyA(screen, sizeof(screen), "not placed on screen");
+	}
+
+	char text[HOOK_POPUP_TEXT_SIZE + 1] = {};
+	memcpy(text, popup.Text, HOOK_POPUP_TEXT_SIZE);
+	Sayf(plugin, "#%u \"%s\" %s, colour %08X, size %.2f, at %.1f %.1f %.1f, %s, %s; object %08X, +FC %08X -> %08X",
+		static_cast<unsigned>(popup.Id), text, whose, static_cast<unsigned>(popup.Color), popup.Scale,
+		popup.X, popup.Y, popup.Z, screen, (popup.Flags & POPUP_DRAWN) != 0 ? "drawn by the client" : "claimed",
+		static_cast<unsigned>(popup.Object), static_cast<unsigned>(owner[0]), static_cast<unsigned>(owner[1]));
+}
+
+// What /namehook popups watch has seen this frame, said as the frame ends
+static void SayNewPopups(Nameplate* plugin) {
+	for (uint32_t i = 0; i < PopupsToSay; i++) {
+		uint32_t owner[2] = {};
+		for (const auto& seen : RecentPopups) {
+			if (seen.Popup.Id == PopupSaying[i].Id) {
+				owner[0] = seen.Owner[0];
+				owner[1] = seen.Owner[1];
+				break;
+			}
+		}
+		SayPopup(plugin, PopupSaying[i], PopupSayingBy[i], owner);
+	}
+	PopupsToSay = 0;
+}
+
+// How many popups there were last frame, and who draws them: false if the client's are not hooked
+static bool SayPopupSummary(Nameplate* plugin) {
+	if (Popups.Hooked == 0) {
+		Sayf(plugin, "This client's damage popups were not recognised: the client draws them, and none are listed.");
+		return false;
+	}
+	Sayf(plugin, "%u damage popups last frame; %s.", static_cast<unsigned>(Popups.Count),
+		IsPopupClaimed() ? "an addon draws them in place of the client" : "the client draws them");
+	return true;
+}
+
+// popups, or popups watch on|off
+void Nameplate::ParsePopupsCommand(const char* cmd) {
+	if (eat_space_and_is_end(cmd)) {
+		SayPopups();
+		return;
+	}
+
+	int watch = -1;
+	if (eat_space_token_match_and_advance(cmd, "watch")) {
+		if (eat_space_token_match_and_advance(cmd, "on")) {
+			watch = 1;
+		} else if (eat_space_token_match_and_advance(cmd, "off")) {
+			watch = 0;
+		}
+	}
+
+	if (watch < 0 || !eat_space_and_is_end(cmd)) {
+		CommandError("popups");
+	} else {
+		PopupsWatched = watch != 0;
+		PopupsToSay = 0;
+		Sayf(this, PopupsWatched ? "Each new damage popup will be said here, until /namehook popups watch off." : "New damage popups are no longer said.");
+	}
+}
+
+void Nameplate::SayPopups() {
+	if (!SayPopupSummary(this)) {
+		return;
+	}
+	for (uint32_t i = 0; i < Popups.Count && i < HOOK_POPUPS_MAX; i++) {
+		SayPopup(this, Popups.Popups[i], PopupOwnerBy[i], PopupOwner[i]);
+	}
+}
+
 void Nameplate::SayStatus() {
 	char shown[256];
 	char hidden[256];
@@ -1331,6 +1598,8 @@ void Nameplate::SayStatus() {
 			static_cast<unsigned>(Globals.RepeatsLast), static_cast<unsigned>(Globals.RepeatsMainLast), static_cast<unsigned>(Globals.LiftedLast));
 		Sayf(this, "The device's state is %s (keepstates %s).", KeepStates != 0 ? "captured once for a run of names an addon has drawn" : "captured before each name an addon has drawn", KeepStates != 0 ? "on" : "off");
 	}
+
+	SayPopupSummary(this);
 }
 
 // The next word of a command as a player name: first letter upper case, the rest lower.
@@ -1661,6 +1930,15 @@ int Nameplate::Init() {
 	pLoc[2] = pOldLoc[2];
 	pLoc[3] = pOldLoc[3];
 
+	// The popups are handed to the plugin only where the client's code around the patch is as expected
+	if (memcmp(reinterpret_cast<const void*> (pDrawDamagePatch - DRAWDAMAGE_POSITION_OFFSET), DrawDamage_Position, sizeof(DrawDamage_Position)) == 0
+			&& memcmp(reinterpret_cast<const void*> (pDrawDamagePatch + DRAWDAMAGE_END_OFFSET), DrawDamage_End, sizeof(DrawDamage_End)) == 0) {
+		WriteAddress(reinterpret_cast<uint8_t*> (pDrawDamagePatch + DRAWDAMAGE_PATCH_POPUP_ADDRESS_LOCATION), reinterpret_cast<const void*> (&OnDamagePopup));
+		Popups.Hooked = 1;
+	} else {
+		CopyMemory(reinterpret_cast<void*> (pDrawDamagePatch + DRAWDAMAGE_PATCH_POPUP_LOCATION), DrawDamage_PopupSkip, sizeof(DrawDamage_PopupSkip));
+	}
+
 	Globals.pgGame = reinterpret_cast<CGame**> (ppObj);
 	Globals.pWindowWidth = reinterpret_cast<uint32_t*> (pWindowWidth);
 	Globals.pWindowHeight = reinterpret_cast<uint32_t*> (pWindowHeight);
@@ -1726,52 +2004,93 @@ int Nameplate::Update() {
 	return 0;
 }
 
-bool Nameplate::WantsPublish(bool frameDone) const {
-	// as a frame ends with nothing made ready, there are last frame's names to take away
+// As a frame ends with nothing made ready, there are last frame's names, or popups, to take away
+static bool NamesWanted(bool frameDone) {
 	return Filling.Changed || (frameDone && !Filling.Published);
 }
 
+static bool PopupsWanted(bool frameDone) {
+	return PopupFilling.Changed || (frameDone && !PopupFilling.Published && Popups.Count != 0);
+}
+
+bool Nameplate::WantsPublish(bool frameDone) const {
+	return NamesWanted(frameDone) || PopupsWanted(frameDone);
+}
+
+// Where a point in the world comes on screen, in pixels from the top left, and how far in front of
+// the camera it is: false behind it. m is the view and projection together.
+static bool PlaceOnScreen(const float* m, float halfWidth, float halfHeight, float x, float y, float z, float& screenX, float& screenY, float& depth) {
+	const float w = x * m[3] + y * m[7] + z * m[11] + m[15];
+	if (!(w > 0.01f)) {
+		return false;
+	}
+	const float inverse = 1.0f / w;
+	screenX = (1.0f + (x * m[0] + y * m[4] + z * m[8] + m[12]) * inverse) * halfWidth;
+	screenY = (1.0f - (x * m[1] + y * m[5] + z * m[9] + m[13]) * inverse) * halfHeight;
+	depth = w;
+	return true;
+}
+
 void Nameplate::Publish(const float* view, const float* projection, bool frameDone) {
-	if (WantsPublish(frameDone)) {
-		const uint32_t count = Filling.Count;
+	const bool names = NamesWanted(frameDone);
+	const bool popups = PopupsWanted(frameDone);
 
-		// the picture is the size of the client's window
-		const float width = (Globals.pWindowWidth != nullptr) ? static_cast<float>(*Globals.pWindowWidth) : 0.0f;
-		const float height = (Globals.pWindowHeight != nullptr) ? static_cast<float>(*Globals.pWindowHeight) : 0.0f;
+	// the picture is the size of the client's window
+	const float width = (Globals.pWindowWidth != nullptr) ? static_cast<float>(*Globals.pWindowWidth) : 0.0f;
+	const float height = (Globals.pWindowHeight != nullptr) ? static_cast<float>(*Globals.pWindowHeight) : 0.0f;
+	const float halfWidth = width * 0.5f;
+	const float halfHeight = height * 0.5f;
 
-		// A point in the world goes through the view and then the projection to where it is on screen
-		float m[16];
-		const bool placed = view != nullptr && projection != nullptr && width > 0.0f && height > 0.0f;
-		if (view != nullptr) {
-			// the camera never turns past straight up or down, so the world's second axis is up on
-			// screen when the view raises it
-			Globals.WorldUp = (view[5] < 0.0f) ? -1.0f : 1.0f;
+	// A point in the world goes through the view and then the projection to where it is on screen
+	float m[16];
+	const bool placed = (names || popups) && view != nullptr && projection != nullptr && width > 0.0f && height > 0.0f;
+	if ((names || popups) && view != nullptr) {
+		// the camera never turns past straight up or down, so the world's second axis is up on
+		// screen when the view raises it
+		Globals.WorldUp = (view[5] < 0.0f) ? -1.0f : 1.0f;
+	}
+	if (placed) {
+		for (int row = 0; row < 4; row++) {
+			for (int column = 0; column < 4; column++) {
+				m[row * 4 + column] = view[row * 4 + 0] * projection[0 * 4 + column]
+					+ view[row * 4 + 1] * projection[1 * 4 + column]
+					+ view[row * 4 + 2] * projection[2 * 4 + column]
+					+ view[row * 4 + 3] * projection[3 * 4 + column];
+			}
 		}
-		if (placed) {
-			for (int row = 0; row < 4; row++) {
-				for (int column = 0; column < 4; column++) {
-					m[row * 4 + column] = view[row * 4 + 0] * projection[0 * 4 + column]
-						+ view[row * 4 + 1] * projection[1 * 4 + column]
-						+ view[row * 4 + 2] * projection[2 * 4 + column]
-						+ view[row * 4 + 3] * projection[3 * 4 + column];
-				}
+	}
+
+	if (popups) {
+		const uint32_t count = PopupFilling.Count;
+		for (uint32_t i = 0; i < count; i++) {
+			HookPopup& popup = PopupFilling.Popups[i];
+			popup.Flags &= ~static_cast<uint32_t>(POPUP_ON_SCREEN);
+			if (placed && PlaceOnScreen(m, halfWidth, halfHeight, popup.X, popup.Y, popup.Z, popup.ScreenX, popup.ScreenY, popup.Depth)) {
+				popup.Flags |= POPUP_ON_SCREEN;
 			}
 		}
 
-		const float halfWidth = width * 0.5f;
-		const float halfHeight = height * 0.5f;
+		// the popups are in place before the count says they are there to be read
+		Popups.Count = 0;
+		CopyMemory(&Popups.Popups[0], &PopupFilling.Popups[0], count * sizeof(HookPopup));
+		CopyMemory(&PopupOwner[0], &PopupFilling.Owner[0], count * sizeof(PopupOwner[0]));
+		CopyMemory(&PopupOwnerBy[0], &PopupFilling.OwnerBy[0], count * sizeof(PopupOwnerBy[0]));
+		Popups.Frame = Shared.Frame;
+		Popups.Count = count;
+		Popups.Sequence++;
+
+		PopupFilling.Changed = false;
+		PopupFilling.Published = true;
+	}
+
+	if (names) {
+		const uint32_t count = Filling.Count;
 
 		for (uint32_t i = 0; i < count; i++) {
 			HookName& name = Filling.Names[i];
-
-			const float depth = placed ? (name.X * m[3] + name.Y * m[7] + name.Z * m[11] + m[15]) : 0.0f;
 			name.Flags &= ~static_cast<uint32_t>(NAME_ON_SCREEN);
-			if (depth > 0.01f) {
-				const float inverse = 1.0f / depth;
+			if (placed && PlaceOnScreen(m, halfWidth, halfHeight, name.X, name.Y, name.Z, name.ScreenX, name.ScreenY, name.Depth)) {
 				name.Flags |= NAME_ON_SCREEN;
-				name.ScreenX = (1.0f + (name.X * m[0] + name.Y * m[4] + name.Z * m[8] + m[12]) * inverse) * halfWidth;
-				name.ScreenY = (1.0f - (name.X * m[1] + name.Y * m[5] + name.Z * m[9] + m[13]) * inverse) * halfHeight;
-				name.Depth = depth;
 			}
 		}
 
@@ -1799,7 +2118,12 @@ void Nameplate::Publish(const float* view, const float* projection, bool frameDo
 		Filling.Count = 0;
 		Filling.Changed = false;
 		Filling.Published = false;
+		PopupFilling.Count = 0;
+		PopupFilling.Changed = false;
+		PopupFilling.Published = false;
 		NoteClaim(); // a claim made last frame is timed from then
+		NotePopupClaim();
+		SayNewPopups(this);
 		Shared.Frame++;
 		FrameTime = Clock();
 
@@ -1879,6 +2203,8 @@ int Nameplate::Deinit() {
 	if (Globals.DrawDamagePatchAddr != 0) {
 		CopyMemory(reinterpret_cast<void*> (Globals.DrawDamagePatchAddr), &Globals.DrawDamagePatchOrig[0], DRAWDAMAGE_PATCH_SIZE);
 	}
+	Popups.Hooked = 0;
+	Popups.Count = 0;
 
 	if (Globals.DrawName3V2PatchAddr != 0) {
 		CopyMemory(reinterpret_cast<void*> (Globals.DrawName3V2PatchAddr), &Globals.DrawName3V2PatchOrig[0], DRAWNAME3_V2_PATCH_SIZE);
