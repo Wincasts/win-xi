@@ -26,18 +26,14 @@ local reasonParty, reasonTarget
 local passing = false -- the party windows' replacement lets the game's drawing outside them through
 local PASS_OUTSIDE, PASS_SUPPORTED = 4, 0x10
 local reason = 'Load /load uihook, then /pt native on. Unload hideparty first.'
+local presence = require('winxi.presence')
 
 local function Find()
     local manager = AshitaCore:GetPluginManager()
-    local selected = manager:IsLoaded('uihook') and 'uihook' or 'partyhook'
-    if plugin ~= selected then
-        block, submit, moduleBase, looked = nil, nil, nil, -1
-        plugin = selected
-    end
     if not manager:IsLoaded(plugin) then
         block, submit, moduleBase = nil, nil, nil
         looked = -1
-        reason = 'uihook is not loaded (/load uihook; legacy /load partyhook is also supported).'
+        reason = 'uihook is not loaded (/load uihook).'
         return nil
     end
     local base = ashita.memory.get_base(plugin .. '.dll')
@@ -93,6 +89,12 @@ end
 function hook.Begin(party, target, outside)
     active, passing = 0, false
     if not party and not target then hook.Stop(); return false end
+    -- hideparty hides the very frames these replace, as the game draws them: never both
+    if presence.Present('hideparty') then
+        hook.Stop()
+        reason = 'hideparty is loaded, and hides the frames native windows replace: /addon unload hideparty to use them.'
+        return false
+    end
     local found = Find()
     if not found then return false end
     if found.Hooked == 0 then

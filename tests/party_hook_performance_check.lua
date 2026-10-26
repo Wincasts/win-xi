@@ -14,6 +14,7 @@ package.loaded.ffi={cdef=function() end,sizeof=function() return 168 end,
 local manager={IsLoaded=function() queries=queries+1; return true end}
 AshitaCore={GetPluginManager=function() return manager end}
 ashita={memory={get_base=function() return 100 end,find=function() return 500 end}}
+package.loaded['winxi.presence']={Present=function() return false end}
 local hook=dofile('addons/party/hook.lua')
 local window={name='xiframes.us.1'}
 jit.off(); jit.flush()

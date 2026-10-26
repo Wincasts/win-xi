@@ -3,6 +3,8 @@
 atom0s's hideparty, which hides the game's own party and target frames (`/hideparty`, `/hideparty hide`,
 `/hideparty show`), with these changes.
 
+While it is loaded, party's native windows (uihook) are refused: they replace the very frames this hides. hideparty 1.3 says it is loaded through `winxi.presence` (winxi 56).
+
 The frames are hidden as soon as hideparty loads, with no `/hideparty hide` needed; `/hideparty show`
 brings them back. Unloading it shows them again, where atom0s's left them as they were.
 

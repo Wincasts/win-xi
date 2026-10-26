@@ -6,7 +6,7 @@ local fake = { Version=3, Size=168, Hooked=1, SupportedMask=7, Frame=1, Submit=1
         [1]={Left=0.7,Top=0.2,Right=0.99,Bottom=0.4,Frame=1},
         [2]={Left=0.7,Top=0.4,Right=0.99,Bottom=0.6,Frame=1},
         [3]={Left=0.7,Top=0.5,Right=0.99,Bottom=0.6,Frame=1} } }
-local plugin = os.getenv('UIHOOK_TEST_PLUGIN') or 'partyhook'
+local plugin = 'uihook'
 local loaded, address, calls, captures = false, 500, {}, {}
 local moduleBase, scans = 100, 0
 package.loaded.ffi = {
@@ -31,6 +31,8 @@ ashita={memory={find=function(module, offset, pattern)
     scans=scans+1
     return address
 end, get_base=function() return moduleBase end}}
+local hidepartyLoaded=false
+package.loaded['winxi.presence']={ Present=function(name) return name=='hideparty' and hidepartyLoaded end }
 local hook=dofile('addons/party/hook.lua')
 assert(not hook.Begin(true) and #calls==0,'unloaded DLL is not touched')
 loaded=true
@@ -105,5 +107,13 @@ assert(hook.Begin(true),'reload rediscovers the shared block')
 local previous = scans
 moduleBase = 200 -- unload/reload at another base between frames, without observing IsLoaded=false
 assert(hook.Begin(true) and scans>previous,'relocated DLL invalidates cached pointers even between frames')
+-- hideparty hides the frames native windows replace: never both, and the windows given back to the game
+hidepartyLoaded=true
+local before=#calls
+assert(not hook.Begin(true, true) and hook.Status():find('hideparty',1,true),'refused while hideparty is loaded, and said why')
+assert(calls[#calls][1]==-1 and calls[#calls][2]==0 and #calls==before+1,'what was replaced is given back')
+hidepartyLoaded=false
+assert(hook.Begin(true),'taken again once hideparty is unloaded')
+package.loaded['winxi.presence']=nil
 package.loaded.ffi=realffi; os.clock=clock
 print('Party native hook: ABI 3/native geometry, independent party/target modes, six slots, cursor diagnostics, the pass outside the party windows, disable/unload/reload passed')

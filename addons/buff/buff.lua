@@ -16,7 +16,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi';
 -- The controller's confirm (A, or the bottom face button of a DirectInput make) on the status the cursor is on removes it
 -- too: the press is left to the game, and if the game has not asked for the status to be removed a moment later, buff asks.
 --
--- Anchored to the game's icons' place, with the buffhook plugin loaded, the bar is drawn by the
+-- Anchored to the game's icons' place, with the uihook plugin loaded, the bar is drawn by the
 -- plugin where and when the game draws its icons, in their place (hook.lua): the menus the game opens
 -- over its icons are drawn over the bar, and it goes when they would. Without the plugin, or not
 -- anchored, it is a window of imgui's, over everything.
@@ -434,7 +434,7 @@ local function DrawStatuses(options)
     if not ok then error(err, 0); end
 end
 
--- The bar as the buffhook plugin draws it, in the game's icons' place: laid out as the window lays
+-- The bar as the uihook plugin draws it, in the game's icons' place: laid out as the window lays
 -- it out, in imgui's pixels, and handed over in the game's. The times are in the same font as the
 -- window's, a rectangle of imgui's font texture for each letter, with the same dark edge.
 local rowGap = 4; -- between one row and the next, as the anchored window has it
@@ -854,7 +854,7 @@ local function PositionSliders(values, label, id, signed, tooltip)
     return changedX or changedY;
 end
 
-local controllerTip = 'In the game\'s buff selector, confirm (A, or the bottom face button) removes the status its cursor is on, as a click does. Needs the uihook plugin (or legacy buffhook), which says which one that is.\nThe press still reaches the game: buff asks for the status to be removed only when the game has not, a moment later.\nAn XInput controller\'s A is always heard; Controller Type picks the DirectInput make (PlayStation with XInput chosen).';
+local controllerTip = 'In the game\'s buff selector, confirm (A, or the bottom face button) removes the status its cursor is on, as a click does. Needs the uihook plugin, which says which one that is.\nThe press still reaches the game: buff asks for the status to be removed only when the game has not, a moment later.\nAn XInput controller\'s A is always heard; Controller Type picks the DirectInput make (PlayStation with XInput chosen).';
 
 local function DrawSettings(options)
     widgets.Label('Visible');
@@ -862,7 +862,7 @@ local function DrawSettings(options)
     tips.Hover('Whether the window shows while you are under a status. /buff switches this.');
     widgets.Label('Anchor To Default Location');
     imgui.Checkbox('##buff.anchorToDefault', options.anchorToDefault);
-    tips.Hover('Puts the bar where the game puts its own status icons, in their place.\nWith uihook (or legacy buffhook) loaded, the game draws its menus over the bar as it does over its icons, and the bar goes when they would.\nWithout it the bar is drawn over everything.');
+    tips.Hover('Puts the bar where the game puts its own status icons, in their place.\nWith uihook loaded, the game draws its menus over the bar as it does over its icons, and the bar goes when they would.\nWithout it the bar is drawn over everything.');
     if options.anchorToDefault[1] then
         local problem = hook.Problem();
         if problem ~= nil then
@@ -916,7 +916,7 @@ local function DrawSettings(options)
         hideFailed = false;
         ApplyGameIcons(options);
     end
-    tips.Hover('Stops the game drawing its own status icons, which this window stands in for.\nThey come back when this is switched off, or the addon is unloaded.\nAnchored with uihook (or legacy buffhook), the bar takes the place of the game\'s row of icons whatever this says.');
+    tips.Hover('Stops the game drawing its own status icons, which this window stands in for.\nThey come back when this is switched off, or the addon is unloaded.\nAnchored with uihook, the bar takes the place of the game\'s row of icons whatever this says.');
 
     if widgets.Header('Controller') then
         controller.SetLayout(options.controllerType);

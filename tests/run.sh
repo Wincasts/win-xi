@@ -29,6 +29,7 @@ run mark       addons/mark/mark.lua     mark_stats_ui_check.lua
 run mark       addons/mark/mark.lua     mark_database_check.lua
 luajit tests/mark_stats_check.lua
 luajit tests/winxi_version_check.lua
+luajit tests/winxi_presence_check.lua || exit 1
 luajit tests/winxi_gamedata_check.lua
 luajit tests/winxi_items_check.lua || exit 1
 python3 tools/test_build_item_data.py || exit 1

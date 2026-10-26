@@ -21,13 +21,13 @@
 
 addon.name      = 'hideparty';
 addon.author    = 'atom0s, win';
-addon.version   = '1.2';
+addon.version   = '1.3';
 addon.desc      = 'Adds slash commands to hide, show, or toggle the games party frames, drawing the target cursor they take with them.';
 addon.link      = 'https://ashitaxi.com/';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 1;
+local winxiNeeded = 56; -- winxi.presence, so party knows not to replace the frames this hides
 do
     local ok, found = pcall(require, 'winxi.version');
     local number = ok and type(found) == 'table' and found.Number or 0;
@@ -42,6 +42,7 @@ require 'common';
 
 local chat = require 'chat';
 local targetcursor = require 'targetcursor';
+local presence = require('winxi.presence');
 
 -- Addon Variables
 local hideparty = {
@@ -140,6 +141,8 @@ ashita.events.register('load', 'load_cb', function ()
     hideparty.ptrs.party2 = ashita.memory.read_uint32(ptr2 + 0x07);
 
     set_primitive_visibility(hideparty.ptrs.party0, 1);
+    -- party's native windows replace these frames as the game draws them: party will not while this is loaded
+    presence.Announce('hideparty');
 end);
 
 --[[
@@ -211,6 +214,7 @@ end);
 * desc : Event called when the addon is being unloaded.
 --]]
 ashita.events.register('unload', 'unload_cb', function ()
+    presence.Withdraw('hideparty');
     -- Hidden from loading, so the frames are given back on the way out, or they would stay hidden.
     set_primitive_visibility(hideparty.ptrs.party0, 1);
     set_primitive_visibility(hideparty.ptrs.party1, 1);

@@ -1,4 +1,4 @@
--- The uihook buff module (or legacy buffhook), by way of the block it keeps in its DLL: it draws the anchored bar where, and
+-- The uihook buff module, by way of the block it keeps in its DLL: it draws the anchored bar where, and
 -- when, the game draws its own row of status icons, in their place, so that the menus the game opens
 -- over them are drawn over the bar too. See plugins/uihook/README.md.
 --
@@ -74,7 +74,7 @@ local why = 'unloaded';
 local lookedAt = -LOOK_EVERY;
 
 local problems = {
-    unloaded = 'Load the uihook plugin (/load uihook; legacy /load buffhook is also supported) for the anchored bar to go under the menus that open over it, as the game\'s icons do. Without it the bar is drawn over everything.',
+    unloaded = 'Load the uihook plugin (/load uihook) for the anchored bar to go under the menus that open over it, as the game\'s icons do. Without it the bar is drawn over everything.',
     old      = 'The native UI plugin loaded is not one this addon reads: install the plugin that came with it.',
     mismatch = 'The native UI plugin loaded is older or newer than this addon: install the plugin that came with it.',
     unhooked = 'The native UI plugin did not recognise this client\'s status icons: the anchored bar is drawn over everything.',
@@ -82,17 +82,10 @@ local problems = {
 
 -- The block lives in the plugin's DLL, so it is let go of the moment the plugin is no longer loaded.
 local function Find()
-    -- The plugin in use is asked after first, once a frame; the other only once that one is gone
-    -- (uihook and the legacy buffhook will not load together)
-    local manager = AshitaCore:GetPluginManager();
-    if not manager:IsLoaded(hook.Plugin) then
-        local other = hook.Plugin == 'uihook' and 'buffhook' or 'uihook';
+    if not AshitaCore:GetPluginManager():IsLoaded(hook.Plugin) then
         block, lookedAt = nil, -LOOK_EVERY;
-        if not manager:IsLoaded(other) then
-            why = 'unloaded';
-            return nil;
-        end
-        hook.Plugin = other;
+        why = 'unloaded';
+        return nil;
     end
     -- unloaded and loaded again between two looks, at another address: what was found is gone
     local current = ashita.memory.get_base and ashita.memory.get_base(hook.Plugin .. '.dll') or nil;

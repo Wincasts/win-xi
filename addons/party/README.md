@@ -225,8 +225,7 @@ User testing confirms party/rearranging, chat hiding, target/native arrows, menu
 range colours, rapid switching/despawns/doors, cutscenes, interface hide/show and independent toggles.
 **Zoning remains untested**, as do font/device-reset recovery and broader client compatibility.
 
-Build/install/update: [plugins/uihook](../../plugins/uihook/README.md). The retired partyhook plugin (shared ABI 3)
-is still read where it is loaded instead.
+Build/install/update: [plugins/uihook](../../plugins/uihook/README.md) (party shared ABI 3).
 Unload Party and partyhook before replacing the DLL; keep hideparty unloaded.
 
 - `/pt native on|off`: party/alliance lists, including embedded pet rows.

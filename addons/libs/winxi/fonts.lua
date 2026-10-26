@@ -63,7 +63,7 @@ end
 -- imgui's font texture is never read here. Its id (ImTextureID) is 64 bits and a Lua integer in this
 -- game 32, and once the texture is above 2 GB, as it can be after a while on Windows, Ashita cannot
 -- hand it to Lua at all: every way of asking throws. The plugins that draw imgui's letters (namehook,
--- buffhook) are given fonts.TextureMark in its place, and read the texture themselves as they draw.
+-- uihook) are given fonts.TextureMark in its place, and read the texture themselves as they draw.
 fonts.TextureMark = 1;
 
 -- imgui's ImTextureStatus: the texture is there to draw from while OK, or while letters are being

@@ -1,4 +1,4 @@
--- buff with the buffhook plugin: the anchored bar is handed to the plugin, in the game's pixels from
+-- buff with the uihook plugin: the anchored bar is handed to the plugin, in the game's pixels from
 -- where the game puts its first icon, instead of being drawn as a window; the game's row of icons is
 -- left for the plugin to stand in for; an empty bar keeps it away while the bar is hidden; and without
 -- the plugin, or with one that took nothing, the bar is a window again.
@@ -8,7 +8,7 @@ local imgui = require('imgui')
 local game = require('winxi.game')
 local icons = require('winxi.statusicons')
 local hook = require('hook')
-local plugin = os.getenv('UIHOOK_TEST_PLUGIN') or 'buffhook'
+local plugin = 'uihook'
 
 for _, key in ipairs({ 'IsLoading', 'IsInterfaceHidden', 'IsEventHappening', 'IsChatExpanded', 'IsMapOpen' }) do
     game[key] = function() return false end
@@ -145,7 +145,7 @@ H.ret.GetMousePos = { 0, 0 }; H.ret.IsItemHovered = { false }
 H.loaded(plugin, false); begins = H.calls.Begin
 H.frames(1)
 H.print('no plugin: a window', H.calls.Begin > begins, '| the row hidden', written[100] == 0x9090 and written[200] == 0x9090,
-    '| said in the settings', hook.Problem() ~= nil and hook.Problem():find('/load buffhook') ~= nil)
+    '| said in the settings', hook.Problem() ~= nil and hook.Problem():find('/load uihook') ~= nil)
 H.loaded(plugin, true); block.Hooked = 0; begins = H.calls.Begin
 H.frames(1)
 H.print('a plugin that took nothing: a window', H.calls.Begin > begins, '| said', hook.Problem() ~= nil and hook.Problem():find('recognise') ~= nil)

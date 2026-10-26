@@ -337,7 +337,7 @@ function options.Defaults()
         clickThrough = T{ true },
         automaticPositioning = T{ false },
         nativeHook = T{ false }, -- uihook used at all; Party and Target below choose what it draws
-        nativeParty = T{ false }, -- experimental partyhook rendering; never enabled by migration
+        nativeParty = T{ false }, -- experimental uihook rendering; never enabled by migration
         nativeTarget = T{ false }, -- independent opt-in
         nativePositioning = T{ false }, -- parked/hidden; forcibly disabled during settings completion
         nativeBehavior = T{ false }, -- native draw visibility/order, without addon idle/presence fading

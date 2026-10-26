@@ -2,6 +2,9 @@
 
 ## 0.3.3
 
+- Native windows are refused while hideparty is loaded, which hides the very frames they replace: the windows are given back to the game and `/pt native status` says to unload hideparty. hideparty 1.3 says it is loaded through winxi 56's `winxi.presence`. Requires winxi 56.
+- uihook alone: the retired partyhook plugin is no longer looked for.
+- hideparty is no longer packaged with party.
 - Requires winxi 55. Where namehook was unloaded and loaded again between two of its looks (party asks only while it has a target), what it had found in the old DLL was read: party's crash on 2026-10-26, an access violation in d3d_present. winxi 55's nameplates.Hook checks namehook's DLL is still the one its block was found in.
 
 ## 0.3.2

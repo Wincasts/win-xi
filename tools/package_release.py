@@ -13,7 +13,6 @@ Each zip holds the addon, everything it needs and nothing else:
                                  the addon's checks against the packaged files with no addons/libs/winxi
     addons/libs/winxi/           the shared library, in every zip but a standalone one (winxi.version says which it is)
     addons/winxisettings/        the shared look's settings window, in every zip but a standalone one
-    addons/hideparty/            with party
     plugins/namehook.dll         with name, built here, with its GPL license and where its source is
     plugins/uihook.dll           with buff/chatbox/party, built here, with its MIT license and where its source is
 
@@ -57,7 +56,7 @@ RELEASES = {
     'inventory': {},
     'name': {'plugin': 'namehook'},
     'occlusionfix': {'standalone': True},
-    'party': {'plugin': 'uihook', 'addons': {'hideparty': 'forks/addons/hideparty'}},
+    'party': {'plugin': 'uihook'},
     'trigger': {},
     # Released for people who use no other winxi addon, so it carries its own winxi. Its research notes
     # and the data and flag copies no code loads are left out.
