@@ -61,8 +61,8 @@ window AddImage mp_front.png (109,167.4) (256.6,189) (0,0) (0.96,1) #8C8C8CFF
 window AddImage mp_front.png (109,224.4) (256.6,246) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (109,282.4) (256.6,304) (0,0) (0.96,1) #FFFF9CFF
 imgui PushFont
-window AddCircleFilled (16.51,27.53) 4.93 #E64038FF 12
-window AddCircleFilled (16.51,42.6) 4.93 #E6E059FF 12
+window AddCircleFilled (16.51,27.53) 4.93 #FFFFFFFF 12
+window AddCircleFilled (16.51,42.6) 4.93 #FFE640FF 12
 window AddText (28,20) #FFFFFFFF Tester
 window AddText (10,77) #FFFFFFFF Ironwall
 window AddText (3,135) #3BABE8FF >> 
@@ -179,8 +179,8 @@ window AddImage mp_front.png (109,167.4) (256.6,189) (0,0) (0.96,1) #8C8C8CFF
 window AddImage mp_front.png (109,224.4) (256.6,246) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (109,282.4) (256.6,304) (0,0) (0.96,1) #FFFF9CFF
 imgui PushFont
-window AddCircleFilled (16.51,27.53) 4.93 #E64038FF 12
-window AddCircleFilled (16.51,42.6) 4.93 #E6E059FF 12
+window AddCircleFilled (16.51,27.53) 4.93 #FFFFFFFF 12
+window AddCircleFilled (16.51,42.6) 4.93 #FFE640FF 12
 window AddText (28,20) #FFFFFFFF Tester
 window AddText (10,77) #FFFFFFFF Ironwall
 window AddText (3,135) #3BABE8FF >> 
@@ -290,7 +290,7 @@ window AddImage mp_front.png (89.2,91.92) (207.28,109.2) (0,0) (0.96,1) #8C8C8CF
 window AddImage mp_front.png (89.2,137.92) (207.28,155.2) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (89.2,183.92) (207.28,201.2) (0,0) (0.96,1) #FFFF9CFF
 imgui PushFont
-window AddCircleFilled (15.4,32.06) 4.4 #E6E059FF 12
+window AddCircleFilled (15.4,32.06) 4.4 #FFE640FF 12
 window AddText (24,20) #FFFFFFFF Secondlead
 window AddText (10,66) #FFFFFFFF Monk
 window AddText (10,112) #FFFFFFFF Summoner
@@ -336,7 +336,7 @@ window AddImage mp_front.png (89.2,45.92) (207.28,63.2) (0,0) (0.96,1) #8C8C8CFF
 window AddImage mp_front.png (89.2,91.92) (207.28,109.2) (0,0) (0.96,1) #FFFF9CFF
 imgui PushFont
 window AddText (10,20) #FFFFFFFF Lastone
-window AddCircleFilled (15.4,78.06) 4.4 #E6E059FF 12
+window AddCircleFilled (15.4,78.06) 4.4 #FFE640FF 12
 window AddText (24,66) #FFFFFFFF Thirdlead
 imgui PopFont
 imgui PushFont
@@ -432,8 +432,8 @@ window AddImage mp_front.png (109,167.4) (256.6,189) (0,0) (0.96,1) #8C8C8CFF
 window AddImage mp_front.png (109,224.4) (256.6,246) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (109,282.4) (256.6,304) (0,0) (0.96,1) #FFFF9CFF
 imgui PushFont
-window AddCircleFilled (16.51,27.53) 4.93 #E64038FF 12
-window AddCircleFilled (16.51,42.6) 4.93 #E6E059FF 12
+window AddCircleFilled (16.51,27.53) 4.93 #FFFFFFFF 12
+window AddCircleFilled (16.51,42.6) 4.93 #FFE640FF 12
 window AddText (28,20) #FFFFFFFF Tester
 window AddText (10,77) #FFFFFFFF Ironwall
 window AddText (3,135) #3BABE8FF >> 
@@ -560,8 +560,8 @@ window AddImage mp_front.png (109,167.4) (256.6,189) (0,0) (0.96,1) #8C8C8CFF
 window AddImage mp_front.png (109,224.4) (256.6,246) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (109,282.4) (256.6,304) (0,0) (0.96,1) #FFFF9CFF
 imgui PushFont
-window AddCircleFilled (16.51,27.53) 4.93 #E64038FF 12
-window AddCircleFilled (16.51,42.6) 4.93 #E6E059FF 12
+window AddCircleFilled (16.51,27.53) 4.93 #FFFFFFFF 12
+window AddCircleFilled (16.51,42.6) 4.93 #FFE640FF 12
 window AddText (28,20) #FFFFFFFF Tester
 window AddText (10,77) #FFFFFFFF Ironwall
 window AddText (3,135) #3BABE8FF >> 
@@ -681,7 +681,7 @@ window AddImage mp_front.png (89.2,91.92) (207.28,109.2) (0,0) (0.96,1) #8C8C8CF
 window AddImage mp_front.png (89.2,137.92) (207.28,155.2) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (89.2,183.92) (207.28,201.2) (0,0) (0.96,1) #FFFF9CFF
 imgui PushFont
-window AddCircleFilled (15.4,32.06) 4.4 #E6E059FF 12
+window AddCircleFilled (15.4,32.06) 4.4 #FFE640FF 12
 window AddText (24,20) #FFFFFFFF Secondlead
 window AddText (10,66) #FFFFFFFF Monk
 window AddText (10,112) #FFFFFFFF Summoner
@@ -727,7 +727,7 @@ window AddImage mp_front.png (89.2,45.92) (207.28,63.2) (0,0) (0.96,1) #8C8C8CFF
 window AddImage mp_front.png (89.2,91.92) (207.28,109.2) (0,0) (0.96,1) #FFFF9CFF
 imgui PushFont
 window AddText (10,20) #FFFFFFFF Lastone
-window AddCircleFilled (15.4,78.06) 4.4 #E6E059FF 12
+window AddCircleFilled (15.4,78.06) 4.4 #FFE640FF 12
 window AddText (24,66) #FFFFFFFF Thirdlead
 imgui PopFont
 imgui PushFont
@@ -760,7 +760,7 @@ window PushClipRect (0,0) (1920,1080) false
 window AddText (383,193) #F0E6C2FF Target
 window PopClipRect
 imgui End
-## filled with sample data, the settings open (bare): 635 calls
+## filled with sample data, the settings open (bare): 636 calls
 imgui Begin Party Settings
 imgui TextColored (1,0.75,0.55,1) [-] Positioning
 imgui Text Automatic Positioning:
@@ -958,8 +958,8 @@ window AddImage mp_front.png (109,167.4) (256.6,189) (0,0) (0.96,1) #8C8C8CFF
 window AddImage mp_front.png (109,224.4) (256.6,246) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (109,282.4) (256.6,304) (0,0) (0.96,1) #FFFF9CFF
 imgui PushFont
-window AddCircleFilled (16.51,27.53) 4.93 #E64038FF 12
-window AddCircleFilled (16.51,42.6) 4.93 #E6E059FF 12
+window AddCircleFilled (16.51,27.53) 4.93 #FFFFFFFF 12
+window AddCircleFilled (16.51,42.6) 4.93 #FFE640FF 12
 window AddText (28,20) #FFFFFFFF Tester
 window AddText (10,77) #FFFFFFFF Ironwall
 window AddText (3,135) #3BABE8FF >> 
@@ -1088,8 +1088,8 @@ window AddImage mp_front.png (109,167.4) (256.6,189) (0,0) (0.96,1) #8C8C8CFF
 window AddImage mp_front.png (109,224.4) (256.6,246) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (109,282.4) (256.6,304) (0,0) (0.96,1) #FFFF9CFF
 imgui PushFont
-window AddCircleFilled (16.51,27.53) 4.93 #E64038FF 12
-window AddCircleFilled (16.51,42.6) 4.93 #E6E059FF 12
+window AddCircleFilled (16.51,27.53) 4.93 #FFFFFFFF 12
+window AddCircleFilled (16.51,42.6) 4.93 #FFE640FF 12
 window AddText (28,20) #FFFFFFFF Tester
 window AddText (10,77) #FFFFFFFF Ironwall
 window AddText (3,135) #3BABE8FF >> 
@@ -1235,7 +1235,7 @@ window AddImage mp_front.png (89.2,183.92) (207.28,201.2) (0,0) (0.96,1) #FFFF9C
 window AddImage mp_front.png (89.2,229.92) (207.28,247.2) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (89.2,275.92) (207.28,293.2) (0,0) (0.96,1) #FFFF9CFF
 imgui PushFont
-window AddCircleFilled (15.4,32.06) 4.4 #E6E059FF 12
+window AddCircleFilled (15.4,32.06) 4.4 #FFE640FF 12
 window AddText (24,20) #FFFFFFFF Secondlead
 window AddText (10,66) #FFFFFFFF Monk
 window AddText (10,112) #FFFFFFFF Sample 6
@@ -1337,8 +1337,9 @@ imgui PushFont
 window AddText (10,20) #FFFFFFFF Lastone
 window AddText (10,66) #FFFFFFFF Sample 4
 window AddText (10,112) #FFFFFFFF Sample 6
+window AddCircleFilled (199.6,163.4) 4.4 #F2332EFF 12
 window AddText (10,158) #FFFFFFFF Sample 3
-window AddCircleFilled (15.4,216.06) 4.4 #E6E059FF 12
+window AddCircleFilled (15.4,216.06) 4.4 #FFE640FF 12
 window AddText (24,204) #FFFFFFFF Thirdlead
 window AddText (10,250) #FFFFFFFF Sample 5
 imgui PopFont

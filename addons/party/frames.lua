@@ -23,7 +23,8 @@
 --     hpText, mpText, tpText   a figure in words of the line's own, in place of the number
 --     noMp                     the most MP they can have is none: a grey, full MP bar and no MP figure
 --     plainHp                  an HP figure that keeps its colour however low the HP is
---     isPartyLeader, isAllianceLeader          a circle before the name, or two
+--     isPartyLeader, isAllianceLeader          a circle before the name, or two: yellow for the party, white for the alliance
+--     isLevelSync              the level sync designee: a red circle at the line's top right
 --     isTarget, isSubTarget, isPartyTarget     native DAT cursor before the name; text markers on load failure
 --     isPlayer, targetIndex, entity            for how far away they are: bars dim with distance
 --     statusIds                their buffs
@@ -539,10 +540,10 @@ local function DrawLeaderMarks(member)
     if member.isAllianceLeader then
         -- a little smaller than one alone, and a little apart
         local small = nameFont * 0.17
-        Circle(centre, top + nameFont * 0.26, small, colors.Alliance)
-        Circle(centre, top + nameFont * 0.78, small, colors.Party)
+        Circle(centre, top + nameFont * 0.26, small, colors.AllianceLeader)
+        Circle(centre, top + nameFont * 0.78, small, colors.PartyLeader)
     else
-        Circle(centre, top + nameFont * 0.52, radius, colors.Party)
+        Circle(centre, top + nameFont * 0.52, radius, colors.PartyLeader)
     end
     return (2 * radius + 1 + nameFont * 0.22) / scale
 end
@@ -577,6 +578,14 @@ local function LetterBadge(state, letter, left, top, color)
     return gap + width
 end
 
+-- The level sync designee's mark: a red circle the size of a leader's, in the top right corner of their
+-- line, clear of the HP bar
+local function DrawLevelSync()
+    local radius = nameFont * 0.19
+    local right = math.floor(itemX + layout.width * scale)
+    Circle(right - radius - 1, math.floor(itemY + layout.name.y * scale) + radius + 1, radius, colors.LevelSync)
+end
+
 -- A member's name after their leader's mark and the game's animated DAT cursor when selected.
 -- Names retain blue/green selection colours. Text markers are the fallback if the DAT cannot load.
 local function DrawName(member, state)
@@ -586,6 +595,7 @@ local function DrawName(member, state)
     if member.isPartyLeader or member.isAllianceLeader then
         x = x + DrawLeaderMarks(member)
     end
+    if member.isLevelSync then DrawLevelSync() end
     if member.isInZone and member.hpp and member.hpp <= (activeStyle.lowHp or 0) and (activeStyle.lowHp or 0) > 0 then
         Write('!', x, name.y, hpRed)
         x = x + TextSize('! ') / scale

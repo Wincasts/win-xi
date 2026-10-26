@@ -5,6 +5,11 @@ return {
     Party    = { 0.90, 0.88, 0.35, 1.0 }, -- a party's: its leader's mark, and an invitation to one
     Alliance = { 0.90, 0.25, 0.22, 1.0 }, -- an alliance's: the same two
 
+    -- the dots by a member's name: who leads the party, who leads the alliance, and the level sync designee
+    PartyLeader    = { 1.00, 0.90, 0.25, 1.0 }, -- yellow
+    AllianceLeader = { 1.00, 1.00, 1.00, 1.0 }, -- white
+    LevelSync      = { 0.95, 0.20, 0.18, 1.0 }, -- red
+
     -- a target's debuffs, each in the colour of its kind
     StatusGrey   = { 1.00, 1.00, 1.00, 0.5 },
     StatusWhite  = { 0.98, 0.92, 0.84, 1.0 },
