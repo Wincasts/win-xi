@@ -86,8 +86,15 @@ private:
     NameBoundsCache m_BubbleBounds[HOOK_ENTITIES];
     float m_BubbleFit = 1.0f;
     bool m_BubblesFresh = false;
+    // Claimed damage popups an addon has drawn: drawn in the client's popup drawing, and not the names'
+    IDirect3DBaseTexture8* m_PopupTextures[HOOK_TEXTURES]{};
+    NameBoundsCache m_PopupBounds[HOOK_POPUPS_MAX];
+    float m_PopupFit = 1.0f;
+    bool m_PopupsCanDraw = false;
 
-    void RenderCustom(uint32_t entityIndex, const HookDrawing& drawing, const HookQuad* quads, const float* position, bool bubble);
+    enum class Layer { Names, Bubbles, Popups };
+    void RenderCustom(uint32_t slot, const HookDrawing& drawing, const HookQuad* quads, const float* position, Layer layer, bool over = false);
+    bool PrepareCamera(IDirect3DDevice8* device);
 
     bool MakeNameStates();
     void PublishNames(bool frameDone);
@@ -122,6 +129,8 @@ public:
     virtual void DrawCustom(uint32_t entityIndex, const HookDrawing& drawing, const HookQuad* quads, const float* position) override;
     virtual void BeginBubbles(const HookDraw& draw, bool fresh) override;
     virtual void DrawBubble(uint32_t entityIndex, const HookDrawing& drawing, const HookQuad* quads, const float* position) override;
+    virtual void BeginPopups(const HookPopupDraw& draw, bool fresh) override;
+    virtual void DrawPopup(uint32_t slot, const HookPopupDrawing& drawing, const HookQuad* quads, const float* position) override;
 
     virtual uint32_t GetSpawnFlags(uint32_t entityIndex) override {
         IEntity* entities = m_AshitaCore->GetMemoryManager()->GetEntity();
@@ -390,6 +399,7 @@ void AshitaNameplate::ReleaseNameStates() {
     m_StatesCaptured = false;
     m_Device = nullptr;
     m_CanDraw = false;
+    m_PopupsCanDraw = false;
 }
 
 // imgui's font texture as its renderer made it, for a texture an addon gave as HOOK_TEXTURE_FONT:
@@ -409,9 +419,9 @@ static IDirect3DBaseTexture8* FontTexture(IAshitaCore* core) {
     return reinterpret_cast<IDirect3DBaseTexture8*>(static_cast<uintptr_t>(data->TexID));
 }
 
-static void RetainTextures(IDirect3DBaseTexture8** textures, const HookDraw* draw, IDirect3DBaseTexture8* font) {
+static void RetainTextures(IDirect3DBaseTexture8** textures, const uint32_t* givens, IDirect3DBaseTexture8* font) {
     for (size_t i = 0; i < HOOK_TEXTURES; i++) {
-        const uint32_t given = draw != nullptr ? draw->Textures[i] : 0;
+        const uint32_t given = givens != nullptr ? givens[i] : 0;
         auto* texture = given == HOOK_TEXTURE_FONT ? font : reinterpret_cast<IDirect3DBaseTexture8*>(static_cast<uintptr_t>(given));
         if (texture != textures[i]) {
             if (texture != nullptr) texture->AddRef();
@@ -424,13 +434,15 @@ static void RetainTextures(IDirect3DBaseTexture8** textures, const HookDraw* dra
 void AshitaNameplate::ReleaseTextures() {
     RetainTextures(m_Textures, nullptr, nullptr);
     RetainTextures(m_BubbleTextures, nullptr, nullptr);
+    RetainTextures(m_PopupTextures, nullptr, nullptr);
     m_BubblesFresh = false;
+    m_PopupsCanDraw = false;
 }
 
 void AshitaNameplate::BeginBubbles(const HookDraw& draw, bool fresh) {
     m_BubblesFresh = fresh;
     m_BubbleFit = draw.HorizontalFit();
-    RetainTextures(m_BubbleTextures, fresh ? &draw : nullptr, fresh ? FontTexture(m_AshitaCore) : nullptr);
+    RetainTextures(m_BubbleTextures, fresh ? draw.Textures : nullptr, fresh ? FontTexture(m_AshitaCore) : nullptr);
 }
 
 // Everything of the device's state that drawing a name changes. Recorded twice over: once to be
@@ -497,14 +509,25 @@ void AshitaNameplate::BeginNames(const HookDraw& draw, bool fresh, float& target
     // Each layer owns its textures; bubbles work even without an addon drawing names.
     IDirect3DBaseTexture8* font = fresh ? FontTexture(m_AshitaCore) : nullptr;
     fontTexture = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(font));
-    RetainTextures(m_Textures, fresh ? &draw : nullptr, font);
+    RetainTextures(m_Textures, fresh ? draw.Textures : nullptr, font);
     if (!fresh && !m_BubblesFresh) return;
+
+    // the device's states for drawing are not made until there is a name to draw with them
+    m_CanDraw = PrepareCamera(device);
+}
+
+// The camera as the client draws with it now, for placing what an addon has drawn: the picture's
+// viewport, the view and projection together, and lens's warp. False if the device will not say.
+bool AshitaNameplate::PrepareCamera(IDirect3DDevice8* device) {
+    if (FAILED(device->GetViewport(&m_Viewport))) {
+        return false;
+    }
 
     // A point in the world goes through the view and then the projection to where it is in the picture
     D3DMATRIX view;
     D3DMATRIX projection;
     if (FAILED(device->GetTransform(D3DTS_VIEW, &view)) || FAILED(device->GetTransform(D3DTS_PROJECTION, &projection))) {
-        return;
+        return false;
     }
     for (int row = 0; row < 4; row++) {
         for (int column = 0; column < 4; column++) {
@@ -527,9 +550,25 @@ void AshitaNameplate::BeginNames(const HookDraw& draw, bool fresh, float& target
         m_LensTanV = 1.0 / projection._22;
     }
 
-    // the device's states for drawing are not made until there is a name to draw with them
     m_Device = device;
-    m_CanDraw = true;
+    return true;
+}
+
+void AshitaNameplate::BeginPopups(const HookPopupDraw& draw, bool fresh) {
+    m_PopupsCanDraw = false;
+    m_PopupFit = draw.HorizontalFit();
+    RetainTextures(m_PopupTextures, fresh ? draw.Textures : nullptr, fresh ? FontTexture(m_AshitaCore) : nullptr);
+    IDirect3DDevice8* device = m_AshitaCore->GetDirect3DDevice();
+    if (fresh && device != nullptr) {
+        m_PopupsCanDraw = PrepareCamera(device);
+    }
+}
+
+void AshitaNameplate::DrawPopup(uint32_t slot, const HookPopupDrawing& drawing, const HookQuad* quads, const float* position) {
+    // drawn amid the client's own drawing: its state is captured afresh before, and is not kept for after
+    m_StatesCaptured = false;
+    RenderCustom(slot, drawing.Drawing, quads, position, Layer::Popups, (drawing.Flags & POPUP_DRAW_OVER) != 0);
+    m_StatesCaptured = false;
 }
 
 // The two records of the device's state that a name is drawn between, made for the frame's first
@@ -554,9 +593,13 @@ bool AshitaNameplate::MakeNameStates() {
         }
     }
 
-    // without both, no name is drawn this frame, and they are not tried for again until the next
-    m_CanDraw = m_NameStates != 0 && m_SavedStates != 0;
-    return m_CanDraw;
+    // without both, nothing is drawn this frame, and they are not tried for again until the next
+    if (m_NameStates == 0 || m_SavedStates == 0) {
+        m_CanDraw = false;
+        m_PopupsCanDraw = false;
+        return false;
+    }
+    return true;
 }
 
 static DWORD FadeColor(uint32_t color, float alpha) {
@@ -566,18 +609,22 @@ static DWORD FadeColor(uint32_t color, float alpha) {
 }
 
 void AshitaNameplate::DrawCustom(uint32_t entityIndex, const HookDrawing& drawing, const HookQuad* quads, const float* position) {
-    RenderCustom(entityIndex, drawing, quads, position, false);
+    RenderCustom(entityIndex, drawing, quads, position, Layer::Names);
 }
 
 void AshitaNameplate::DrawBubble(uint32_t entityIndex, const HookDrawing& drawing, const HookQuad* quads, const float* position) {
-    RenderCustom(entityIndex, drawing, quads, position, true);
+    RenderCustom(entityIndex, drawing, quads, position, Layer::Bubbles);
 }
 
-void AshitaNameplate::RenderCustom(uint32_t entityIndex, const HookDrawing& drawing, const HookQuad* quads, const float* position, bool bubble) {
-    auto** textures = bubble ? m_BubbleTextures : m_Textures;
-    auto* boundsCache = bubble ? m_BubbleBounds : m_NameBounds;
-    const float horizontalFit = bubble ? m_BubbleFit : m_HorizontalFit;
-    if (!m_CanDraw || entityIndex >= HOOK_ENTITIES || drawing.Count == 0 || drawing.Count > HOOK_QUADS_PER_NAME) {
+// What an addon has drawn, at this point of the world: a name or a bubble, by its entity's index, or a
+// popup, by where its drawing is. over: drawn over everything, without the picture's depth.
+void AshitaNameplate::RenderCustom(uint32_t slot, const HookDrawing& drawing, const HookQuad* quads, const float* position, Layer layer, bool over) {
+    const bool popup = layer == Layer::Popups;
+    auto** textures = popup ? m_PopupTextures : (layer == Layer::Bubbles ? m_BubbleTextures : m_Textures);
+    auto* boundsCache = popup ? m_PopupBounds : (layer == Layer::Bubbles ? m_BubbleBounds : m_NameBounds);
+    const float horizontalFit = popup ? m_PopupFit : (layer == Layer::Bubbles ? m_BubbleFit : m_HorizontalFit);
+    if (!(popup ? m_PopupsCanDraw : m_CanDraw) || slot >= (popup ? HOOK_POPUPS_MAX : HOOK_ENTITIES)
+            || drawing.Count == 0 || drawing.Count > HOOK_QUADS_PER_NAME) {
         return;
     }
 
@@ -607,7 +654,7 @@ void AshitaNameplate::RenderCustom(uint32_t entityIndex, const HookDrawing& draw
         return;
     }
 
-    const NameBounds& bounds = boundsCache[entityIndex].Get(drawing, quads, horizontalFit);
+    const NameBounds& bounds = boundsCache[slot].Get(drawing, quads, horizontalFit);
     if (!m_Lens && !bounds.Intersects(left, top, static_cast<float>(m_Viewport.X), static_cast<float>(m_Viewport.Y),
             static_cast<float>(m_Viewport.Width), static_cast<float>(m_Viewport.Height))) {
         return; // no vertex expansion, state capture or draw submission for invisible names
@@ -741,6 +788,9 @@ void AshitaNameplate::RenderCustom(uint32_t entityIndex, const HookDrawing& draw
         m_StatesCaptured = true;
     }
     device->ApplyStateBlock(m_NameStates);
+    if (over) {
+        device->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
+    }
 
     // most names are letters alone, from the one texture, which is then set once for both passes
     // a doubled run's colour is the texture's times twice its own, as the client draws its pearls
@@ -760,7 +810,7 @@ void AshitaNameplate::RenderCustom(uint32_t entityIndex, const HookDrawing& draw
     // Again for the picture's depth alone, where the name is solid: what the client draws after it,
     // and behind it, is then not drawn over it. A name faded past half is solid nowhere, the texture
     // making it no more so, and has nothing to draw here.
-    if (mostSolid >= NAME_SOLID) {
+    if (mostSolid >= NAME_SOLID && !over) {
         device->SetRenderState(D3DRS_COLORWRITEENABLE, 0);
         device->SetRenderState(D3DRS_ALPHATESTENABLE, TRUE);
         device->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);

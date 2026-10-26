@@ -504,11 +504,8 @@ function nameplates.BeginName(entityIndex, alpha, edge, edgeColor)
     return true;
 end
 
-function nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged, edgeOpacity, softRect, tightEdge, edgeRadius, doubled)
-    if (drawing == nil or drawing.Count >= QUADS_PER_NAME or drawing.First + drawing.Count >= quadLimit) then
-        return;
-    end
-
+-- One quad written into the plugin's buffer, as nameplates.Quad takes it: for winxi.popups too
+function nameplates.FillQuad(quad, fit, x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged, edgeOpacity, softRect, tightEdge, edgeRadius, doubled)
     local flags, reserved = edged and 1 or 0, 0;
     if (edged and edgeOpacity ~= nil) then
         -- edged, with explicit edge opacity in Reserved's low byte
@@ -524,13 +521,20 @@ function nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged, edg
     end
     -- an older plugin knows nothing of it, and draws the colour as it is
     if (doubled) then flags = bit.bor(flags, 32); end
-    local quad = draw.Quads[drawing.First + drawing.Count];
-    quad.X0, quad.Y0, quad.X1, quad.Y1 = x0 * horizontalFit, y0, x1 * horizontalFit, y1;
+    quad.X0, quad.Y0, quad.X1, quad.Y1 = x0 * fit, y0, x1 * fit, y1;
     quad.U0, quad.V0, quad.U1, quad.V1 = u0, v0, u1, v1;
     quad.Color = color;
     quad.Texture = slot or 0;
     quad.Flags = flags;
     quad.Reserved = reserved;
+end
+
+function nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged, edgeOpacity, softRect, tightEdge, edgeRadius, doubled)
+    if (drawing == nil or drawing.Count >= QUADS_PER_NAME or drawing.First + drawing.Count >= quadLimit) then
+        return;
+    end
+    nameplates.FillQuad(draw.Quads[drawing.First + drawing.Count], horizontalFit,
+        x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged, edgeOpacity, softRect, tightEdge, edgeRadius, doubled);
     drawing.Count = drawing.Count + 1;
 end
 

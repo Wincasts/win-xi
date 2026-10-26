@@ -293,7 +293,8 @@ static struct {
 // which is in the DLL's file: this is large, and empty until an addon fills it.
 static HookDraw Draw;
 static HookBubbles Bubbles = { "NAMEBUBBLES", 2, sizeof(HookBubbles), sizeof(HookDraw), {}, {} };
-static HookPopups Popups = { "NAMEHOOKPOPUPS", 1, sizeof(HookPopups), sizeof(HookPopup), 0, 0, 0, 0, 0, 0, {} };
+static HookPopups Popups = { "NAMEHOOKPOPUPS", 1, sizeof(HookPopups), sizeof(HookPopup), 0, 0, 0, 0, 0, 0, 0, {} };
+static HookPopupDraw PopupDraw;
 
 // The frame whose first name has been seen, so that what is done once a frame is done then
 static uint32_t NamesFrame = 0xFFFFFFFF;
@@ -956,6 +957,47 @@ static struct {
 } RecentPopups[HOOK_POPUPS_MAX];
 static uint32_t NextPopupId = 1;
 
+// The frame whose first claimed popup has been drawn, so that the host is readied once a frame
+static uint32_t PopupsDrawFrame = 0xFFFFFFFF;
+
+// Whether an addon has drawn popups lately enough for them to be the ones to draw
+static bool IsPopupDrawFresh() {
+	return PopupDraw.QuadCount <= HOOK_POPUP_QUADS_MAX && PopupDraw.Count <= HOOK_POPUPS_MAX
+		&& Shared.Frame - PopupDraw.Frame <= HOOK_DRAW_FRAMES;
+}
+
+// Where an addon's drawing of this popup is in PopupDraw.Drawings, or HOOK_POPUPS_MAX for none
+static uint32_t FindPopupDrawing(uint32_t id) {
+	if (!IsPopupDrawFresh()) {
+		return HOOK_POPUPS_MAX;
+	}
+	for (uint32_t i = 0; i < PopupDraw.Count; i++) {
+		const HookPopupDrawing& one = PopupDraw.Drawings[i];
+		const HookDrawing& drawing = one.Drawing;
+		if (one.Id == id && drawing.Frame == PopupDraw.Frame && drawing.Count != 0 && drawing.Count <= HOOK_QUADS_PER_NAME
+				&& drawing.First <= PopupDraw.QuadCount && drawing.Count <= PopupDraw.QuadCount - drawing.First) {
+			return i;
+		}
+	}
+	return HOOK_POPUPS_MAX;
+}
+
+// A claimed popup, drawn as an addon has drawn it, at the point the client was about to draw it at
+static void DrawClaimedPopup(uint32_t id, const float* position) {
+	if (Instance == nullptr) {
+		return;
+	}
+	if (PopupsDrawFrame != Shared.Frame) {
+		PopupsDrawFrame = Shared.Frame;
+		Instance->BeginPopups(PopupDraw, IsPopupDrawFresh());
+	}
+	const uint32_t slot = FindPopupDrawing(id);
+	if (slot < HOOK_POPUPS_MAX) {
+		const HookPopupDrawing& drawing = PopupDraw.Drawings[slot];
+		Instance->DrawPopup(slot, drawing, &PopupDraw.Quads[drawing.Drawing.First], position);
+	}
+}
+
 // /namehook popups watch: each new popup said in the chat log as the frame ends, until turned off
 static bool PopupsWatched = false;
 static uint32_t PopupsToSay = 0;
@@ -1062,6 +1104,10 @@ static bool __fastcall OnDamagePopup(const uint8_t* object, uint32_t color, cons
 	popup.Width = size[0];
 	popup.Height = size[1];
 	PopupFilling.Changed = true;
+
+	if (!drawn) {
+		DrawClaimedPopup(popup.Id, position);
+	}
 
 	if (PopupsWatched && popup.FirstFrame == Shared.Frame) {
 		// the watch says it with what it was drawn at the first time
@@ -1967,6 +2013,11 @@ int Nameplate::Init() {
 	Bubbles.Draw.Frame = 0 - (HOOK_DRAW_FRAMES + 1);
 	Draw.QuadsMax = HOOK_QUADS_MAX;
 	Draw.Frame = 0 - (HOOK_DRAW_FRAMES + 1); // nothing drawn yet
+	ZeroMemory(&PopupDraw, sizeof(PopupDraw));
+	PopupDraw.QuadsMax = HOOK_POPUP_QUADS_MAX;
+	PopupDraw.DrawingsMax = HOOK_POPUPS_MAX;
+	PopupDraw.Frame = 0 - (HOOK_DRAW_FRAMES + 1);
+	Popups.Draw = static_cast<uint32_t>(reinterpret_cast<uintptr_t> (&PopupDraw));
 	FrameTime = Clock();
 	Shared.Draw = static_cast<uint32_t>(reinterpret_cast<uintptr_t> (&Draw));
 
@@ -2188,6 +2239,7 @@ int Nameplate::Deinit() {
 	}
 	Popups.Hooked = 0;
 	Popups.Count = 0;
+	Popups.Draw = 0;
 
 	if (Globals.DrawName3V2PatchAddr != 0) {
 		CopyMemory(reinterpret_cast<void*> (Globals.DrawName3V2PatchAddr), &Globals.DrawName3V2PatchOrig[0], DRAWNAME3_V2_PATCH_SIZE);

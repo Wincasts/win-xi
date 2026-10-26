@@ -193,6 +193,7 @@ run zoneinfo-settings tests/zoneinfo_fixture.lua zoneinfo_settings_ui_check.lua
 run zoneinfo-more tests/zoneinfo_fixture.lua zoneinfo_more_styles_check.lua
 echo
 run name addons/name/name.lua name_check.lua
+run damage addons/damage/damage.lua damage_check.lua
 run name addons/name/name.lua name_token_options_check.lua
 run name addons/name/name.lua name_types_check.lua
 run name addons/name/name.lua name_colours_check.lua
