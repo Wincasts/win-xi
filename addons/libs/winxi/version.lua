@@ -112,6 +112,8 @@
 -- 60: camera, namehook 1.44's camera: Get, and Project, a world point placed as a name is, under lens too
 -- 61: a second names addon through namehook 1.45's claim slots: nameplates.Claims, OwnerOf, TakeSlot,
 --     ClaimSlot, SlotDrawing (for BeginDrawing) and ReleaseSlot; SharedPriority
+-- 62: layers, drawing into the world through namehook 1.46: Take, Begin, AtEntity, AtWorld, Quad, End,
+--     SetTexture (0 to 31) and Release
 return {
-    Number = 61,
+    Number = 62,
 };

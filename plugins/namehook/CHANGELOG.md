@@ -1,5 +1,11 @@
 # Changelog
 
+## namehook 1.46 — layers of the world
+
+- A new block, `HookLayers` (magic `NAMEHOOKLAYERS`, version 1): four layers an addon takes as it takes a claim slot (`Owner`), renews each frame (`ClaimFrame`) and fills: its `HookLayerDraw` holds up to 512 drawings and 8,192 quads, with 32 texture slots of its own. A drawing is at an entity (`LAYER_AT_ENTITY`: its name point, offset in the world by X, Y and Z, while `ServerId` is still the one at that index) or at a point of the world (`LAYER_AT_WORLD`), and is drawn as a name is: as deep as its point, hidden by what is in front of it unless `LAYER_DRAW_OVER`, and at its own shape under lens's warp. Layers are drawn by `Order`, lowest first: points of the world as the client draws its first name of a frame, an entity's as the client comes to its name, whatever its category or claim. A layer not renewed lapses as a claim does, and the plugin frees it. A drawing that does not hold together is refused and counted in `DrawingsRefused`.
+- The host keeps each layer's textures and each drawing's bounds apart (`BeginLayer`, `DrawLayer`).
+- Tests: the block's header; points of the world, then each entity's drawings at its name point offset, by order; over everything where asked; at an index another entity has since, not drawn; a refused drawing counted; a layer not renewed freed and nothing of it drawn.
+
 ## namehook 1.45 — a second names addon
 
 - A new block, `HookClaims` (magic `NAMEHOOKCLAIMS`, version 1): three claim slots, each with an `Owner` (an addon's own number; 0 is free), the `Categories` it claims, its `ClaimFrame`, a `Priority` and a `HookDraw` of its own. An addon takes a free slot, claims and draws into it each frame as HookShared's claim is made and drawn. The client draws no name whose category anyone claims; of those claiming it, by priority, highest first (HookShared's own claim is 100, `SharedPriority`), the first that has drawn the name draws it, so a higher one can leave names to a lower. A slot's claim lapses as HookShared's does, and the slot is then freed. HookShared's claim works as it did: an addon that knows nothing of slots is the one at 100.

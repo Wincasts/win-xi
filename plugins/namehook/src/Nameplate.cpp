@@ -308,6 +308,9 @@ static HookPopups Popups = { "NAMEHOOKPOPUPS", 1, sizeof(HookPopups), sizeof(Hoo
 // The claim slots and their drawings, for addons drawing names besides HookShared's (HookClaims)
 static HookDraw SlotDraws[HOOK_CLAIM_SLOTS];
 static HookClaims Claims = { "NAMEHOOKCLAIMS", 1, sizeof(HookClaims), sizeof(HookClaimSlot), HOOK_CLAIM_SLOTS, HOOK_CLAIM_PRIORITY, {}, {} };
+// The layers of the world addons draw into, and their drawings (HookLayers)
+static HookLayerDraw LayerDraws[HOOK_LAYERS];
+static HookLayers Layers = { "NAMEHOOKLAYERS", 1, sizeof(HookLayers), sizeof(HookLayerSlot), HOOK_LAYERS, {}, {} };
 static HookCamera Camera = { "NAMEHOOKCAMERA", 1, sizeof(HookCamera), 0, 0, {}, {}, {}, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 static HookPopupDraw PopupDraw;
 
@@ -613,6 +616,138 @@ static void FreeLapsedSlots() {
 	}
 }
 
+// Each layer's renewal last seen, by whom, and when; whether it is drawn from this frame, the order the
+// layers are drawn in, and, for each layer, its drawings at each entity: the first, and each one's next
+static uint32_t LayerClaimSeen[HOOK_LAYERS] = { 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF };
+static uint32_t LayerOwnerSeen[HOOK_LAYERS] = {};
+static uint64_t LayerClaimTime[HOOK_LAYERS] = {};
+static bool LayerFresh[HOOK_LAYERS] = {};
+static uint32_t LayerOrder[HOOK_LAYERS];
+#define LAYER_NONE 0xFFFF
+static uint16_t LayerFirst[HOOK_LAYERS][HOOK_ENTITIES];
+static uint16_t LayerNext[HOOK_LAYERS][HOOK_LAYER_DRAWINGS];
+
+static void NoteLayerClaims() {
+	for (uint32_t i = 0; i < HOOK_LAYERS; i++) {
+		const HookLayerSlot& slot = Layers.Slots[i];
+		if (slot.ClaimFrame != LayerClaimSeen[i] || slot.Owner != LayerOwnerSeen[i]) {
+			LayerClaimSeen[i] = slot.ClaimFrame;
+			LayerOwnerSeen[i] = slot.Owner;
+			LayerClaimTime[i] = FrameTime;
+		}
+	}
+}
+
+static bool LayerLive(uint32_t i) {
+	return Layers.Slots[i].Owner != 0 && FrameTime - LayerClaimTime[i] <= HOOK_CLAIM_TIME;
+}
+
+// Layers not renewed lately are freed for another addon to take
+static void FreeLapsedLayers() {
+	NoteLayerClaims();
+	for (uint32_t i = 0; i < HOOK_LAYERS; i++) {
+		if (Layers.Slots[i].Owner != 0 && !LayerLive(i)) {
+			Layers.Slots[i].Owner = 0;
+			LayerDraws[i].Count = 0;
+			LayerDraws[i].QuadCount = 0;
+		}
+	}
+}
+
+// A drawing of a layer's, where it holds together; null otherwise, and a refused one counted
+static const HookDrawing* LayerDrawing(const HookLayerDraw& draw, uint32_t d) {
+	const HookDrawing& drawing = draw.Drawings[d].Drawing;
+	if (drawing.Frame != draw.Frame || drawing.Count == 0) {
+		return nullptr;
+	}
+	if (drawing.Count > HOOK_QUADS_PER_NAME || drawing.First > draw.QuadCount || drawing.Count > draw.QuadCount - drawing.First) {
+		Shared.DrawingsRefused++;
+		return nullptr;
+	}
+	return &drawing;
+}
+
+// As a frame's names begin: each layer handed to the host, the order they are drawn in, and where each
+// one's drawings at entities are
+static void BeginLayers() {
+	NoteLayerClaims();
+	for (uint32_t i = 0; i < HOOK_LAYERS; i++) {
+		LayerOrder[i] = i;
+	}
+	for (uint32_t i = 1; i < HOOK_LAYERS; i++) {
+		for (uint32_t j = i; j > 0 && Layers.Slots[LayerOrder[j]].Order < Layers.Slots[LayerOrder[j - 1]].Order; j--) {
+			const uint32_t t = LayerOrder[j]; LayerOrder[j] = LayerOrder[j - 1]; LayerOrder[j - 1] = t;
+		}
+	}
+	for (uint32_t i = 0; i < HOOK_LAYERS; i++) {
+		const HookLayerDraw& draw = LayerDraws[i];
+		const bool fresh = LayerLive(i) && Shared.Frame - draw.Frame <= HOOK_DRAW_FRAMES && draw.Count > 0
+			&& draw.Count <= HOOK_LAYER_DRAWINGS && draw.QuadCount <= HOOK_LAYER_QUADS;
+		LayerFresh[i] = fresh;
+		if (Instance != nullptr) {
+			Instance->BeginLayer(i, draw, fresh);
+		}
+		if (!fresh) {
+			continue;
+		}
+		for (uint32_t e = 0; e < HOOK_ENTITIES; e++) {
+			LayerFirst[i][e] = LAYER_NONE;
+		}
+		// last first, so that each entity's are in the order they were drawn
+		for (uint32_t d = draw.Count; d-- > 0;) {
+			const HookLayerDrawing& drawing = draw.Drawings[d];
+			if ((drawing.Flags & LAYER_AT_ENTITY) != 0 && drawing.EntityIndex < HOOK_ENTITIES) {
+				LayerNext[i][d] = LayerFirst[i][drawing.EntityIndex];
+				LayerFirst[i][drawing.EntityIndex] = static_cast<uint16_t>(d);
+			}
+		}
+	}
+}
+
+// The drawings at points of the world, as a frame's names begin
+static void DrawWorldLayers() {
+	for (uint32_t k = 0; k < HOOK_LAYERS && Instance != nullptr; k++) {
+		const uint32_t i = LayerOrder[k];
+		if (!LayerFresh[i]) {
+			continue;
+		}
+		const HookLayerDraw& draw = LayerDraws[i];
+		for (uint32_t d = 0; d < draw.Count; d++) {
+			const HookLayerDrawing& at = draw.Drawings[d];
+			if ((at.Flags & LAYER_AT_WORLD) == 0 || (at.Flags & LAYER_AT_ENTITY) != 0) {
+				continue;
+			}
+			const HookDrawing* drawing = LayerDrawing(draw, d);
+			if (drawing != nullptr) {
+				const float position[3] = { at.X, at.Y, at.Z };
+				Instance->DrawLayer(i, d, *drawing, &draw.Quads[drawing->First], position, (at.Flags & LAYER_DRAW_OVER) != 0);
+			}
+		}
+	}
+}
+
+// The drawings at one entity, as the client comes to its name: at its name point, offset
+static void DrawEntityLayers(uint32_t index, uint32_t serverId, const float* point) {
+	for (uint32_t k = 0; k < HOOK_LAYERS && Instance != nullptr; k++) {
+		const uint32_t i = LayerOrder[k];
+		if (!LayerFresh[i]) {
+			continue;
+		}
+		const HookLayerDraw& draw = LayerDraws[i];
+		for (uint32_t d = LayerFirst[i][index]; d != LAYER_NONE && d < HOOK_LAYER_DRAWINGS; d = LayerNext[i][d]) {
+			const HookLayerDrawing& at = draw.Drawings[d];
+			if (at.ServerId != serverId) {
+				continue;
+			}
+			const HookDrawing* drawing = LayerDrawing(draw, d);
+			if (drawing != nullptr) {
+				const float position[3] = { point[0] + at.X, point[1] + at.Y, point[2] + at.Z };
+				Instance->DrawLayer(i, d, *drawing, &draw.Quads[drawing->First], position, (at.Flags & LAYER_DRAW_OVER) != 0);
+			}
+		}
+	}
+}
+
 // Whether an addon has drawn names lately enough for them to be the ones to draw
 static bool IsDrawFresh() {
 	return Shared.Frame - Draw.Frame <= HOOK_DRAW_FRAMES;
@@ -654,7 +789,9 @@ static void DrawNameLineFrom(uintptr_t site, const XiModel* pModel, const float*
 		for (uint32_t i = 0; i < HOOK_CLAIM_SLOTS; i++) {
 			Instance->BeginSlot(i, SlotDraws[i], SlotClaims(i, CATEGORY_ALL) && Shared.Frame - SlotDraws[i].Frame <= HOOK_DRAW_FRAMES);
 		}
+		BeginLayers();
 		Instance->BeginNames(Draw, IsDrawFresh(), Shared.TargetWidth, Shared.TargetHeight, Shared.FontTexture);
+		DrawWorldLayers();
 	}
 
 	if (ProbeWanted && Instance != nullptr) {
@@ -778,6 +915,10 @@ static void DrawNameLineFrom(uintptr_t site, const XiModel* pModel, const float*
 			if (bubble != nullptr) {
 				Instance->DrawBubble(index, *bubble, &Bubbles.Draw.Quads[bubble->First], at);
 			}
+		}
+		// the layers' drawings at this entity, whatever its name's category or claim
+		if (!repeat && at != nullptr && index < HOOK_ENTITIES) {
+			DrawEntityLayers(index, pEntity->EntityId, at);
 		}
 
 		HookName* pName = nullptr;
@@ -2220,6 +2361,15 @@ int Nameplate::Init() {
 	Bubbles.Draw.Frame = 0 - (HOOK_DRAW_FRAMES + 1);
 	Draw.QuadsMax = HOOK_QUADS_MAX;
 	Draw.Frame = 0 - (HOOK_DRAW_FRAMES + 1); // nothing drawn yet
+	for (uint32_t i = 0; i < HOOK_LAYERS; i++) {
+		ZeroMemory(&LayerDraws[i], sizeof(LayerDraws[i]));
+		LayerDraws[i].QuadsMax = HOOK_LAYER_QUADS;
+		LayerDraws[i].DrawingsMax = HOOK_LAYER_DRAWINGS;
+		LayerDraws[i].Frame = 0 - (HOOK_DRAW_FRAMES + 1);
+		ZeroMemory(&Layers.Slots[i], sizeof(Layers.Slots[i]));
+		Layers.Slots[i].Draw = static_cast<uint32_t>(reinterpret_cast<uintptr_t> (&LayerDraws[i]));
+		LayerClaimSeen[i] = 0xFFFFFFFF;
+	}
 	for (uint32_t i = 0; i < HOOK_CLAIM_SLOTS; i++) {
 		ZeroMemory(&SlotDraws[i], sizeof(SlotDraws[i]));
 		SlotDraws[i].QuadsMax = HOOK_QUADS_MAX;
@@ -2400,6 +2550,7 @@ void Nameplate::Publish(const float* view, const float* projection, bool frameDo
 		NoteClaim(); // a claim made last frame is timed from then
 		NotePopupClaim();
 		FreeLapsedSlots();
+		FreeLapsedLayers();
 		SayNewPopups(this);
 		Shared.Frame++;
 		FrameTime = Clock();
@@ -2479,6 +2630,10 @@ int Nameplate::Deinit() {
 		Claims.Slots[i].Owner = 0;
 		Claims.Slots[i].Categories = 0;
 		Claims.Slots[i].Draw = 0;
+	}
+	for (uint32_t i = 0; i < HOOK_LAYERS; i++) {
+		Layers.Slots[i].Owner = 0;
+		Layers.Slots[i].Draw = 0;
 	}
 
 	// Already stranded (a load refused, or one whose commit could not be taken back): nothing more to do
