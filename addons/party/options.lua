@@ -141,9 +141,9 @@ local extra = {
         { kind = 'slider', key = 'farOpacity', label = 'Beyond Far Range Opacity (%)', default = 45, min = 0, max = 100 },
         { kind = 'slider', key = 'lowHp', label = 'Low HP Warning (%)', default = 0, min = 0, max = 100,
           tooltip = 'Adds a ! before names at or below this HP percentage. Zero disables it.' },
-        { kind = 'check', key = 'hoverDetails', label = 'Hover Details', default = false,
+        { kind = 'check', key = 'hoverDetails', label = 'Show Tooltips', default = false,
           when = function() return false end, -- drawn beside Clickthrough in Behavior; storage stays compatible
-          tooltip = 'Full names, jobs, owners and status names. Enemy durations are estimates.' },
+          tooltip = 'Hovering the windows shows full names, jobs and pet owners, and each buff and debuff with its estimated time left.' },
         { kind = 'check', key = 'showStatuses', label = 'Show Statuses', default = true,
           tooltip = 'The buff and debuff icons beside your party and alliance. Off, the settings for them are kept, greyed.\nA target\'s debuffs follow the Target tab.' },
         { kind = 'check', key = 'debuffsFirst', label = 'Debuffs First', default = false,

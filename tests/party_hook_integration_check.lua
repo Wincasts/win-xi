@@ -64,8 +64,8 @@ for i=1,3 do assert(captured['xiframes.us.'..i]==1,'each real party/alliance lis
 -- Combat menus must suppress clicks without suppressing read-only status hover.
 local menuName, mousePos = game.MenuName, imgui.GetMousePos
 local details = require('details')
-local clickThrough = options.clickThrough[1]
-options.clickThrough[1] = false
+local clickThrough, hover = options.clickThrough[1], options.style.hoverDetails[1]
+options.clickThrough[1], options.style.hoverDetails[1] = false, true
 imgui.GetMousePos = function() return 20, 30 end
 game.MenuName = function() return 'menu battle' end
 H.frames(1)
@@ -74,7 +74,10 @@ assert(details.Hover(0, 0, 40, 50), 'combat menu must not block status tooltip h
 options.clickThrough[1] = true
 H.frames(1)
 assert(details.Hover(0, 0, 40, 50), 'clickthrough lets clicks through, not hover')
-options.clickThrough[1] = clickThrough
+options.style.hoverDetails[1] = false
+H.frames(1)
+assert(not details.Hover(0, 0, 40, 50), 'Show Tooltips off: nothing hovered')
+options.clickThrough[1], options.style.hoverDetails[1] = clickThrough, hover
 game.MenuName, imgui.GetMousePos = menuName, mousePos
 windows.Draw(windows.List.main, function() end)
 assert(captured['xiframes.tgt.main']==nil and #stack==0,'target untouched, ImGui stack balanced')

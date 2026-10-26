@@ -1667,7 +1667,7 @@ imgui Begin Party Settings
 imgui TextColored (1,0.75,0.55,1) [-] Mouse Interaction
 imgui Text Clickthrough:
 imgui SameLine 22
-imgui Text Hover Details:
+imgui Text Show Tooltips:
 imgui SameLine 22
 imgui NewLine
 imgui TextColored (1,0.75,0.55,1) [-] Positioning

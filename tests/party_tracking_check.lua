@@ -42,8 +42,7 @@ imgui.SetTooltip = function() error('party details must use Winxi tooltips') end
 imgui.Text = function(text) tooltip = text end
 details.Status(134, 900)
 assert(tooltip:find('Estimated remaining:', 1, true) and tooltip:find('Observed effects only', 1, true))
-details.Job({ name = 'Member', jobText = '[WAR30/RDM15]' })
-assert(tooltip == '[WAR30/RDM15]', 'basic member hover shows job and level without extra details')
+assert(details.Job == nil, 'one kind of member tooltip, with Show Tooltips')
 details.Member({ name = 'Pet', owner = 'Owner', jobText = '[WAR99/SAM49]', statusIds = { 4 } })
 assert(tooltip:find('Owner: Owner', 1, true) and not tooltip:find('Effect 4', 1, true), 'hover details leave statuses to their icons')
 tooltip = nil
@@ -54,10 +53,10 @@ shared.TooltipsEnabled = true
 details.Status(4)
 assert(tooltip == 'Effect 4 (4)', 'party buffs and debuffs show their name and ID')
 o.style.hoverDetails[1], o.clickThrough[1] = true, true
-assert(require('options').Style(o).hoverDetails, 'Hover Details kept with Clickthrough on')
+assert(require('options').Style(o).hoverDetails, 'Show Tooltips kept with Clickthrough on')
 o.clickThrough[1] = false
 assert(require('options').Style(o).hoverDetails)
-H.print('hover: owner/jobs, status names on icons, estimated durations, Hover Details with or without clickthrough', true)
+H.print('hover: owner/jobs, status names on icons, estimated durations, Show Tooltips with or without clickthrough', true)
 
 local perf = require('perf')
 local now, report = 0, nil

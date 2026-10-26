@@ -14,6 +14,9 @@
 - Tooltips show with **Clickthrough** on: it lets clicks and drags through to the game, no longer hovering. Hover
   Details is no longer greyed with Clickthrough on, and a target's debuff letters are hovered by their place, as
   the icons and names already were.
+- Hover Details is **Show Tooltips**, and is the one setting for every tooltip on the windows: the members' (full
+  name, job and pet owner) and the buffs' and debuffs'. Off, as it begins, there are none; before, a member's job
+  and the status icons had tooltips without it.
 
 ## 0.3.1
 

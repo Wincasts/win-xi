@@ -275,10 +275,10 @@ end
 local function DrawGlobal(saved)
     widgets.BeginLabels('xiframes.global')
     if widgets.Header('Mouse Interaction', true) then
-        widgets.Lock(saved.clickThrough, '##xiframes.clickThrough', { label = 'Clickthrough', tooltip = 'Clicks go through the windows to the game; hovering still shows their tooltips. Off, a window is moved by holding Shift and dragging it. Ignored while organizing, so they can be dragged.' })
-        widgets.Label('Hover Details')
+        widgets.Lock(saved.clickThrough, '##xiframes.clickThrough', { label = 'Clickthrough', tooltip = 'Clicks go through the windows to the game; hovering still shows their tooltips with Show Tooltips on. Off, a window is moved by holding Shift and dragging it. Ignored while organizing, so they can be dragged.' })
+        widgets.Label('Show Tooltips')
         Checkbox('##party.hoverDetails', saved.style.hoverDetails)
-        Tooltip('Full names, jobs and pet owners.')
+        Tooltip('Hovering the windows shows full names, jobs and pet owners, and each buff and debuff with its estimated time left.')
     end
 
     if widgets.Header('Positioning') then
