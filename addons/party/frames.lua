@@ -28,6 +28,7 @@
 --     isPlayer, targetIndex, entity            for how far away they are: bars dim with distance
 --     statusIds                their buffs
 --     nameColor                the name's colour, where not the theme's text colour (a target's, by Game Name Colors)
+--     lockedOn                 a target the player is locked on to: brackets at either side of the window
 --
 -- style says how (options.lua makes one from the settings), each left out for the usual:
 --     scale, nameSize, valueSize, buffSize     percentages: of everything, and of each alone
@@ -37,6 +38,7 @@
 --     targetHpOffset, distanceOffset           the same for a target's HP percentage and distance
 --     bookends, tpFlash                        false to leave each out
 --     tpColor                                  { r, g, b, a } for TP of 1000 and over, or nil for blue
+--     bracketColor                             { r, g, b, a } for the lock-on brackets, or nil for white
 --     nameFont, valueFont      a font file of C:\Windows\Fonts for the names or the values; nil or '' for the theme's
 --     bookendOpacity                           0 to 100: how solid the bookends are (100 unless given)
 --     barGlow                  0 to 100: how bright the light at the end of each fill is (none unless given)
@@ -820,6 +822,32 @@ local function HoverMembers(members)
     end
 end
 
+-- The lock-on brackets: a [ at the left of the window and a ] at its right, as tall as what is in it
+-- and standing a little out from it, each a bar with a tick in at its top and bottom, over the theme's
+-- dark edge where text is outlined
+local bracket = { gap = 3, thick = 2, tick = 6 } -- in units of the frames, before scale
+local function Bracket(x, top, bottom, inward, thick, tick, packed, grow)
+    local outer = x - grow * inward
+    local inner = x + (thick + grow) * inward
+    local reach = x + (tick + grow) * inward
+    draw.Rect(math.min(outer, inner), top - grow, math.max(outer, inner), bottom + grow, packed)
+    draw.Rect(math.min(outer, reach), top - grow, math.max(outer, reach), top + thick + grow, packed)
+    draw.Rect(math.min(outer, reach), bottom - thick - grow, math.max(outer, reach), bottom + grow, packed)
+end
+local function DrawBrackets(x, y, width, height, scale, color)
+    local gap = math.floor(bracket.gap * scale + 0.5)
+    local thick = math.max(1, math.floor(bracket.thick * scale + 0.5))
+    local tick = math.max(thick + 1, math.floor(bracket.tick * scale + 0.5))
+    local left, right = math.floor(x) - gap - thick, math.floor(x + width) + gap + thick
+    local top, bottom = math.floor(y), math.floor(y + height)
+    for pass = 1, outlined and 2 or 1 do
+        local edge = (outlined and pass == 1) and outlineEdge or 0
+        local packed = edge > 0 and outlinePacked or draw.Packed(color, 1)
+        Bracket(left, top, bottom, 1, thick, tick, packed, edge)
+        Bracket(right, top, bottom, -1, thick, tick, packed, edge)
+    end
+end
+
 function frames.Draw(members, kind, StatusTexture, style)
     local count = #members
     if count == 0 then
@@ -994,6 +1022,10 @@ function frames.Draw(members, kind, StatusTexture, style)
                 DrawBuffs(members[index], buffsX, StatusTexture)
             end
         end
+    end
+
+    if kind == 'target' and members[1].lockedOn then
+        DrawBrackets(windowX, windowY, room[1], room[2], scale, style.bracketColor or white)
     end
 
     if style.hoverDetails then HoverMembers(members) end

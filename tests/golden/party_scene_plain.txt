@@ -1662,7 +1662,7 @@ window AddText (384,194) #000000E6 Target
 window AddText (383,193) #F0E6C2FF Target
 window PopClipRect
 imgui End
-## filled with sample data, the settings open (plain): 1199 calls
+## filled with sample data, the settings open (plain): 1211 calls
 imgui Begin Party Settings
 imgui TextColored (1,0.75,0.55,1) [-] Positioning
 imgui Text Automatic Positioning:
@@ -2849,6 +2849,18 @@ window AddText (67,38) #000000E6 8.0m
 window AddText (67,40) #000000E6 8.0m
 window AddText (66,39) #FFFFFFFF 8.0m
 imgui PopFont
+window AddRectFilled (4,19) (8,60) #000000E6
+window AddRectFilled (4,19) (12,23) #000000E6
+window AddRectFilled (4,56) (12,60) #000000E6
+window AddRectFilled (176,19) (180,60) #000000E6
+window AddRectFilled (172,19) (180,23) #000000E6
+window AddRectFilled (172,56) (180,60) #000000E6
+window AddRectFilled (5,20) (7,59) #FFFFFFFF
+window AddRectFilled (5,20) (11,22) #FFFFFFFF
+window AddRectFilled (5,57) (11,59) #FFFFFFFF
+window AddRectFilled (177,20) (179,59) #FFFFFFFF
+window AddRectFilled (173,20) (179,22) #FFFFFFFF
+window AddRectFilled (173,57) (179,59) #FFFFFFFF
 window PopClipRect
 window PushClipRect (0,0) (1920,1080) false
 window AddText (382,192) #000000E6 Target

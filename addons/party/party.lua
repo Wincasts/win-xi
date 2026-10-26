@@ -186,6 +186,8 @@ local function DrawTargetContent()
     local lines = target.Line(drawingKey, drawingEntity)
     lines[1].nameColor = saved.target.gameNameColors[1] and drawingIndex ~= nil
         and namecolors.For(drawingEntity, drawingIndex) or nil
+    -- the main target's window is bracketed while the player is locked on to it (the sample always, to see them by)
+    lines[1].lockedOn = drawingKey == 'main' and saved.target.lockBrackets[1] and (drawingIndex == nil or target.LockedOn())
     -- as icons, they are beside the window as a party member's buffs are; as letters, under it
     if icons then
         lines[1].statusIds = drawingEntity == target.Samples[drawingKey] and sampleStatuses or debuffs.Ids(drawingEntity.ServerId, targetStatuses)

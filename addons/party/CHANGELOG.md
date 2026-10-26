@@ -12,6 +12,9 @@
 - **Game Name Colors** (Target tab → Names): the target's name in the game's colour for it, by claim, call for
   help, party and alliance, NPC and death. Off to begin with. With namehook loaded and the name on screen it is
   the game's own colour, read from the plugin and held steady through the target's pulse.
+- **Lock-On Brackets** (Target tab → Lock-On, on to begin with): while you are locked on to your target, a
+  [ and a ] stand at the left and right of its window, in the **Bracket Color** (white to begin with),
+  edged with the theme's Text Outline. The sample target shows them while the settings are open.
 - **Fishing**: while a fish is on the line, uihook's target replacement lets the game's own target window
   draw, as the game draws the fish's stamina gauge with it (away from the window), and Party's target windows
   step aside so a target is not shown twice. The window

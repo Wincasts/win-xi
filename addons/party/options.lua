@@ -119,6 +119,11 @@ options.Tabs = {
         { kind = 'check', section = 'target', key = 'totDebuffs', label = 'Target Of Target Debuffs', default = false },
         { kind = 'check', section = 'target', key = 'gameNameColors', label = 'Game Name Colors', default = false,
           tooltip = 'The name is written in the colour the game gives it over the head: an enemy yellow while unclaimed, red claimed by your party or alliance, purple by anyone else and orange once help is called for; a player white, or blue in your party or alliance; an NPC green; anything dead grey.' },
+        { kind = 'check', section = 'target', key = 'lockBrackets', label = 'Lock-On Brackets', default = true,
+          tooltip = 'While you are locked on to your target, brackets stand at the left and right of the target window, as the game frames its own.' },
+        { kind = 'color', section = 'target', key = 'bracketColor', label = 'Bracket Color', default = { 1, 1, 1, 1 },
+          when = function(saved) return saved.target.lockBrackets[1] end,
+          tooltip = 'The colour of the lock-on brackets, edged with the Text Outline of Winxi Theme.' },
         { kind = 'choice', section = 'target', key = 'debuffStyle', label = 'Debuff Style', default = 'icons', choices = debuffs.Styles,
           when = function(saved) return saved.target.enabled[1] and ((saved.target.showMain[1] and saved.target.mainDebuffs[1])
               or (saved.target.showSub[1] and saved.target.subDebuffs[1]) or (saved.target.showTot[1] and saved.target.totDebuffs[1])) end,
@@ -212,6 +217,7 @@ local groups = {
     Target = {
         { 'Frames', 'enabled', 'showMain', 'mainDebuffs', 'showSub', 'subDebuffs', 'showTot', 'totDebuffs', 'debuffStyle' },
         { 'Names', 'gameNameColors' },
+        { 'Lock-On', 'lockBrackets', 'bracketColor' },
         { 'Positioning', 'mainPos', 'subPos', 'totPos' },
         { 'Advanced: Value Positioning', 'hpOffset', 'distanceOffset', collapsed = true },
     },
@@ -554,6 +560,7 @@ function options.Style(saved)
     Pixels(style.targetHpOffset, saved.target.hpOffset)
     Pixels(style.distanceOffset, saved.target.distanceOffset)
     style.tpFlash, style.tpColor = kept.tpFlash[1], kept.tpColor
+    style.bracketColor = saved.target.bracketColor
     style.zoneAbbr = kept.zoneAbbr[1]
     style.showMp, style.showTp = kept.showMp[1], kept.showTp[1]
     style.nameFont, style.valueFont = kept.nameFont, kept.valueFont

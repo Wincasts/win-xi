@@ -18,7 +18,8 @@ local party = setmetatable({
     GetMemberServerId = function(_, slot) return members[slot] or 0 end,
 }, { __index = function() return function() return 0 end end })
 local targets = { GetTargetIndex = function(_, slot) return slot == 0 and 50 or 0 end,
-    GetIsActive = function() return 1 end, GetIsSubTargetActive = function() return 0 end, GetSubTargetFlags = function() return 0xFFFFFFFF end }
+    GetIsActive = function() return 1 end, GetIsSubTargetActive = function() return 0 end, GetSubTargetFlags = function() return 0xFFFFFFFF end,
+    GetLockedOnFlags = function() return 0 end }
 local core = AshitaCore
 local memory = setmetatable({ GetEntity = function() return entityMemory end, GetParty = function() return party end,
     GetTarget = function() return targets end }, { __index = core.GetMemoryManager() })

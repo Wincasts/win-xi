@@ -88,4 +88,10 @@ function target.Line(key, entity)
     return lines
 end
 
+-- Whether the player is locked on to the main target
+function target.LockedOn()
+    local flags = AshitaCore:GetMemoryManager():GetTarget():GetLockedOnFlags()
+    return type(flags) == 'number' and bit.band(flags, 1) ~= 0
+end
+
 return target

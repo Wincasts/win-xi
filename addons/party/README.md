@@ -23,6 +23,9 @@ addon [XivParty](https://github.com/Tylas11/XivParty)'s compact one.
   anything dead grey. With namehook loaded and the name on screen, the colour is read from the game itself,
   exactly, held steady while the game pulses the target's name; otherwise it is worked out, the NPC green,
   the player white and the party blue measured from the game, the enemy colours close to it.
+  **Lock-On Brackets** (Target tab → Lock-On, on to begin with) stand a [ and a ] at the left and right of
+  the main target's window while you are locked on to it, as the game frames its own, in the **Bracket
+  Color** (white to begin with) with the theme's Text Outline.
 - **Pets**: your pet, and your party members' pets, listed under your party below a line.
 
 ## usage
