@@ -72,7 +72,9 @@ options.Tabs = {
         { kind = 'check', section = 'style', key = 'showTp', label = 'Show TP Values', default = true,
           tooltip = 'Writes each member\'s TP on their line. TP has no bar, so off leaves TP out altogether.' },
         { kind = 'check', section = 'style', key = 'tpFlash', label = 'Flash TP When Ready', default = true,
-          tooltip = 'TP of 1000 or more pulses between a light blue and a deeper one. Off, ready TP is simply blue.' },
+          tooltip = 'TP of 1000 or more pulses between the TP Ready Color and a lighter shade of it. Off, ready TP is simply that colour.' },
+        { kind = 'color', section = 'style', key = 'tpColor', label = 'TP Ready Color', default = { 0x50 / 255, 0xB4 / 255, 0xFA / 255, 1 },
+          tooltip = 'The colour TP of 1000 or more is written in, blue to begin with.' },
         { kind = 'check', section = 'style', key = 'zoneAbbr', label = 'Short Zone Names', default = true,
           tooltip = 'A member in another area has that area written where their bars would be, in the game\'s own short form for it\n(as its search list writes it). Off, the area\'s whole name, cut short where it does not fit.' },
     } },
@@ -194,7 +196,7 @@ local groups = {
         { 'Values', 'valueFont', 'valueSize', 'showMp', 'showTp' },
         { 'Status Display', 'showStatuses', 'buffSize', 'buffSpacing', 'buffDistance', 'buffLimit', 'buffRows', 'buffDirection', 'buffFitScreen', 'buffOverflow', statuses = true },
         { 'Status Filtering', 'debuffsFirst', 'priorityStatuses', 'hiddenStatuses', statuses = true },
-        { 'Warnings', 'lowHp', 'tpFlash' },
+        { 'Warnings', 'lowHp', 'tpFlash', 'tpColor' },
         { 'Advanced: Range Indicators', 'castRange', 'targetRange', 'nearOpacity', 'farOpacity', collapsed = true },
         { 'Advanced: Status IDs', collapsed = true, statuses = true },
         -- Retained in the schema for existing settings, presented in Behavior instead.
@@ -251,6 +253,8 @@ local function Start(entry)
         return T{ entry.default }
     elseif entry.kind == 'offset' or entry.kind == 'place' then
         return T{ entry.default[1], entry.default[2] }
+    elseif entry.kind == 'color' then
+        return T{ entry.default[1], entry.default[2], entry.default[3], entry.default[4] }
     elseif entry.kind == 'choice' or entry.kind == 'dropdown' or entry.kind == 'font' then
         return entry.default
     end
@@ -267,6 +271,9 @@ local function Fits(entry, value)
         return type(value) == 'table' and type(value[1]) == 'number'
     elseif entry.kind == 'offset' or entry.kind == 'place' then
         return type(value) == 'table' and type(value[1]) == 'number' and type(value[2]) == 'number'
+    elseif entry.kind == 'color' then
+        return type(value) == 'table' and type(value[1]) == 'number' and type(value[2]) == 'number'
+            and type(value[3]) == 'number' and type(value[4]) == 'number'
     elseif entry.kind == 'choice' or entry.kind == 'dropdown' then
         return type(value) == 'string'
     elseif entry.kind == 'font' then
@@ -546,7 +553,7 @@ function options.Style(saved)
     Pixels(style.tpOffset, kept.tpOffset)
     Pixels(style.targetHpOffset, saved.target.hpOffset)
     Pixels(style.distanceOffset, saved.target.distanceOffset)
-    style.tpFlash = kept.tpFlash[1]
+    style.tpFlash, style.tpColor = kept.tpFlash[1], kept.tpColor
     style.zoneAbbr = kept.zoneAbbr[1]
     style.showMp, style.showTp = kept.showMp[1], kept.showTp[1]
     style.nameFont, style.valueFont = kept.nameFont, kept.valueFont
