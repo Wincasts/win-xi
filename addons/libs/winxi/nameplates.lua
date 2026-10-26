@@ -45,7 +45,7 @@
 --   BeginDrawing(hook, true) uses the live output's vertical ratio and converts Quad X coordinates
 --   by the horizontal/vertical ratio, for uniformly laid out fonts on nonuniform render targets.
 --   Without that opt-in, coordinates and the returned horizontal ratio retain their legacy meaning.
---   nameplates.SetTexture(slot, texture)          slot 0 to 7; texture a Direct3D texture's address,
+--   nameplates.SetTexture(slot, texture)          slot 0 to 7 (to 31 with namehook 1.43: nameplates.TextureSlots); texture a Direct3D texture's address,
 --                                                 or winxi.fonts.TextureMark for imgui's font texture,
 --                                                 which the plugin reads itself (hook.FontTexture says
 --                                                 which it last drew from, 0 for none)
@@ -145,13 +145,14 @@ ffi.cdef[[
         uint32_t Textures[8];
         namehook_drawing_t Entities[0x900];
         namehook_quad_t Quads[16384];
+        uint32_t TexturesExtra[24]; // namehook 1.43, Feature.Textures32: written only then
     } namehook_draw_t;
 ]]
 
 local nameplates = {};
 
 nameplates.Plugin = 'namehook';
-nameplates.Feature = { IconOutline = 1, SoftRectangle = 2, TightEdge = 4, Doubled = 8, SoftTexture = 16 };
+nameplates.Feature = { IconOutline = 1, SoftRectangle = 2, TightEdge = 4, Doubled = 8, SoftTexture = 16, Textures32 = 32 };
 ffi.cdef[[
     typedef struct {
         char Magic[16];
@@ -503,6 +504,13 @@ local horizontalFit = 1; -- opt-in correction from vertical layout pixels to tar
 local QUADS_PER_NAME = 256;
 local QUADS_MAX = 16384;
 local TEXTURES = 8;
+local TEXTURES_ALL = 32; -- with Feature.Textures32 (namehook 1.43): slots 8 to 31 in TexturesExtra
+local extras = false;    -- whether the plugin's buffer has TexturesExtra, as BeginDrawing found
+
+-- How many texture slots an addon may give: 32 with namehook 1.43 (Feature.Textures32), 8 before
+function nameplates.TextureSlots()
+    return nameplates.Supports(nameplates.Feature.Textures32) and TEXTURES_ALL or TEXTURES;
+end
 
 -- Invalidate the ordinary-name buffer before releasing its owned textures.
 -- Never follow a cached DLL pointer after unload; resolve a current Hook first.
@@ -515,11 +523,17 @@ function nameplates.ClearDrawing(hook)
         local target = ffi.cast('namehook_draw_t*', hook.Draw);
         target.QuadCount = 0;
         ffi.fill(target.Textures, ffi.sizeof(target.Textures));
+        -- only where the plugin's buffer has them: nothing else says how large it is
+        if nameplates.Supports(nameplates.Feature.Textures32) then
+            ffi.fill(target.TexturesExtra, ffi.sizeof(target.TexturesExtra));
+        end
         target.Frame = hook.Frame - 9; -- beyond HOOK_DRAW_FRAMES, including frame wrap
     end
 end
 
 function nameplates.BeginDrawing(hook, correctAspect)
+    -- asked first: asking may look for the plugin again, and that lets go of a buffer already taken
+    local supportsExtras = nameplates.Supports(nameplates.Feature.Textures32);
     draw, drawing = nil, nil;
     horizontalFit = 1;
 
@@ -529,6 +543,7 @@ function nameplates.BeginDrawing(hook, correctAspect)
     end
 
     draw = ffi.cast('namehook_draw_t*', hook.Draw);
+    extras = supportsExtras;
     draw.Frame = hook.Frame;
     draw.QuadCount = 0;
     draw.Reserved = 0; -- legacy outlines: equal target-pixel X/Y offsets
@@ -560,10 +575,18 @@ function nameplates.BeginDrawing(hook, correctAspect)
     return hook.TargetWidth / hook.Width;
 end
 
+-- slot 0 to 7, or to 31 with namehook 1.43 (nameplates.TextureSlots): false where it cannot be given
 function nameplates.SetTexture(slot, texture)
-    if (draw ~= nil and slot >= 0 and slot < TEXTURES) then
+    if (draw == nil or slot < 0) then return false; end
+    if (slot < TEXTURES) then
         draw.Textures[slot] = texture or 0;
+        return true;
     end
+    if (extras and slot < TEXTURES_ALL) then
+        draw.TexturesExtra[slot - TEXTURES] = texture or 0;
+        return true;
+    end
+    return false;
 end
 
 -- What this addon could not hand over since it was loaded: names begun with the buffer full, and quads

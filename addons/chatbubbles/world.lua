@@ -40,7 +40,7 @@ function M.Begin(hook)
         end
         local candidate = ffi.cast('chatbubbles_world_t*', address);
         -- version 2: a texture may be winxi.fonts.TextureMark, which version 1 took for an address
-        if (not abi.Accepts(candidate, 'chatbubbles_world_t', 2) or candidate.DrawSize < ffi.sizeof('namehook_draw_t')) then
+        if (not abi.Accepts(candidate, 'chatbubbles_world_t', 2, 'Draw') or candidate.DrawSize < ffi.offsetof('namehook_draw_t', 'TexturesExtra')) then
             problem = 'Incompatible namehook world-bubble buffer: World bubbles require namehook 1.25 or later.';
             return nil;
         end

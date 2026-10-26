@@ -85,6 +85,7 @@ ffi.cdef[[
         uint32_t DrawingsMax;
         namehook_popup_drawing_t Drawings[64];
         namehook_quad_t Quads[4096];
+        uint32_t TexturesExtra[24]; // namehook 1.43, Feature.Textures32: written only then
     } namehook_popup_draw_t;
 ]]
 
@@ -236,6 +237,7 @@ end
 local draw = nil;      -- the plugin's place for the drawings, between BeginDrawing and the frame's end
 local drawing = nil;   -- the popup being drawn
 local horizontalFit = 1;
+local extras = false; -- whether the plugin's buffer has TexturesExtra, as BeginDrawing found
 local quadLimit = 0;
 
 function popups.Release(hook)
@@ -246,6 +248,9 @@ function popups.Release(hook)
             local target = ffi.cast('namehook_popup_draw_t*', hook.Draw);
             target.Count, target.QuadCount = 0, 0;
             ffi.fill(target.Textures, ffi.sizeof(target.Textures));
+            if nameplates.Supports(nameplates.Feature.Textures32) then
+                ffi.fill(target.TexturesExtra, ffi.sizeof(target.TexturesExtra));
+            end
         end
     end
     draw, drawing, quadLimit = nil, nil, 0;
@@ -255,6 +260,8 @@ end
 -- uniform in its height, X put right for a picture of another shape than the screen
 local imgui = nil;
 function popups.BeginDrawing(hook)
+    -- asked first: asking may look for the plugin again, and that lets go of a buffer already taken
+    local supportsExtras = nameplates.Supports(nameplates.Feature.Textures32);
     draw, drawing, horizontalFit = nil, nil, 1;
     hook = hook or popups.Hook();
     local names = nameplates.Hook();
@@ -263,6 +270,7 @@ function popups.BeginDrawing(hook)
     end
 
     draw = ffi.cast('namehook_popup_draw_t*', hook.Draw);
+    extras = supportsExtras;
     draw.Frame = names.Frame;
     draw.Count = 0;
     draw.QuadCount = 0;
@@ -282,10 +290,18 @@ function popups.BeginDrawing(hook)
     return 1;
 end
 
+-- slot 0 to 7, or to 31 with namehook 1.43 (nameplates.TextureSlots): false where it cannot be given
 function popups.SetTexture(slot, texture)
-    if (draw ~= nil and slot >= 0 and slot < TEXTURES) then
+    if (draw == nil or slot < 0) then return false; end
+    if (slot < TEXTURES) then
         draw.Textures[slot] = texture or 0;
+        return true;
     end
+    if (extras and slot < TEXTURES + 24) then
+        draw.TexturesExtra[slot - TEXTURES] = texture or 0;
+        return true;
+    end
+    return false;
 end
 
 function popups.BeginPopup(popup, alpha, edge, edgeColor, over)

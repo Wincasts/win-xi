@@ -25,7 +25,8 @@ struct HookCapabilities {
     char Magic[16];
     uint32_t Size, Version, Features, Build;
 };
-enum : uint32_t { FEATURE_EDGE_RADIUS = 1, FEATURE_SOFT_RECT = 2, FEATURE_TIGHT_EDGE = 4, FEATURE_DOUBLED = 8, FEATURE_SOFT_TEXTURE = 16 };
+enum : uint32_t { FEATURE_EDGE_RADIUS = 1, FEATURE_SOFT_RECT = 2, FEATURE_TIGHT_EDGE = 4, FEATURE_DOUBLED = 8, FEATURE_SOFT_TEXTURE = 16,
+    FEATURE_TEXTURES_32 = 32 }; // 1.43: HookDraw's and HookPopupDraw's TexturesExtra, quads' Texture 8 to 31
 
 // What a name is over. Every name is in exactly one category, and a category's names are shown or
 // hidden together.
@@ -77,6 +78,8 @@ enum : uint8_t {
 #define HOOK_QUADS_MAX 16384    // the quads of every name an addon has drawn, together
 #define HOOK_QUADS_PER_NAME 256 // and of one
 #define HOOK_TEXTURES 8
+#define HOOK_TEXTURES_EXTRA 24 // 1.43: after the 1.0 layout, in HookDraw and HookPopupDraw (FEATURE_TEXTURES_32)
+#define HOOK_TEXTURES_ALL (HOOK_TEXTURES + HOOK_TEXTURES_EXTRA)
 // A texture's address an addon cannot give: imgui's font texture, which the plugin reads for itself
 // as it draws. Its id is 64 bits, and a Lua integer in this client 32: once the texture is above
 // 2 GB, as it can be after a while on Windows, Ashita cannot hand it to Lua at all.
@@ -201,6 +204,9 @@ struct HookDraw {
     uint32_t Textures[HOOK_TEXTURES]; // each an IDirect3DTexture8*, HOOK_TEXTURE_FONT, or 0
     HookDrawing Entities[HOOK_ENTITIES];
     HookQuad Quads[HOOK_QUADS_MAX];
+    // After the 1.0 layout: a quad's Texture 8 to 31, as Textures. There only with FEATURE_TEXTURES_32: an
+    // addon writes them only then, as nothing else says how large this is
+    uint32_t TexturesExtra[HOOK_TEXTURES_EXTRA];
 
     float HorizontalFit() const {
         return Reserved != 0 ? static_cast<float>(Reserved) / 65536.0f : 1.0f;
@@ -290,6 +296,7 @@ struct HookPopupDraw {
     uint32_t DrawingsMax; // HOOK_POPUPS_MAX
     HookPopupDrawing Drawings[HOOK_POPUPS_MAX];
     HookQuad Quads[HOOK_POPUP_QUADS_MAX];
+    uint32_t TexturesExtra[HOOK_TEXTURES_EXTRA]; // as HookDraw's (FEATURE_TEXTURES_32)
 
     float HorizontalFit() const {
         return Reserved != 0 ? static_cast<float>(Reserved) / 65536.0f : 1.0f;

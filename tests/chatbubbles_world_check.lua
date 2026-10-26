@@ -34,6 +34,7 @@ block.Draw.QuadsMax = 16384;
 local address = tonumber(ffi.cast('uintptr_t', low));
 local available = true;
 ashita = { memory = { find = function(_, _, magic)
+    if (magic == '4E414D45484F4F4B4341505300000000') then return 0; end -- namehook's features: none here
     -- Derive the expected signature from the native struct, not another copy
     -- of the Lua search string: an extra zero previously escaped this test.
     local bytes = magic:gsub('%x%x', function(pair) return string.char(tonumber(pair, 16)); end);

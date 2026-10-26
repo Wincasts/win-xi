@@ -68,7 +68,7 @@ private:
 
     // For drawing names an addon has drawn. All of it is the frame's: made as the first name of a
     // frame is drawn, and the state blocks let go as the frame is presented.
-    IDirect3DBaseTexture8* m_Textures[HOOK_TEXTURES]; // the addon's textures, held while they are drawn from
+    IDirect3DBaseTexture8* m_Textures[HOOK_TEXTURES_ALL]; // the addon's textures, held while they are drawn from
     IDirect3DDevice8* m_Device; // the device, for the frame's names
     DWORD m_NameStates;   // the device's state as names are drawn with it
     DWORD m_SavedStates;  // the same states as the client had them, to put back
@@ -83,12 +83,12 @@ private:
     lens::Mode m_LensMode = lens::Panini;
     double m_LensStrength = 0, m_LensTanH = 0, m_LensTanV = 0;
     NameBoundsCache m_NameBounds[HOOK_ENTITIES]; // CPU-only; no device-reset resources
-    IDirect3DBaseTexture8* m_BubbleTextures[HOOK_TEXTURES]{};
+    IDirect3DBaseTexture8* m_BubbleTextures[HOOK_TEXTURES_ALL]{};
     NameBoundsCache m_BubbleBounds[HOOK_ENTITIES];
     float m_BubbleFit = 1.0f;
     bool m_BubblesFresh = false;
     // Claimed damage popups an addon has drawn: drawn in the client's popup drawing, and not the names'
-    IDirect3DBaseTexture8* m_PopupTextures[HOOK_TEXTURES]{};
+    IDirect3DBaseTexture8* m_PopupTextures[HOOK_TEXTURES_ALL]{};
     NameBoundsCache m_PopupBounds[HOOK_POPUPS_MAX];
     float m_PopupFit = 1.0f;
     bool m_PopupsCanDraw = false;
@@ -470,9 +470,11 @@ static IDirect3DBaseTexture8* FontTexture(IAshitaCore* core) {
     return reinterpret_cast<IDirect3DBaseTexture8*>(static_cast<uintptr_t>(data->TexID));
 }
 
-static void RetainTextures(IDirect3DBaseTexture8** textures, const uint32_t* givens, IDirect3DBaseTexture8* font) {
-    for (size_t i = 0; i < HOOK_TEXTURES; i++) {
-        const uint32_t given = givens != nullptr ? givens[i] : 0;
+// textures holds HOOK_TEXTURES_ALL: givens the first eight, extras (1.43's TexturesExtra) the rest
+static void RetainTextures(IDirect3DBaseTexture8** textures, const uint32_t* givens, const uint32_t* extras, IDirect3DBaseTexture8* font) {
+    for (size_t i = 0; i < HOOK_TEXTURES_ALL; i++) {
+        const uint32_t* from = i < HOOK_TEXTURES ? givens : extras;
+        const uint32_t given = from != nullptr ? from[i < HOOK_TEXTURES ? i : i - HOOK_TEXTURES] : 0;
         auto* texture = given == HOOK_TEXTURE_FONT ? font : reinterpret_cast<IDirect3DBaseTexture8*>(static_cast<uintptr_t>(given));
         if (texture != textures[i]) {
             if (texture != nullptr) texture->AddRef();
@@ -483,9 +485,9 @@ static void RetainTextures(IDirect3DBaseTexture8** textures, const uint32_t* giv
 }
 
 void AshitaNameplate::ReleaseTextures() {
-    RetainTextures(m_Textures, nullptr, nullptr);
-    RetainTextures(m_BubbleTextures, nullptr, nullptr);
-    RetainTextures(m_PopupTextures, nullptr, nullptr);
+    RetainTextures(m_Textures, nullptr, nullptr, nullptr);
+    RetainTextures(m_BubbleTextures, nullptr, nullptr, nullptr);
+    RetainTextures(m_PopupTextures, nullptr, nullptr, nullptr);
     m_BubblesFresh = false;
     m_PopupsCanDraw = false;
 }
@@ -493,7 +495,7 @@ void AshitaNameplate::ReleaseTextures() {
 void AshitaNameplate::BeginBubbles(const HookDraw& draw, bool fresh) {
     m_BubblesFresh = fresh;
     m_BubbleFit = draw.HorizontalFit();
-    RetainTextures(m_BubbleTextures, fresh ? draw.Textures : nullptr, fresh ? FontTexture(m_AshitaCore) : nullptr);
+    RetainTextures(m_BubbleTextures, fresh ? draw.Textures : nullptr, fresh ? draw.TexturesExtra : nullptr, fresh ? FontTexture(m_AshitaCore) : nullptr);
 }
 
 // Everything of the device's state that drawing a name changes. Recorded twice over: once to be
@@ -560,7 +562,7 @@ void AshitaNameplate::BeginNames(const HookDraw& draw, bool fresh, float& target
     // Each layer owns its textures; bubbles work even without an addon drawing names.
     IDirect3DBaseTexture8* font = fresh ? FontTexture(m_AshitaCore) : nullptr;
     fontTexture = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(font));
-    RetainTextures(m_Textures, fresh ? draw.Textures : nullptr, font);
+    RetainTextures(m_Textures, fresh ? draw.Textures : nullptr, fresh ? draw.TexturesExtra : nullptr, font);
 
     // readied every frame, for the popups as well, which the client draws with no view of the world's;
     // the device's states for drawing are not made until there is a name to draw with them
@@ -610,7 +612,7 @@ bool AshitaNameplate::PrepareCamera(IDirect3DDevice8* device) {
 void AshitaNameplate::BeginPopups(const HookPopupDraw& draw, bool fresh) {
     m_PopupsCanDraw = false;
     m_PopupFit = draw.HorizontalFit();
-    RetainTextures(m_PopupTextures, fresh ? draw.Textures : nullptr, fresh ? FontTexture(m_AshitaCore) : nullptr);
+    RetainTextures(m_PopupTextures, fresh ? draw.Textures : nullptr, fresh ? draw.TexturesExtra : nullptr, fresh ? FontTexture(m_AshitaCore) : nullptr);
     // placed with the names' camera, this frame's or last frame's: none, and nothing is drawn
     IDirect3DDevice8* device = m_AshitaCore->GetDirect3DDevice();
     if (fresh && device != nullptr && m_CameraKnown && m_CameraAge <= 1) {
@@ -727,7 +729,7 @@ void AshitaNameplate::RenderCustom(uint32_t slot, const HookDrawing& drawing, co
         // a textured one too since 1.37: its texture coordinates go with the points
         const bool soft = (quad.Flags & QUAD_SOFT_RECT) != 0 && (quad.Flags & QUAD_EDGED) == 0;
         const uint32_t needed = soft ? 30 : 6;
-        if (!NameSubmission::Visible(color) || quad.Texture >= HOOK_TEXTURES || textures[quad.Texture] == nullptr || vertexCount + needed > NAME_VERTICES) {
+        if (!NameSubmission::Visible(color) || quad.Texture >= HOOK_TEXTURES_ALL || textures[quad.Texture] == nullptr || vertexCount + needed > NAME_VERTICES) {
             return;
         }
 

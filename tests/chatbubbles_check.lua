@@ -59,7 +59,7 @@ AshitaCore = { GetMemoryManager = function()
     };
 end };
 package.loaded.common = {};
-package.loaded['winxi.version'] = { Number = 57 };
+package.loaded['winxi.version'] = { Number = 59 };
 package.loaded.encoding = { Decode = function(s, dialogue) return dialogue and require('npc').CleanRaw(s) or s; end };
 ashita = { events = { register = function(event, _, callback) events[event] = callback; end } };
 local pushedFonts = {};

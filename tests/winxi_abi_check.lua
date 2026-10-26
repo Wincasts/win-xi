@@ -113,8 +113,39 @@ current.LoadId = 202
 check(nameplates.Hook() ~= nil and nameplates.Generation() == generation + 1, 'loaded again at the same address: let go of and found afresh')
 check(nameplates.Generation() == generation + 1, '... once')
 
+-- Texture slots 8 to 31 (namehook 1.43): written only where the plugin's features say its buffer has them,
+-- as nothing else says how large the buffer is; cleared only then too
+local function withDraw(features)
+    reload()
+    local b = names(ffi.sizeof('namehook_t') - namesAt10, 3, 303)
+    -- below 4 GB, as the plugin's address of it is 32 bits (MAP_32BIT | MAP_PRIVATE | MAP_ANONYMOUS)
+    pcall(ffi.cdef, 'void* mmap(void*, size_t, int, int, int, long);')
+    local low = ffi.C.mmap(nil, ffi.sizeof('namehook_draw_t'), 3, 0x62, -1, 0)
+    local drawMemory = ffi.cast('namehook_draw_t*', low)
+    b.Draw = tonumber(ffi.cast('uintptr_t', ffi.cast('void*', drawMemory)))
+    local caps = ffi.new('namehook_capabilities_t')
+    kept[#kept + 1] = caps
+    caps.Version, caps.Size, caps.Features = 1, ffi.sizeof(caps), features
+    addresses['namehook.dll:4E414D45484F4F4B4341505300000000'] = tonumber(ffi.cast('uintptr_t', ffi.cast('void*', caps)))
+    return drawMemory
+end
+local d32 = withDraw(nameplates.Feature.Textures32)
+check(nameplates.TextureSlots() == 32 and nameplates.BeginDrawing() ~= nil, '1.43: 32 slots')
+check(nameplates.SetTexture(3, 0x1000) and d32.Textures[3] == 0x1000, 'slot 3 in Textures')
+check(nameplates.SetTexture(8, 0x2000) and d32.TexturesExtra[0] == 0x2000, 'slot 8 in TexturesExtra')
+check(nameplates.SetTexture(31, 0x3000) and d32.TexturesExtra[23] == 0x3000, 'slot 31, the last')
+check(not nameplates.SetTexture(32, 0x4000) and not nameplates.SetTexture(-1, 0x4000), 'past the last, or before the first: not given')
+nameplates.ClearDrawing()
+check(d32.Textures[3] == 0 and d32.TexturesExtra[0] == 0 and d32.TexturesExtra[23] == 0, 'cleared, the extra slots too')
+local d8 = withDraw(0)
+d8.TexturesExtra[0] = 0x5555 -- as if past the end of an older plugin's buffer: never to be written
+check(nameplates.TextureSlots() == 8 and nameplates.BeginDrawing() ~= nil, 'before 1.43: 8 slots')
+check(not nameplates.SetTexture(8, 0x2000) and d8.TexturesExtra[0] == 0x5555, 'slot 8 not given, and nothing past Textures written')
+nameplates.ClearDrawing()
+check(d8.TexturesExtra[0] == 0x5555, 'clearing writes nothing past Textures either')
+
 if failures == 0 then
-    print('winxi abi: a newer plugin\'s larger block read by older addons, a smaller or other Version refused, newer fields found only where there; nameplates, popups, lens and gamekeys passed')
+    print('winxi abi: a newer plugin\'s larger block read by older addons, a smaller or other Version refused, newer fields found only where there; nameplates, popups, lens and gamekeys; 32 texture slots only where the plugin has them passed')
 else
     os.exit(1)
 end
