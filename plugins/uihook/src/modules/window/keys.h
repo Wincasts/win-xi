@@ -1,12 +1,15 @@
 // The game's keyboard, as its chat editor has it. The handler the mouse is taken at (mouse.h) is given each key's
-// WM_KEYDOWN and the WM_CHAR TranslateMessage makes of it, from the MSG, before DispatchMessage: the editor takes
-// every key down there but Enter, Escape and 6C (0x33729f0), and each character, Enter's sending the line
-// (0x31c7860). Ashita's key event, at the window procedure, comes after, so a key it blocks has reached the editor
-// already. An addon names the virtual keys to keep from the game in the independent keys ABI 1 (magic UIHOOK-KEYS),
-// renewed each frame; a press of one, begun while the block holds it, is kept whole: its key down, its repeats, the
-// characters it types (by scan code) and its release. Ashita, imgui and every addon still see each message as it was.
-// A press begun with the key not held is the game's, whole, so a release lost to the window losing focus keeps
-// nothing past the key's next press.
+// WM_KEYDOWN and the WM_CHAR TranslateMessage makes of it, from the MSG: the editor takes every key down there but
+// Enter, Escape and 6C (0x33729f0), and each character, Enter's sending the line (0x31c7860). Ashita's key event sees
+// the key down first and can keep it from this handler, but never sees the character, which reaches it whatever Ashita
+// blocked (uihook 1.61 kept nothing in game: it waited for key downs Ashita had already kept). An addon names the virtual keys to keep from the game in the independent keys ABI 1 (magic UIHOOK-KEYS),
+// renewed each frame. While a key is named, its key down, its repeats, the characters it types
+// and its release are kept from the game; a press begun while it is named is kept whole, its characters and release
+// too, though it is named no longer. A key down Ashita blocks never reaches this handler, but the character
+// TranslateMessage made of it still does (Enter's sent the line), so a character is kept by its key being named, not
+// by its key down having been seen. A press begun with the key not named is the game's, so a release lost to the
+// window losing focus keeps nothing past the key's next press. Without a key down seen, only a control character is
+// kept by its key being named.
 #pragma once
 #include <windows.h>
 #include <stdint.h>
@@ -35,6 +38,11 @@ struct GameKeys {
         return at!=0 && shared->Frame-at<=KEYS_HOLD_FRAMES && ((shared->Hold[vk>>5]>>(vk&31))&1)!=0;
     }
     void Keep() { if (shared) ++shared->Kept; }
+    // The key a control character is typed by (Enter's, Tab's, Escape's, Backspace's), 0 for any other: a printable
+    // character is kept only with a key down seen, as a scan code's key is ambiguous (numpad 8's is Up's)
+    static uint32_t KeyOf(WPARAM character) {
+        return character==VK_RETURN || character==VK_TAB || character==VK_ESCAPE || character==VK_BACK ? uint32_t(character) : 0;
+    }
     // Whether the game is given the message
     bool Pass(const MSG& message) {
         const UINT kind=message.message;
@@ -43,19 +51,19 @@ struct GameKeys {
             const uint32_t vk=uint32_t(message.wParam), code=Code(message.lParam);
             // bit 30: the key was down already, a repeat; a fresh press is judged afresh
             if (!(message.lParam & 0x40000000)) { taken[vk]=Holding(vk); chars[code]=0; }
-            if (!taken[vk]) return true;
+            if (!taken[vk] && !Holding(vk)) return true;
             if (chars[code]<KEYS_CHARS_MOST) ++chars[code];
             Keep(); return false;
         }
         if (kind==WM_KEYUP || kind==WM_SYSKEYUP) {
-            if (message.wParam>255 || !taken[message.wParam]) return true;
+            if (message.wParam>255 || (!taken[message.wParam] && !Holding(uint32_t(message.wParam)))) return true;
             taken[message.wParam]=false;
             Keep(); return false;
         }
         if (kind==WM_CHAR || kind==WM_SYSCHAR || kind==WM_DEADCHAR || kind==WM_SYSDEADCHAR) {
             const uint32_t code=Code(message.lParam);
-            if (!chars[code]) return true;
-            --chars[code];
+            if (chars[code]) { --chars[code]; Keep(); return false; }
+            if (!Holding(KeyOf(message.wParam))) return true;
             Keep(); return false;
         }
         return true;
