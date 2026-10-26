@@ -69,10 +69,29 @@ The `name` addon, in `addons/name` of this project, is a settings window for the
 
 ## For addons
 
+The plugin shares what it does through blocks in its own memory, each found in `namehook.dll` by its first 16
+bytes (its magic), or through an address in one that is. Their 1.0 layouts are frozen until 2.0
+([plugins/ABI.md](../ABI.md)): a newer plugin only adds after them, and an addon reads a block of its own
+`Version` that is at least as large as it knows (`winxi.abi`). `winxi` reads every one of them for an addon.
+
+| Block | Magic | Since | For | winxi |
+|---|---|---|---|---|
+| `HookShared` | `NAMEHOOK` | 1.0 | the names listed, the categories hidden, claiming names, the drawing of claimed names | `winxi.nameplates` |
+| `HookCapabilities` | `NAMEHOOKCAPS` | 1.35 | which optional features this build has | `nameplates.Supports` |
+| `HookBubbles` | `NAMEBUBBLES` | 1.24 | speech bubbles over entities | `addons/chatbubbles/world.lua` |
+| `HookPopups` | `NAMEHOOKPOPUPS` | 1.38 | the damage popups, listed, claimed and drawn | `winxi.popups` |
+| `HookCamera` | `NAMEHOOKCAMERA` | 1.44 | the camera names are placed with | `winxi.camera` |
+| `HookClaims` | `NAMEHOOKCLAIMS` | 1.45 | a second (third, fourth) addon drawing names | `nameplates.TakeSlot` |
+| `HookLayers` | `NAMEHOOKLAYERS` | 1.46 | drawing into the world, at entities or points | `winxi.layers` |
+
+Every one of these has its address in an exported table, `NamehookBlocks` (1.47): an object whose address
+leaves the DLL is kept whole. Before it the optimiser kept only the camera block's written fields, and its magic
+was nowhere to be found; `tools/abi_check.py` now looks for each magic in the built DLL.
+
 Since 1.35, `NamehookCapabilities` is a separately exported 32-byte sidecar:
 `char Magic[16] = "NAMEHOOKCAPS"`, followed by four uint32 fields: Size (32),
 Version (1), Features (mask values 1: explicit edge radius, 2: soft rectangles, 4:
-tight edges, 8: doubled colours, 16: soft textured rectangles), and Build (major × 100 + minor). It does not change ABI 3. WinXI 46
+tight edges, 8: doubled colours, 16: soft textured rectangles, 32: 32 texture slots, 1.43), and Build (major × 100 + minor). It does not change ABI 3. WinXI 46
 provides `nameplates.Supports(mask, hook)` and optional `nameplates.Problem(mask)`;
 older consumers can ignore it. WinXI 47 also provides `nameplates.Capabilities(hook)`,
 a copied `{version, features, build}` table for support reports (nil when unavailable).
@@ -128,6 +147,9 @@ The head of that file lists everything it offers.
 | `FontTexture` | imgui's font texture as the plugin last drew a texture of `1` from (see `Textures`), or 0 for none |
 | `Override` | A byte for each of the client's 0x900 entities, by index: 0 by its category, 1 shown, 2 hidden. Written by addons. |
 | `Names` | Up to 256 names |
+| `LoadId` | 1.42: a number of each load's own, never 0 and never the last load's: another means the plugin was loaded again, even at the same address as the same build. Read only where `Size` reaches it. |
+| `NamesDropped` | 1.42: the names the client drew last frame that `Names` had no room for |
+| `DrawingsRefused` | 1.42: addons' drawings refused since loading, names', bubbles' and layers' (more than 256 quads, or past `QuadCount`). `nameplates.Dropped` gives these two and what the addon itself could not hand over. |
 
 The categories' bits are, from bit 0: self, party, alliance, player, my pet, pet, NPC, monster.
 
@@ -164,7 +186,7 @@ Those the client was about to draw in the last frame: so not one that is too far
 
 The client draws its names during a scene and addons draw as the frame is presented. The list is made ready as that scene ends, or failing that as the frame is presented, so an addon reading it in `d3d_present` has the names of the frame it is drawing over.
 
-Entities are known by index, and an index belongs to another entity after a change of area. `Override` is not cleared by the plugin: an addon that sets it clears it then.
+Entities are known by index, and an index belongs to another entity after a change of area. `Override` is not cleared by the plugin, nor when the addon that set it is unloaded: an addon that sets it clears it then, and as it unloads (`nameplates.ClearOverrides`).
 
 ### Drawing names in place of the game
 
@@ -186,7 +208,8 @@ What is set out goes in `HookDraw` (`src/Nameplate.h`), at the address in the bl
 | `Reserved` | Optional unsigned 16.16 horizontal outline ratio. 0 preserves legacy equal X/Y target-pixel offsets; otherwise X offsets are multiplied by `Reserved / 65536`. Older plugins ignore it. The shared layout/version is unchanged. |
 | `Textures` | Eight Direct3D textures (`IDirect3DTexture8*`), or 0. `1` (`HOOK_TEXTURE_FONT`) is imgui's font texture, which the plugin reads itself each frame from Ashita's imgui: its id is 64 bits and a Lua integer in this client 32, so once the texture is above 2 GB, as it can be after a while on Windows, Ashita cannot hand it to an addon at all. The plugin holds each while it draws from it. |
 | `Entities` | For each of the client's 0x900 entities, by index: `Frame` (as `HookDraw`'s when it was set out, or it is not drawn), `First` and `Count` (its quads, 256 at most), `Alpha` (0 to 1, how solid the whole name is), `Edge` (how thick a dark edge its edged quads are given, in pixels) and `EdgeColor`. A quad's edge is as solid as the quad's own colour is |
-| `Quads` | Each a rectangle: its corners `X0`, `Y0`, `X1`, `Y1` in pixels of the client's picture, measured from the point the client puts the name at; the same corners in its texture, `U0`, `V0`, `U1`, `V1`; `Color` as 0xAARRGGBB; `Texture`, which of the eight; and `Flags`, 1 if it is given the edge |
+| `Quads` | Each a rectangle: its corners `X0`, `Y0`, `X1`, `Y1` in pixels of the client's picture, measured from the point the client puts the name at; the same corners in its texture, `U0`, `V0`, `U1`, `V1`; `Color` as 0xAARRGGBB; `Texture`, which of the textures; and `Flags`, 1 if it is given the edge |
+| `TexturesExtra` | 1.43: 24 more textures, a quad's `Texture` 8 to 31, as `Textures`. This buffer has no `Size` of its own, so an addon writes them only with `FEATURE_TEXTURES_32` (32) in the capabilities (`nameplates.TextureSlots`). `HookPopupDraw` has them too. |
 
 The quads are in pixels of the client's picture, not of its window. `BeginDrawing(hook, true)` returns `TargetHeight / DisplaySize.y` for uniform vertical layout; `Quad` separately fits X coordinates by `(TargetWidth / DisplaySize.x) / (TargetHeight / DisplaySize.y)`. It also publishes that ratio for native outline offsets and bounds. This keeps text, icons, spacing and outlines proportional on nonuniform background targets, independently of menu resolution. The corrected outlines require the updated plugin; older plugins still draw corrected quads but ignore the outline ratio. Calls without the opt-in retain the legacy horizontal scale and unmodified target coordinates. `winxi.nameplates` does the bookkeeping (`BeginDrawing`, `SetTexture`, `BeginName`, `Quad`, `EndName`), and `addons/name/custom.lua` sets names out this way, from imgui's font.
 
@@ -243,6 +266,68 @@ An addon that draws the popups itself sets `Claimed` to anything but 0 and `Clai
 The plugin draws what the addon has drawn for a claimed popup, found through `Draw` (a `HookPopupDraw`). Every frame the addon sets its `Frame` to `HookShared::Frame`, `Count` and `QuadCount` to 0, and for each popup it draws adds its quads to `Quads` and a `HookPopupDrawing` to `Drawings`: the popup's `Id`, `Flags` and a `HookDrawing` as for a name, its `Frame` the buffer's. The quads are in pixels of the game's picture from the popup's point, as a name's are from its point, with the same flags, edges and lens counter. They are drawn where and when the client was about to draw the popup, in its place, so they rise and fade as it does; `POPUP_DRAW_OVER` (1) in a drawing's `Flags` draws it over everything, not hidden by what is in front. `Reserved` is the 16.16 horizontal fit, as in `HookDraw`. The textures are the buffer's own eight, `1` for imgui's font texture. A drawing more than eight frames old is not drawn; a claimed popup with none is not drawn at all. `addons/damage` is the addon that draws them, with `winxi.popups`.
 
 `/namehook popups` says last frame's popups in the chat log, and `/namehook popups watch on` says each new one as it first appears, until `watch off`. The watch is not saved.
+
+### The camera (1.44+)
+
+`HookCamera`, found by `NAMEHOOKCAMERA` and two 0s (version 1), is the camera names are placed with, as the plugin
+readied it for the frame's first name: `View`, `Projection` and the two together (`ViewProjection`, 16 floats
+each, as Direct3D has them), the picture's viewport (`ViewportX`, `Y`, `Width`, `Height`, `MinZ`, `MaxZ`), and
+lens's warp when it bends the world (`Lens` 1, `LensMode`, `LensStrength`, `LensTanH`, `LensTanV`). `Frame` is the
+`HookShared::Frame` it was readied in and `Valid` 1 once it holds a camera (0 while it is written).
+
+A point (x, y, z, 1) times `ViewProjection` is placed in the picture as a name there is, then, under lens, moved to
+where `lens::ScreenOf` shows it. `winxi.camera` does it: `camera.Project(x, y, z)` gives the point in imgui's
+pixels, its depth, and whether it is in the picture. The camera is readied as the client draws its first name of
+a frame: with the game's `/names` off it is not, and `camera.Get()` says so once it is more than two frames old.
+
+### A second names addon: claim slots (1.45+)
+
+`HookClaims`, found by `NAMEHOOKCLAIMS` and two 0s (version 1), lets up to three addons draw names beside the one
+claiming through `HookShared`. Each `HookClaimSlot` has:
+
+| Field | Meaning |
+|---|---|
+| `Owner` | A number of the addon's own, never 0; 0 is a free slot. Written by the addon taking it, last, once the rest is set. |
+| `Categories` | The categories it draws |
+| `ClaimFrame` | The `HookShared::Frame` its claim was last made in: made again every frame, as `HookShared`'s is |
+| `Priority` | Higher draws a name first. `HookShared`'s own claim is `SharedPriority`, 100. |
+| `Draw` | The plugin's: the address of the slot's own `HookDraw`, drawn into as `HookShared::Draw` is |
+
+The client draws no name whose category anyone claims. Of those claiming a name's category, by priority (highest
+first, `HookShared`'s before a slot of the same), the first that has drawn that name this frame draws it: a higher
+one can leave some names to a lower, which draws them as before. A claim not made again lapses half a second
+after it was last seen made, and the plugin then frees the slot. An addon that knows nothing of slots (Name)
+claims through `HookShared` as before, at 100.
+
+In `winxi.nameplates`: `OwnerOf(addon.name)`, `TakeSlot(owner, priority)` (a free slot, or the one the owner holds;
+nil and why when none is free or the plugin is older), `ClaimSlot(slot, owner, categories)` every frame (false
+once another holds it: take one again), `SlotDrawing(slot)` handed to `BeginDrawing` (then `BeginName`, `Quad`,
+`EndName` and `SetTexture` write the slot's buffer), and `ReleaseSlot(slot, owner)` on unload.
+
+### Layers of the world (1.46+)
+
+`HookLayers`, found by `NAMEHOOKLAYERS` and two 0s (version 1), holds four layers an addon draws into the world
+with. A layer is taken as a claim slot is (`Owner`), renewed every frame (`ClaimFrame`), and drawn at `Order`
+among the others, lowest first; one not renewed lapses in half a second and is freed. Its `HookLayerDraw`, at
+`Draw`, holds up to 512 drawings and 8,192 quads, with 32 textures of its own (`1` imgui's font texture):
+
+| Drawing field | Meaning |
+|---|---|
+| `Flags` | `LAYER_AT_ENTITY` (1) or `LAYER_AT_WORLD` (2), and `LAYER_DRAW_OVER` (4) to draw it over everything |
+| `EntityIndex`, `ServerId` | With `LAYER_AT_ENTITY`: whose; drawn only while that is still the entity at that index |
+| `X`, `Y`, `Z` | The point of the world, or the offset in the world from the entity's name point |
+| `Drawing` | A `HookDrawing`, as a name's: its quads in the layer's `Quads`, its `Frame` the buffer's |
+
+Each drawing is drawn as a name is: as deep in the picture as its point, hidden by what is in front of it unless
+`LAYER_DRAW_OVER`, with edges, and at its own shape under lens. Points of the world are drawn as the client draws
+its first name of a frame, an entity's drawings as the client comes to its name, whatever its category or claim:
+none with the game's `/names` off. A drawing that does not hold together is refused and counted in
+`DrawingsRefused`.
+
+In `winxi.layers`: `Take(owner, order)`, then every frame `Begin(layer, owner)` (the scale from the screen's pixels
+to the picture's, or nil once the layer is lost), `AtEntity(index, serverId, dx, dy, dz, alpha, edge, edgeColor,
+over)` or `AtWorld(x, y, z, ...)`, `Quad(...)` as `nameplates.Quad`, `End()`, `SetTexture(0 to 31, texture)`, and
+`Release(layer, owner)` on unload. `addons/namehooktest` shows a layer, the camera and a claim slot at the target.
 
 ### How it works
 

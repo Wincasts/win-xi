@@ -35,6 +35,7 @@ luajit tests/winxi_abi_check.lua || exit 1
 luajit tests/winxi_camera_check.lua || exit 1
 luajit tests/winxi_slots_check.lua || exit 1
 luajit tests/winxi_layers_check.lua || exit 1
+luajit tests/winxi_nameplates_api_check.lua || exit 1
 luajit tests/winxi_gamedata_check.lua
 luajit tests/winxi_items_check.lua || exit 1
 python3 tools/test_build_item_data.py || exit 1
