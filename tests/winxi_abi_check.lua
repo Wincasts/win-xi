@@ -55,10 +55,14 @@ local popups = require('winxi.popups')
 local lensLib = require('winxi.lens')
 local gamekeys = require('winxi.gamekeys')
 
-local function names(extra, version)
-    addresses['namehook.dll:4E414D45484F4F4B0000000000000000'] = block('namehook_t', extra, function(b, size)
-        b.Version, b.Size, b.NameSize, b.Hooked = version or 3, size, ffi.sizeof('namehook_name_t'), 1
+-- namehook's 1.0 block ends where LoadId (1.42) begins: an addon now reads one that size too
+local namesAt10 = ffi.offsetof('namehook_t', 'LoadId')
+local function names(extra, version, id)
+    local at, b = block('namehook_t', 0, function(b)
+        b.Version, b.Size, b.NameSize, b.Hooked, b.LoadId = version or 3, namesAt10 + extra, ffi.sizeof('namehook_name_t'), 1, id or 0
     end)
+    addresses['namehook.dll:4E414D45484F4F4B0000000000000000'] = at
+    return b
 end
 local function popupBlock(extra, version)
     addresses['namehook.dll:4E414D45484F4F4B504F505550530000'] = block('namehook_popups_t', extra, function(b, size)
@@ -92,6 +96,22 @@ for _, case in ipairs({ { 'as 1.0 has it', 0, nil, true }, { 'a future plugin\'s
     keys(extra, version)
     check(gamekeys.new().Ready() == read, 'gamekeys, a block ' .. label)
 end
+
+-- A newer addon on namehook 1.0: read, and what 1.0 did not have goes without
+reload()
+names(0)
+check(nameplates.Hook() ~= nil and nameplates.Dropped().namesDropped == nil, 'namehook 1.0\'s block: read, its drop counts not there')
+-- namehook 1.42 loaded again at the same address as the same build: its LoadId says so
+reload()
+local current = names(ffi.sizeof('namehook_t') - namesAt10, 3, 101)
+local first = nameplates.Hook()
+current.NamesDropped, current.DrawingsRefused = 2, 5
+local d = nameplates.Dropped()
+check(first ~= nil and d.namesDropped == 2 and d.drawingsRefused == 5, 'namehook 1.42\'s drop counts read')
+local generation = nameplates.Generation()
+current.LoadId = 202
+check(nameplates.Hook() ~= nil and nameplates.Generation() == generation + 1, 'loaded again at the same address: let go of and found afresh')
+check(nameplates.Generation() == generation + 1, '... once')
 
 if failures == 0 then
     print('winxi abi: a newer plugin\'s larger block read by older addons, a smaller or other Version refused, newer fields found only where there; nameplates, popups, lens and gamekeys passed')

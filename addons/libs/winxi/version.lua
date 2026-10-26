@@ -103,6 +103,10 @@
 -- 56: presence, whether another addon is loaded in this game (hideparty, for party's native windows)
 -- 57: abi, the plugins' blocks read as plugins/ABI.md promises until 2.0: this Version and at least the size
 --     known, so a newer plugin that grows a block is still read; every reader in winxi goes through it
+-- 58: abi.Accepts' since, the first field an addon can do without, so an older plugin is still read;
+--     nameplates lets go of a namehook loaded again at the same address (1.42's LoadId), and
+--     nameplates.Dropped says what did not make it: names and drawings the plugin dropped, names and
+--     quads the addon could not hand over
 return {
-    Number = 57,
+    Number = 58,
 };

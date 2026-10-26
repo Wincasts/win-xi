@@ -289,11 +289,12 @@ __declspec(dllexport) HookCapabilities NamehookCapabilities = {
 };
 }
 
-static HookShared Shared = { "NAMEHOOK", HOOK_VERSION, sizeof(HookShared), sizeof(HookName), 0, 0, 0, 0, 0, 0, 0, 0.0f, 0.0f, 0, 0, 0.0f, 0.0f, 0, {}, {} };
+static HookShared Shared = { "NAMEHOOK", HOOK_VERSION, sizeof(HookShared), sizeof(HookName), 0, 0, 0, 0, 0, 0, 0, 0.0f, 0.0f, 0, 0, 0.0f, 0.0f, 0, {}, {}, 0, 0, 0 };
 
 static struct {
 	uint32_t Count;
 	HookName Names[HOOK_NAMES_MAX];
+	uint32_t Dropped; // names this frame that Names had no room for
 
 	bool Changed;    // a name has been added, or touched, since the names were last made ready
 	bool Published;  // the names have been made ready this frame
@@ -555,8 +556,11 @@ static const HookDrawing* FindDrawing(uint32_t entityIndex, const HookDraw& draw
 	}
 
 	const HookDrawing& drawing = draw.Entities[entityIndex];
-	if (drawing.Frame != draw.Frame || drawing.Count == 0 || drawing.Count > HOOK_QUADS_PER_NAME
-			|| drawing.First > draw.QuadCount || drawing.Count > draw.QuadCount - drawing.First) {
+	if (drawing.Frame != draw.Frame || drawing.Count == 0) {
+		return nullptr;
+	}
+	if (drawing.Count > HOOK_QUADS_PER_NAME || drawing.First > draw.QuadCount || drawing.Count > draw.QuadCount - drawing.First) {
+		Shared.DrawingsRefused++; // drawn this frame, but not as it can be drawn
 		return nullptr;
 	}
 
@@ -706,6 +710,8 @@ static void DrawNameLineFrom(uintptr_t site, const XiModel* pModel, const float*
 			pName = &Filling.Names[Filling.Count];
 			Filling.Count++;
 			Filling.Changed = true;
+		} else if (pPosition != nullptr) {
+			Filling.Dropped++;
 		}
 
 		if (pName != nullptr) {
@@ -1874,6 +1880,20 @@ int Nameplate::Init() {
 	ZeroMemory(&Globals, sizeof(Globals));
 	ZeroMemory(&Seen, sizeof(Seen));
 
+	// A number of this load's own, never 0 and never the last one's, so that an addon tells this plugin
+	// from one loaded before it, even at the same address
+	{
+		LARGE_INTEGER count;
+		QueryPerformanceCounter(&count);
+		uint32_t id = (static_cast<uint32_t>(count.QuadPart) ^ static_cast<uint32_t>(count.QuadPart >> 32) ^ GetTickCount()) * 2654435761u;
+		if (id == 0 || id == Shared.LoadId) {
+			id = Shared.LoadId + 1 != 0 ? Shared.LoadId + 1 : 1;
+		}
+		Shared.LoadId = id;
+	}
+	Shared.NamesDropped = 0;
+	Shared.DrawingsRefused = 0;
+
 	// Configuration setup
 	Settings.Init();
 	LoadSettings();
@@ -2237,6 +2257,7 @@ void Nameplate::Publish(const float* view, const float* projection, bool frameDo
 		Shared.Width = width;
 		Shared.Height = height;
 		Shared.Count = count;
+		Shared.NamesDropped = Filling.Dropped;
 		Shared.Sequence++;
 
 		Filling.Changed = false;
@@ -2253,6 +2274,7 @@ void Nameplate::Publish(const float* view, const float* projection, bool frameDo
 		Globals.LiftedLast = Globals.Lifted;
 		Globals.Lifted = 0;
 		Filling.Count = 0;
+		Filling.Dropped = 0;
 		Filling.Changed = false;
 		Filling.Published = false;
 		PopupFilling.Count = 0;
@@ -2325,6 +2347,7 @@ int Nameplate::SaveSettings() {
 int Nameplate::Deinit() {
 
 	Instance = nullptr;
+	Shared.LoadId = 0;
 
 	Shared.Hooked = 0;
 	Shared.Count = 0;

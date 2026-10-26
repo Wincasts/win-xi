@@ -132,6 +132,11 @@ struct HookShared {
 
     uint8_t Override[HOOK_ENTITIES]; // OVERRIDE_* for each entity, by index; written by addons
     HookName Names[HOOK_NAMES_MAX];
+
+    // After the 1.0 layout (plugins/ABI.md), from 1.42: read only where Size reaches them
+    uint32_t LoadId;          // a number of its own each time the plugin is loaded, never 0: another is another plugin
+    uint32_t NamesDropped;    // names the client drew last frame that Names had no room for
+    uint32_t DrawingsRefused; // addons' drawings refused since loading: more quads than a name may have, or past QuadCount
 };
 
 enum : uint32_t {

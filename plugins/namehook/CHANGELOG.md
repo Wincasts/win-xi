@@ -1,5 +1,10 @@
 # Changelog
 
+## namehook 1.42 — load id and what was dropped
+
+- After HookShared's 1.0 layout (plugins/ABI.md): `LoadId`, a number of each load's own, never 0 and never the last load's, so an addon tells a namehook loaded again at the same address as the same build from the one it found; `NamesDropped`, the names the client drew last frame that `Names` had no room for (256); `DrawingsRefused`, addons' drawings refused since loading (more than 256 quads, or past `QuadCount`), names' and bubbles' both. Nothing before them moved.
+- Tests: a drawing refused and counted, none not counted; LoadId right after Names.
+
 ## namehook 1.41 — blocks frozen for 1.0
 
 - The shared blocks (HookShared, HookCapabilities, HookDraw, HookBubbles, HookPopups, HookPopupDraw) are frozen at their 1.0 layout until 2.0 (plugins/ABI.md): each grows only at its end, records never, and `tools/abi_check.py` (in tests/run.sh) fails on any other change. lens's block is read by `lens::Live` when it is at least 1.0's size, so a newer lens that adds to it is still read. Nothing in any block's layout changed; ABI 3 as before.
