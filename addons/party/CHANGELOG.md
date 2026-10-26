@@ -10,7 +10,8 @@
   distance no longer go with the party's TP offset. Settings from before give them that offset once, so they
   stay where they were.
 - **Game Name Colors** (Target tab → Names): the target's name in the game's colour for it, by claim, call for
-  help, party and alliance, NPC and death. Off to begin with.
+  help, party and alliance, NPC and death. Off to begin with. With namehook loaded and the name on screen it is
+  the game's own colour, read from the plugin and held steady through the target's pulse.
 - The value offsets reach further: 140 either way across, enough to put a figure anywhere along a frame from
   either end, and 40 up or down, past a line's top and bottom (40 both ways before).
 - Behavior → uihook: Hook Into uihook is **Use uihook**, no longer marked experimental. The title is followed in

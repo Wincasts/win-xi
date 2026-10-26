@@ -73,6 +73,34 @@ servers[60] = 1234
 assert(namecolors.For({ ServerId = 1001, SpawnFlags = PLAYER, HPPercent = 100 }, 60) == nil, 'an index someone else\'s now: nothing')
 assert(namecolors.For({ ServerId = 0, SpawnFlags = PLAYER }, 60) == nil and namecolors.For({}, 60) == nil, 'nothing known: nothing')
 
+-- the game's own colour, where namehook has the name: exact, steady through the target's pulse
+local nameplates = require('winxi.nameplates')
+local hookFn, findFn = nameplates.Hook, nameplates.Find
+local plate = { ServerId = 9000, NameColor = 0xC0618061, Flags = 0 }
+nameplates.Hook = function() return {} end
+nameplates.Find = function(index) return index == 70 and plate or nil end
+namecolors.BeginFrame()
+local npc = Entity(70, 9000, NPC)
+local c = namecolors.For(npc, 70)
+assert(math.abs(c[1] - 0xC2/255) < 0.01 and c[2] == 1 and math.abs(c[3] - 0xC2/255) < 0.01, 'the game\'s NPC green, doubled')
+assert(namecolors.For(npc, 70) == c, 'made once')
+plate.Flags = nameplates.Flag.Target
+plate.NameColor = 0xC0708070 -- pulsing toward white
+namecolors.BeginFrame()
+assert(namecolors.For(npc, 70) == c, 'the pulse is not followed')
+plate.NameColor = 0xC0802020 -- not a pulse of it: a claim's, taken at once
+namecolors.BeginFrame()
+local claimed = namecolors.For(npc, 70)
+assert(claimed ~= c and claimed[1] == 1, 'a new colour taken')
+plate.ServerId = 1
+namecolors.BeginFrame()
+assert(namecolors.For(npc, 70) == colors.npc, 'a plate for another entity: worked out instead')
+plate.ServerId, plate.Flags = 9000, 0
+servers[70] = 9000
+assert(namecolors.For(Entity(70, 9000, NPC, 100, 3), 70) == colors.dead, 'dead: grey, not the plate\'s')
+nameplates.Hook, nameplates.Find = hookFn, findFn
+namecolors.BeginFrame()
+
 -- drawn: the target's name in its colour with Game Name Colors on, the theme's with it off
 local entities = { [50] = Entity(50, 5000, MONSTER) }
 claims[50] = 7777
@@ -95,4 +123,4 @@ H.frames(1)
 assert(nameColor ~= nil and nameColor ~= colors.claimedOther, 'off: the theme\'s colour')
 draw.Packed, draw.Text = packed, text
 AshitaCore = core
-H.print('Game Name Colors: enemies by claim, call for help and death, players by party and alliance, NPCs; drawn only when on', true)
+H.print('Game Name Colors: enemies by claim, call for help and death, players by party and alliance, NPCs; the game\'s own colour through namehook, steady through the pulse; drawn only when on', true)
