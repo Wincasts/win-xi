@@ -48,6 +48,7 @@ local Textures = { }
 ---@field isActive         boolean
 ---@field isPartyLeader    boolean
 ---@field isAllianceLeader boolean
+---@field isLevelSync      boolean the one the party's level is synced to
 ---@field isTarget         boolean
 ---@field isSubTarget      boolean
 ---@field isPartyTarget    boolean
@@ -259,6 +260,7 @@ local function ReadMember(place, party)
     member.isActive = place == 0 or party:GetMemberIsActive(place) == 1
     member.isPartyLeader = bit.band(flags, 4) == 4
     member.isAllianceLeader = bit.band(flags, 8) == 8
+    member.isLevelSync = bit.band(flags, 0x80) == 0x80
     local main = party:GetMemberMainJob(place)
     member.job = game.JobAbbr(main)
     member.jobLevel = party:GetMemberMainJobLevel(place)
@@ -310,6 +312,7 @@ local function GetSampleMember(slot, place)
         isActive = true,
         isPartyLeader = slot == 1,
         isAllianceLeader = place == 6, -- the second party's leader leads the alliance, to show the mark
+        isLevelSync = slot == 3, -- to show the level sync mark
         isTarget = false,
         isSubTarget = false,
         isPartyTarget = false,

@@ -82,9 +82,9 @@ window AddImage mp_front.png (78,196) (82,207) (0.98,0) (1,0.46) #FFFFFFFF
 window AddImage mp_front.png (169,196) (173,207) (0.98,0) (1,0.46) #FFFFFFFF
 imgui PushFont
 window AddCircleFilled (14.67,25.02) 4.28 #000000E6 12
-window AddCircleFilled (14.67,25.02) 3.28 #E64038FF 12
+window AddCircleFilled (14.67,25.02) 3.28 #FFFFFFFF 12
 window AddCircleFilled (14.67,35.07) 4.28 #000000E6 12
-window AddCircleFilled (14.67,35.07) 3.28 #E6E059FF 12
+window AddCircleFilled (14.67,35.07) 3.28 #FFE640FF 12
 window AddText (21,19) #000000E6 Tester
 window AddText (21,21) #000000E6 Tester
 window AddText (23,19) #000000E6 Tester
@@ -351,9 +351,9 @@ window AddImage mp_front.png (78,196) (82,207) (0.98,0) (1,0.46) #FFFFFFFF
 window AddImage mp_front.png (169,196) (173,207) (0.98,0) (1,0.46) #FFFFFFFF
 imgui PushFont
 window AddCircleFilled (14.67,25.02) 4.28 #000000E6 12
-window AddCircleFilled (14.67,25.02) 3.28 #E64038FF 12
+window AddCircleFilled (14.67,25.02) 3.28 #FFFFFFFF 12
 window AddCircleFilled (14.67,35.07) 4.28 #000000E6 12
-window AddCircleFilled (14.67,35.07) 3.28 #E6E059FF 12
+window AddCircleFilled (14.67,35.07) 3.28 #FFE640FF 12
 window AddText (21,19) #000000E6 Tester
 window AddText (21,21) #000000E6 Tester
 window AddText (23,19) #000000E6 Tester
@@ -613,7 +613,7 @@ window AddImage mp_front.png (64,131) (67,139) (0.98,0) (1,0.46) #FFFFFFFF
 window AddImage mp_front.png (137,131) (140,139) (0.98,0) (1,0.46) #FFFFFFFF
 imgui PushFont
 window AddCircleFilled (13.94,28.04) 3.94 #000000E6 12
-window AddCircleFilled (13.94,28.04) 2.94 #E6E059FF 12
+window AddCircleFilled (13.94,28.04) 2.94 #FFE640FF 12
 window AddText (19,19) #000000E6 Secondlead
 window AddText (19,21) #000000E6 Secondlead
 window AddText (21,19) #000000E6 Secondlead
@@ -733,7 +733,7 @@ window AddImage mp_front.png (64,69) (67,77) (0.98,0) (1,0.46) #FFFFFFFF
 window AddImage mp_front.png (137,69) (140,77) (0.98,0) (1,0.46) #FFFFFFFF
 imgui PushFont
 window AddCircleFilled (13.94,28.04) 3.94 #000000E6 12
-window AddCircleFilled (13.94,28.04) 2.94 #E6E059FF 12
+window AddCircleFilled (13.94,28.04) 2.94 #FFE640FF 12
 window AddText (19,19) #000000E6 Thirdlead
 window AddText (19,21) #000000E6 Thirdlead
 window AddText (21,19) #000000E6 Thirdlead
@@ -904,9 +904,9 @@ window AddImage mp_front.png (78,196) (82,207) (0.98,0) (1,0.46) #FFFFFFFF
 window AddImage mp_front.png (169,196) (173,207) (0.98,0) (1,0.46) #FFFFFFFF
 imgui PushFont
 window AddCircleFilled (14.67,25.02) 4.28 #000000E6 12
-window AddCircleFilled (14.67,25.02) 3.28 #E64038FF 12
+window AddCircleFilled (14.67,25.02) 3.28 #FFFFFFFF 12
 window AddCircleFilled (14.67,35.07) 4.28 #000000E6 12
-window AddCircleFilled (14.67,35.07) 3.28 #E6E059FF 12
+window AddCircleFilled (14.67,35.07) 3.28 #FFE640FF 12
 window AddText (21,19) #000000E6 Tester
 window AddText (21,21) #000000E6 Tester
 window AddText (23,19) #000000E6 Tester
@@ -1183,9 +1183,9 @@ window AddImage mp_front.png (78,196) (82,207) (0.98,0) (1,0.46) #FFFFFFFF
 window AddImage mp_front.png (169,196) (173,207) (0.98,0) (1,0.46) #FFFFFFFF
 imgui PushFont
 window AddCircleFilled (14.67,25.02) 4.28 #000000E6 12
-window AddCircleFilled (14.67,25.02) 3.28 #E64038FF 12
+window AddCircleFilled (14.67,25.02) 3.28 #FFFFFFFF 12
 window AddCircleFilled (14.67,35.07) 4.28 #000000E6 12
-window AddCircleFilled (14.67,35.07) 3.28 #E6E059FF 12
+window AddCircleFilled (14.67,35.07) 3.28 #FFE640FF 12
 window AddText (21,19) #000000E6 Tester
 window AddText (21,21) #000000E6 Tester
 window AddText (23,19) #000000E6 Tester
@@ -1455,7 +1455,7 @@ window AddImage mp_front.png (64,131) (67,139) (0.98,0) (1,0.46) #FFFFFFFF
 window AddImage mp_front.png (137,131) (140,139) (0.98,0) (1,0.46) #FFFFFFFF
 imgui PushFont
 window AddCircleFilled (13.94,28.04) 3.94 #000000E6 12
-window AddCircleFilled (13.94,28.04) 2.94 #E6E059FF 12
+window AddCircleFilled (13.94,28.04) 2.94 #FFE640FF 12
 window AddText (19,19) #000000E6 Secondlead
 window AddText (19,21) #000000E6 Secondlead
 window AddText (21,19) #000000E6 Secondlead
@@ -1575,7 +1575,7 @@ window AddImage mp_front.png (64,69) (67,77) (0.98,0) (1,0.46) #FFFFFFFF
 window AddImage mp_front.png (137,69) (140,77) (0.98,0) (1,0.46) #FFFFFFFF
 imgui PushFont
 window AddCircleFilled (13.94,28.04) 3.94 #000000E6 12
-window AddCircleFilled (13.94,28.04) 2.94 #E6E059FF 12
+window AddCircleFilled (13.94,28.04) 2.94 #FFE640FF 12
 window AddText (19,19) #000000E6 Thirdlead
 window AddText (19,21) #000000E6 Thirdlead
 window AddText (21,19) #000000E6 Thirdlead
@@ -1662,7 +1662,7 @@ window AddText (384,194) #000000E6 Target
 window AddText (383,193) #F0E6C2FF Target
 window PopClipRect
 imgui End
-## filled with sample data, the settings open (plain): 1216 calls
+## filled with sample data, the settings open (plain): 1218 calls
 imgui Begin Party Settings
 imgui TextColored (1,0.75,0.55,1) [-] Positioning
 imgui Text Automatic Positioning:
@@ -1881,9 +1881,9 @@ window AddImage mp_front.png (78,196) (82,207) (0.98,0) (1,0.46) #FFFFFFFF
 window AddImage mp_front.png (169,196) (173,207) (0.98,0) (1,0.46) #FFFFFFFF
 imgui PushFont
 window AddCircleFilled (14.67,25.02) 4.28 #000000E6 12
-window AddCircleFilled (14.67,25.02) 3.28 #E64038FF 12
+window AddCircleFilled (14.67,25.02) 3.28 #FFFFFFFF 12
 window AddCircleFilled (14.67,35.07) 4.28 #000000E6 12
-window AddCircleFilled (14.67,35.07) 3.28 #E6E059FF 12
+window AddCircleFilled (14.67,35.07) 3.28 #FFE640FF 12
 window AddText (21,19) #000000E6 Tester
 window AddText (21,21) #000000E6 Tester
 window AddText (23,19) #000000E6 Tester
@@ -2162,9 +2162,9 @@ window AddImage mp_front.png (78,196) (82,207) (0.98,0) (1,0.46) #FFFFFFFF
 window AddImage mp_front.png (169,196) (173,207) (0.98,0) (1,0.46) #FFFFFFFF
 imgui PushFont
 window AddCircleFilled (14.67,25.02) 4.28 #000000E6 12
-window AddCircleFilled (14.67,25.02) 3.28 #E64038FF 12
+window AddCircleFilled (14.67,25.02) 3.28 #FFFFFFFF 12
 window AddCircleFilled (14.67,35.07) 4.28 #000000E6 12
-window AddCircleFilled (14.67,35.07) 3.28 #E6E059FF 12
+window AddCircleFilled (14.67,35.07) 3.28 #FFE640FF 12
 window AddText (21,19) #000000E6 Tester
 window AddText (21,21) #000000E6 Tester
 window AddText (23,19) #000000E6 Tester
@@ -2468,7 +2468,7 @@ window AddImage mp_front.png (64,192) (67,200) (0.98,0) (1,0.46) #FFFFFFFF
 window AddImage mp_front.png (137,192) (140,200) (0.98,0) (1,0.46) #FFFFFFFF
 imgui PushFont
 window AddCircleFilled (13.94,28.04) 3.94 #000000E6 12
-window AddCircleFilled (13.94,28.04) 2.94 #E6E059FF 12
+window AddCircleFilled (13.94,28.04) 2.94 #FFE640FF 12
 window AddText (19,19) #000000E6 Secondlead
 window AddText (19,21) #000000E6 Secondlead
 window AddText (21,19) #000000E6 Secondlead
@@ -2694,7 +2694,7 @@ window AddImage mp_front.png (64,192) (67,200) (0.98,0) (1,0.46) #FFFFFFFF
 window AddImage mp_front.png (137,192) (140,200) (0.98,0) (1,0.46) #FFFFFFFF
 imgui PushFont
 window AddCircleFilled (13.94,28.04) 3.94 #000000E6 12
-window AddCircleFilled (13.94,28.04) 2.94 #E6E059FF 12
+window AddCircleFilled (13.94,28.04) 2.94 #FFE640FF 12
 window AddText (19,19) #000000E6 Thirdlead
 window AddText (19,21) #000000E6 Thirdlead
 window AddText (21,19) #000000E6 Thirdlead
@@ -2705,6 +2705,8 @@ window AddText (9,51) #000000E6 Lastone
 window AddText (11,49) #000000E6 Lastone
 window AddText (11,51) #000000E6 Lastone
 window AddText (10,50) #FFFFFFFF Lastone
+window AddCircleFilled (136.06,84.94) 3.94 #000000E6 12
+window AddCircleFilled (136.06,84.94) 2.94 #F2332EFF 12
 window AddText (9,80) #000000E6 Sample 3
 window AddText (9,82) #000000E6 Sample 3
 window AddText (11,80) #000000E6 Sample 3
