@@ -62,12 +62,6 @@ options.Tabs = {
           tooltip = 'How big the HP, MP and TP values are written, apart from everything else.' },
         { kind = 'font', section = 'style', key = 'valueFont', label = 'Value Font', default = 'ubuntu-bi.ttf',
           tooltip = 'The font the HP, MP and TP values (and a target\'s distance and HP percentage) are written in: a font of Windows\' own, by its file in C:\\Windows\\Fonts. Theme Font is the one set in Winxi Theme.' },
-        { kind = 'offset', section = 'style', key = 'hpOffset', label = 'HP Value Offset', default = { -6, 0 }, reach = 40,
-          tooltip = 'Moves the HP value from its usual place: X to the right, Y down. Less than 0 moves it left or up.' .. unitsNote },
-        { kind = 'offset', section = 'style', key = 'mpOffset', label = 'MP Value Offset', default = { -2, 0 }, reach = 40,
-          tooltip = 'Moves the MP value from its usual place: X to the right, Y down. Less than 0 moves it left or up.' .. unitsNote },
-        { kind = 'offset', section = 'style', key = 'tpOffset', label = 'TP Value Offset', default = { -3, -2 }, reach = 40,
-          tooltip = 'Moves the TP value from its usual place: X to the right, Y down. Less than 0 moves it left or up.\nA target\'s distance and HP percentage go up and down with it.' .. unitsNote },
         { kind = 'check', section = 'style', key = 'showMp', label = 'Show MP Values', default = true,
           tooltip = 'Writes each member\'s MP beside their MP bar. Off leaves the bar alone.' },
         { kind = 'check', section = 'style', key = 'showTp', label = 'Show TP Values', default = true,
@@ -97,6 +91,13 @@ options.Tabs = {
         { kind = 'slider', section = 'party', key = 'allianceScale', label = 'Alliance Scale (%)', default = 80, min = 50, max = 200, format = '%d%%',
           tooltip = 'How big the alliance\'s other two parties are drawn, both alike, on top of the Scale in Style. Your own party is left as it is.' },
         { kind = 'gap' },
+        -- kept in style, as they were when they were on the Style tab
+        { kind = 'offset', section = 'style', key = 'hpOffset', label = 'HP Value Offset', default = { -6, 0 }, reach = 40,
+          tooltip = 'Moves the HP value of your party, the alliance and pets from its usual place: X to the right, Y down. Less than 0 moves it left or up.' .. unitsNote },
+        { kind = 'offset', section = 'style', key = 'mpOffset', label = 'MP Value Offset', default = { -2, 0 }, reach = 40,
+          tooltip = 'Moves the MP value of your party, the alliance and pets from its usual place: X to the right, Y down. Less than 0 moves it left or up.' .. unitsNote },
+        { kind = 'offset', section = 'style', key = 'tpOffset', label = 'TP Value Offset', default = { -3, -2 }, reach = 40,
+          tooltip = 'Moves the TP value of your party and the alliance from its usual place: X to the right, Y down. Less than 0 moves it left or up.' .. unitsNote },
         { kind = 'place', section = 'party', key = 'pos1', label = 'Alliance 1 Position', default = { 2098, 1215 }, window = 'party1' },
         { kind = 'place', section = 'party', key = 'pos2', label = 'Alliance 2 Position', default = { 2098, 333 }, window = 'party2' },
         { kind = 'place', section = 'party', key = 'pos3', label = 'Alliance 3 Position', default = { 2098, 593 }, window = 'party3' },
@@ -114,6 +115,11 @@ options.Tabs = {
               or (saved.target.showSub[1] and saved.target.subDebuffs[1]) or (saved.target.showTot[1] and saved.target.totDebuffs[1])) end,
           tooltip = 'Letters: a letter under the window for each of the usual debuffs, lit while it is on.\nIcons: an icon beside the window for every status seen to take hold on the target, drawn as your party\'s buffs are:\nthe Buff Icon Size, Buff Spacing and Buff Distance of the Style tab, and Custom Icons of Winxi Theme.' },
         { kind = 'gap' },
+        -- defaults as the target's figures were drawn when they followed the party's TP offset (-3, -2)
+        { kind = 'offset', section = 'target', key = 'hpOffset', label = 'HP % Offset', default = { 0, -2 }, reach = 40,
+          tooltip = 'Moves the target\'s HP percentage from its usual place: X to the right, Y down. Less than 0 moves it left or up.' .. unitsNote },
+        { kind = 'offset', section = 'target', key = 'distanceOffset', label = 'Distance Offset', default = { -3, -2 }, reach = 40,
+          tooltip = 'Moves the target\'s distance from its usual place: X to the right, Y down. Less than 0 moves it left or up.' .. unitsNote },
         { kind = 'place', section = 'target', key = 'mainPos', label = 'Target Position', default = { 2098, 865 }, window = 'main' },
         { kind = 'place', section = 'target', key = 'subPos', label = 'Sub-Target Position', default = { 34, 296 }, window = 'sub' },
         { kind = 'place', section = 'target', key = 'totPos', label = 'Target Of Target Position', default = { 34, 223 }, window = 'tot' },
@@ -182,7 +188,6 @@ local groups = {
         { 'Status Display', 'showStatuses', 'buffSize', 'buffSpacing', 'buffDistance', 'buffLimit', 'buffRows', 'buffDirection', 'buffFitScreen', 'buffOverflow', statuses = true },
         { 'Status Filtering', 'debuffsFirst', 'priorityStatuses', 'hiddenStatuses', statuses = true },
         { 'Warnings', 'lowHp', 'tpFlash' },
-        { 'Advanced: Value Positioning', 'hpOffset', 'mpOffset', 'tpOffset', collapsed = true },
         { 'Advanced: Range Indicators', 'castRange', 'targetRange', 'nearOpacity', 'farOpacity', collapsed = true },
         { 'Advanced: Status IDs', collapsed = true, statuses = true },
         -- Retained in the schema for existing settings, presented in Behavior instead.
@@ -193,10 +198,12 @@ local groups = {
         { 'Notifications', 'showInvites', 'showTreasure', 'iconCorner', 'iconOffset' },
         { 'Alliance', 'allianceScale' },
         { 'Positioning', 'pos1', 'pos2', 'pos3' },
+        { 'Advanced: Value Positioning', 'hpOffset', 'mpOffset', 'tpOffset', collapsed = true },
     },
     Target = {
         { 'Frames', 'enabled', 'showMain', 'mainDebuffs', 'showSub', 'subDebuffs', 'showTot', 'totDebuffs', 'debuffStyle' },
         { 'Positioning', 'mainPos', 'subPos', 'totPos' },
+        { 'Advanced: Value Positioning', 'hpOffset', 'distanceOffset', collapsed = true },
     },
     Pets = {
         { 'Visibility', 'enabled', 'showParty' },
@@ -466,6 +473,15 @@ function options.Complete(saved)
     saved.version = options.Version
 
     CompleteEntries(saved)
+    -- A target's HP percentage and distance went with the party's TP offset before they had offsets of
+    -- their own: they take it once, so they stay where they were. ownOffsets marks it, kept out of the
+    -- defaults so that Ashita does not give it to settings that have not had it done.
+    if saved.target.ownOffsets == nil then
+        local tp = saved.style.tpOffset
+        saved.target.hpOffset = T{ 0, tp[2] }
+        saved.target.distanceOffset = T{ tp[1], tp[2] }
+        saved.target.ownOffsets = true
+    end
     if type(saved.showConfig) ~= 'table' then saved.showConfig = T{ false } end
     if type(saved.clickThrough) ~= 'table' then saved.clickThrough = T{ false } end
     if type(saved.nativeParty) ~= 'table' or type(saved.nativeParty[1]) ~= 'boolean' then
@@ -502,7 +518,7 @@ end
 -- How the frames are to be drawn, from the settings and winxi's theme: one table, filled in afresh each time it is
 -- asked for, to be used at once. Whoever asks may set what is their own on it: nameChars and trimLast
 -- are left out here, and whether TP is shown may be overruled.
-local style = { hpOffset = { 0, 0 }, mpOffset = { 0, 0 }, tpOffset = { 0, 0 } }
+local style = { hpOffset = { 0, 0 }, mpOffset = { 0, 0 }, tpOffset = { 0, 0 }, targetHpOffset = { 0, 0 }, distanceOffset = { 0, 0 } }
 
 local function Pixels(into, offset)
     into[1], into[2] = (tonumber(offset[1]) or 0) * options.Unit, (tonumber(offset[2]) or 0) * options.Unit
@@ -520,6 +536,8 @@ function options.Style(saved)
     Pixels(style.hpOffset, kept.hpOffset)
     Pixels(style.mpOffset, kept.mpOffset)
     Pixels(style.tpOffset, kept.tpOffset)
+    Pixels(style.targetHpOffset, saved.target.hpOffset)
+    Pixels(style.distanceOffset, saved.target.distanceOffset)
     style.tpFlash = kept.tpFlash[1]
     style.zoneAbbr = kept.zoneAbbr[1]
     style.showMp, style.showTp = kept.showMp[1], kept.showTp[1]

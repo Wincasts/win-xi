@@ -5,6 +5,10 @@
 - A new **Visibility** tab, the last, holds the hiding rules (Hide Windows, formerly Behavior → Visibility)
   and Fading, moved out of Behavior. The settings are the same and are kept.
 - Behavior's sections are Positioning, uihook (while it is loaded), then Mouse Interaction.
+- **Advanced: Value Positioning** moves from Style to the Party tab: the HP, MP and TP Value Offsets, as they were.
+  The Target tab has one of its own, **HP % Offset** and **Distance Offset**: a target's HP percentage and
+  distance no longer go with the party's TP offset. Settings from before give them that offset once, so they
+  stay where they were.
 - Behavior → uihook: Hook Into uihook is **Use uihook**, no longer marked experimental. The title is followed in
   green by the plugin found and its version, e.g. [uihook 1.60 found]. The explanations of Use uihook, Party,
   Target and Follow Default UI Behavior are in a (?) after each, not the control's own tooltip. The native

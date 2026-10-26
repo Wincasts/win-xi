@@ -11,14 +11,18 @@ addon [XivParty](https://github.com/Tylas11/XivParty)'s compact one.
   **Alliance Scale** (Party tab) sizes the other two parties together, on top of the Scale in Style.
   **Name Font** and **Value Font** (Style tab) choose a Windows font for the names and for the HP, MP and TP
   values, apart from each other; Theme Font, the default, is the one set in Winxi Theme.
+  **Advanced: Value Positioning** (Party tab, collapsed) moves the HP, MP and TP values of the party, the
+  alliance and pets.
 - **Target**: your target, sub-target and target of target, each a line of the same kind: the name,
   the HP bar, the distance and the HP percentage, with the enemy's debuffs if wanted: as letters under it, or as status icons beside it, placed and sized as your party's buffs are.
+  **Advanced: Value Positioning** (Target tab, collapsed) moves the HP percentage and the distance, each on
+  its own; the party's offsets no longer move them.
 - **Pets**: your pet, and your party members' pets, listed under your party below a line.
 
 ## usage
 `/pt` (or `/xif`) opens the settings. `/party` is left alone for the game's own party chat;
 `/xiframes` is no longer used. Its Style tab sets how every frame is drawn (sizes,
-where the values sit); Party, Target and Pets have what is each one's own. The dark edge round names
+fonts, bars, statuses); Party, Target and Pets have what is each one's own. The dark edge round names
 and values is Winxi Theme's Text Outline, set in winxisettings for every addon.
 **Behavior** has **Positioning** (optional **Automatic Positioning**), uihook while it is loaded, then
 **Mouse Interaction**. **Visibility**, the last tab, has the hiding rules (**Hide Windows**), **Fade When Idle** and which windows fade (**Fading**).

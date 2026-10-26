@@ -33,6 +33,7 @@
 --     buffSpacing, buffDistance                room between buff icons, and between them and the window
 --     ffxivIcons               false for the game's own status icons in place of winxi's
 --     hpOffset, mpOffset, tpOffset             { x, y } to move that figure from its place
+--     targetHpOffset, distanceOffset           the same for a target's HP percentage and distance
 --     bookends, tpFlash                        false to leave each out
 --     nameFont, valueFont      a font file of C:\Windows\Fonts for the names or the values; nil or '' for the theme's
 --     bookendOpacity                           0 to 100: how solid the bookends are (100 unless given)
@@ -155,10 +156,9 @@ local layout = {
            fill = { x = 70.8, width = 88.8 },
            body = { left = 69.6, top = 25.2, right = 160.8, bottom = 32.4 },
            figure = { x = 158.4, y = 18, alignRight = true } },
-    -- a target's HP figure, in place of the one above: under the bar, level with the TP figure, its
-    -- right end at the bar's. It goes up and down with the TP figure, wherever that has been moved to
-    -- (levelWithTp), and is not moved as the HP figure on a bar is.
-    targetHpFigure = { x = 145.2, y = 21.6, alignRight = true, levelWithTp = true },
+    -- a target's HP figure, in place of the one above: under the bar, level with the TP figure (where a
+    -- target's distance is), its right end at the bar's. A target's figures are moved by its own offsets.
+    targetHpFigure = { x = 145.2, y = 21.6, alignRight = true },
     -- TP is a figure alone, to the left of the MP bar: in the same place on every line, the player's
     -- party, the other two and the pets alike, and level with the MP bar
     tp = { value = 'tp', figure = { x = 67.2, y = 21.6, alignRight = true } },
@@ -620,14 +620,9 @@ local function DrawFigure(place, member, kept, fontSize, figure)
 
     figure = figure or place.figure
     local x, y = figure.x, figure.y
-    if figure.levelWithTp then
-        local tpOffset = valueOffsets.tp
-        y = y + (tpOffset and tonumber(tpOffset[2]) or 0)
-    else
-        local offset = valueOffsets[kind]
-        if offset ~= nil then
-            x, y = x + (tonumber(offset[1]) or 0), y + (tonumber(offset[2]) or 0)
-        end
+    local offset = valueOffsets[kind]
+    if offset ~= nil then
+        x, y = x + (tonumber(offset[1]) or 0), y + (tonumber(offset[2]) or 0)
     end
 
     local width = nil
@@ -705,12 +700,9 @@ local function LineHeight(member, kind, showMp, showTp)
 
         local hp = layout.hp
         bottom = math.max(bottom, hp.body.bottom + barShadowReach)
-        if kind == 'target' then
-            bottom = math.max(bottom, layout.targetHpFigure.y + tpOffsetY + valueHeight)
-        else
-            local offset = valueOffsets.hp
-            bottom = math.max(bottom, hp.figure.y + (offset and tonumber(offset[2]) or 0) + valueHeight)
-        end
+        local offset = valueOffsets.hp
+        local hpFigure = kind == 'target' and layout.targetHpFigure or hp.figure
+        bottom = math.max(bottom, hpFigure.y + (offset and tonumber(offset[2]) or 0) + valueHeight)
 
         if member.mpp ~= nil then
             local mp = layout.mp
@@ -748,13 +740,23 @@ end
 
 local fullLine = { }
 
+-- The figures' offsets: a target's own for its HP percentage and its distance (written where TP is),
+-- the party's for every other list
+local function UseOffsets(style, kind)
+    if kind == 'target' then
+        valueOffsets.hp, valueOffsets.mp, valueOffsets.tp = style.targetHpOffset, style.mpOffset, style.distanceOffset
+    else
+        valueOffsets.hp, valueOffsets.mp, valueOffsets.tp = style.hpOffset, style.mpOffset, style.tpOffset
+    end
+end
+
 -- Maximum configured line geometry for a fully populated list, independent of current membership.
 -- Used to reserve a stable alliance block above the fully expanded main party.
 function frames.FullSize(count, kind, style)
     style = style or usual
     rowHeight = RowHeight(style, kind)
     nameScale, valueScale = Percent(style.nameSize), Percent(style.valueSize)
-    valueOffsets.hp, valueOffsets.mp, valueOffsets.tp = style.hpOffset, style.mpOffset, style.tpOffset
+    UseOffsets(style, kind)
     local full = fullLine
     full.isInZone, full.mpp, full.tp = true, 100, 1000
     -- The owner's pet is first; other members' pets have HP only and are always in-zone.
@@ -828,7 +830,7 @@ function frames.Draw(members, kind, StatusTexture, style)
     buffSpacing = tonumber(style.buffSpacing) or 0
     ownIcons = style.ffxivIcons ~= false
     ConfigureBars(style)
-    valueOffsets.hp, valueOffsets.mp, valueOffsets.tp = style.hpOffset, style.mpOffset, style.tpOffset
+    UseOffsets(style, kind)
     outlined = outlinedText.Edge() > 0 -- the theme's Text Outline
     nameChars = style.nameChars
     local showMp, showTp = style.showMp ~= false, style.showTp ~= false
