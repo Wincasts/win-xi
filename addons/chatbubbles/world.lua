@@ -16,6 +16,7 @@ ffi.cdef[[
 ]];
 local M = {};
 local block;
+local blockGeneration; -- nameplates.Generation() when block was found
 local problem;
 local remaining = 0;
 local lookedAt = -math.huge;
@@ -24,6 +25,8 @@ function M.Problem() return problem; end
 
 function M.Begin(hook)
     if (hook == nil) then block = nil; problem = 'namehook unavailable'; return nil; end
+    -- found in a namehook since unloaded or loaded again: gone with it
+    if (block ~= nil and blockGeneration ~= nameplates.Generation()) then block = nil; lookedAt = -math.huge; end
     if (block == nil) then
         local now = os.clock();
         if (now - lookedAt < 1) then return nil; end
@@ -41,7 +44,7 @@ function M.Begin(hook)
             problem = 'Incompatible namehook world-bubble buffer: World bubbles require namehook 1.25 or later.';
             return nil;
         end
-        block = candidate;
+        block, blockGeneration = candidate, nameplates.Generation();
     end
     -- Reuse the quad writer, but point it at this separate buffer, not hook.Draw.
     local target = {
@@ -57,8 +60,8 @@ function M.Begin(hook)
 end
 
 function M.Clear()
-    -- Validate plugin lifetime before dereferencing a cached DLL address.
-    if (nameplates.Hook() ~= nil and block ~= nil) then block.Draw.QuadCount = 0; end
+    -- Validate plugin lifetime and generation before dereferencing a cached DLL address.
+    if (nameplates.Hook() ~= nil and block ~= nil and blockGeneration == nameplates.Generation()) then block.Draw.QuadCount = 0; end
     block = nil;
     lookedAt = -math.huge;
 end

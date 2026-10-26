@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- Requires winxi 55: winxi.popups lets go of namehook's popup block when namehook has been unloaded and loaded again since it was found, at another address or as another build, and never writes to the old one.
+
 ## 0.1
 
 - The game's damage popups, read from namehook 1.38 through winxi.popups, are claimed and drawn in the

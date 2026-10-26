@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.81
+
+- Requires winxi 55: where namehook is unloaded and loaded again between two frames, at another address or as another build, the block found in the old DLL is let go of, never read or written.
+
 ## 1.80
 
 - Bar Texture is gone from Health Bars and Cast Bars: the bars were not drawing in WinXI's art, and every bar is now the plain one. `bar_art.lua` is removed, the signs (special.png) have their slot to themselves again, and a saved `healthBarTexture` or `castBarTexture` is dropped when settings load.

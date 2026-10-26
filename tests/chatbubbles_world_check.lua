@@ -175,6 +175,25 @@ assert(world.Begin(hook) == nil and world.Problem():find('Incompatible', 1, true
 block.Version = 2;
 world.Clear();
 assert(world.Begin(hook));
+-- namehook loaded again between two frames (a new generation): the block is looked for afresh, and
+-- the old one is never written to, not even to clear it
+do
+    local generation, finds = 0, 0;
+    local generationOf, find = nameplates.Generation, ashita.memory.find;
+    nameplates.Generation = function() return generation; end;
+    ashita.memory.find = function(...) finds = finds + 1; return find(...); end;
+    world.Clear();
+    assert(world.Begin(hook) and finds == 1);
+    assert(world.Begin(hook) and finds == 1, 'the same namehook: kept');
+    block.Draw.QuadCount = 7;
+    generation = 1;
+    world.Clear();
+    assert(block.Draw.QuadCount == 7, 'a block from an earlier namehook is not written to');
+    assert(world.Begin(hook) and finds == 2);
+    generation = 2;
+    assert(world.Begin(hook) and finds == 3, 'Begin looks again after a reload');
+    nameplates.Generation, ashita.memory.find = generationOf, find;
+end
 loaded = false;
 world.Clear(); -- must not dereference plugin memory after it is unloaded
 ffi.C.munmap(low, size);

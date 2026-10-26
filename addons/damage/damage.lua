@@ -1,9 +1,9 @@
 addon.name    = 'damage';
 addon.author  = 'win';
-addon.version = '0.1';
+addon.version = '0.1.1';
 addon.desc    = 'Draws the damage numbers the game pops up over whoever was hit in winxi\'s style, through the namehook plugin.';
 
-local winxiNeeded = 54;
+local winxiNeeded = 55;
 do
     local ok, found = pcall(require, 'winxi.version');
     local number = ok and type(found) == 'table' and found.Number or 0;

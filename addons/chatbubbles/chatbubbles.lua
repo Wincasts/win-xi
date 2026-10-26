@@ -1,11 +1,11 @@
 addon.name = 'chatbubbles';
 addon.author = 'win';
-addon.version = '0.95';
+addon.version = '0.96';
 addon.desc = 'Configurable chat bubbles anchored by namehook, in the world or on the screen.';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 30;
+local winxiNeeded = 55; -- nameplates.Generation
 do
     local ok, found = pcall(require, 'winxi.version');
     local number = ok and type(found) == 'table' and found.Number or 0;

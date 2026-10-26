@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.3
+
+- Requires winxi 55. Where namehook was unloaded and loaded again between two of its looks (party asks only while it has a target), what it had found in the old DLL was read: party's crash on 2026-10-26, an access violation in d3d_present. winxi 55's nameplates.Hook checks namehook's DLL is still the one its block was found in.
+
 ## 0.3.2
 
 - A new **Visibility** tab, the last, holds the hiding rules (Hide Windows, formerly Behavior → Visibility)
