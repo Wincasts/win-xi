@@ -1032,6 +1032,11 @@ public:
     void Arrow(void* sprite,uint32_t x,uint32_t y,uint32_t sx,uint32_t sy,uint32_t color,uint32_t a,uint32_t b,uint32_t c) {
         if (targetScope && blocking) ++Shared.TargetCursorCalls;
         ArrowScope allow(blocking,targetScope);
+        // The game draws the arrow from the target window's own drawing, so the native look took it for one of
+        // that window's draws and moved it with the window (scaled from its corner of the screen by the menu
+        // scale, brought in by the inset): far from the target with the window the game's (party not replacing
+        // it). It is over the world: drawn as of no window, where the game puts it.
+        struct NativeScope { NativeLook::Saved was; ~NativeScope() { Native.look.Leave(was); } } nativeScope{Native.Hold()};
         // under lens's warp, the tip is put where the warp shows the target (x and y are menu-layer pixels)
         int16_t menu[2]={};
         if (menuManager && ChatRead(menuManager+0x80,menu,sizeof(menu))) {
