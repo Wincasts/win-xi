@@ -14,7 +14,7 @@ addon.desc    = 'Party, target and pet frames in the style of XivParty'
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 25 -- widgets.FontFile
+local winxiNeeded = 52 -- mob_letters and zone_names, for Monster Letters
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -186,6 +186,9 @@ local function DrawTargetContent()
     local lines = target.Line(drawingKey, drawingEntity)
     lines[1].nameColor = saved.target.gameNameColors[1] and drawingIndex ~= nil
         and namecolors.For(drawingEntity, drawingIndex) or nil
+    -- a monster's spawn letter after its name (the sample's A, to see it by)
+    lines[1].letter = saved.target.monsterLetters[1]
+        and (drawingIndex == nil and (drawingKey == 'main' and 'A' or nil) or target.Letter(drawingEntity, drawingIndex)) or nil
     -- the main target's window is bracketed while the player is locked on to it (the sample always, to see them by)
     lines[1].lockedOn = drawingKey == 'main' and saved.target.lockBrackets[1] and (drawingIndex == nil or target.LockedOn())
     -- as icons, they are beside the window as a party member's buffs are; as letters, under it

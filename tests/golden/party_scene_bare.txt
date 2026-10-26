@@ -760,7 +760,7 @@ window PushClipRect (0,0) (1920,1080) false
 window AddText (383,193) #F0E6C2FF Target
 window PopClipRect
 imgui End
-## filled with sample data, the settings open (bare): 631 calls
+## filled with sample data, the settings open (bare): 635 calls
 imgui Begin Party Settings
 imgui TextColored (1,0.75,0.55,1) [-] Positioning
 imgui Text Automatic Positioning:
@@ -1368,6 +1368,10 @@ window AddImage glow.png (168.04,34.4) (181.9,59.6) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (37,34.4) (235,59.6) (0,0) (0.97,1) #FF9597FF
 imgui PushFont
 window AddText (10,20) #FFFFFFFF Sample Target
+window AddRectFilled (26,24) (46,44) #FFFFFFFF 2.4
+imgui PushFont
+window AddText (32,26) #000000FF A
+imgui PopFont
 imgui PopFont
 imgui PushFont
 window AddText (220,48) #FFFFFFFF 75%

@@ -2,6 +2,7 @@
 
 ## 1.77
 
+- The spawn letters (`mob_letters.lua`) and the reading of the area's names from the game's files (`zone_names.lua`) are winxi's now, shared with party, which letters its target the same way. Nothing changes in what is written; name needs winxi 52.
 - Health Bars and Cast Bars are one tab, **Bars**: **Shared Bar Settings** first (Bar Width, Bar Height, Fit to Name and Preview, waiting until either kind is enabled), then **Health Bars** (Enabled, Combat Only, Bar Texture), **Health Bar Entity Types**, **Cast Bars** (Enabled, Show Weaponskills, Text Only for Weaponskills, Bar Texture) and **Cast Text**. The tabs after it move up one.
 - **Fit to Name** (was Auto-scale to Name, the same saved setting) widens health bars too, with or without a cast; the saved width is still the least.
 - One **Preview** for both: every enabled bar is shown, the health bars emptying and filling and the sample cast under the names; the two previews of 1.76 are gone.

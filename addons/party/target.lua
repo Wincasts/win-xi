@@ -88,6 +88,34 @@ function target.Line(key, entity)
     return lines
 end
 
+-- A monster's spawn letter, as name writes it over the monster, upper case, or nil for none. The area's
+-- list of names is read from the game's files when first wanted there (winxi.zone_names), and the
+-- letters given by it (winxi.mob_letters), the same for every player.
+local letters, zoneNames = nil, nil
+local lettersZone = nil
+local upper = { } -- letters -> in upper case, made once each
+local spawnFlagMonster = 0x10
+function target.Letter(entity, index)
+    if entity.SpawnFlags == nil or bit.band(entity.SpawnFlags, spawnFlagMonster) == 0 or index == nil then return nil end
+    if letters == nil then
+        letters, zoneNames = require('winxi.mob_letters'), require('winxi.zone_names')
+        letters.Quiet = true -- name says it, where the list is not the game's
+    end
+    local zone = AshitaCore:GetMemoryManager():GetParty():GetMemberZone(0)
+    if zone ~= lettersZone then
+        lettersZone = zone
+        letters.Set(zone ~= nil and zone ~= 0 and zoneNames.Read(zone) or { }, zone)
+    end
+    local letter = letters.Of(index, entity.Name, entity.ServerId)
+    if letter == '' then return nil end
+    local shown = upper[letter]
+    if shown == nil then
+        shown = letter:upper()
+        upper[letter] = shown
+    end
+    return shown
+end
+
 -- Whether the player is locked on to the main target
 function target.LockedOn()
     local flags = AshitaCore:GetMemoryManager():GetTarget():GetLockedOnFlags()

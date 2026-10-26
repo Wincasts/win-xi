@@ -1,5 +1,5 @@
 package.path = 'addons/name/?.lua;addons/libs/?.lua;' .. package.path -- levels reads winxi.mobs
-local letters = require('mob_letters')
+local letters = require('winxi.mob_letters')
 local indices = {}
 for ordinal = 28, 1, -1 do indices[ordinal * 3] = { Name = 'Goblin' } end
 indices[1] = { Name = 'Rabbit' }
@@ -12,7 +12,7 @@ assert(letters.Of(1, 'Rabbit', 123) == 'a', 'each name has its own sequence')
 assert(letters.Of(6, 'Goblin', 123) == 'b', 'unseen lower slots still count')
 -- A second user loads the same catalogue in a different order and encounters only
 -- the last mob first. Their output must match, with no discovery-order dependence.
-local other = dofile('addons/name/mob_letters.lua')
+local other = dofile('addons/libs/winxi/mob_letters.lua')
 local reordered = { [1] = { Name = 'Rabbit' } }
 for ordinal = 1, 28 do reordered[ordinal * 3] = { Name = 'Goblin' } end
 other.Set(reordered)
@@ -76,7 +76,7 @@ AshitaCore = { GetInstallPath = function() return 'C:\\ashita' end, GetMemoryMan
     asked[#asked + 1] = id
     return id == 6820 and listPath or (id == 6821 and listPath .. '.missing' or '')
 end } end }
-local names = require('zone_names')
+local names = require('winxi.zone_names')
 local read = assert(names.Read(100))
 assert(asked[1] == 6820, 'an area\'s file is numbered from 6720')
 assert(read[6] == 'Wild Rabbit' and read[60] == 'Forest Hare' and read[61] == 'A Name Of Twenty-Eight Bytes',

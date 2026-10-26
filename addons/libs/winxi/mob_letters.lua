@@ -8,7 +8,11 @@
 -- read are not the ones the game uses. That is reported once per zone and kept for
 -- letters.Problem(). Nothing is rebuilt from it: no client sees a whole zone, so a list
 -- mended from what one player has met would differ from another's.
-local letters = {};
+--
+-- Shared by name, which writes the letters over the monsters, and party, which writes its target's:
+-- each addon has its own copy. letters.Quiet keeps the report out of the chat (party's, for name's
+-- is said already).
+local letters = { Quiet = false };
 local assigned = {};
 local zone = nil;    -- the zone the roster is of, while it has one to check against
 local noted = {};    -- index -> true, for slots already found to differ
@@ -86,7 +90,7 @@ local function check(index, name, id, known)
         stale = { count = 0, index = index, name = name, expected = known and known.name or nil };
     end
     stale.count = stale.count + 1;
-    if (stale.count == 1) then
+    if (stale.count == 1 and not letters.Quiet) then
         print('\30\81[name]\30\01 ' .. letters.Problem());
     end
 end

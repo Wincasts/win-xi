@@ -4,7 +4,7 @@
 --     draw.Use(list)                         the draw list the calls after it draw on
 --     draw.Packed(color, alpha)              a colour as the list takes it, with the window's fade in it
 --     draw.Image(texture, x1, y1, x2, y2, packed, u1, v1, u2, v2)     the whole image, or the part of it given (0 to 1)
---     draw.Rect(x1, y1, x2, y2, packed)       filled
+--     draw.Rect(x1, y1, x2, y2, packed, rounding)     filled; its corners rounded that many pixels if given
 --     draw.Circle(x, y, radius, packed, sides)          filled; of 12 sides unless told, enough for a small one
 --     draw.Ring(x, y, radius, packed, thick, sides)     a circle's line, thick pixels thick, about that radius
 --     draw.Text(x, y, packed, words, edge, dark)        with winxi's dark edge if edge is given
@@ -69,9 +69,13 @@ function draw.Image(texture, x1, y1, x2, y2, packed, u1, v1, u2, v2)
     list:AddImage(texture, pointA, pointB, uvA, uvB, packed)
 end
 
-function draw.Rect(x1, y1, x2, y2, packed)
+function draw.Rect(x1, y1, x2, y2, packed, rounding)
     pointA[1], pointA[2], pointB[1], pointB[2] = x1, y1, x2, y2
-    list:AddRectFilled(pointA, pointB, packed)
+    if rounding then
+        list:AddRectFilled(pointA, pointB, packed, rounding)
+    else
+        list:AddRectFilled(pointA, pointB, packed)
+    end
 end
 
 function draw.Circle(x, y, radius, packed, sides)

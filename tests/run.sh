@@ -127,6 +127,7 @@ run party      addons/party/party.lua party_name_colors_check.lua
 run party      addons/party/party.lua party_cursor_check.lua
 run party      addons/party/party.lua party_fishing_check.lua
 run party      addons/party/party.lua party_lock_brackets_check.lua
+run party      addons/party/party.lua party_monster_letters_check.lua
 run party      addons/party/party.lua party_dropdowns_check.lua
 run party      addons/party/party.lua winxi_fonts_check.lua
 run party      addons/party/party.lua winxi_settings_window_check.lua
