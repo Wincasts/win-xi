@@ -1,5 +1,6 @@
 -- Uihook's independent clock/compass capture slots. No ImGui or texture pointers cross Lua.
 local ffi = require('ffi')
+local abi = require('winxi.abi')
 local bit = require('bit')
 ffi.cdef[[
     typedef struct {
@@ -40,7 +41,7 @@ function M.new(index)
             local address = ashita.memory.find('uihook.dll', 0, '5549484F4F4B2D485544000000000000', 0, 0)
             if not address or address == 0 then reason = 'Update uihook: clock/compass shared block not found.'; return nil end
             local found = ffi.cast('uihook_hud_t*', address)
-            if found.Version ~= 6 or found.Size ~= ffi.sizeof('uihook_hud_t') or found.Submit == 0 then
+            if not abi.Accepts(found, 'uihook_hud_t', 6) or found.Submit == 0 then
                 reason = 'uihook clock/compass ABI mismatch; install the matching DLL.'; return nil
             end
             block, submit = found, ffi.cast('uihook_hud_submit_t', found.Submit)

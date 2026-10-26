@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.66
+
+- Shared blocks frozen at their 1.0 layout until 2.0 (plugins/ABI.md): each grows only at its end, records never, and `tools/abi_check.py` (in tests/run.sh) fails on any other change. lens's block is read by `lens::Live` when it is at least 1.0's size, so a newer lens that adds to it is still read. Nothing in any block's layout changed.
+
 ## 1.65
 
 - Party: a party window's replacement can let the game's own drawing away from the window through, for the stamina

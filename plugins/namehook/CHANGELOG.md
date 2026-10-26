@@ -1,5 +1,9 @@
 # Changelog
 
+## namehook 1.41 — blocks frozen for 1.0
+
+- The shared blocks (HookShared, HookCapabilities, HookDraw, HookBubbles, HookPopups, HookPopupDraw) are frozen at their 1.0 layout until 2.0 (plugins/ABI.md): each grows only at its end, records never, and `tools/abi_check.py` (in tests/run.sh) fails on any other change. lens's block is read by `lens::Live` when it is at least 1.0's size, so a newer lens that adds to it is still read. Nothing in any block's layout changed; ABI 3 as before.
+
 ## namehook 1.40 — safe patching of the client's code
 
 - Every write to the client's code goes through `src/CodePatch.h`. Each site keeps its bytes as found; all the patches are made ready first and go in together, and a load that cannot write one takes back those it wrote and fails (-22 unreadable, -23 unwritable) with the client unchanged. Writes make each page writable only while writing, give it back its own protection and flush the instruction cache, instead of relying on the code pages being writable already.

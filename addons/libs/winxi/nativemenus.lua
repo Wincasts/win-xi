@@ -1,6 +1,7 @@
 -- Publish the captured info panel's pixel bounds. Native layout (not GPU/mouse translation)
 -- moves only the verified action-menu family. Independent of the read-only chat ABI.
 local ffi=require('ffi')
+local abi=require('winxi.abi')
 ffi.cdef[[typedef struct {
     char Magic[16]; uint32_t Version,Size,Frame,Supported,RequestFrame,HostSlot;
     float Panel[4]; uint32_t MenuFrame,Applied,Restored; char LastName[16];
@@ -23,7 +24,7 @@ function M.new()
             local at=ashita.memory.find('uihook.dll',0,'5549484F4F4B2D4D454E55530000000000',0,0)
             if not at or at==0 then reason='Update uihook: native menu anchoring is unavailable.'; return nil end
             local found=ffi.cast('uihook_menus_t*',at)
-            if found.Version~=1 or found.Size~=ffi.sizeof('uihook_menus_t') then
+            if not abi.Accepts(found,'uihook_menus_t',1) then
                 reason='uihook menu ABI mismatch; install the matching DLL.'; return nil
             end
             block=found

@@ -10,6 +10,7 @@
 --   keys.Ready()                           -- true while uihook can keep keys from the game
 --   keys.Status()
 local ffi = require('ffi')
+local abi = require('winxi.abi')
 ffi.cdef[[typedef struct {
     char Magic[16]; uint32_t Version, Size, Frame, Supported;
     uint32_t Hold[8];
@@ -35,7 +36,7 @@ function M.new()
             local at = ashita.memory.find('uihook.dll', 0, '5549484F4F4B2D4B4559530000000000', 0, 0)
             if not at or at == 0 then reason = 'Update uihook to 1.61 or newer: keys cannot be kept from the game.'; return nil end
             local found = ffi.cast('uihook_keys_t*', at)
-            if found.Version ~= 1 or found.Size ~= ffi.sizeof('uihook_keys_t') then
+            if not abi.Accepts(found, 'uihook_keys_t', 1) then
                 reason = 'uihook keys ABI mismatch; install the matching DLL.'; return nil
             end
             block = found

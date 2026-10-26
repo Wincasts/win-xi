@@ -1,4 +1,5 @@
 -- Isolated interpreter-mode budgets: fake DLL calls do not allocate. Not an in-game FPS benchmark.
+package.path = 'addons/libs/?.lua;' .. package.path
 local realffi=require('ffi')
 local queries,submits,releases,failAt=0,0,0,nil
 local fake={Version=3,Size=168,Hooked=1,SupportedMask=15,Frame=1,Submit=123,GeometryReady=1,

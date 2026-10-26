@@ -1,4 +1,5 @@
 -- Standalone native chat bridge contract; callbacks mocked, no client needed.
+package.path = 'addons/libs/?.lua;' .. package.path
 local ffi = require('ffi')
 local block = {Version=13,Size=71684,Submit=123,SupportedMask=2047,Frame=10,
     NativeFrame={[0]=10,[1]=0,[2]=0},DrawnFrame={[0]=10,[1]=0,[2]=0},

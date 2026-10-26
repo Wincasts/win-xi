@@ -3,6 +3,7 @@
 # what it finds. Read the output: a line ending in false, or an error, is something to look at.
 cd "$(dirname "$0")/.." || exit 1
 python3 tools/build_tooltips.py --check || exit 1
+python3 tools/abi_check.py || exit 1
 python3 -m unittest discover -s tools -p test_build_tooltips.py || exit 1
 python3 -m unittest discover -s tools -p test_build_name_cast_times.py || exit 1
 python3 -m unittest discover -s tools -p test_deploy.py || exit 1
@@ -30,6 +31,7 @@ run mark       addons/mark/mark.lua     mark_database_check.lua
 luajit tests/mark_stats_check.lua
 luajit tests/winxi_version_check.lua
 luajit tests/winxi_presence_check.lua || exit 1
+luajit tests/winxi_abi_check.lua || exit 1
 luajit tests/winxi_gamedata_check.lua
 luajit tests/winxi_items_check.lua || exit 1
 python3 tools/test_build_item_data.py || exit 1

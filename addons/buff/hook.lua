@@ -25,6 +25,7 @@
 --                         Begin to Finish: for a frame in which nothing of it has changed
 -- A frame without one gives the game its own icons back, a frame or two later.
 local ffi = require('ffi');
+local abi = require('winxi.abi');
 local imgui = require('imgui');
 
 ffi.cdef[[
@@ -109,7 +110,7 @@ local function Find()
         return nil;
     end
     local candidate = ffi.cast('buffhook_t*', found);
-    if candidate.Version ~= VERSION or candidate.Size ~= ffi.sizeof('buffhook_t') then
+    if not abi.Accepts(candidate, 'buffhook_t', VERSION) then
         why = 'mismatch';
         return nil;
     end

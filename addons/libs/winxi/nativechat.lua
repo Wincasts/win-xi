@@ -1,5 +1,6 @@
 -- Primary/split native chat and input replacement. Capture inside an ImGui window on the render thread.
 local ffi = require('ffi')
+local abi = require('winxi.abi')
 local bit = require('bit')
 ffi.cdef[[
     typedef struct {
@@ -61,7 +62,7 @@ function M.new(index)
             local at = ashita.memory.find('uihook.dll', 0, '5549484F4F4B2D434841540000000000', 0, 0)
             if not at or at == 0 then reason = 'Update uihook: chat shared block not found.'; return nil end
             local found = ffi.cast('uihook_chat_t*', at)
-            if found.Version ~= 13 or found.Size ~= ffi.sizeof('uihook_chat_t') or found.Submit == 0 then
+            if not abi.Accepts(found, 'uihook_chat_t', 13) or found.Submit == 0 then
                 reason = 'uihook chat ABI mismatch; install the matching DLL.'; return nil
             end
             block, submit = found, ffi.cast('uihook_chat_submit_t', found.Submit)
