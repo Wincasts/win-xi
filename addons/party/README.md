@@ -4,7 +4,7 @@ addon [XivParty](https://github.com/Tylas11/XivParty)'s compact one.
 
 - **Party**: your party and the other two alliance parties. A member is a line: the name, an HP bar
   and a smaller MP bar with their values, and TP as a value. Selected members have the game's animated cursor before
-  their name (blue text for the target, green for a subtarget or party-cursor selection); a leader has a circle before theirs (yellow for the party's leader; the alliance's leader has a white one above it), and the level sync designee a red one at the right end of their line, as high as the party leader's. Your own party's list grows upwards, and
+  their name (blue text for the target, green for a subtarget or party-cursor selection); a leader has a circle before theirs (yellow for the party's leader; the alliance's leader has a white one above it), and the level sync designee a red one at the right end of their line, as high as the party leader's (the upper of an alliance leader's two). Your own party's list grows upwards, and
   has its buffs running leftwards from the window. The game's own icons beside the window mark a party or
   alliance invite waiting for an answer (a green exclamation mark in a dark circle) and anything in the treasure pool (the chest).
   A name is written as far as the right end of its HP bar, and only cut short with "..." past that.

@@ -25,6 +25,7 @@
 --     plainHp                  an HP figure that keeps its colour however low the HP is
 --     isPartyLeader, isAllianceLeader          a circle before the name, or two: yellow for the party, white for the alliance
 --     isLevelSync              the level sync designee: a red circle at the line's right, as high as a leader's
+--                              (the upper of an alliance leader's two)
 --     isTarget, isSubTarget, isPartyTarget     native DAT cursor before the name; text markers on load failure
 --     isPlayer, targetIndex, entity            for how far away they are: bars dim with distance
 --     statusIds                their buffs
@@ -579,11 +580,12 @@ local function LetterBadge(state, letter, left, top, color)
 end
 
 -- The level sync designee's mark: a red circle the size of a party leader's and as high, at the right
--- end of their line
-local function DrawLevelSync()
+-- end of their line; for an alliance's leader, as high as the upper of their two
+local function DrawLevelSync(member)
     local radius = nameFont * 0.19
     local right = math.floor(itemX + layout.width * scale)
-    Circle(right - radius - 1, math.floor(itemY + layout.name.y * scale) + nameFont * 0.52, radius, colors.LevelSync)
+    local down = member.isAllianceLeader and 0.26 or 0.52
+    Circle(right - radius - 1, math.floor(itemY + layout.name.y * scale) + nameFont * down, radius, colors.LevelSync)
 end
 
 -- A member's name after their leader's mark and the game's animated DAT cursor when selected.
@@ -595,7 +597,7 @@ local function DrawName(member, state)
     if member.isPartyLeader or member.isAllianceLeader then
         x = x + DrawLeaderMarks(member)
     end
-    if member.isLevelSync then DrawLevelSync() end
+    if member.isLevelSync then DrawLevelSync(member) end
     if member.isInZone and member.hpp and member.hpp <= (activeStyle.lowHp or 0) and (activeStyle.lowHp or 0) > 0 then
         Write('!', x, name.y, hpRed)
         x = x + TextSize('! ') / scale
