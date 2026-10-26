@@ -1,6 +1,6 @@
--- fishing: whether a fish is on the line. The game draws the fish's stamina gauge in its own target
--- window, which uihook keeps from drawing while party replaces it; party lets the window go for the
--- fight, so the gauge shows.
+-- fishing: whether a fish is on the line. The game draws the fish's stamina gauge as part of its own
+-- target window, though away from where the window sits; uihook keeps all the window draws from showing
+-- while party replaces it, wherever they are, so party lets the window go for the fight and the gauge shows.
 --
 --     fishing.HandlePacket(e), fishing.HandlePacketOut(e)     every packet in and out goes by these
 --     fishing.Hooked()              whether a fight is on

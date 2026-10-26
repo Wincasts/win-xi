@@ -318,7 +318,7 @@ local function Present()
     -- Expanded chat/maps hide the replacement too, rather than allowing stock HUD frames back.
     local native = nativeHook and nativeHook.Begin(
         hooking and saved.nativeParty[1] and saved.party.enabled[1] and not organizing,
-        -- the game draws a hooked fish's stamina in its target window: given back for the fight
+        -- the game draws a hooked fish's stamina gauge with its target window: given back for the fight
         hooking and saved.nativeTarget[1] and saved.target.enabled[1] and not organizing and not fishing.Hooked())
     local hidden=winxiGame.IsHidden(saved.hide)
     if native then
@@ -342,7 +342,7 @@ local function Present()
         and not (nativeHidden and nativeBehaviorGroups.party) and not windows.IsFadedOut('party')
     local showTarget = saved.target.enabled[1] and (not hidden or nativeBehaviorGroups.target)
         and not (nativeHidden and nativeBehaviorGroups.target) and not windows.IsFadedOut('target')
-        and not fishing.Hooked() -- out of the way of the game's own gauge
+        and not fishing.Hooked() -- the game's own target window is back for the fight: not doubled
     if not showParty and not showTarget then
         winxiOrganize.EndFrame()
         return
