@@ -1337,7 +1337,7 @@ imgui PushFont
 window AddText (10,20) #FFFFFFFF Lastone
 window AddText (10,66) #FFFFFFFF Sample 4
 window AddText (10,112) #FFFFFFFF Sample 6
-window AddCircleFilled (199.6,163.4) 4.4 #F2332EFF 12
+window AddCircleFilled (199.6,170.06) 4.4 #F2332EFF 12
 window AddText (10,158) #FFFFFFFF Sample 3
 window AddCircleFilled (15.4,216.06) 4.4 #FFE640FF 12
 window AddText (24,204) #FFFFFFFF Thirdlead

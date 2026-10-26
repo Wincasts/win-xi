@@ -24,7 +24,7 @@
 --     noMp                     the most MP they can have is none: a grey, full MP bar and no MP figure
 --     plainHp                  an HP figure that keeps its colour however low the HP is
 --     isPartyLeader, isAllianceLeader          a circle before the name, or two: yellow for the party, white for the alliance
---     isLevelSync              the level sync designee: a red circle at the line's top right
+--     isLevelSync              the level sync designee: a red circle at the line's right, as high as a leader's
 --     isTarget, isSubTarget, isPartyTarget     native DAT cursor before the name; text markers on load failure
 --     isPlayer, targetIndex, entity            for how far away they are: bars dim with distance
 --     statusIds                their buffs
@@ -578,12 +578,12 @@ local function LetterBadge(state, letter, left, top, color)
     return gap + width
 end
 
--- The level sync designee's mark: a red circle the size of a leader's, in the top right corner of their
--- line, clear of the HP bar
+-- The level sync designee's mark: a red circle the size of a party leader's and as high, at the right
+-- end of their line
 local function DrawLevelSync()
     local radius = nameFont * 0.19
     local right = math.floor(itemX + layout.width * scale)
-    Circle(right - radius - 1, math.floor(itemY + layout.name.y * scale) + radius + 1, radius, colors.LevelSync)
+    Circle(right - radius - 1, math.floor(itemY + layout.name.y * scale) + nameFont * 0.52, radius, colors.LevelSync)
 end
 
 -- A member's name after their leader's mark and the game's animated DAT cursor when selected.
