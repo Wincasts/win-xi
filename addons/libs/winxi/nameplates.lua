@@ -193,6 +193,9 @@ local block = nil;         -- the plugin's block, while the plugin is loaded
 local why = 'unloaded';    -- why there is none: 'unloaded', 'old' or 'mismatch'
 local lookedAt = -LOOK_EVERY;
 local capabilities, capabilityOwner, capabilityLookedAt = nil, nil, -LOOK_EVERY;
+-- Connection-owned caches must be forgotten even if the DLL reloads at the same address.
+local places, placedAt, placedOwner = {}, nil, nil;
+local draw, drawing, quadLimit = nil, nil, 0;
 
 local problems = {
     unloaded = 'The namehook plugin is not loaded: /load namehook',
@@ -207,6 +210,8 @@ function nameplates.Hook()
         block, why = nil, 'unloaded';
         capabilities, capabilityOwner, capabilityLookedAt = nil, nil, -LOOK_EVERY;
         lookedAt = -LOOK_EVERY;
+        placedAt, placedOwner = nil, nil;
+        draw, drawing, quadLimit = nil, nil, 0;
         return nil, why;
     end
 
@@ -233,6 +238,8 @@ function nameplates.Hook()
     end
 
     block, why = candidate, nil;
+    placedAt, placedOwner = nil, nil;
+    draw, drawing, quadLimit = nil, nil, 0;
     return block;
 end
 
@@ -305,17 +312,14 @@ end
 
 -- Where each entity's name is in the list, worked out once each time the plugin makes the list ready:
 -- the one table, emptied and filled again, as that is once a frame
-local places = {};
-local placedAt = nil;
-
 function nameplates.Find(entityIndex, hook)
     hook = hook or nameplates.Hook();
     if (hook == nil) then
         return nil;
     end
 
-    if (placedAt ~= hook.Sequence) then
-        placedAt = hook.Sequence;
+    if (placedAt ~= hook.Sequence or placedOwner ~= hook) then
+        placedAt, placedOwner = hook.Sequence, hook;
         for index in pairs(places) do
             places[index] = nil;
         end
@@ -325,7 +329,7 @@ function nameplates.Find(entityIndex, hook)
     end
 
     local place = places[entityIndex];
-    if (place == nil or place >= hook.Count) then
+    if (place == nil or place >= hook.Count or hook.Names[place].EntityIndex ~= entityIndex) then
         return nil;
     end
     return hook.Names[place];
@@ -419,10 +423,8 @@ function nameplates.Claim(categories, hook)
 end
 
 -- Names drawn for the plugin to put in the picture
-local draw = nil;      -- the plugin's place for them, between BeginDrawing and the frame's end
-local drawing = nil;   -- the name being drawn
+-- draw/drawing/quadLimit are connection-owned and declared beside Hook's caches.
 local horizontalFit = 1; -- opt-in correction from vertical layout pixels to target X pixels
-local quadLimit = 0;   -- how many quads the plugin has room for, as BeginDrawing found it
 local QUADS_PER_NAME = 256;
 local QUADS_MAX = 16384;
 local TEXTURES = 8;
@@ -431,6 +433,8 @@ local TEXTURES = 8;
 -- Never follow a cached DLL pointer after unload; resolve a current Hook first.
 -- Speech bubbles own a different buffer and are not touched here.
 function nameplates.ClearDrawing(hook)
+    -- Drop cached writer pointers before resolving the current connection or freeing owners.
+    draw, drawing, quadLimit = nil, nil, 0;
     hook = hook or nameplates.Hook();
     if hook ~= nil and hook.Draw ~= nil and hook.Draw ~= 0 then
         local target = ffi.cast('namehook_draw_t*', hook.Draw);
@@ -438,7 +442,6 @@ function nameplates.ClearDrawing(hook)
         ffi.fill(target.Textures, ffi.sizeof(target.Textures));
         target.Frame = hook.Frame - 9; -- beyond HOOK_DRAW_FRAMES, including frame wrap
     end
-    draw, drawing, quadLimit = nil, nil, 0;
 end
 
 function nameplates.BeginDrawing(hook, correctAspect)

@@ -23,7 +23,26 @@ assert(draws==drawn and released.text==before+1 and released.badges==1 and relea
     'Enable Name off releases once, without dispatching Frame')
 options.drawNames[1]=true;H.frames(1)
 before,drawn=released.text,draws
+-- Textured bars used to write through the cached DLL pointer before invalidation.
+local art=require('bar_art')
+local invalidated,freed=false,0
+local clearDrawing,setTexture,free=plates.ClearDrawing,plates.SetTexture,art.Free
+plates.ClearDrawing=function(...) invalidated=true;return clearDrawing(...) end
+plates.SetTexture=function(...)
+    assert(invalidated, 'bar teardown wrote through the cached writer before invalidation')
+    return setTexture(...)
+end
+art.Free=function() assert(invalidated, 'texture freed before invalidation');freed=freed+1 end
+local installed=false
+for i=1,20 do
+    if debug.getupvalue(art.Release,i)=='sheet' then
+        debug.setupvalue(art.Release,i,{texture={}});installed=true;break
+    end
+end
+assert(installed, 'fixture must install an owned textured-bar sheet')
 connected=false;H.frames(2)
+assert(invalidated and freed==1, 'plugin loss invalidates before freeing textured bars exactly once')
+plates.ClearDrawing,plates.SetTexture,art.Free=clearDrawing,setTexture,free
 assert(draws==drawn and released.text==before+1 and released.badges==2 and released.icons==2,
     'plugin loss releases once')
 connected=true;H.frames(1)
@@ -52,4 +71,20 @@ local memory={GetParty=function() scans=scans+1;return roster end}
 assert(roles.Begin(memory,true) and roles.Of(1))
 assert(not roles.Begin(memory,false) and scans==1 and roles.Of(1)==nil,
     'formats without [party] skip party scans and clear old role state')
-H.print('Name lifecycle: enable off, plugin loss, old DLL, recovery and settings reload release caches once',true)
+-- Unload must clear the published buffer/claim before Lua finalizes GPU owners.
+realFrame(options,nil)
+hook.Claimed=0xFF
+before=released.text
+invalidated=false
+plates.ClearDrawing=function(...) invalidated=true;return clearDrawing(...) end
+local release=filtered.Release
+filtered.Release=function(...)
+    assert(invalidated and hook.Claimed==0, 'unload must unpublish and release its claim before textures')
+    return release(...)
+end
+H.unload()
+assert(invalidated and released.text==before+1 and hook.Claimed==0,
+    'unload deterministically releases owned textures even before the first native scene')
+H.unload()
+assert(released.text==before+1, 'repeated unload cleanup is idempotent')
+H.print('Name lifecycle: off/loss/reload/unload release caches once, textured bars invalidate before freeing, claims relinquished',true)

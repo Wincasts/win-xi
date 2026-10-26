@@ -198,8 +198,10 @@ The Names tab configures WinXI text, in the game's colours, with icons wherever
 `[icons]` appears in its format. Visibility still decides which names are shown.
 Custom rendering requires namehook 1.35 or newer and WinXI 47 or newer.
 Turning Name off, losing the plugin or reloading settings/changing profile releases Name's
-owned generated atlases and file textures; cleanup is idempotent. ImGui still owns
-its shared font atlas. The draw buffer is invalidated before freeing GPU owners,
+owned generated atlases and file textures; cleanup is idempotent. Addon unload also
+invalidates the last submission and relinquishes the claim before releasing textures,
+including textures the plugin has not yet consumed. ImGui still owns its shared font atlas.
+The draw buffer and cached DLL writers are invalidated before freeing GPU owners,
 so a texture released before the plugin's first scene cannot leave a stale pointer.
 Removing `[letters]` releases the cached badge texture, and
 rebuilds promptly release replaced badge atlases rather than waiting for Lua GC.

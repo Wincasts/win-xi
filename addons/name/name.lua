@@ -1,6 +1,6 @@
 addon.name    = 'name';
 addon.author  = 'win';
-addon.version = '1.78';
+addon.version = '1.79';
 addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the namehook plugin.';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
@@ -328,6 +328,12 @@ local function failed(message)
     diag.Error(message, debug.traceback(tostring(message), 2));
     return message;
 end
+
+-- Lua-owned textures can be finalized as soon as unload completes. Unpublish them
+-- before native code can consume the last submission, even before its first scene.
+ashita.events.register('unload', 'name_render_unload', function ()
+    custom.Deactivate();
+end);
 
 -- Every packet in, handed to each part that reads them: the area entered, checks and deaths for
 -- levels and the diagnostics' history; which monsters were called for help on, for their colour; and

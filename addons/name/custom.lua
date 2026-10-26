@@ -749,7 +749,7 @@ local steady = {};
 local function pulseOf(a, b)
     local ar, ag, ab = math.min(0x80, bit.rshift(a, 16)), math.min(0x80, bit.band(bit.rshift(a, 8), 0xFF)), math.min(0x80, bit.band(a, 0xFF));
     local br, bg, bb = math.min(0x80, bit.rshift(b, 16)), math.min(0x80, bit.band(bit.rshift(b, 8), 0xFF)), math.min(0x80, bit.band(b, 0xFF));
-    for _, toward in ipairs({ 0, 0x80 }) do
+    for toward = 0, 0x80, 0x80 do
         -- the share of the way, from the channel with furthest to go
         local far, near = br, ar;
         if (math.abs(toward - bg) > math.abs(toward - far)) then far, near = bg, ag; end
@@ -1118,9 +1118,12 @@ end
 function custom.Deactivate()
     fontPipeline.Castbar.Reset();
     if not fontPipeline.active then return end
-    fontPipeline.BarArt.Release();
-    fontPipeline.active = false;
+    -- Invalidate published addresses and cached DLL writers before any owner is freed.
+    -- The plugin may already have disappeared; ClearDrawing resolves a live connection.
     nameplates.ClearDrawing();
+    nameplates.Claim(0);
+    fontPipeline.active = false;
+    fontPipeline.BarArt.Release();
     fontPipeline.Readability.Reset();
     filteredText.Release();
     letterBadges.Release();
