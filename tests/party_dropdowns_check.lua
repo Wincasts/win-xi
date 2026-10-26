@@ -1,4 +1,4 @@
--- Party's Behavior tab and the shared Winxi style widgets (no Party theme tab).
+-- Party's Behavior and Visibility tabs and the shared Winxi style widgets (no Party theme tab).
 H.load()
 local imgui = require('imgui')
 local theme = require('winxi.theme')
@@ -6,6 +6,7 @@ local widgets = require('winxi.widgets')
 local config = require('config')
 local saved = H.options()
 assert(config.Tabs[1].name == 'Behavior', 'Behavior must be the first tab')
+assert(config.Tabs[2].name == 'Visibility', 'Visibility is the second tab')
 for _, tab in ipairs(config.Tabs) do
     assert(tab.name ~= 'Winxi Theme' and tab.name ~= 'Global Settings' and not tab.theme)
 end
@@ -15,8 +16,10 @@ widgets.Fade = function(value, save, grouped)
     fadeCalls = fadeCalls + 1
 end
 config.Tabs[1].draw(saved)
+assert(fadeCalls == 0, 'idle fade controls are not in Behavior')
+config.Tabs[2].draw(saved)
 widgets.Fade = fade
-assert(fadeCalls == 1, 'idle fade controls belong to Behavior')
+assert(fadeCalls == 1, 'idle fade controls belong to Visibility')
 -- Every tab has Winxi sections, and collapsed sections draw no setting controls.
 local header, label = widgets.Header, widgets.Label
 local headings = {}
@@ -30,7 +33,11 @@ for _, tab in ipairs(config.Tabs) do
     headings = {}
     tab.draw(saved)
     assert(#headings >= 2, 'organized sections in ' .. tab.name)
-    if tab.name == 'Behavior' then assert(headings[1] == 'Mouse Interaction') end
+    if tab.name == 'Behavior' then
+        assert(headings[1] == 'Mouse Interaction')
+        for _, h in ipairs(headings) do assert(h ~= 'Visibility' and h ~= 'Hide Windows' and h ~= 'Fading', h .. ' moved to Visibility') end
+    end
+    if tab.name == 'Visibility' then assert(headings[1] == 'Hide Windows' and headings[2] == 'Fading') end
 end
 widgets.Header, widgets.Label = header, label
 -- The library widgets remain covered independently of Party's tabs.
@@ -132,4 +139,4 @@ assert(written, 'a chosen style is saved')
 theme.Save = save
 theme.Reset()
 assert(look.BorderStyle == 'theme' and look.BarTexture == 'original' and look.TabStyle == 'sheen' and look.StatusIcons == true)
-H.print('Behavior fade controls, no Party theme tab; shared theme widgets and dropdowns', true)
+H.print('Visibility tab hide and fade controls, no Party theme tab; shared theme widgets and dropdowns', true)

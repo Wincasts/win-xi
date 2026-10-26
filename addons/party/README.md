@@ -20,8 +20,8 @@ addon [XivParty](https://github.com/Tylas11/XivParty)'s compact one.
 `/xiframes` is no longer used. Its Style tab sets how every frame is drawn (sizes,
 where the values sit); Party, Target and Pets have what is each one's own. The dark edge round names
 and values is Winxi Theme's Text Outline, set in winxisettings for every addon.
-**Behavior** contains mouse interaction, optional **Automatic Positioning**, hiding rules,
-**Fade When Idle**, and which windows fade.
+**Behavior** contains mouse interaction, optional **Automatic Positioning** and uihook.
+**Visibility** has the hiding rules (**Hide Windows**), **Fade When Idle** and which windows fade (**Fading**).
 There is no Winxi Theme tab in Party; use **winxisettings** for shared colours, padding, shadows,
 window borders, bar textures, bookends and custom status icons. Organize, at the foot of the window, fills the frames with sample data to drag into place.
 `/pt perf` measures five seconds of render and packet-handler CPU time: average, median, p95,
