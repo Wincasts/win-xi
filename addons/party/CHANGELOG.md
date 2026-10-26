@@ -8,6 +8,9 @@
   green by the plugin found and its version, e.g. [uihook 1.60 found]. The explanations of Use uihook, Party,
   Target and Follow Default UI Behavior are in a (?) after each, not the control's own tooltip. The native
   rendering status line under them is gone; `/pt native status` still gives it, no longer called experimental.
+- **Shift+drag** moves a window while Clickthrough is off: Shift held as it is clicked, the drag kept until the
+  mouse is let go. Without Shift the windows no longer move when clicked. Not with Clickthrough on, nor for a
+  window placed by Automatic Positioning or uihook or linked to another; organizing drags as before.
 
 ## 0.3.1
 

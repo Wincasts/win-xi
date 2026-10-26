@@ -5,6 +5,7 @@
 --
 --     windows.Use(options)                             the settings in use: after loading, or a change of character
 --     windows.UpdateFade(rearranging)                  once a frame, before any window
+--     windows.UpdatePositions(...)                     once a frame, after UpdateFade and before any window
 --     windows.Draw(window, content, wanted, growFrom)  draws one; content draws what it holds
 --     windows.Lingers(window)                          true while a window no longer wanted is still fading out
 --     windows.IsFadedOut(group)                        true while a group's windows are faded right out by idling
@@ -15,6 +16,10 @@
 -- if given, is the corner that stays where it is as the window's content changes size (one of
 -- winxi.anchor's: 'BottomLeft' for a window that grows upwards). content is then called twice a
 -- frame, once to measure. A window linked to another while organizing is placed by its link instead.
+--
+-- A window is dragged while organizing, or, with Clickthrough off, by holding Shift as it is clicked: the
+-- drag goes on until the mouse is let go, Shift held or not. A window placed by Automatic Positioning,
+-- by uihook or by a link is not dragged that way.
 --
 -- A window is one of windows.List: its name for imgui, the group it fades with, and where in the
 -- settings its place is kept, and its corner if it is held by one.
@@ -66,6 +71,31 @@ local open = { true }
 local baseFlags = nil
 
 local options = nil
+
+-- Whether Shift is held, from Windows, as the game may keep keys from imgui; imgui's own where Windows
+-- cannot be asked
+local GetAsyncKeyState = nil
+do
+    local ok, ffi = pcall(require, 'ffi')
+    if ok then
+        pcall(ffi.cdef, 'short __stdcall party_GetAsyncKeyState(int) __asm__("GetAsyncKeyState");')
+        local found, user32 = pcall(ffi.load, 'user32')
+        if found then
+            local got, fn = pcall(function() return user32.party_GetAsyncKeyState end)
+            if got then GetAsyncKeyState = fn end
+        end
+    end
+end
+local VK_SHIFT = 0x10
+function windows.ShiftHeld()
+    if GetAsyncKeyState ~= nil then return bit.band(GetAsyncKeyState(VK_SHIFT), 0x8000) ~= 0 end
+    local io = imgui.GetIO()
+    return io ~= nil and io.KeyShift == true
+end
+
+-- Shift held this frame, and true from a click made with it held until the mouse is let go: the windows
+-- can be dragged meanwhile
+local shiftHeld, shiftDrag = false, false
 
 function windows.Use(newOptions)
     options = newOptions
@@ -124,6 +154,13 @@ end
 local cornerGiven = setmetatable({ }, { __mode = 'k' })
 
 function windows.UpdatePositions(mainHeight, targetHeight, allianceHeight)
+    -- asked only when it can move a window
+    shiftHeld = not options.clickThrough[1] and windows.ShiftHeld()
+    if not imgui.IsMouseDown(0) then
+        shiftDrag = false
+    elseif imgui.IsMouseClicked(0) then
+        shiftDrag = shiftHeld
+    end
     automaticLayout=nil
     if options.automaticPositioning[1] and mainHeight then
         local display=imgui.GetIO().DisplaySize
@@ -151,8 +188,15 @@ function windows.Draw(window, content, wanted, growFrom)
     baseFlags = baseFlags or bit.bor(ImGuiWindowFlags_NoDecoration)
     local flags = baseFlags
     local nativeWindow = windows.Native and windows.Native(window)
-    if (options.clickThrough[1] or (nativeWindow and windows.BlockNativeInputs)) and not organize.IsActive() then
+    local organizing = organize.IsActive()
+    if (options.clickThrough[1] or (nativeWindow and windows.BlockNativeInputs)) and not organizing then
         flags = bit.bor(flags, ImGuiWindowFlags_NoInputs)
+    end
+    -- held still unless organizing, Shift is held with the mouse up (imgui begins a drag on the frame of
+    -- the click), or through a drag begun so; a linked window goes where its link puts it
+    if not organizing and (options.clickThrough[1] or organize.IsLinked(window.name)
+        or not (shiftDrag or (shiftHeld and not imgui.IsMouseDown(0)))) then
+        flags = bit.bor(flags, ImGuiWindowFlags_NoMove)
     end
 
     local look = theme.Get()
