@@ -1,5 +1,5 @@
--- Fishing: a hooked fish's stamina is drawn in the game's own target window, so for the fight party
--- gives that window back (uihook stops replacing it) and keeps its own target windows out of the way.
+-- Fishing: a hooked fish's stamina gauge is drawn with the game's own target window, so for the fight
+-- party gives that window back (uihook stops replacing it) and hides its own, not to show a target twice.
 H.load()
 local options = H.options()
 local fishing = require('fishing')
