@@ -243,6 +243,65 @@ struct HookClaims {
     HookClaimSlot Slots[HOOK_CLAIM_SLOTS];
 };
 
+// Layers of the world (1.46): found by magic. An addon takes a free layer (Owner 0) as it takes a claim slot,
+// and each frame renews it (ClaimFrame) and fills its HookLayerDraw, at Draw: drawings anchored to an entity
+// (at its name's point, offset in the world) or to a point of the world, each drawn as a name is: as deep in
+// the picture as its point, hidden by what is in front of it unless asked otherwise, and under lens's warp
+// at its own shape. Layers are drawn by Order, lowest first. One not renewed lapses as a claim does, and the
+// plugin frees it. A point of the world is drawn as the client draws its first name of a frame, and an
+// entity's as the client comes to its name: none while the game's names are switched off.
+#define HOOK_LAYERS 4
+#define HOOK_LAYER_DRAWINGS 512
+#define HOOK_LAYER_QUADS 8192
+
+enum : uint32_t {
+    LAYER_AT_ENTITY = 1 << 0, // at EntityIndex's name point, X, Y and Z added: drawn while ServerId is still its
+    LAYER_AT_WORLD  = 1 << 1, // at X, Y and Z
+    LAYER_DRAW_OVER = 1 << 2, // over everything, never hidden by what is in front of it
+};
+
+struct HookLayerDrawing {
+    uint32_t Flags;       // LAYER_*: one of LAYER_AT_ENTITY and LAYER_AT_WORLD
+    uint32_t EntityIndex; // with LAYER_AT_ENTITY
+    uint32_t ServerId;    // and who that must be: an index another has since is not drawn at
+    float X, Y, Z;        // the point of the world, or the offset from the entity's name point
+    HookDrawing Drawing;  // as a name's: its Frame is HookLayerDraw::Frame, its quads in HookLayerDraw::Quads
+};
+
+struct HookLayerDraw {
+    uint32_t Frame;       // HookShared::Frame it was drawn for
+    uint32_t QuadCount;
+    uint32_t QuadsMax;    // HOOK_LAYER_QUADS
+    uint32_t Reserved;    // optional 16.16 horizontal outline fit, as HookDraw's; 0 means 1:1
+    uint32_t Textures[HOOK_TEXTURES_ALL]; // each an IDirect3DTexture8*, HOOK_TEXTURE_FONT, or 0
+    uint32_t Count;       // drawings
+    uint32_t DrawingsMax; // HOOK_LAYER_DRAWINGS
+    HookLayerDrawing Drawings[HOOK_LAYER_DRAWINGS];
+    HookQuad Quads[HOOK_LAYER_QUADS];
+
+    float HorizontalFit() const {
+        return Reserved != 0 ? static_cast<float>(Reserved) / 65536.0f : 1.0f;
+    }
+};
+
+struct HookLayerSlot {
+    uint32_t Owner;      // the addon's own number, never 0; 0: free
+    uint32_t ClaimFrame; // the HookShared::Frame it was last renewed in
+    uint32_t Order;      // drawn lowest first
+    uint32_t Draw;       // the plugin's: where the layer's HookLayerDraw is
+    uint32_t Reserved[4];
+};
+
+struct HookLayers {
+    char Magic[16];    // "NAMEHOOKLAYERS"
+    uint32_t Version;  // 1
+    uint32_t Size;
+    uint32_t SlotSize;
+    uint32_t SlotsMax; // HOOK_LAYERS
+    uint32_t Reserved[4];
+    HookLayerSlot Slots[HOOK_LAYERS];
+};
+
 // Independent additive world-space layer. Found by magic without changing HookShared.
 // Version 2: a texture may be HOOK_TEXTURE_FONT, which version 1 would have taken for an address.
 // A bubble never claims a name or obeys its category's hide setting. ServerIds prevents
@@ -423,6 +482,14 @@ class Nameplate {
         // Before the first name of each frame, for each claim slot (0 to HOOK_CLAIM_SLOTS - 1, every frame, in
         // order): its HookDraw, and whether it claims anything and has drawn lately enough to be drawn from
         virtual void BeginSlot([[maybe_unused]] uint32_t slot, [[maybe_unused]] const HookDraw& draw, [[maybe_unused]] bool fresh) {}
+
+        // Before the first name of each frame, for each layer (0 to HOOK_LAYERS - 1, every frame, in order):
+        // its drawing, and whether it is taken and drawn lately enough to be drawn from. Then, as each is
+        // drawn, one of its drawings at this point of the world (three floats); slot is where it is in
+        // HookLayerDraw::Drawings, over whether to draw it over everything.
+        virtual void BeginLayer([[maybe_unused]] uint32_t layer, [[maybe_unused]] const HookLayerDraw& draw, [[maybe_unused]] bool fresh) {}
+        virtual void DrawLayer([[maybe_unused]] uint32_t layer, [[maybe_unused]] uint32_t slot, [[maybe_unused]] const HookDrawing& drawing,
+            [[maybe_unused]] const HookQuad* quads, [[maybe_unused]] const float* position, [[maybe_unused]] bool over) {}
 
         virtual void BeginBubbles([[maybe_unused]] const HookDraw& draw, [[maybe_unused]] bool fresh) {}
 

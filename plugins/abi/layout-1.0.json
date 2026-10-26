@@ -603,7 +603,109 @@
   ],
   "kind": "block",
   "plugin": "namehook",
-  "size": 851020
+  "size": 851116
+ },
+ "HookCamera": {
+  "fields": [
+   [
+    "Magic",
+    0,
+    "char[16]"
+   ],
+   [
+    "Version",
+    16,
+    "uint32_t"
+   ],
+   [
+    "Size",
+    20,
+    "uint32_t"
+   ],
+   [
+    "Frame",
+    24,
+    "uint32_t"
+   ],
+   [
+    "Valid",
+    28,
+    "uint32_t"
+   ],
+   [
+    "View",
+    32,
+    "float[16]"
+   ],
+   [
+    "Projection",
+    96,
+    "float[16]"
+   ],
+   [
+    "ViewProjection",
+    160,
+    "float[16]"
+   ],
+   [
+    "ViewportX",
+    224,
+    "float"
+   ],
+   [
+    "ViewportY",
+    228,
+    "float"
+   ],
+   [
+    "ViewportWidth",
+    232,
+    "float"
+   ],
+   [
+    "ViewportHeight",
+    236,
+    "float"
+   ],
+   [
+    "ViewportMinZ",
+    240,
+    "float"
+   ],
+   [
+    "ViewportMaxZ",
+    244,
+    "float"
+   ],
+   [
+    "Lens",
+    248,
+    "uint32_t"
+   ],
+   [
+    "LensMode",
+    252,
+    "uint32_t"
+   ],
+   [
+    "LensStrength",
+    256,
+    "float"
+   ],
+   [
+    "LensTanH",
+    260,
+    "float"
+   ],
+   [
+    "LensTanV",
+    264,
+    "float"
+   ]
+  ],
+  "kind": "block",
+  "plugin": "namehook",
+  "size": 268
  },
  "HookCapabilities": {
   "fields": [
@@ -636,6 +738,90 @@
   "kind": "block",
   "plugin": "namehook",
   "size": 32
+ },
+ "HookClaimSlot": {
+  "fields": [
+   [
+    "Owner",
+    0,
+    "uint32_t"
+   ],
+   [
+    "Categories",
+    4,
+    "uint32_t"
+   ],
+   [
+    "ClaimFrame",
+    8,
+    "uint32_t"
+   ],
+   [
+    "Priority",
+    12,
+    "uint32_t"
+   ],
+   [
+    "Draw",
+    16,
+    "uint32_t"
+   ],
+   [
+    "Reserved",
+    20,
+    "uint32_t[3]"
+   ]
+  ],
+  "kind": "record",
+  "plugin": "namehook",
+  "size": 32
+ },
+ "HookClaims": {
+  "fields": [
+   [
+    "Magic",
+    0,
+    "char[16]"
+   ],
+   [
+    "Version",
+    16,
+    "uint32_t"
+   ],
+   [
+    "Size",
+    20,
+    "uint32_t"
+   ],
+   [
+    "SlotSize",
+    24,
+    "uint32_t"
+   ],
+   [
+    "SlotsMax",
+    28,
+    "uint32_t"
+   ],
+   [
+    "SharedPriority",
+    32,
+    "uint32_t"
+   ],
+   [
+    "Reserved",
+    36,
+    "uint32_t[3]"
+   ],
+   [
+    "Slots",
+    48,
+    "HookClaimSlot[3]"
+   ]
+  ],
+  "kind": "block",
+  "plugin": "namehook",
+  "size": 144
  },
  "HookDraw": {
   "fields": [
@@ -673,11 +859,16 @@
     "Quads",
     55344,
     "HookQuad[16384]"
+   ],
+   [
+    "TexturesExtra",
+    841776,
+    "uint32_t[24]"
    ]
   ],
   "kind": "block",
   "plugin": "namehook",
-  "size": 841776
+  "size": 841872
  },
  "HookDrawing": {
   "fields": [
@@ -715,6 +906,174 @@
   "kind": "record",
   "plugin": "namehook",
   "size": 24
+ },
+ "HookLayerDraw": {
+  "fields": [
+   [
+    "Frame",
+    0,
+    "uint32_t"
+   ],
+   [
+    "QuadCount",
+    4,
+    "uint32_t"
+   ],
+   [
+    "QuadsMax",
+    8,
+    "uint32_t"
+   ],
+   [
+    "Reserved",
+    12,
+    "uint32_t"
+   ],
+   [
+    "Textures",
+    16,
+    "uint32_t[32]"
+   ],
+   [
+    "Count",
+    144,
+    "uint32_t"
+   ],
+   [
+    "DrawingsMax",
+    148,
+    "uint32_t"
+   ],
+   [
+    "Drawings",
+    152,
+    "HookLayerDrawing[512]"
+   ],
+   [
+    "Quads",
+    24728,
+    "HookQuad[8192]"
+   ]
+  ],
+  "kind": "block",
+  "plugin": "namehook",
+  "size": 417944
+ },
+ "HookLayerDrawing": {
+  "fields": [
+   [
+    "Flags",
+    0,
+    "uint32_t"
+   ],
+   [
+    "EntityIndex",
+    4,
+    "uint32_t"
+   ],
+   [
+    "ServerId",
+    8,
+    "uint32_t"
+   ],
+   [
+    "X",
+    12,
+    "float"
+   ],
+   [
+    "Y",
+    16,
+    "float"
+   ],
+   [
+    "Z",
+    20,
+    "float"
+   ],
+   [
+    "Drawing",
+    24,
+    "HookDrawing"
+   ]
+  ],
+  "kind": "record",
+  "plugin": "namehook",
+  "size": 48
+ },
+ "HookLayerSlot": {
+  "fields": [
+   [
+    "Owner",
+    0,
+    "uint32_t"
+   ],
+   [
+    "ClaimFrame",
+    4,
+    "uint32_t"
+   ],
+   [
+    "Order",
+    8,
+    "uint32_t"
+   ],
+   [
+    "Draw",
+    12,
+    "uint32_t"
+   ],
+   [
+    "Reserved",
+    16,
+    "uint32_t[4]"
+   ]
+  ],
+  "kind": "record",
+  "plugin": "namehook",
+  "size": 32
+ },
+ "HookLayers": {
+  "fields": [
+   [
+    "Magic",
+    0,
+    "char[16]"
+   ],
+   [
+    "Version",
+    16,
+    "uint32_t"
+   ],
+   [
+    "Size",
+    20,
+    "uint32_t"
+   ],
+   [
+    "SlotSize",
+    24,
+    "uint32_t"
+   ],
+   [
+    "SlotsMax",
+    28,
+    "uint32_t"
+   ],
+   [
+    "Reserved",
+    32,
+    "uint32_t[4]"
+   ],
+   [
+    "Slots",
+    48,
+    "HookLayerSlot[4]"
+   ]
+  ],
+  "kind": "block",
+  "plugin": "namehook",
+  "size": 176
  },
  "HookName": {
   "fields": [
@@ -936,11 +1295,16 @@
     "Quads",
     2104,
     "HookQuad[4096]"
+   ],
+   [
+    "TexturesExtra",
+    198712,
+    "uint32_t[24]"
    ]
   ],
   "kind": "block",
   "plugin": "namehook",
-  "size": 198712
+  "size": 198808
  },
  "HookPopupDrawing": {
   "fields": [
@@ -1199,11 +1563,26 @@
     "Names",
     2388,
     "HookName[256]"
+   ],
+   [
+    "LoadId",
+    35156,
+    "uint32_t"
+   ],
+   [
+    "NamesDropped",
+    35160,
+    "uint32_t"
+   ],
+   [
+    "DrawingsRefused",
+    35164,
+    "uint32_t"
    ]
   ],
   "kind": "block",
   "plugin": "namehook",
-  "size": 35156
+  "size": 35168
  },
  "HudShared": {
   "fields": [

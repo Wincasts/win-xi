@@ -198,6 +198,16 @@ struct TestPlugin : public Nameplate {
 	}
 	uint32_t lastOwner = 0;
 	int slotsBegun = 0, slotsFresh = 0;
+	struct LayerCall { uint32_t layer, slot; float x, y, z; bool over; };
+	std::vector<LayerCall> layerCalls;
+	int layersBegun = 0, layersFresh = 0;
+	void BeginLayer(uint32_t, const HookLayerDraw&, bool fresh) override {
+		layersBegun++;
+		layersFresh += fresh ? 1 : 0;
+	}
+	void DrawLayer(uint32_t layer, uint32_t slot, const HookDrawing&, const HookQuad*, const float* position, bool over) override {
+		layerCalls.push_back({ layer, slot, position[0], position[1], position[2], over });
+	}
 	void BeginSlot(uint32_t, const HookDraw&, bool fresh) override {
 		slotsBegun++;
 		slotsFresh += fresh ? 1 : 0;
@@ -1110,6 +1120,67 @@ int main() {
 		Fresh();
 		CHECK(Claims.Slots[1].Owner == 0 && Claims.Slots[1].Categories == 0 && Drawn(buddy));
 		Shared.Claimed = 0;
+		plugin.Publish(nullptr, nullptr, true);
+	}
+
+	// Layers of the world (HookLayers): each taken layer's drawings at points of the world as a frame's
+	// names begin, and at an entity as the client comes to its name, its name point offset; by Order, lowest
+	// first; over everything where asked; at an index another entity has since, not drawn; a drawing that
+	// does not hold together refused and counted; a layer not renewed freed
+	{
+		CHECK(memcmp(Layers.Magic, "NAMEHOOKLAYERS", 14) == 0 && Layers.Version == 1 && Layers.Size == sizeof(HookLayers)
+			&& Layers.SlotSize == sizeof(HookLayerSlot) && Layers.SlotsMax == HOOK_LAYERS);
+		for (uint32_t i = 0; i < HOOK_LAYERS; i++) { // as Init readies them
+			ZeroMemory(&LayerDraws[i], sizeof(LayerDraws[i]));
+			LayerDraws[i].QuadsMax = HOOK_LAYER_QUADS;
+			LayerDraws[i].DrawingsMax = HOOK_LAYER_DRAWINGS;
+			Layers.Slots[i].Draw = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(&LayerDraws[i]));
+		}
+		auto fill = [&](uint32_t layer, uint32_t order, float worldX) {
+			Layers.Slots[layer] = { 20 + layer, Shared.Frame, order, Layers.Slots[layer].Draw, {} };
+			HookLayerDraw& draw = LayerDraws[layer];
+			draw.Frame = Shared.Frame;
+			draw.QuadCount = 8;
+			draw.Count = 3;
+			draw.Drawings[0] = { LAYER_AT_WORLD, 0, 0, worldX, 2.0f, 3.0f, { draw.Frame, 0, 2, 1.0f, 0.0f, 0 } };
+			draw.Drawings[1] = { LAYER_AT_ENTITY | LAYER_DRAW_OVER, 0x401, 0x2000, 0.0f, 1.0f, 0.0f, { draw.Frame, 2, 2, 1.0f, 0.0f, 0 } };
+			draw.Drawings[2] = { LAYER_AT_ENTITY, 0x401, 0x9999, 0.0f, 0.0f, 0.0f, { draw.Frame, 4, 2, 1.0f, 0.0f, 0 } }; // another's
+		};
+		plugin.Publish(nullptr, nullptr, true);
+		fill(2, 5, 7.0f);
+		fill(0, 1, 9.0f);
+		plugin.layerCalls.clear();
+		const int layersBegun = plugin.layersBegun;
+		Fresh();
+		Drawn(buddy);
+		CHECK(plugin.layersBegun == layersBegun + HOOK_LAYERS && plugin.layersFresh >= 2);
+		CHECK(plugin.layerCalls.size() == 4);
+		if (plugin.layerCalls.size() == 4) {
+			const auto& c = plugin.layerCalls;
+			CHECK(c[0].layer == 0 && c[0].slot == 0 && c[0].x == 9.0f && !c[0].over);           // order 1's point of the world
+			CHECK(c[1].layer == 2 && c[1].slot == 0 && c[1].x == 7.0f);                         // then order 5's
+			CHECK(c[2].layer == 0 && c[2].slot == 1 && c[2].x == where[0] && c[2].y == where[1] + 1.0f && c[2].over); // at buddy, offset
+			CHECK(c[3].layer == 2 && c[3].slot == 1);
+		}
+		// a drawing that does not hold together: refused and counted
+		plugin.Publish(nullptr, nullptr, true);
+		fill(0, 1, 9.0f);
+		Layers.Slots[2].Owner = 0;
+		LayerDraws[0].Drawings[0].Drawing.Count = HOOK_QUADS_PER_NAME + 1;
+		const uint32_t refused = Shared.DrawingsRefused;
+		plugin.layerCalls.clear();
+		Fresh();
+		Drawn(buddy);
+		CHECK(plugin.layerCalls.size() == 1 && Shared.DrawingsRefused == refused + 1);
+		// not renewed: after half a second the layer is freed (at the frame's end), and nothing of it drawn
+		for (int i = 0; i < FRAMES_IN(HOOK_CLAIM_TIME) + 2; i++) {
+			plugin.Publish(nullptr, nullptr, true);
+		}
+		CHECK(Layers.Slots[0].Owner == 0 && LayerDraws[0].Count == 0);
+		plugin.layerCalls.clear();
+		Fresh();
+		Drawn(buddy);
+		CHECK(plugin.layerCalls.empty());
 		plugin.Publish(nullptr, nullptr, true);
 	}
 
