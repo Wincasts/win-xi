@@ -288,10 +288,10 @@ local function DrawGlobal(saved)
         Tooltip('Main party: 15px from the right and bottom. Target: 5px above the main party.\nAlliance 2: right edge, with room reserved for full parties and a 35px gap above the fully expanded Target. Alliance 3 stays linked 5px below Alliance 2.\nSub-target and target of target are unchanged. Manual positions are preserved; disable to use them.\nDoes not resize frames. If the full layout cannot fit, windows are clamped to the screen and gaps may be smaller.')
     end
 
-    -- Only with uihook (or the older partyhook) loaded: the windows can be drawn in the game's own place
-    -- among its menus. Its choices are kept while it is not loaded, and come back with it.
+    -- Only with uihook loaded: the windows can be drawn in the game's own place among its menus. Its
+    -- choices are kept while it is not loaded, and come back with it.
     local manager = AshitaCore:GetPluginManager()
-    local plugin = manager:IsLoaded('uihook') and 'uihook' or (manager:IsLoaded('partyhook') and 'partyhook')
+    local plugin = manager:IsLoaded('uihook') and 'uihook'
     if plugin then
         local open = widgets.Header('uihook')
         imgui.SameLine()

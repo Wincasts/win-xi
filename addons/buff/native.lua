@@ -2,7 +2,7 @@
 -- that it draws none; what was there is kept, and put back when the addon unloads. The places are the
 -- ones the statustimers addon (heals) found.
 --
--- The first two are the row of icons itself, which the buffhook plugin draws the anchored bar in
+-- The first two are the row of icons itself, which the uihook plugin draws the anchored bar in
 -- place of, and which must be left alone for it to: so the row and the rest are switched apart.
 --
 --   native.Set(row, other)   hides the row, the rest, both or neither. Returns whether they are now as

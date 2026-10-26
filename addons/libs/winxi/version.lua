@@ -100,6 +100,7 @@
 -- 55: nameplates.Hook lets go of namehook's block when the DLL is not the one it was found in (unloaded
 --     and loaded again between two looks, at another address or as another build), and
 --     nameplates.Generation says so to popups and to addons keeping a block of namehook's own
+-- 56: presence, whether another addon is loaded in this game (hideparty, for party's native windows)
 return {
-    Number = 55,
+    Number = 56,
 };

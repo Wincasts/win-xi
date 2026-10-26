@@ -1,4 +1,4 @@
--- buff with the buffhook plugin: the work of handing the anchored bar over, counted over 120 frames
+-- buff with the uihook plugin: the work of handing the anchored bar over, counted over 120 frames
 -- with 32 statuses. Counts, not a claim about frames per second.
 --     luajit tests/harness.lua buff addons/buff/buff.lua tests/buff_hook_performance_check.lua [measure]
 -- With measure, it prints what it counts and asserts nothing, to compare with another version.
@@ -39,7 +39,7 @@ block.Version, block.Size, block.Hooked, block.Frame = 4, ffi.sizeof('buffhook_t
 block.Width, block.Height = 1920, 1080
 ashita.memory.find = function(module)
     counts.finds = counts.finds + 1
-    if module == 'buffhook.dll' then return tonumber(ffi.cast('uintptr_t', holder)) end
+    if module == 'uihook.dll' then return tonumber(ffi.cast('uintptr_t', holder)) end
     return 0
 end
 ashita.memory.read_uint16 = function() return 0 end
@@ -48,7 +48,7 @@ local manager = AshitaCore.GetPluginManager()
 local isLoaded = manager.IsLoaded
 manager.IsLoaded = function(self, name) counts.loaded = counts.loaded + 1; return isLoaded(self, name) end
 AshitaCore.GetPluginManager = function() return manager end
-H.loaded('buffhook', true)
+H.loaded('uihook', true)
 
 local font = { ContainerAtlas = { TexData = { UniqueID = 2, Status = 0, Width = 512, Height = 256 } } }
 imgui.GetFont = function() return font end

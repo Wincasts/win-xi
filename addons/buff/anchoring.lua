@@ -1,4 +1,4 @@
--- The anchored bar without the buffhook plugin: a window of imgui's, over everything, at the game's
+-- The anchored bar without the uihook plugin: a window of imgui's, over everything, at the game's
 -- icons' place as calibrated against Screenshot_20261014_111534.png at 1:1 menu scale, scaled by
 -- Ashita's scaling helper. With the plugin, the game says where its icons are (hook.lua).
 local bit = require('bit');
@@ -51,7 +51,7 @@ function anchoring.Position(nudge, display, menu)
         math.floor(nativeOrigin[2] * sy + 0.5) + nudge[2];
 end
 
--- The bar as a window of imgui's, over everything: without the buffhook plugin
+-- The bar as a window of imgui's, over everything: without the uihook plugin
 function anchoring.Draw(name, options, draw)
     -- Do not linger when the HUD itself is hidden.
     if anchoring.IsHidden() then return false; end
