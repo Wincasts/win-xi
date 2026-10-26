@@ -322,9 +322,9 @@ local function Present()
     -- Renew empty replacements BEFORE the hiding rules, for each independently enabled group.
     -- Expanded chat/maps hide the replacement too, rather than allowing stock HUD frames back.
     local native = nativeHook and nativeHook.Begin(
-        hooking and saved.nativeParty[1] and saved.party.enabled[1] and not organizing,
-        -- the game draws a hooked fish's stamina gauge with its target window: given back for the fight
-        hooking and saved.nativeTarget[1] and saved.target.enabled[1] and not organizing and not fishing.Hooked())
+        -- the game draws a hooked fish's stamina gauge with its party list: given back for the fight
+        hooking and saved.nativeParty[1] and saved.party.enabled[1] and not organizing and not fishing.Hooked(),
+        hooking and saved.nativeTarget[1] and saved.target.enabled[1] and not organizing)
     local hidden=winxiGame.IsHidden(saved.hide)
     if native then
         nativeBehaviorGroups.party=saved.nativeBehavior[1] and nativeHook.Uses(windows.List.party1)
@@ -345,9 +345,9 @@ local function Present()
     windows.UpdateFade(rearranging)
     local showParty = saved.party.enabled[1] and (not hidden or nativeBehaviorGroups.party)
         and not (nativeHidden and nativeBehaviorGroups.party) and not windows.IsFadedOut('party')
+        and not fishing.Hooked() -- the game's own party list is back for the fight: not doubled
     local showTarget = saved.target.enabled[1] and (not hidden or nativeBehaviorGroups.target)
         and not (nativeHidden and nativeBehaviorGroups.target) and not windows.IsFadedOut('target')
-        and not fishing.Hooked() -- the game's own target window is back for the fight: not doubled
     if not showParty and not showTarget then
         winxiOrganize.EndFrame()
         return
