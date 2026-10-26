@@ -96,6 +96,12 @@ function controls.offset(entry, value)
     end
 end
 
+-- a colour, its swatch opening the picker
+function controls.color(entry, value)
+    imgui.ColorEdit4(Id(entry), value, ImGuiColorEditFlags_NoInputs + ImGuiColorEditFlags_NoAlpha)
+    Tooltip(entry.tooltip)
+end
+
 -- radio buttons, two to a line; the first is the one chosen when none is
 function controls.choice(entry, value, section)
     local column = imgui.GetCursorPosX()

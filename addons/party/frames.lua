@@ -36,6 +36,7 @@
 --     hpOffset, mpOffset, tpOffset             { x, y } to move that figure from its place
 --     targetHpOffset, distanceOffset           the same for a target's HP percentage and distance
 --     bookends, tpFlash                        false to leave each out
+--     tpColor                                  { r, g, b, a } for TP of 1000 and over, or nil for blue
 --     nameFont, valueFont      a font file of C:\Windows\Fonts for the names or the values; nil or '' for the theme's
 --     bookendOpacity                           0 to 100: how solid the bookends are (100 unless given)
 --     barGlow                  0 to 100: how bright the light at the end of each fill is (none unless given)
@@ -80,10 +81,13 @@ local black = { 0, 0, 0, 1 }
 local hpYellow = Hex('F3F37C') -- an HP figure below 75%
 local hpOrange = Hex('F8BA80') -- below 50%
 local hpRed = Hex('FC8182')    -- below 25%
--- A TP figure at 1000 and over pulses between a light blue and a deeper one, so that TP that can be
--- used is noticed: there and back once every tpPulsePeriod seconds
+-- A TP figure at 1000 and over is in the TP ready colour (style.tpColor, blue unless chosen), and
+-- pulses between it and a lighter one, so that TP that can be used is noticed: there and back once
+-- every tpPulsePeriod seconds. The lighter one is the colour two thirds of the way to white, or for
+-- the blue, the light blue it has always pulsed to.
 local tpFull = Hex('50B4FA')
 local tpFullLight = Hex('C4E6FF')
+local tpLightShare = 2 / 3
 local tpPulsePeriod = 1.2
 local tpPulse = { 0, 0, 0, 1 } -- the colour it is, for the list being drawn
 local tpPulseBlend = 1          -- how far from the light blue towards the deeper one the pulse is this frame
@@ -851,10 +855,13 @@ function frames.Draw(members, kind, StatusTexture, style)
         tpPulseBlend = 0.5 - 0.5 * math.cos(phase * 2 * math.pi)
     end
 
-    -- the colour of such a figure for this list: pulsing, or kept at the deeper blue
+    -- the colour of such a figure for this list: pulsing, or kept at the TP ready colour
+    local full = style.tpColor or tpFull
+    local blue = math.abs(full[1] - tpFull[1]) + math.abs(full[2] - tpFull[2]) + math.abs(full[3] - tpFull[3]) < 0.002
     local blend = style.tpFlash ~= false and tpPulseBlend or 1
     for channel = 1, 3 do
-        tpPulse[channel] = tpFullLight[channel] + (tpFull[channel] - tpFullLight[channel]) * blend
+        local light = blue and tpFullLight[channel] or full[channel] + (1 - full[channel]) * tpLightShare
+        tpPulse[channel] = light + (full[channel] - light) * blend
     end
 
     -- the room the list itself needs. The buffs go beyond it, beside the window.

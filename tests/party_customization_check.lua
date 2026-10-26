@@ -131,6 +131,15 @@ style.tpReady = 3000 -- a threshold of earlier versions is not read
 paint('off')
 assert(tpColor ~= theme.Get().TextColor, 'TP is ready at 1000')
 style.tpReady = nil
+-- TP Ready Color: ready TP in the chosen colour, kept there without the flash and pulsing toward white with it
+style.tpColor = { 1, 0.25, 0, 1 }
+paint('off')
+assert(tpColor[1] == 1 and tpColor[2] == 0.25 and tpColor[3] == 0, 'ready TP is the chosen colour')
+style.tpFlash = true
+paint('off')
+assert(tpColor[1] == 1 and tpColor[2] >= 0.25 and tpColor[2] <= 0.75 and tpColor[3] >= 0 and tpColor[3] <= 2 / 3,
+    'the flash goes no further than two thirds toward white')
+style.tpColor, style.tpFlash = nil, false
 draw.Packed, draw.Image = pack, image
 o.style.tpReady = { 2000 }
 options.Complete(o)
@@ -138,7 +147,21 @@ assert(o.style.tpReady == nil, 'the saved threshold of earlier versions is dropp
 for _, tab in ipairs(options.Tabs) do
     for _, entry in ipairs(tab.entries) do assert(entry.key ~= 'tpReady', 'no TP Ready Threshold setting') end
 end
-H.print('warnings: configurable distance opacity and TP ready at 1000', true)
+local warnings
+for _, tab in ipairs(options.Tabs) do
+    for _, entry in ipairs(tab.entries) do
+        if entry.kind == 'header' and entry.label == 'Warnings' then warnings = tab.name end
+        if entry.key == 'tpColor' then
+            assert(warnings == 'Style' and entry.kind == 'color' and entry.label == 'TP Ready Color', 'TP Ready Color under Style -> Warnings')
+        end
+    end
+end
+assert(type(o.style.tpColor) == 'table' and #o.style.tpColor == 4, 'TP Ready Color kept as r, g, b, a')
+o.style.tpColor = 'blue'
+options.Complete(o)
+assert(type(o.style.tpColor) == 'table' and math.abs(o.style.tpColor[3] - 0xFA / 255) < 1e-9, 'a malformed colour goes back to blue')
+assert(options.Style(o).tpColor == o.style.tpColor, 'the chosen colour reaches the frames')
+H.print('warnings: configurable distance opacity, TP ready at 1000 and in its chosen colour', true)
 
 -- Show Statuses: off, the party and alliance draw no status icons and every status setting is greyed
 local partyDraws = {}

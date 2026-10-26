@@ -61,7 +61,7 @@ calls per category; averages and maxima cover the full interval.
   Effects order each kind among itself. The debuffs are those Erase or a waltz removes in Phoenix's
   `data/status_effects.yaml`, and the harmful ones that cannot be cancelled (sleep, charm, doom, helix,
   enemy songs, dazes, the Geo downs and the like).
-- **Style → Warnings** has a low-HP `!` threshold (zero disables it) and Flash TP When Ready; TP is ready at 1000.
+- **Style → Warnings** has a low-HP `!` threshold (zero disables it) Flash TP When Ready and TP Ready Color (blue to begin with); TP is ready at 1000.
   **Advanced: Range Indicators** has near range (centimeters), far range (meters) and both dimming
   levels. Far range is treated as at least near range. These are approximate distance indicators,
   not action-specific range guarantees.
