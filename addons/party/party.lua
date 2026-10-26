@@ -39,6 +39,7 @@ local frames = require('frames')
 local roster = require('roster')
 local pets = require('pets')
 local target = require('target')
+local namecolors = require('namecolors')
 local notices = require('notices')
 local debuffs = require('debuffs')
 local packets = require('packets')
@@ -170,7 +171,7 @@ end
 -- name, and the distance always, whatever is set for TP), and its debuffs if those are shown: under it as
 -- letters, or beside it as icons
 local targetKeys = { 'main', 'sub', 'tot' }
-local drawingKey, drawingEntity = nil, nil
+local drawingKey, drawingEntity, drawingIndex = nil, nil, nil
 
 local targetStatuses = { }
 local sampleStatuses = { 4, 13, 134 } -- Paralyze, Slow and Dia, to show where they go
@@ -182,6 +183,8 @@ local function DrawTargetContent()
     style.showTp = true
     style.trimLast = not showDebuffs or icons
     local lines = target.Line(drawingKey, drawingEntity)
+    lines[1].nameColor = saved.target.gameNameColors[1] and drawingIndex ~= nil
+        and namecolors.For(drawingEntity, drawingIndex) or nil
     -- as icons, they are beside the window as a party member's buffs are; as letters, under it
     if icons then
         lines[1].statusIds = drawingEntity == target.Samples[drawingKey] and sampleStatuses or debuffs.Ids(drawingEntity.ServerId, targetStatuses)
@@ -205,18 +208,20 @@ local function DrawTarget(key, index)
     local window = windows.List[key]
     local entity = index ~= 0 and perf.Entity(index) or nil
     local wanted = entity ~= nil
+    local at = index
 
     if wanted then
         lastShown[key], lastServerId[key] = index, entity.ServerId
     elseif lastShown[key] and windows.Lingers(window) then
-        entity = perf.Entity(lastShown[key])
+        at = lastShown[key]
+        entity = perf.Entity(at)
         if entity ~= nil and entity.ServerId ~= lastServerId[key] then
             entity = nil
         end
     end
 
     if entity ~= nil then
-        drawingKey, drawingEntity = key, entity
+        drawingKey, drawingEntity, drawingIndex = key, entity, at
         windows.Draw(window, DrawTargetContent, wanted)
     end
 end
@@ -227,13 +232,14 @@ local function DrawTargets(sample)
         local shown = { main = saved.target.showMain[1], sub = saved.target.showSub[1], tot = saved.target.showTot[1] }
         for _, key in ipairs(targetKeys) do
             if shown[key] then
-                drawingKey, drawingEntity = key, target.Samples[key]
+                drawingKey, drawingEntity, drawingIndex = key, target.Samples[key], nil
                 windows.Draw(windows.List[key], DrawTargetContent)
             end
         end
         return
     end
 
+    namecolors.BeginFrame()
     local main, sub, tot = target.Indexes(saved.target)
     DrawTarget('main', main)
     DrawTarget('sub', sub)
@@ -375,6 +381,7 @@ local function PacketIn(e)
     -- invitation or a previous zone's automaton can reappear when the frames are enabled again.
     notices.HandlePacket(e)
     pets.HandlePacket(e)
+    namecolors.HandlePacket(e)
     if e.id == 0x00A or e.id == 0x00B then
         roster.Forget()
         lastShown, lastServerId = { }, { }
