@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.78
+
+- A name over someone under Invisible is never drawn, whatever Visibility, the whitelist or Always Show Target would have; nor is it counted toward Crowd Decluttering. Who is invisible is the server's word: the flag Phoenix sends for Invisible in another player's update (0x0D, the u32 at 0x20, bit 29, with the general update) and in your own status (0x37, the u32 at 0x2C, bit 15), sent again each time a status effect comes or goes. It is forgotten when the player leaves your area or you change areas. Someone already invisible when Name is loaded is known from their next update. With Enable Name off, the game's own names are left to the game.
+- Tests: name_check, a targeted party member set out, not while invisible, by either packet; a position update leaving it as it was; forgotten when the player goes and in another area.
+
 ## 1.77
 
 - The spawn letters (`mob_letters.lua`) and the reading of the area's names from the game's files (`zone_names.lua`) are winxi's now, shared with party, which letters its target the same way. Nothing changes in what is written; name needs winxi 52.

@@ -173,6 +173,34 @@ H.print('the wanted name: quads', buddy.Count, '| of this frame', buddy.Frame ==
 -- at; the edge is snapped after conversion to render-target pixels
 table.sort(pushed)
 H.print('letters kept at', pushed[#pushed], pushed[#pushed - 1], pushed[1], 'pixels | edge', buddy.Edge, '| solid', buddy.Alpha, ('| edge colour %08X'):format(buddy.EdgeColor))
+
+-- under Invisible, as the server says (0x0D: the u32 at 0x20, bit 29, with the general update; 0x37,
+-- your own: the u32 at 0x2C, bit 15), no name is set out, whatever Visibility or the target would show
+do
+    local function packet(id, size, fields)
+        local bytes = {}
+        for i = 1, size do bytes[i] = 0 end
+        for at, value in pairs(fields) do
+            for k = 0, 3 do bytes[at + 1 + k] = math.floor(value / 256 ^ k) % 256 end
+        end
+        H.packetData(id, string.char(unpack(bytes)))
+    end
+    local function update(serverId, mask, flags) packet(0x0D, 0x48, { [0x04] = serverId, [0x0A] = mask, [0x20] = flags }) end
+    local function frame() block.Frame = block.Frame + 1; H.frames(1); return draw.Entities[0x401].Frame == draw.Frame end
+    local savedFlags = block.Names[0].Flags
+    block.Names[0].Flags = savedFlags + Flag.Target -- shown as the target as well
+    assert(frame(), 'seen before any update')
+    update(0x1401, 0x04, 0x20000000); assert(not frame(), 'invisible: not set out')
+    update(0x1401, 0x01, 0); assert(not frame(), 'a position alone says nothing of the flags')
+    update(0x1401, 0x04, 0); assert(frame(), 'invisible no more: set out again')
+    update(0x1401, 0x04, 0x20000000); update(0x1401, 0x20, 0); assert(frame(), 'gone from the area: forgotten')
+    update(0x1401, 0x04, 0x20000000); H.packet(0x0A); assert(frame(), 'another area: forgotten')
+    packet(0x37, 0x60, { [0x24] = 0x1401, [0x2C] = 0x8000 }); assert(not frame(), 'your own, by 0x37')
+    packet(0x37, 0x60, { [0x24] = 0x1401, [0x2C] = 0 }); assert(frame(), 'and visible again')
+    block.Names[0].Flags = savedFlags
+    block.Frame = 78; H.frames(1)
+    H.print('invisible: never set out, by 0x0D and 0x37, forgotten when gone or in another area', true)
+end
 H.print('outline at 1.5x: rounded down to one render-target pixel', buddy.Edge == 1)
 local originalTargetWidth = block.TargetWidth
 block.TargetWidth = block.Width * 1.25; H.frames(1)

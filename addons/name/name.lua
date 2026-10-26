@@ -1,6 +1,6 @@
 addon.name    = 'name';
 addon.author  = 'win';
-addon.version = '1.77';
+addon.version = '1.78';
 addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the namehook plugin.';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
@@ -34,6 +34,7 @@ local levels     = require('levels');
 local general    = require('general');
 local nameColours = require('name_colours');
 local readability = require('readability');
+local invisible  = require('invisible');
 
 local Category = nameplates.Category;
 
@@ -337,6 +338,7 @@ ashita.events.register('packet_in', 'name_packet_in', function (e)
     diag.HandlePacket(e);
     if e.id == 0x00A then custom.ResetReadability(); end
     nameColours.HandlePacket(e);
+    invisible.HandlePacket(e);
     if (app.options.showStatuses[1]) then
         statuses.HandlePacket(e);
     end
