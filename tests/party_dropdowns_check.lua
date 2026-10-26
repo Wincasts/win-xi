@@ -6,7 +6,7 @@ local widgets = require('winxi.widgets')
 local config = require('config')
 local saved = H.options()
 assert(config.Tabs[1].name == 'Behavior', 'Behavior must be the first tab')
-assert(config.Tabs[2].name == 'Visibility', 'Visibility is the second tab')
+assert(config.Tabs[#config.Tabs].name == 'Visibility', 'Visibility is the last tab')
 for _, tab in ipairs(config.Tabs) do
     assert(tab.name ~= 'Winxi Theme' and tab.name ~= 'Global Settings' and not tab.theme)
 end
@@ -17,7 +17,7 @@ widgets.Fade = function(value, save, grouped)
 end
 config.Tabs[1].draw(saved)
 assert(fadeCalls == 0, 'idle fade controls are not in Behavior')
-config.Tabs[2].draw(saved)
+config.Tabs[#config.Tabs].draw(saved)
 widgets.Fade = fade
 assert(fadeCalls == 1, 'idle fade controls belong to Visibility')
 -- Every tab has Winxi sections, and collapsed sections draw no setting controls.
@@ -34,7 +34,7 @@ for _, tab in ipairs(config.Tabs) do
     tab.draw(saved)
     assert(#headings >= 2, 'organized sections in ' .. tab.name)
     if tab.name == 'Behavior' then
-        assert(headings[1] == 'Mouse Interaction')
+        assert(headings[1] == 'Positioning' and headings[#headings] == 'Mouse Interaction', 'Behavior: Positioning first, Mouse Interaction last')
         for _, h in ipairs(headings) do assert(h ~= 'Visibility' and h ~= 'Hide Windows' and h ~= 'Fading', h .. ' moved to Visibility') end
     end
     if tab.name == 'Visibility' then assert(headings[1] == 'Hide Windows' and headings[2] == 'Fading') end

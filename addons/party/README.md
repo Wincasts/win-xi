@@ -20,8 +20,8 @@ addon [XivParty](https://github.com/Tylas11/XivParty)'s compact one.
 `/xiframes` is no longer used. Its Style tab sets how every frame is drawn (sizes,
 where the values sit); Party, Target and Pets have what is each one's own. The dark edge round names
 and values is Winxi Theme's Text Outline, set in winxisettings for every addon.
-**Behavior** contains mouse interaction, optional **Automatic Positioning** and uihook.
-**Visibility** has the hiding rules (**Hide Windows**), **Fade When Idle** and which windows fade (**Fading**).
+**Behavior** has **Positioning** (optional **Automatic Positioning**), uihook while it is loaded, then
+**Mouse Interaction**. **Visibility**, the last tab, has the hiding rules (**Hide Windows**), **Fade When Idle** and which windows fade (**Fading**).
 There is no Winxi Theme tab in Party; use **winxisettings** for shared colours, padding, shadows,
 window borders, bar textures, bookends and custom status icons. Organize, at the foot of the window, fills the frames with sample data to drag into place.
 `/pt perf` measures five seconds of render and packet-handler CPU time: average, median, p95,
@@ -216,7 +216,7 @@ Unload Party and partyhook before replacing the DLL; keep hideparty unloaded.
 - `/pt native target on|off`: independent target replacement. Captures main, sub-target and target-of-target
   windows together at the native target-box stage; normal Target settings still select which are shown.
 - `/pt native status`: concise mode/readiness status; cumulative debug counters are hidden.
-- **Behavior → uihook**, the last section, shown only while uihook (or partyhook) is loaded, its title followed in green by the plugin found
+- **Behavior → uihook**, between Positioning and Mouse Interaction, shown only while uihook (or partyhook) is loaded, its title followed in green by the plugin found
   and its version, e.g. `[uihook 1.60 found]`. **Use uihook** turns the
   hooking on or off as a whole; while it is on, **Party** and **Target** choose which windows the plugin
   draws in the game's place, and **Follow Default UI Behavior** sits with them; each one's explanation is in the tooltip of the (?) after it. Pets are rows of the

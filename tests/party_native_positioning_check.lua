@@ -77,7 +77,8 @@ checks={}
 behavior(options)
 assert(checks['##party.nativeHook'] and checks['##party.nativeParty'] and checks['##party.nativeTarget'] and checks['##party.nativeBehavior'],
     'hooking on: which windows it hooks')
-assert(headers[#headers]=='uihook','uihook is the last section of Behavior')
+assert(headers[1]=='Positioning' and headers[2]=='uihook' and headers[3]=='Mouse Interaction',
+    'Behavior: Positioning, uihook, Mouse Interaction')
 -- Use uihook, untagged; every explanation behind a (?); the plugin and its version in green after the
 -- title; no status line
 local labels,marks,colored,wrapped={},0,{},0

@@ -271,17 +271,10 @@ local function Found(manager, name)
     return foundText
 end
 
--- Whether the mouse goes through the windows, where they are placed, and uihook
+-- Where the windows are placed, uihook, and whether the mouse goes through them
 local function DrawGlobal(saved)
     widgets.BeginLabels('xiframes.global')
-    if widgets.Header('Mouse Interaction', true) then
-        widgets.Lock(saved.clickThrough, '##xiframes.clickThrough', { label = 'Clickthrough', tooltip = 'Clicks go through the windows to the game; hovering still shows their tooltips with Show Tooltips on. Off, a window is moved by holding Shift and dragging it. Ignored while organizing, so they can be dragged.' })
-        widgets.Label('Show Tooltips')
-        Checkbox('##party.hoverDetails', saved.style.hoverDetails)
-        Tooltip('Hovering the windows shows full names, jobs and pet owners, and each buff and debuff with its estimated time left.')
-    end
-
-    if widgets.Header('Positioning') then
+    if widgets.Header('Positioning', true) then
         widgets.Label('Automatic Positioning')
         if imgui.Checkbox('##party.automaticPositioning', saved.automaticPositioning) then Save() end
         Tooltip('Main party: 15px from the right and bottom. Target: 5px above the main party.\nAlliance 2: right edge, with room reserved for full parties and a 35px gap above the fully expanded Target. Alliance 3 stays linked 5px below Alliance 2.\nSub-target and target of target are unchanged. Manual positions are preserved; disable to use them.\nDoes not resize frames. If the full layout cannot fit, windows are clamped to the screen and gaps may be smaller.')
@@ -311,6 +304,13 @@ local function DrawGlobal(saved)
                 Help('For hooked windows only: follow whether the client draws the HUD instead of Party hide rules, use native party order, show the solo member when the client does, and skip addon idle/presence fading. Native menus still cover the frames and the original target arrows are preserved. Zoning, interface hiding and cutscenes are always guarded. Other windows keep their normal options. Styles, pet/buff choices and frame sizes are unchanged.')
             end
         end
+    end
+
+    if widgets.Header('Mouse Interaction') then
+        widgets.Lock(saved.clickThrough, '##xiframes.clickThrough', { label = 'Clickthrough', tooltip = 'Clicks go through the windows to the game; hovering still shows their tooltips with Show Tooltips on. Off, a window is moved by holding Shift and dragging it. Ignored while organizing, so they can be dragged.' })
+        widgets.Label('Show Tooltips')
+        Checkbox('##party.hoverDetails', saved.style.hoverDetails)
+        Tooltip('Hovering the windows shows full names, jobs and pet owners, and each buff and debuff with its estimated time left.')
     end
 end
 
@@ -344,12 +344,12 @@ end
 
 config.Tabs = {
     { name = 'Behavior', draw = DrawGlobal },
-    { name = 'Visibility', draw = DrawVisibility },
 }
 for _, tab in ipairs(options.Tabs) do
     tab.labels = ('xiframes.%s'):format(tab.name:lower())
     table.insert(config.Tabs, { name = tab.name, draw = function(saved) DrawEntries(tab, saved) end })
 end
+table.insert(config.Tabs, { name = 'Visibility', draw = DrawVisibility })
 
 -- The window is never narrower than this, so it does not jump about as the tabs are switched. It has
 -- the theme's settings window values, apart from the game windows' that are set in it.

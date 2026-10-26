@@ -2,8 +2,9 @@
 
 ## 0.3.2
 
-- A new **Visibility** tab, after Behavior, holds the hiding rules (Hide Windows, formerly Behavior → Visibility)
+- A new **Visibility** tab, the last, holds the hiding rules (Hide Windows, formerly Behavior → Visibility)
   and Fading, moved out of Behavior. The settings are the same and are kept.
+- Behavior's sections are Positioning, uihook (while it is loaded), then Mouse Interaction.
 - Behavior → uihook: Hook Into uihook is **Use uihook**, no longer marked experimental. The title is followed in
   green by the plugin found and its version, e.g. [uihook 1.60 found]. The explanations of Use uihook, Party,
   Target and Follow Default UI Behavior are in a (?) after each, not the control's own tooltip. The native
