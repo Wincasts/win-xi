@@ -12,8 +12,9 @@ addon.link    = 'https://github.com/Wincasts/win-xi';
 --   /buff config    opens or closes the settings
 --
 -- In the game's buff selector, with the plugin loaded, the game's hand (which points at where the
--- game's icons would be) is drawn again at the left of the status the game's cursor is on; a click on an icon then removes it. The game's own confirm (a controller's A, Enter) removes the
--- one its cursor is on, as it always has: the controller is the game's.
+-- game's icons would be) is drawn again at the left of the status the game's cursor is on; a click on an icon then removes it.
+-- The controller's confirm (A, or the bottom face button of a DirectInput make) on the status the cursor is on removes it
+-- too: the press is left to the game, and if the game has not asked for the status to be removed a moment later, buff asks.
 --
 -- Anchored to the game's icons' place, with the buffhook plugin loaded, the bar is drawn by the
 -- plugin where and when the game draws its icons, in their place (hook.lua): the menus the game opens
@@ -51,6 +52,7 @@ local style = require('winxi.style');
 local controller = require('winxi.controller');
 local anchor = require('winxi.anchor');
 local hand = require('winxi.cursor');
+local sound = require('winxi.sound');
 local bit = require('bit');
 
 local windowName = 'winxi.buff';
@@ -77,6 +79,9 @@ local defaults = T{
     growFrom = 'Left',      -- which way a row grows as statuses come: Left, Right or Middle
     showBackdrop = T{ true }, -- the dragged window's backdrop, border and shadow
     cursorSize = T{ 60 },     -- the selector's hand, as a share of an icon's height, in percent
+    controller = T{ true },        -- the controller's confirm in the selector removes the status
+    controllerSounds = T{ false },
+    controllerType = 'xinput',     -- which DirectInput make, a key of winxi.controller's Layouts
 };
 
 -- Grow From: where a row's icons sit across the bar. Anchored, the bar is as wide as a full row of
@@ -214,6 +219,77 @@ end
 local function ClickedToRemove()
     return imgui.IsItemClicked(ImGuiMouseButton_Right) or (selecting and imgui.IsItemClicked(ImGuiMouseButton_Left));
 end
+
+-- The controller's confirm in the selector removes the status its cursor is on. The press is never
+-- kept from the game, which may remove it itself: its own request (0xF1) for that status, seen going
+-- out within confirmWait, is enough, and buff asks only when none was. XInput's A is always heard;
+-- on DirectInput the bottom face button of the make chosen (PlayStation's cross for XInput).
+local confirmWait = 0.25;
+local confirmed = nil; -- { id, at }: a status confirmed in the selector, not yet asked to be removed
+
+local cancellable = {};
+local function CanCancel(id)
+    local can = cancellable[id];
+    if can == nil then
+        local icon = AshitaCore:GetResourceManager():GetStatusIconByIndex(id);
+        can = icon ~= nil and icon.CanCancel ~= 0;
+        if icon ~= nil then cancellable[id] = can; end
+    end
+    return can;
+end
+
+local function Confirmed()
+    local status = cursorIndex ~= nil and current[cursorIndex] or nil;
+    if status == nil or not selecting or not app.options.controller[1] or not CanCancel(status.id) then
+        return;
+    end
+    confirmed = { id = status.id, at = os.clock() };
+    if app.options.controllerSounds[1] then
+        sound.Play('confirm');
+    end
+end
+
+-- The DirectInput button (DIJOYSTATE's offset) that is the bottom face button of the make chosen
+local function DirectConfirm()
+    local fallback;
+    for _, layout in ipairs(controller.Layouts) do
+        if layout.buttons ~= nil then
+            for offset, button in pairs(layout.buttons) do
+                if button == controller.Button.A then
+                    if layout.key == app.options.controllerType then return offset; end
+                    if layout.key == 'playstation' then fallback = offset; end
+                end
+            end
+        end
+    end
+    return fallback;
+end
+
+ashita.events.register('xinput_button', 'buff_xinput', function(e)
+    if e.button == controller.Button.A and e.state == 1 then Confirmed(); end
+end);
+
+ashita.events.register('dinput_button', 'buff_dinput', function(e)
+    if e.state == 128 and e.button == DirectConfirm() then Confirmed(); end
+end);
+
+-- The game's own request to remove the confirmed status
+ashita.events.register('packet_out', 'buff_packet_out', function(e)
+    if confirmed == nil or e.id ~= 0xF1 or e.injected then return; end
+    local data = e.data;
+    if type(data) == 'string' and #data >= 6 and data:byte(5) + data:byte(6) * 256 == confirmed.id then
+        confirmed = nil;
+    end
+end);
+
+-- Once a frame: buff asks for a confirmed status the game has not
+local function FollowConfirm()
+    if confirmed ~= nil and os.clock() - confirmed.at >= confirmWait then
+        statuses.Cancel(confirmed.id);
+        confirmed = nil;
+    end
+end
+
 local cell = { 0, 0 };
 local cornerA, cornerB = { 0, 0 }, { 0, 0 };
 local uvA, uvB = { 0, 0 }, { 1, 1 };
@@ -778,6 +854,8 @@ local function PositionSliders(values, label, id, signed, tooltip)
     return changedX or changedY;
 end
 
+local controllerTip = 'In the game\'s buff selector, confirm (A, or the bottom face button) removes the status its cursor is on, as a click does. Needs the uihook plugin (or legacy buffhook), which says which one that is.\nThe press still reaches the game: buff asks for the status to be removed only when the game has not, a moment later.\nAn XInput controller\'s A is always heard; Controller Type picks the DirectInput make (PlayStation with XInput chosen).';
+
 local function DrawSettings(options)
     widgets.Label('Visible');
     imgui.Checkbox('##buff.visible', options.isVisible);
@@ -839,6 +917,11 @@ local function DrawSettings(options)
         ApplyGameIcons(options);
     end
     tips.Hover('Stops the game drawing its own status icons, which this window stands in for.\nThey come back when this is switched off, or the addon is unloaded.\nAnchored with uihook (or legacy buffhook), the bar takes the place of the game\'s row of icons whatever this says.');
+
+    if widgets.Header('Controller') then
+        controller.SetLayout(options.controllerType);
+        shell.ControllerSettings(options, controllerTip);
+    end
 end
 
 app = shell.New({
@@ -868,6 +951,7 @@ ashita.events.register('d3d_present', 'buff_present', function()
         found = nil;
     end
     UpdateGameIcons(options, found ~= nil);
+    FollowConfirm();
     selecting, cursorIndex = false, nil;
     if not app:BeginFrame() then
         -- an empty bar: the game's icons stay away while the bar is hidden

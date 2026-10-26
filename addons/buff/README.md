@@ -76,9 +76,12 @@ left of the status the game's cursor is on, pointing at it as the game's menus d
 animated hand from its menu DAT, anchored or dragged. **Cursor Size** is how tall the hand is, as a
 share of an icon's height (60% to begin with). Where the hand cannot be
 read, the status has winxi's highlight round it instead (the controller's: a line and a fainter glow
-outside it). The selector is still the game's: its keys and the controller move the cursor,
-and its confirm removes the status the cursor is on, as it always has. A click on an icon removes
-that one too.
+outside it). The selector is still the game's: its keys and the controller move the cursor.
+The controller's confirm removes the status the cursor is on: the press still reaches the game, and
+if the game has not asked the server to remove the status a quarter of a second later, buff asks
+(**Controller**: **Controller Navigation** on to begin with; an XInput controller's A is always
+heard, and **Controller Type** picks the DirectInput make, PlayStation's cross with XInput chosen).
+A click on an icon removes that one too.
 Dragged elsewhere, with **Hide Game's Icons** on, the plugin keeps the game's row and its hand away
 in place of changing the game's code. Without the plugin there is no hand, but a click still
 removes.
