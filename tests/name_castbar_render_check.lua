@@ -181,26 +181,6 @@ assert(not asked(castFace),'not asked for while cast bars are off')
 options.showCastBar[1]=true;options.castFont[1]=''
 H.packetData(0x028,raw) -- turning cast bars off forgot the cast
 imgui.PushFont,imgui.AddFontFromFileTTF=push,addFont
--- A textured cast bar: winxi's art, from the sheet shared with the special signs (6)
-local barArt,image=require('bar_art'),require('gdi.image')
-local load,upload,free=barArt.LoadImage,barArt.Upload,barArt.Free
-barArt.LoadImage=function(path)
-    if path:find('special',1,true) then return image.new(256,128) end
-    return image.new(path:find('front',1,true) and 226 or path:find('fill',1,true) and 204 or 220,28)
-end
-barArt.Upload=function() return {},0x5000 end;barArt.Free=function() end
-options.castBarTexture[1]='glass'
-now=now+2 -- half way, so that there is a fill
-draw.QuadsMax=16384;hook.Frame=hook.Frame+1;assert(custom.Frame(options,hook)==nil)
-local art,plain,captionsAfter=0,0,0
-for i=0,draw.QuadCount-1 do
-    local q=draw.Quads[i]
-    if q.Texture==6 then art=art+1 elseif q.Color==0xFF101010 then plain=plain+1 end
-end
-assert(art==7 and plain==0 and draw.Textures[6]==0x5000,'the cast bar in the art, the sheet published')
-options.castBarTexture[1]='plain'
-assert(#render()==1 and draw.Textures[6]==0,'plain again, the sheet let go')
-barArt.LoadImage,barArt.Upload,barArt.Free=load,upload,free
 options.showHealthBar[1]=true
 -- Font overshoots/descenders must not push cast text into its bar or statuses.
 glyph.Y0,glyph.Y1=-4,20;font.ContainerAtlas.TexData.UniqueID=3

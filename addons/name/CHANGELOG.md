@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.80
+
+- Bar Texture is gone from Health Bars and Cast Bars: the bars were not drawing in WinXI's art, and every bar is now the plain one. `bar_art.lua` is removed, the signs (special.png) have their slot to themselves again, and a saved `healthBarTexture` or `castBarTexture` is dropped when settings load.
+
 ## 1.79
 
 - Unloading Name now invalidates its published drawing buffer and relinquishes its claim before releasing owned textures, including a texture submitted before the plugin's first scene consumes it. Cleanup remains idempotent.

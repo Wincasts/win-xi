@@ -1,11 +1,10 @@
--- Basic HP bars share the active text atlas's white pixel: no extra texture slot or asset. A bar in
--- one of winxi's Bar Textures is drawn by bar_art instead, and where that cannot, as this one.
+-- HP and cast bars share the active text atlas's white pixel: no extra texture slot or asset.
 --
 --   healthbar.Begin(white, now) each frame: optional {u,v} from the active text atlas;
 --                          otherwise the font's white pixel is looked for afresh
---   healthbar.Bar(left, right, under, scale, fraction, color, width, height, backdrop, texture)
+--   healthbar.Bar(left, right, under, scale, fraction, color, width, height, backdrop)
 --                         shared HP/cast geometry; returns the foot or unchanged under
---   healthbar.Write(name, entities, left, right, under, scale, color, width, height, full, texture)
+--   healthbar.Write(name, entities, left, right, under, scale, color, width, height, full)
 --                         the bar under a name, between the plugin's BeginName and EndName; returns
 --                         the foot of it, or under where there is none
 --   healthbar.Preview     { false }: while true and its checkbox is being drawn (PreviewVisible),
@@ -13,7 +12,6 @@
 --   healthbar.previewing  whether this frame is showing the preview
 local imgui = require('imgui');
 local nameplates = require('winxi.nameplates');
-local barArt = require('bar_art');
 local healthbar = {};
 
 -- Session-only, never part of saved settings: as castbar.Preview
@@ -67,16 +65,12 @@ local function whitePixel()
 end
 
 -- Shared HP/cast geometry and white pixel, with identical origins and dimensions.
-function healthbar.Bar(left, right, under, scale, fraction, color, width, height, backdrop, texture)
+function healthbar.Bar(left, right, under, scale, fraction, color, width, height, backdrop)
     local border = math.max(1, math.floor(scale + 0.5));
     width = math.max(3 * border, math.floor((width or 60) * scale + 0.5));
     local x = math.floor((left + right - width) * 0.5);
     local y = math.floor(under + math.max(1, math.floor(2 * scale + 0.5)) + 0.5);
     local h = math.max(3 * border, math.floor((height or 6) * scale + 0.5));
-    if texture ~= nil and barArt.Draw(texture, x, y, width, h, fraction, color or 0xFFFFFFFF) then
-        return y + h;
-    end
-
     local u, v = whitePixel();
     if (u == nil) then return under; end
     -- The plugin feathers these edges in final render-target pixels, AFTER Lens
@@ -94,12 +88,12 @@ end
 -- Full HP remains hidden normally. While casting, keep the enabled HP row above
 -- the cast row even at 100%, so damage does not move the cast bar up/down. The preview shows it
 -- whatever the HP.
-function healthbar.Write(name, entities, left, right, under, scale, color, width, height, full, texture)
+function healthbar.Write(name, entities, left, right, under, scale, color, width, height, full)
     if (name.ServerId == 0 or entities == nil or entities.GetServerId == nil or entities.GetHPPercent == nil
             or entities:GetServerId(name.EntityIndex) ~= name.ServerId) then return under; end
     local hp = healthbar.previewing and previewHP(name.EntityIndex) or entities:GetHPPercent(name.EntityIndex);
     if type(hp)~='number' or hp~=hp or hp<0 or hp>100 or (hp==100 and not full and not healthbar.previewing) then return under; end
-    return healthbar.Bar(left,right,under,scale,hp/100,color,width,height,nil,texture);
+    return healthbar.Bar(left,right,under,scale,hp/100,color,width,height,nil);
 end
 
 return healthbar;

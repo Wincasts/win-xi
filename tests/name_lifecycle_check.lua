@@ -23,26 +23,13 @@ assert(draws==drawn and released.text==before+1 and released.badges==1 and relea
     'Enable Name off releases once, without dispatching Frame')
 options.drawNames[1]=true;H.frames(1)
 before,drawn=released.text,draws
--- Textured bars used to write through the cached DLL pointer before invalidation.
-local art=require('bar_art')
-local invalidated,freed=false,0
-local clearDrawing,setTexture,free=plates.ClearDrawing,plates.SetTexture,art.Free
+-- Plugin loss invalidates the cached DLL writers before Name's own textures are released.
+local invalidated=false
+local clearDrawing=plates.ClearDrawing
 plates.ClearDrawing=function(...) invalidated=true;return clearDrawing(...) end
-plates.SetTexture=function(...)
-    assert(invalidated, 'bar teardown wrote through the cached writer before invalidation')
-    return setTexture(...)
-end
-art.Free=function() assert(invalidated, 'texture freed before invalidation');freed=freed+1 end
-local installed=false
-for i=1,20 do
-    if debug.getupvalue(art.Release,i)=='sheet' then
-        debug.setupvalue(art.Release,i,{texture={}});installed=true;break
-    end
-end
-assert(installed, 'fixture must install an owned textured-bar sheet')
 connected=false;H.frames(2)
-assert(invalidated and freed==1, 'plugin loss invalidates before freeing textured bars exactly once')
-plates.ClearDrawing,plates.SetTexture,art.Free=clearDrawing,setTexture,free
+assert(invalidated, 'plugin loss invalidates the drawing')
+plates.ClearDrawing=clearDrawing
 assert(draws==drawn and released.text==before+1 and released.badges==2 and released.icons==2,
     'plugin loss releases once')
 connected=true;H.frames(1)
