@@ -69,6 +69,7 @@ hook.Solid = 0xFFFFFFFF;
 local LOOK_EVERY = 1; -- seconds between looks for the block while it is not found
 
 local block = nil;
+local base = nil;  -- the plugin DLL's base when block was found: loaded again elsewhere, it is gone
 local why = 'unloaded';
 local lookedAt = -LOOK_EVERY;
 
@@ -92,6 +93,13 @@ local function Find()
             return nil;
         end
         hook.Plugin = other;
+    end
+    -- unloaded and loaded again between two looks, at another address: what was found is gone
+    local current = ashita.memory.get_base and ashita.memory.get_base(hook.Plugin .. '.dll') or nil;
+    if current ~= base then block, base, lookedAt = nil, current, -LOOK_EVERY; end
+    if ashita.memory.get_base and (current == nil or current == 0) then
+        why = 'unloaded';
+        return nil;
     end
     if block ~= nil then
         return block;

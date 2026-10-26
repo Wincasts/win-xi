@@ -293,3 +293,28 @@ font.ContainerAtlas.TexData.Status = 2 -- and has it not ready
 block.Frame = 56; H.frames(1)
 H.print('the font texture not ready: the bar still handed over, with no font', block.SubmitFrame == 56)
 font.ContainerAtlas.TexData.Status = 0
+
+-- the plugin unloaded and loaded again between two looks, at another address: the old block is let go
+-- of and the new one found, though the plugin was never seen unloaded
+do
+    local dllBase, finds = 0x10000000, 0
+    local moved = ffi.new('buffhook_t[1]')
+    moved[0].Version, moved[0].Size, moved[0].Hooked, moved[0].Frame = 4, ffi.sizeof('buffhook_t'), 1, 70
+    moved[0].Width, moved[0].Height = 960, 540
+    local find, current = ashita.memory.find, holder
+    ashita.memory.get_base = function(module) return module == plugin .. '.dll' and dllBase or nil end
+    ashita.memory.find = function(module, o, pattern, ...)
+        if module == plugin .. '.dll' then finds = finds + 1; return tonumber(ffi.cast('uintptr_t', current)) end
+        return find(module, o, pattern, ...)
+    end
+    H.frames(2)
+    local found = hook.Block()
+    H.print('a DLL at one address: its block, found once', found ~= nil and found.Frame == block.Frame, finds == 1)
+    current, dllBase = moved, 0x20000000
+    H.frames(2)
+    found = hook.Block()
+    H.print('loaded again elsewhere: the new block, never the old', found ~= nil and found.Frame == 70, finds == 2)
+    dllBase = nil
+    H.print('no DLL to be found: nothing', hook.Block() == nil)
+    ashita.memory.get_base, ashita.memory.find = nil, find
+end
