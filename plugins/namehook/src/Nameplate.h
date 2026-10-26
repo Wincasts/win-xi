@@ -521,6 +521,9 @@ class Nameplate {
         // drew for an addon: whatever the host kept of the device's state is no longer the client's
         virtual void ClientDrew() {}
 
+        // Says in the chat log what drawing for addons has cost of late, for /namehook perf: the host's own
+        virtual void SayPerformance() {}
+
         // Whether the host may keep the device's state it captured for one addon-drawn name, and put it
         // back after the next, while the client has drawn nothing between: /namehook keepstates
         bool KeepsStates() const;

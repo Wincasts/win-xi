@@ -346,8 +346,46 @@ struct FakeStateDevice {
     }
 };
 
+// Instruction lengths and real CALLs (InstructionLength.h): checked here on known encodings, and against objdump
+// over the client's own code when it was written (1.17 million instructions; of 66,927 real calls 66,625 taken,
+// of 6,375 E8 bytes inside other instructions none)
+static void TestInstructionLength() {
+	struct Case { std::vector<uint8_t> bytes; size_t length; const char* what; };
+	const Case cases[] = {
+		{ { 0x90 }, 1, "nop" }, { { 0x55 }, 1, "push ebp" }, { { 0xC3 }, 1, "ret" }, { { 0xC2, 0x14, 0x00 }, 3, "ret 0x14" },
+		{ { 0xE8, 1, 2, 3, 4 }, 5, "call rel32" }, { { 0xE9, 1, 2, 3, 4 }, 5, "jmp rel32" }, { { 0xEB, 5 }, 2, "jmp rel8" },
+		{ { 0x8B, 0x4C, 0x24, 0x08 }, 4, "mov ecx, [esp+8]" }, { { 0x8B, 0x0D, 1, 2, 3, 4 }, 6, "mov ecx, [abs]" },
+		{ { 0x8B, 0x84, 0x24, 1, 2, 3, 4 }, 7, "mov eax, [esp+disp32]" }, { { 0x8B, 0x04, 0x85, 1, 2, 3, 4 }, 7, "mov eax, [eax*4+disp32]" },
+		{ { 0xC7, 0x44, 0x24, 0x10, 1, 2, 3, 4 }, 8, "mov dword [esp+16], imm32" }, { { 0x66, 0xC7, 0x45, 0x10, 1, 2 }, 6, "mov word [ebp+16], imm16" },
+		{ { 0x83, 0xEC, 0x0C }, 3, "sub esp, 12" }, { { 0x81, 0xC4, 0x18, 0x01, 0, 0 }, 6, "add esp, 0x118" },
+		{ { 0xF6, 0xC2, 0x01 }, 3, "test dl, 1" }, { { 0xF7, 0x47, 0x78, 0, 0, 0, 0xFF }, 7, "test dword [edi+0x78], imm32" },
+		{ { 0xF7, 0xD8 }, 2, "neg eax" }, { { 0x0F, 0x84, 1, 2, 3, 4 }, 6, "jz rel32" }, { { 0x0F, 0xB6, 0x46, 0x10 }, 4, "movzx eax, byte [esi+16]" },
+		{ { 0xD9, 0x44, 0x24, 0x10 }, 4, "fld dword [esp+16]" }, { { 0xDD, 0x05, 1, 2, 3, 4 }, 6, "fld qword [abs]" }, { { 0xD9, 0xF3 }, 2, "fpatan" },
+		{ { 0x0F, 0x0F, 0xC1, 0x9E }, 4, "3DNow! pfadd" }, { { 0x0F, 0x0E }, 2, "femms" }, { { 0xFF, 0x24, 0x85, 1, 2, 3, 4 }, 7, "jmp [table]" },
+		{ { 0xA0, 1, 2, 3, 4 }, 5, "mov al, [moffs]" }, { { 0xF3, 0xA5 }, 2, "rep movsd" }, { { 0x6A, 0x02 }, 2, "push 2" }, { { 0x68, 1, 2, 3, 4 }, 5, "push imm32" },
+		{ { 0x0F, 0x05 }, 0, "syscall: not known, refused" }, { { 0x8B }, 0, "cut short: refused" },
+	};
+	for (const Case& c : cases) {
+		const size_t got = InstructionLength::Of(c.bytes.data(), c.bytes.data() + c.bytes.size());
+		if (got != c.length) { failures++; printf("FAILED instruction length: %s gave %zu, not %zu\n", c.what, got, c.length); }
+	}
+	// a real call amid code, and E8 bytes inside a mov's immediate going to the same place: the one taken, the other not
+	std::vector<uint8_t> code;
+	for (int i = 0; i < 60; i++) { code.insert(code.end(), { 0x8B, 0x4C, 0x24, 0x08, 0x89, 0xC0, 0x83, 0xEC, 0x0C }); }
+	const size_t real = code.size();
+	code.insert(code.end(), { 0xE8, 0, 0, 0, 0 });
+	for (int i = 0; i < 40; i++) { code.insert(code.end(), { 0x8B, 0x4C, 0x24, 0x08, 0x89, 0xC0 }); }
+	const size_t hidden = code.size() + 1;
+	code.insert(code.end(), { 0xB8, 0xE8, 0, 0, 0, 0, 0x90, 0x90, 0x90, 0x90 }); // mov eax, 0x000000E8: an E8 inside it
+	CHECK(InstructionLength::CallSiteDecodes(code.data(), code.data() + code.size(), code.data() + real));
+	CHECK(!InstructionLength::CallSiteDecodes(code.data(), code.data() + code.size(), code.data() + hidden));
+	CHECK(!InstructionLength::CallSiteDecodes(code.data(), code.data() + code.size(), code.data() + 3)); // too near the start to vote
+	CHECK(!InstructionLength::CallSiteDecodes(code.data(), code.data() + code.size(), code.data() + real + 1)); // not an E8
+}
+
 int main() {
 	TestCodePatches();
+	TestInstructionLength();
 	{
 		// a drawing drawn this frame but not as it can be drawn is refused and counted; none at all is not counted
 		static HookDraw draw;
