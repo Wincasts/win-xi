@@ -51,8 +51,9 @@ Party and target opt-ins are independent. **Do not run hideparty with either nat
 While a fish is on the line the game draws its stamina gauge with the party list, in the middle of the screen.
 Party asks for its party windows to be replaced with the game's drawing outside them let through
 (`PARTY_PASS_OUTSIDE`, 4, added to `capture` 0 or 1 for index 0 to 2, where `SupportedMask` has bit 4,
-`PARTY_PASS_SUPPORTED`, from 1.65): a draw whose vertices lie wholly outside the window's rectangle, grown by 8
-pixels for its edges and shadow, is drawn; the rest is replaced as ever. Only draws whose vertices uihook is
+`PARTY_PASS_SUPPORTED`, from 1.65): a draw whose vertices lie wholly to the left or right of the window, its sides
+moved out 8 pixels for its edges and shadow, is drawn; the rest is replaced as ever, what is above or below the
+window in its columns included (the list's pet bar, drawn just above it). Only draws whose vertices uihook is
 handed (`DrawPrimitiveUP` and `DrawIndexedPrimitiveUP`) can be let through. The ABI stays 3.
 Organize still uses ordinary ImGui windows. Native party positioning remains gated off, as in
 partyhook's testing build. Existing styling, positions and saved settings are unchanged.

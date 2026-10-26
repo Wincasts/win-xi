@@ -15,22 +15,21 @@ static bool MakeNativeRect(const int16_t* rect,bool scaled,int menuWidth,int men
         rect[2]*sx/viewportWidth,rect[3]*sy/viewportHeight,frame};
     return true;
 }
-// Whether a draw of pre-transformed vertices (x and y the first two floats of each) lies wholly outside a
-// window's rectangle in pixels, grown by margin on every side: none of it overlaps the window. A draw with no
-// vertices, or any vertex not a finite position, is not taken to be outside.
+// Whether a draw of pre-transformed vertices (x and y the first two floats of each) lies wholly beside a
+// window, to its left or right, its sides in pixels moved out by margin: none of it in the window's columns.
+// What is above or below the window in its columns is taken as its own (the party list's pet bar, drawn
+// just above it). A draw with no vertices, or any vertex not a finite position, is not taken to be outside.
 static bool DrawOutside(const void* data,unsigned count,unsigned stride,const NativeRect& rect,
     unsigned viewportWidth,unsigned viewportHeight,float margin) {
     if (!data || !count || stride<8) return false;
-    const float left=rect.Left*viewportWidth-margin, top=rect.Top*viewportHeight-margin;
-    const float right=rect.Right*viewportWidth+margin, bottom=rect.Bottom*viewportHeight+margin;
-    float minX=0, minY=0, maxX=0, maxY=0;
+    if (!viewportHeight) return false;
+    const float left=rect.Left*viewportWidth-margin, right=rect.Right*viewportWidth+margin;
+    float minX=0, maxX=0;
     for (unsigned i=0;i<count;i++) {
         float xy[2]; memcpy(xy,static_cast<const uint8_t*>(data)+size_t(i)*stride,sizeof(xy));
         if (!(xy[0]==xy[0]) || !(xy[1]==xy[1]) || xy[0]>1e7f || xy[0]<-1e7f || xy[1]>1e7f || xy[1]<-1e7f) return false;
         if (!i || xy[0]<minX) minX=xy[0];
-        if (!i || xy[1]<minY) minY=xy[1];
         if (!i || xy[0]>maxX) maxX=xy[0];
-        if (!i || xy[1]>maxY) maxY=xy[1];
     }
-    return maxX<=left || minX>=right || maxY<=top || minY>=bottom;
+    return maxX<=left || minX>=right;
 }
