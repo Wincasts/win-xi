@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.63
+
+- Buffs: the anchored bar no longer moves a pixel as the buff selector's cursor comes to or leaves the first status.
+  The menu hands the item its cursor is on a pixel up and to the left of its place (read from the live game: the first
+  icon at 144,50 with the cursor on it, 145,51 with the cursor on the second), and the bar went where the first icon
+  was put. It is now kept where the first icon is with the cursor on it, wherever the cursor is: where it already was
+  outside the selector (SteadyFirst, game.h). tests/buffs.cpp: the cursor on the first, the second and none.
+  Not yet tried in game.
+
 ## 1.62
 
 - Keys: a held key's control character is kept whether or not its key down reached the handler. 1.61 kept nothing in
