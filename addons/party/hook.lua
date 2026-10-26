@@ -1,6 +1,7 @@
 -- Opt-in native rendering. Lua passes no draw-list/texture pointers: the plugin synchronously reads
 -- the CURRENT window through Ashita's C++ ImGui API, retains a copy, and consumes its GPU commands.
 local ffi = require('ffi')
+local abi = require('winxi.abi')
 local bit = require('bit')
 ffi.cdef[[
     typedef struct { float Left, Top, Right, Bottom; uint32_t Frame; } partyhook_rect_t;
@@ -51,7 +52,7 @@ local function Find()
     local address = ashita.memory.find(plugin .. '.dll', 0, '5041525459484F4F4B00000000000000', 0, 0)
     if not address or address == 0 then reason = plugin .. ' party shared block not found.'; return nil end
     local found = ffi.cast('partyhook_shared_t*', address)
-    if found.Version ~= 3 or found.Size ~= ffi.sizeof('partyhook_shared_t') or found.Submit == 0 then
+    if not abi.Accepts(found, 'partyhook_shared_t', 3) or found.Submit == 0 then
         reason = plugin .. ' party ABI mismatch: install the matching plugin.'
         return nil
     end

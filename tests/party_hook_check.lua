@@ -1,4 +1,5 @@
 -- Standalone: lifecycle/ABI/capture routing without Windows or unsafe native calls.
+package.path = 'addons/libs/?.lua;' .. package.path
 local realffi = require('ffi')
 local fake = { Version=3, Size=168, Hooked=1, SupportedMask=7, Frame=1, Submit=123,
     CapturedVertices=12, Replays=1, BlockedCalls=3, Failures=0, TargetCursorCalls=9, GeometryReady=1,

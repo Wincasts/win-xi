@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.1
+
+- uihook's mirror block is read as plugins/ABI.md promises (winxi 57's `winxi.abi`): the same Version and at least the size this knows, so a newer uihook that adds to the block is still read. Requires winxi 57.
+
 ## 0.9
 
 - [Experimental] Drawn As (Menus Over The Chat Log; The Game to begin with), with uihook 1.59:

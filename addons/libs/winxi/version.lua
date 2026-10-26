@@ -101,6 +101,8 @@
 --     and loaded again between two looks, at another address or as another build), and
 --     nameplates.Generation says so to popups and to addons keeping a block of namehook's own
 -- 56: presence, whether another addon is loaded in this game (hideparty, for party's native windows)
+-- 57: abi, the plugins' blocks read as plugins/ABI.md promises until 2.0: this Version and at least the size
+--     known, so a newer plugin that grows a block is still read; every reader in winxi goes through it
 return {
-    Number = 56,
+    Number = 57,
 };

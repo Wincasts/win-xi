@@ -77,6 +77,7 @@
 -- overrides names clears them then.
 local bit = require('bit');
 local ffi = require('ffi');
+local abi = require('winxi.abi');
 
 ffi.cdef[[
     typedef struct {
@@ -280,7 +281,7 @@ function nameplates.Hook()
     end
 
     local candidate = ffi.cast('namehook_t*', found);
-    if (candidate.Version ~= VERSION or candidate.Size ~= ffi.sizeof('namehook_t') or candidate.NameSize ~= ffi.sizeof('namehook_name_t')) then
+    if (not abi.Accepts(candidate, 'namehook_t', VERSION) or candidate.NameSize ~= ffi.sizeof('namehook_name_t')) then
         why = 'mismatch';
         return nil, why;
     end
@@ -305,7 +306,7 @@ function nameplates.Supports(features, hook)
             '4E414D45484F4F4B4341505300000000', 0, 0); -- NAMEHOOKCAPS + four zeroes
         if found ~= nil and found ~= 0 then
             local candidate = ffi.cast('namehook_capabilities_t*', found);
-            if candidate.Size == ffi.sizeof('namehook_capabilities_t') and candidate.Version == 1 then
+            if abi.Accepts(candidate, 'namehook_capabilities_t', 1) then
                 capabilities = candidate;
             end
         end

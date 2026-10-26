@@ -14,6 +14,7 @@
 -- scrollPage, scrollCount, scrollTop, target, runs, quads } as winxi.nativemirror gave them; kept: one named to Request,
 -- drawn by the game. Words(quads) reads the letters a window spells from the game's fonts back as words.
 local ffi = require('ffi')
+local abi = require('winxi.abi')
 local bit = require('bit')
 ffi.cdef[[
     typedef struct {
@@ -280,7 +281,7 @@ function M.new()
                 local at = ashita.memory.find('uihook.dll', 0, MAGIC, 0, which)
                 if not at or at == 0 then break end
                 local found = ffi.cast('uihook_mirror_t*', at)
-                if found.Version == VERSION and found.Size == ffi.sizeof('uihook_mirror_t') then block = found; break end
+                if abi.Accepts(found, 'uihook_mirror_t', VERSION) then block = found; break end
             end
             if not block then reason = 'Update uihook to 1.59 or newer: its mirror of the menus over the chat log (ABI 6) is not there.'; return nil end
         end

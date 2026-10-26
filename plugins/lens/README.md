@@ -210,3 +210,7 @@ plugins/lens/tests/run.sh
 
 The same clang-cl/lld-link, x86 Windows SDK and Ashita SDK toolchain as uihook (default
 `.toolchain`; overrides: `TOOLCHAIN`, `ASHITA_SDK_PATH`, `MSVC_PATH`). Output: `plugins/lens/build/lens.dll`.
+
+## Stability
+
+The blocks this plugin shares with addons are frozen at their 1.0 layout until 2.0: an addon made for 1.0 keeps working with every newer 1.x lens. The rules, and the check that enforces them, are in [plugins/ABI.md](../ABI.md).

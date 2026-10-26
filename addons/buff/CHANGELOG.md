@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- uihook's buff block is read as plugins/ABI.md promises (winxi 57's `winxi.abi`): the same Version and at least the size this knows, so a newer uihook that adds to the block is still read. Requires winxi 57.
 - uihook alone: the retired buffhook plugin is no longer looked for.
 - The plugin's block is let go of when uihook (or buffhook) has been unloaded and loaded again at another address since it was found, even between two looks, so the old DLL's memory is never read or written (the plugin's base is compared each look, as winxi's uihook readers do).
 - The controller's confirm in the buff selector removes the status the cursor is on again (the game's own confirm did not, with a DirectInput pad). The press is not taken from the game: buff asks the server to remove the status only if the game has not a quarter of a second later, so it is never asked twice. Controller Navigation, Controller Sounds and Controller Type are back under Controller; an XInput controller's A is always heard, and with XInput chosen a DirectInput pad's cross is read as PlayStation's.

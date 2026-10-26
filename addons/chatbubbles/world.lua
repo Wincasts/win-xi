@@ -1,5 +1,6 @@
 -- Independent namehook world layer: never write to the name replacement buffer.
 local ffi = require('ffi');
+local abi = require('winxi.abi');
 local imgui = require('imgui');
 local nameplates = require('winxi.nameplates');
 local fonts = require('winxi.fonts');
@@ -39,8 +40,7 @@ function M.Begin(hook)
         end
         local candidate = ffi.cast('chatbubbles_world_t*', address);
         -- version 2: a texture may be winxi.fonts.TextureMark, which version 1 took for an address
-        if (candidate.Version ~= 2 or candidate.Size ~= ffi.sizeof('chatbubbles_world_t')
-                or candidate.DrawSize ~= ffi.sizeof('namehook_draw_t')) then
+        if (not abi.Accepts(candidate, 'chatbubbles_world_t', 2) or candidate.DrawSize < ffi.sizeof('namehook_draw_t')) then
             problem = 'Incompatible namehook world-bubble buffer: World bubbles require namehook 1.25 or later.';
             return nil;
         end

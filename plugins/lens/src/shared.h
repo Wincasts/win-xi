@@ -15,9 +15,10 @@ struct Shared {
 };
 static_assert(sizeof(Shared) == 48, "LENS-WARP ABI 1");
 
-// Whether the block says the warp is live.
+// Whether the block says the warp is live. A newer lens may add fields after these (plugins/ABI.md): its
+// Size is then larger, and what is here is read as ever.
 inline bool Live(const Shared* s) {
-    return s != nullptr && s->Version == 1 && s->Size == sizeof(Shared) && s->WarpedFrame != 0 && s->Frame - s->WarpedFrame <= 2;
+    return s != nullptr && s->Version == 1 && s->Size >= sizeof(Shared) && s->WarpedFrame != 0 && s->Frame - s->WarpedFrame <= 2;
 }
 
 } // namespace lens

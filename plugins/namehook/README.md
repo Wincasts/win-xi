@@ -270,3 +270,7 @@ Copy `namehook.dll` to `<Ashita>\plugins`.
 ## Credits
 
 Nameplate is by BunnyBox Productions (Shirk / Velyn), 2022 to 2024. Nameplate-AshitaV4 is its community fork for Ashita v4. This fork is not affiliated with or endorsed by either.
+
+## Stability
+
+The blocks this plugin shares with addons are frozen at their 1.0 layout until 2.0: an addon made for 1.0 keeps working with every newer 1.x namehook. The rules, and the check that enforces them, are in [plugins/ABI.md](../ABI.md).

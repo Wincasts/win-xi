@@ -1,6 +1,7 @@
 -- nativeui's groupmirror against a block laid out as uihook's (mirror ABI 6): the group asked for with the windows
 -- kept for the game, the published frame read into display pixels, text decoded, staleness, stop, unload and a
 -- mismatched ABI; and the letters the game spells its pictured words from read back. No native code runs.
+package.path = 'addons/libs/?.lua;' .. package.path
 local ffi = require('ffi')
 local loaded, base, now = true, 100, 10
 local block

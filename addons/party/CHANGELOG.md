@@ -2,6 +2,7 @@
 
 ## 0.3.3
 
+- uihook's party block is read as plugins/ABI.md promises (winxi 57's `winxi.abi`): the same Version and at least the size this knows, so a newer uihook that adds to the block is still read. Requires winxi 57.
 - Native windows are refused while hideparty is loaded, which hides the very frames they replace: the windows are given back to the game and `/pt native status` says to unload hideparty. hideparty 1.3 says it is loaded through winxi 56's `winxi.presence`. Requires winxi 56.
 - uihook alone: the retired partyhook plugin is no longer looked for.
 - hideparty is no longer packaged with party.

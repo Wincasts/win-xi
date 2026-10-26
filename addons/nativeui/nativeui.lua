@@ -1,6 +1,6 @@
 addon.name    = 'nativeui'
 addon.author  = 'win'
-addon.version = '0.9'
+addon.version = '0.9.1'
 addon.desc    = 'The game\'s own interface in a uihook skin, and the menus it stacks over the chat log moved where you want them.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -31,7 +31,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 --
 -- Needs uihook 1.59 or newer for Drawn As, 1.58 for Mouse Follows Menus, 1.54 for the rest.
 
-local winxiNeeded = 41
+local winxiNeeded = 57 -- winxi.abi: uihook's mirror block read as plugins/ABI.md promises
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0

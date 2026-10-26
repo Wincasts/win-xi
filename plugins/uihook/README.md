@@ -748,3 +748,7 @@ validation gaps carry over. Clock/compass additionally
 need native clock/radar toggle checks, radar-disabled zones and hidecompass removal validation.
 
 MIT; see `LICENSE.md`.
+
+## Stability
+
+The blocks this plugin shares with addons are frozen at their 1.0 layout until 2.0: an addon made for 1.0 keeps working with every newer 1.x uihook. The rules, and the check that enforces them, are in [plugins/ABI.md](../ABI.md).

@@ -35,6 +35,7 @@
 --   popups.Release(hook)                      on unload: the claim given up, the drawing let go
 local bit = require('bit');
 local ffi = require('ffi');
+local abi = require('winxi.abi');
 local nameplates = require('winxi.nameplates'); -- its quads, drawings and the frame count
 
 ffi.cdef[[
@@ -141,7 +142,7 @@ function popups.Hook()
         return nil, why;
     end
     local candidate = ffi.cast('namehook_popups_t*', found);
-    if (candidate.Version ~= VERSION or candidate.Size ~= ffi.sizeof('namehook_popups_t') or candidate.PopupSize ~= ffi.sizeof('namehook_popup_t')) then
+    if (not abi.Accepts(candidate, 'namehook_popups_t', VERSION) or candidate.PopupSize ~= ffi.sizeof('namehook_popup_t')) then
         why = 'mismatch';
         return nil, why;
     end

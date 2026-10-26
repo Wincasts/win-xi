@@ -8,6 +8,7 @@
 --   history.Lines()          -- once served: { { text, mode, serial, flags, extra }, ... } oldest first; nil before
 --   history.Status()
 local ffi=require('ffi')
+local abi=require('winxi.abi')
 ffi.cdef[[typedef struct {
     char Magic[16]; uint32_t Version,Size,Frame,Supported,RequestFrame,Serial,ReadFrame,Count,Used;
     struct { uint32_t Offset,Length,Mode,Serial,Flags,Extra; } Lines[100];
@@ -30,7 +31,7 @@ function M.new()
             local at=ashita.memory.find('uihook.dll',0,'5549484F4F4B2D484953544F52590000',0,0)
             if not at or at==0 then reason='Update uihook: the game\'s chat history cannot be read.'; return nil end
             local found=ffi.cast('uihook_history_t*',at)
-            if found.Version~=1 or found.Size~=ffi.sizeof('uihook_history_t') then
+            if not abi.Accepts(found,'uihook_history_t',1) then
                 reason='uihook history ABI mismatch; install the matching DLL.'; return nil
             end
             block=found

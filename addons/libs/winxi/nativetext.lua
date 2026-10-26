@@ -10,6 +10,7 @@
 --                       --   modified, cut }: text the bytes the game will keep; nil while uihook does not keep them
 --   tap.Status()
 local ffi=require('ffi')
+local abi=require('winxi.abi')
 ffi.cdef[[typedef struct {
     uint32_t Serial,Mode,FinalMode,Flags,OriginalLength,FinalLength;
     char Original[4096]; char Final[4096];
@@ -37,7 +38,7 @@ function M.new()
             local at=ashita.memory.find('uihook.dll',0,'5549484F4F4B2D544558540000000000',0,0)
             if not at or at==0 then reason='Update uihook to 0.8 or newer: chat lines are read as they reach chatbox.'; return nil end
             local found=ffi.cast('uihook_text_t*',at)
-            if found.Version~=1 or found.Size~=ffi.sizeof('uihook_text_t') then
+            if not abi.Accepts(found,'uihook_text_t',1) then
                 reason='uihook text ABI mismatch; install the matching DLL.'; return nil
             end
             block=found

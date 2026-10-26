@@ -6,6 +6,7 @@
 -- The mapping mirrors plugins/lens/src/warp.h: SourceOf gives where a screen point reads the flat
 -- picture, ScreenOf the reverse, each as fractions 0 to 1 across the picture and the screen.
 local ffi = require('ffi')
+local abi = require('winxi.abi')
 
 ffi.cdef[[
     typedef struct {
@@ -99,7 +100,7 @@ local function find()
         local address = ashita.memory.find('lens.dll', 0, MAGIC, 0, 0)
         if not address or address == 0 then return nil end
         local found = ffi.cast('lens_warp_t*', address)
-        if found.Version ~= 1 or found.Size ~= ffi.sizeof('lens_warp_t') then return nil end
+        if not abi.Accepts(found, 'lens_warp_t', 1) then return nil end
         block = found
     end
     return block

@@ -1,4 +1,5 @@
 -- Standalone bridge lifecycle and slot isolation; no native code is called.
+package.path = 'addons/libs/?.lua;' .. package.path
 local realffi = require('ffi')
 local fake = {Version=6,Size=164,WeatherScale=0,HideIcons=0,WeatherShift=0,PreviewWeather=0,IconFrame={[0]=10,[1]=0,[2]=0},
     IconRect={[0]={[0]=8,[1]=1096,[2]=24,[3]=1112},[1]={[0]=0,[1]=0,[2]=0,[3]=0},[2]={[0]=0,[1]=0,[2]=0,[3]=0}},Grid='(H-9)',ClockRect={[0]=26,[1]=1098,[2]=106,[3]=1108},ClockRectFrame=10,SupportedMask=3,Frame=10,Submit=123,
