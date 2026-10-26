@@ -629,6 +629,7 @@ static uint32_t LayerClaimSeen[HOOK_LAYERS] = { 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFF
 static uint32_t LayerOwnerSeen[HOOK_LAYERS] = {};
 static uint64_t LayerClaimTime[HOOK_LAYERS] = {};
 static bool LayerFresh[HOOK_LAYERS] = {};
+static bool AnyLayerFresh = false; // whether any layer is drawn from this frame: none, no entity is looked up
 static uint32_t LayerOrder[HOOK_LAYERS];
 #define LAYER_NONE 0xFFFF
 static uint16_t LayerFirst[HOOK_LAYERS][HOOK_ENTITIES];
@@ -686,11 +687,13 @@ static void BeginLayers() {
 			const uint32_t t = LayerOrder[j]; LayerOrder[j] = LayerOrder[j - 1]; LayerOrder[j - 1] = t;
 		}
 	}
+	AnyLayerFresh = false;
 	for (uint32_t i = 0; i < HOOK_LAYERS; i++) {
 		const HookLayerDraw& draw = LayerDraws[i];
 		const bool fresh = LayerLive(i) && Shared.Frame - draw.Frame <= HOOK_DRAW_FRAMES && draw.Count > 0
 			&& draw.Count <= HOOK_LAYER_DRAWINGS && draw.QuadCount <= HOOK_LAYER_QUADS;
 		LayerFresh[i] = fresh;
+		AnyLayerFresh = AnyLayerFresh || fresh;
 		if (Instance != nullptr) {
 			Instance->BeginLayer(i, draw, fresh);
 		}
@@ -735,6 +738,9 @@ static void DrawWorldLayers() {
 
 // The drawings at one entity, as the client comes to its name: at its name point, offset
 static void DrawEntityLayers(uint32_t index, uint32_t serverId, const float* point) {
+	if (!AnyLayerFresh) {
+		return;
+	}
 	for (uint32_t k = 0; k < HOOK_LAYERS && Instance != nullptr; k++) {
 		const uint32_t i = LayerOrder[k];
 		if (!LayerFresh[i]) {

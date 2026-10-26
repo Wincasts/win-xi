@@ -12,6 +12,7 @@
 #include "../src/NameSubmission.h"
 #include "../src/NameStateBlocks.h"
 #include "../src/NameTextures.h"
+#include "../src/NameEdges.h"
 #include "../../lens/src/warp.h"
 
 #include <string>
@@ -433,10 +434,41 @@ static void TestNameTextures() {
 	CHECK(a.refs == 1 && b.refs == 1); // twice is nothing
 }
 
+// The edge copies grouped by texture (NameEdges.h): every shadow and halo copy of every edged quad put down once,
+// each texture's together, and so a name of a badge, letters and an icon a few runs where it was some thirty
+static void TestNameEdges() {
+	HookQuad quads[8] = {};
+	const uint32_t textures[8] = { 5, 1, 1, 1, 1, 1, 2, 1 }; // a badge, letters, an icon, a last letter
+	float radii[8];
+	for (int i = 0; i < 8; i++) { quads[i].Texture = textures[i]; quads[i].Flags = QUAD_EDGED; radii[i] = 1.0f; }
+	radii[3] = 0; // one letter without an edge
+	int seen[8][9] = {};
+	int order[64][2]; int n = 0;
+	NameEdges::ByTexture(quads, radii, 8, [&](uint32_t i, int pass) { seen[i][pass + 1]++; if (n < 64) { order[n][0] = i; order[n][1] = pass; } n++; });
+	bool once = true;
+	for (int i = 0; i < 8; i++) for (int p = 0; p < 9; p++) once = once && seen[i][p] == (radii[i] > 0 ? 1 : 0);
+	CHECK(once && n == 7 * 9);
+	CHECK(order[0][0] == 0 && order[0][1] == -1); // the badge's texture first, as first met: its shadow, then its halo
+	CHECK(quads[order[9][0]].Texture == 1 && order[9][1] == -1); // then the letters', their shadows first
+	// runs as the host makes them, a run for each change of texture: the old order against the new
+	static int texture[8];
+	int* slots[8]; for (int t = 0; t < 8; t++) slots[t] = &texture[t];
+	NameRun runs[256]; uint32_t runCount = 0;
+	auto runsOf = [&](auto emitAll) { runCount = 0; uint32_t first = 0; emitAll([&](uint32_t i) { NameSubmission::Append(runs, runCount, quads[i].Texture, first, 6, 0xFF000000, slots); first += 6; }); return runCount; };
+	const uint32_t before = runsOf([&](auto put) {
+		for (uint32_t i = 0; i < 8; i++) if (radii[i] > 0) put(i);
+		for (int p = 0; p < 8; p++) for (uint32_t i = 0; i < 8; i++) if (radii[i] > 0) put(i);
+	});
+	const uint32_t after = runsOf([&](auto put) { NameEdges::ByTexture(quads, radii, 8, [&](uint32_t i, int) { put(i); }); });
+	CHECK(after == 3 && before > 30);
+	printf("edge runs for a badge, letters and an icon: %u before, %u after\n", before, after);
+}
+
 int main() {
 	TestCodePatches();
 	TestInstructionLength();
 	TestNameTextures();
+	TestNameEdges();
 	{
 		// a drawing drawn this frame but not as it can be drawn is refused and counted; none at all is not counted
 		static HookDraw draw;

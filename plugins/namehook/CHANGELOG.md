@@ -1,5 +1,11 @@
 # Changelog
 
+## namehook 1.50 — edges grouped by texture
+
+- `/namehook perf` in Jeuno (2026-10-26): 0.61 ms a frame on average, 0.89 at worst, for 24 drawings, but 524 draw calls, about 22 a name. An edged name is put down as a shadow pass, eight halo passes and the quads themselves, each pass over the name's quads in order, so a name of letters and an icon or a badge changed texture, and so made a draw call, in every pass. The shadows and halo copies are now put down grouped by texture (`NameEdges.h`), the quads after them in their own order as before: for a badge, letters and an icon, 36 runs of edges become 3. What is drawn is the same: the copies are all the drawing's edge colour, and same-coloured layers blended over one another come out the same in any order; only where an icon's and a letter's copies overlap under a coloured (not dark) edge could they differ by a little.
+- The entities' layer drawings are not looked up when no layer is drawn from this frame.
+- Tests: every shadow and halo copy put down once, each texture's together, in the order textures are first met; the runs of the old order against the new for a badge, letters and an icon.
+
 ## namehook 1.49 — imgui's font texture borrowed, not held
 
 - The textures each owner draws from (the names', the three claim slots', the four layers', the bubbles' and the popups') are kept by one piece, `NameTextures.h`, in place of a function each call site used. A texture an addon gives by its address is held while it is drawn from and let go once another or none is given, as before. imgui's font texture, given as `1`, is now only borrowed: the plugin looks it up afresh every frame before drawing, so it never needed holding, and holding it across frames could keep a device reset (a change of resolution or display mode) from going through, as Ashita's imgui may make it in the default pool, which Direct3D 8 needs released before a reset. Every texture our addons make is in the managed pool, which a reset keeps.

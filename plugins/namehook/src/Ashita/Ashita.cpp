@@ -23,6 +23,7 @@ If not, see <https://www.gnu.org/licenses/>.
 #include "../NameSubmission.h"
 #include "../NameStateBlocks.h"
 #include "../NameTextures.h"
+#include "../NameEdges.h"
 
 #include "exports.h"
 // the lens plugin's warp, which bends the world picture names are drawn into (plugins/lens)
@@ -889,21 +890,19 @@ void AshitaNameplate::RenderCustom(uint32_t slot, const HookDrawing& drawing, co
         if (radius > 0) {
             hasEdges = true;
             EdgeColors[i] = FadeColor(drawing.EdgeColor, alpha * (static_cast<float>(quads[i].Color >> 24) / 255.0f) * quads[i].EdgeOpacity());
-            if (quads[i].EdgeShadow()) {
-                add(quads[i], 0, radius + NameGeometry::ShadowDrop,
-                    FadeColor(EdgeColors[i], NameGeometry::ShadowOpacity), false);
-            }
         }
     }
+    // the shadows and halo copies grouped by texture: a draw call for each texture's edges (NameEdges.h)
     if (hasEdges) {
-        for (const auto& offset : NameGeometry::Halo) {
-            for (uint32_t i = 0; i < drawing.Count; i++) {
-                const float radius = EdgeRadii[i];
-                if (radius > 0) {
-                    add(quads[i], offset.x * radius * horizontalFit, offset.y * radius, EdgeColors[i], false);
-                }
+        NameEdges::ByTexture(quads, EdgeRadii, drawing.Count, [&](uint32_t i, int pass) {
+            const float radius = EdgeRadii[i];
+            if (pass < 0) {
+                add(quads[i], 0, radius + NameGeometry::ShadowDrop, FadeColor(EdgeColors[i], NameGeometry::ShadowOpacity), false);
+            } else {
+                const auto& offset = NameGeometry::Halo[pass];
+                add(quads[i], offset.x * radius * horizontalFit, offset.y * radius, EdgeColors[i], false);
             }
-        }
+        });
     }
     for (uint32_t i = 0; i < drawing.Count; i++) {
         add(quads[i], 0.0f, 0.0f, FadeColor(quads[i].Color, alpha), (quads[i].Flags & QUAD_DOUBLED) != 0);
