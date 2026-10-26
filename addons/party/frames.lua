@@ -807,11 +807,7 @@ end
 local function HoverMembers(members)
     for index, member in ipairs(members) do
         if details.Hover(itemX, lineY[index], itemX + room[1], lineY[index] + rowHeight * scale) then
-            if activeStyle.hoverDetails then
-                details.Member(member)
-            else
-                details.Job(member)
-            end
+            details.Member(member)
             break
         end
     end
@@ -990,7 +986,7 @@ function frames.Draw(members, kind, StatusTexture, style)
         end
     end
 
-    if style.hoverDetails or kind == 'party' or kind == 'alliance' then HoverMembers(members) end
+    if style.hoverDetails then HoverMembers(members) end
     drawList:PopClipRect()
 end
 

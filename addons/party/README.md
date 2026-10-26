@@ -57,11 +57,11 @@ calls per category; averages and maxima cover the full interval.
   not action-specific range guarantees.
 - **Style → Appearance → Bar Shadows**: Off, Simple (one layer), or Full (two layers). This is
   independent of Winxi window shadows.
-- **Behavior → Mouse Interaction → Hover Details**, beside Clickthrough, is off by default: names, jobs
-  and pet owners.
-  Each buff/debuff icon has a Winxi tooltip, even without Hover Details.
-- **Clickthrough** lets clicks through to the game, but the windows are still hovered: their tooltips
-  show either way. Another window drawn over them, wanting the mouse, keeps them from showing.
+- **Behavior → Mouse Interaction → Show Tooltips**, beside Clickthrough, is off by default. On, hovering
+  the windows shows Winxi tooltips: full names, jobs and pet owners on the members, and each buff and
+  debuff (icons and a target's letters) with its estimated time left. Off, there are none.
+- **Clickthrough** lets clicks through to the game, but the windows are still hovered: with Show Tooltips
+  on, their tooltips show either way. Another window drawn over them, wanting the mouse, keeps them from showing.
 - **Shift+drag** moves a window when **Clickthrough** is off: hold Shift as you click it, and the drag goes
   on until the mouse is let go. Without Shift the windows stay put, so a click on them does not move them.
   With Clickthrough on they cannot be dragged except while organizing. A window placed by Automatic
