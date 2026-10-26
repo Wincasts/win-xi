@@ -223,10 +223,10 @@ for _, key in ipairs({ 'self', 'party', 'alliance', 'players', 'myPet', 'pets', 
     local id = '##name.healthBarTypes.' .. key
     assert(ids[id] and locations[id] == 'Health Bar Entity Types' and disabledIds[id], 'Entity Types has ' .. key .. ', waiting for Enabled')
 end
-for _, id in ipairs({ '##name.showHealthBar', '##name.healthBarsCombatOnly', '##name.healthBarTexture' }) do
+for _, id in ipairs({ '##name.showHealthBar', '##name.healthBarsCombatOnly' }) do
     assert(ids[id] and locations[id] == 'Health Bars', 'Health Bars has ' .. id)
 end
-assert(disabledIds['##name.healthBarsCombatOnly'] and disabledIds['##name.healthBarTexture'], 'the rest wait for Enabled')
+assert(disabledIds['##name.healthBarsCombatOnly'], 'the rest wait for Enabled')
 assert(ids['##name.showCastBar'] and locations['##name.showCastBar'] == 'Cast Bars' and not ids['##name.castBarWeaponskills'])
 H.print('Bars: one tab, third: the shared size, Fit to Name and Preview, then Health Bars, its Entity Types and Cast Bars', true)
 
@@ -235,7 +235,7 @@ clear();customSettings.DrawBars(options)
 assert(not disabledIds['##name.healthBarWidth'] and not disabledIds['##name.barPreview'] and disabledIds['##name.healthBarsCombatOnly'],
     'cast bars alone enable what is shared, not the health bars\' own')
 assert(table.concat(headers, '|') == 'Shared Bar Settings|Health Bars|Health Bar Entity Types|Cast Bars|Cast Text')
-assert(ids['##name.castNameScale'] and ids['##name.castTimerScale'] and ids['##name.castBarTexture'] and ids['##name.castFont'])
+assert(ids['##name.castNameScale'] and ids['##name.castTimerScale'] and ids['##name.castFont'])
 assert(options.castBarAutoWidth[1]==false, 'Fit to Name is opt-in')
 assert(options.castNameScale[1]==75 and options.castTimerScale[1]==75 and options.castBarPreview==nil and options.barPreview==nil)
 local sizes=custom.Defaults({});sizes.castNameScale={999};sizes.castTimerScale={'bad'};custom.Settle(sizes)

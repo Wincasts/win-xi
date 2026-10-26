@@ -220,18 +220,11 @@ Location: Bars → Health Bars
 Show bars only for the entity whose status is Engaged (1) and HP is above zero. Being targeted or claimed alone is not combat. Missing status data hides the bar. Applies to every type.
 
 
-## name.health_bars.texture
-Label: Bar Texture
-Location: Bars → Health Bars
-
-What the bar is drawn in. Plain (the default) is the dark-bordered bar Name has always drawn. The others are WinXI's Bar Textures, the art party's HP bars use, tinted the name's colour. Shared Bar Size still sets its width and height; very small bars are drawn from a smaller copy of the art so they stay clean. The fill's end is softened with namehook 1.37; an older namehook draws it hard. If the art cannot be loaded, the bar is drawn Plain.
-
-
 ## name.health_bars.preview
 Label: Preview
 Location: Bars → Shared Bar Settings
 
-Session-only preview of every bar that is enabled: each name that can have a health bar shows one, emptying and filling again, a little apart from the next, at full health and out of combat too (Combat Only is set aside; Health Bar Entity Types still apply); and with cast bars on, an animated sample cast under visible names, alternating spell and TP-move styles with Show Weaponskills. Real casts take precedence; no packets or actor records are made. Tune the shared size, Fit to Name, textures and cast text without waiting. Never saved; stops shortly after leaving this section or closing the window.
+Session-only preview of every bar that is enabled: each name that can have a health bar shows one, emptying and filling again, a little apart from the next, at full health and out of combat too (Combat Only is set aside; Health Bar Entity Types still apply); and with cast bars on, an animated sample cast under visible names, alternating spell and TP-move styles with Show Weaponskills. Real casts take precedence; no packets or actor records are made. Tune the shared size, Fit to Name and cast text without waiting. Never saved; stops shortly after leaving this section or closing the window.
 ## name.health_bars.width
 Label: Bar Width (px)
 Location: Bars → Shared Bar Settings
@@ -513,12 +506,6 @@ Label: Fit to Name
 Location: Bars → Shared Bar Settings
 
 Widen health and cast bars to the visible entity name, counting visible letter badges as part of the name in either token order. Off by default. The saved Bar Width remains the minimum, so short names do not shrink the bars. Uses the rendered name/letter span and the spaces between, not cast captions, vendor/player icons or distance/check details. Both rows are centred under that span and stay aligned. Hidden name/letter tokens are not counted; formats with neither keep the saved width. Height is unchanged, and normal nameplate scaling still applies.
-## name.cast_bars.texture
-Label: Bar Texture
-Location: Bars → Cast Bars
-
-What the cast bar is drawn in: Plain (the default) or one of WinXI's Bar Textures, as for health bars. It can differ from the health bars' texture. Weaponskills shown as text only have no bar.
-
 ## name.cast_bars.name_scale
 Label: Cast Name Size (%)
 Location: Bars → Cast Text

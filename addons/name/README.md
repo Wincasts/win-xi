@@ -138,11 +138,11 @@ share the **Bars** tab.
 - **Bars**, one tab for health and cast bars. **Shared Bar Settings** comes first: **Bar Width/Height**
   for HP and cast rows alike, **Fit to Name** (both kinds as wide as the name) and **Preview** (every
   enabled bar shown under the names while the section is open). Then **Health Bars**: **Enabled**,
-  **Combat Only** and **Bar Texture**, for every type including pets, trusts and NPCs, with
+  **Combat Only**, for every type including pets, trusts and NPCs, with
   **Health Bar Entity Types** after; HP bars require valid live HP/server-ID data, and full-health
   entities have none unless an active cast needs the HP row above it. Combat Only requires that
   particular entity to be alive and Engaged (status 1); targeting/claiming alone is not combat. Then
-  **Cast Bars** (**Enabled**, Show Weaponskills, Text Only for Weaponskills, Bar Texture) and **Cast
+  **Cast Bars** (**Enabled**, Show Weaponskills, Text Only for Weaponskills) and **Cast
   Text** (with its own Font). The shared settings wait until either kind is enabled. See
   [Cast bars and shared bar layout](#cast-bars-and-shared-bar-layout).
 - **Check Details**, a tab of its own: **Enabled**, Size, Abbreviate Difficulty and Display Style

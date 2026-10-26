@@ -16,7 +16,6 @@ local nameColours = require('name_colours');
 local nameTypes  = require('name_types');
 local entityTypes = require('entity_types');
 local icons      = require('icons');
-local barArt     = require('bar_art');
 local healthbar  = require('healthbar');
 
 local settings = {};
@@ -123,10 +122,6 @@ function settings.DrawBars(options, save)
 
     if (controls.Section('Health Bars', '##name.healthBarOptions', true)) then
         nameTypes.Draw(options);
-        imgui.BeginDisabled(not options.showHealthBar[1]);
-        controls.Choice('Bar Texture', '##name.healthBarTexture', options.healthBarTexture, barArt.Choices(),
-            tips.Get('name.health_bars.texture'));
-        imgui.EndDisabled();
     end
     controls.EndSection();
     if (controls.Section('Health Bar Entity Types', '##name.healthBarTypes')) then
@@ -147,8 +142,6 @@ function settings.DrawBars(options, save)
             controls.Checkbox('Text Only for Weaponskills', '##name.castBarSkillTextOnly', options.castBarSkillTextOnly,
                 tips.Get('name.cast_bars.skill_text_only'));
             imgui.EndDisabled();
-            controls.Choice('Bar Texture', '##name.castBarTexture', options.castBarTexture, barArt.Choices(),
-                tips.Get('name.cast_bars.texture'));
         end
     end
     controls.EndSection();
