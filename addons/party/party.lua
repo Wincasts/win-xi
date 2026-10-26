@@ -40,6 +40,7 @@ local roster = require('roster')
 local pets = require('pets')
 local target = require('target')
 local namecolors = require('namecolors')
+local fishing = require('fishing')
 local notices = require('notices')
 local debuffs = require('debuffs')
 local packets = require('packets')
@@ -317,7 +318,8 @@ local function Present()
     -- Expanded chat/maps hide the replacement too, rather than allowing stock HUD frames back.
     local native = nativeHook and nativeHook.Begin(
         hooking and saved.nativeParty[1] and saved.party.enabled[1] and not organizing,
-        hooking and saved.nativeTarget[1] and saved.target.enabled[1] and not organizing)
+        -- the game draws a hooked fish's stamina in its target window: given back for the fight
+        hooking and saved.nativeTarget[1] and saved.target.enabled[1] and not organizing and not fishing.Hooked())
     local hidden=winxiGame.IsHidden(saved.hide)
     if native then
         nativeBehaviorGroups.party=saved.nativeBehavior[1] and nativeHook.Uses(windows.List.party1)
@@ -340,6 +342,7 @@ local function Present()
         and not (nativeHidden and nativeBehaviorGroups.party) and not windows.IsFadedOut('party')
     local showTarget = saved.target.enabled[1] and (not hidden or nativeBehaviorGroups.target)
         and not (nativeHidden and nativeBehaviorGroups.target) and not windows.IsFadedOut('target')
+        and not fishing.Hooked() -- out of the way of the game's own gauge
     if not showParty and not showTarget then
         winxiOrganize.EndFrame()
         return
@@ -382,6 +385,7 @@ local function PacketIn(e)
     notices.HandlePacket(e)
     pets.HandlePacket(e)
     namecolors.HandlePacket(e)
+    fishing.HandlePacket(e)
     if e.id == 0x00A or e.id == 0x00B then
         roster.Forget()
         lastShown, lastServerId = { }, { }
@@ -393,8 +397,12 @@ ashita.events.register('packet_in', 'packet_in_handler', function(e)
     perf.Packet(PacketIn, e)
 end)
 
+local function PacketOut(e)
+    notices.HandlePacketOut(e)
+    fishing.HandlePacketOut(e)
+end
 ashita.events.register('packet_out', 'packet_out_handler', function(e)
-    perf.Packet(notices.HandlePacketOut, e)
+    perf.Packet(PacketOut, e)
 end)
 
 ashita.events.register('command', 'command_handler', function(e)

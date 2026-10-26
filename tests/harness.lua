@@ -200,6 +200,7 @@ H = {
     packet = function(id) fire('packet_in', { id = id, data = '' }) end,
     packetData = function(id, data) fire('packet_in', { id = id, data = data, data_raw = data }) end, -- a packet with its bytes
     packetOut = function(id) fire('packet_out', { id = id, data = '' }) end,
+    packetOutData = function(id, data) fire('packet_out', { id = id, data = data, data_raw = data }) end, -- one of the client's, with its bytes
     load = function() fire('load') end,                    -- Ashita's own, once the addon's file has run
     unload = function() fire('unload') end,
     -- an XInput button, pressed and let go, then a frame; returns whether the game was kept from the press

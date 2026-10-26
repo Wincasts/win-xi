@@ -12,6 +12,9 @@
 - **Game Name Colors** (Target tab → Names): the target's name in the game's colour for it, by claim, call for
   help, party and alliance, NPC and death. Off to begin with. With namehook loaded and the name on screen it is
   the game's own colour, read from the plugin and held steady through the target's pulse.
+- **Fishing**: while a fish is on the line, uihook's target replacement lets the game's own target window
+  draw, as the game shows the fish's stamina gauge in it, and Party's target windows step aside. The window
+  is replaced again once the fight ends.
 - **TP Ready Color** (Style → Warnings): the colour TP of 1000 or more is written in, blue to begin with.
   Flash TP When Ready pulses it toward a lighter shade of the chosen colour.
 - The value offsets reach further: 140 either way across, enough to put a figure anywhere along a frame from
