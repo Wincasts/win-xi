@@ -122,6 +122,8 @@ public:
 
     virtual void GetFrameFacts(FrameFacts& facts, bool withPets) override;
     virtual void ProbeScene() override;
+    virtual void ProbePopup(const float* position, bool found) override;
+    void DescribeScene(const char* as);
     virtual void ClientDrew() override {
         m_StatesCaptured = false;
     }
@@ -331,13 +333,55 @@ static void DescribeSurface(IChatManager* chat, const char* what, IDirect3DSurfa
 }
 
 void AshitaNameplate::ProbeScene() {
+    DescribeScene("As the client draws a name:");
+}
+
+void AshitaNameplate::ProbePopup(const float* position, bool found) {
+    DescribeScene("As the client draws a claimed damage popup:");
+    IChatManager* chat = m_AshitaCore->GetChatManager();
+    IDirect3DDevice8* device = m_AshitaCore->GetDirect3DDevice();
+    if (device == nullptr) {
+        return;
+    }
+    chat->Writef(0, false, CHAT_HEADER "  the popup at %.2f %.2f %.2f; an addon's drawing %s; popups %s be drawn this frame",
+        position[0], position[1], position[2], found ? "found" : "not found", m_PopupsCanDraw ? "can" : "cannot");
+
+    D3DMATRIX view, projection, world;
+    if (SUCCEEDED(device->GetTransform(D3DTS_VIEW, &view))) {
+        chat->Writef(0, false, CHAT_HEADER "  view: %.3f %.3f %.3f | %.3f %.3f %.3f | %.3f %.3f %.3f | %.1f %.1f %.1f",
+            view._11, view._12, view._13, view._21, view._22, view._23, view._31, view._32, view._33, view._41, view._42, view._43);
+    }
+    if (SUCCEEDED(device->GetTransform(D3DTS_WORLD, &world))) {
+        chat->Writef(0, false, CHAT_HEADER "  world: %.3f %.3f %.3f | %.1f %.1f %.1f", world._11, world._22, world._33, world._41, world._42, world._43);
+    }
+    if (SUCCEEDED(device->GetTransform(D3DTS_PROJECTION, &projection))) {
+        chat->Writef(0, false, CHAT_HEADER "  projection: _11 %.4f _22 %.4f _33 %.6f _34 %.2f _43 %.6f _44 %.2f",
+            projection._11, projection._22, projection._33, projection._34, projection._43, projection._44);
+    }
+
+    // where RenderCustom would put it, with the camera readied for the popups
+    const float* m = m_ViewProjection;
+    const float x = position[0], y = position[1], z = position[2];
+    const float w = x * m[3] + y * m[7] + z * m[11] + m[15];
+    if (w <= 0.01f) {
+        chat->Writef(0, false, CHAT_HEADER "  behind the camera readied (w %.4f): not drawn", w);
+        return;
+    }
+    const float depth = (x * m[2] + y * m[6] + z * m[10] + m[14]) / w;
+    const float left = m_Viewport.X + (1.0f + (x * m[0] + y * m[4] + z * m[8] + m[12]) / w) * 0.5f * m_Viewport.Width;
+    const float top = m_Viewport.Y + (1.0f - (x * m[1] + y * m[5] + z * m[9] + m[13]) / w) * 0.5f * m_Viewport.Height;
+    chat->Writef(0, false, CHAT_HEADER "  with the camera readied: at %.0f,%.0f in a %lux%lu viewport, depth %.5f (%s)",
+        left, top, m_Viewport.Width, m_Viewport.Height, depth, (depth < 0.0f || depth > 1.0f) ? "outside 0 to 1: not drawn" : "drawn");
+}
+
+void AshitaNameplate::DescribeScene(const char* as) {
     IChatManager* chat = m_AshitaCore->GetChatManager();
     IDirect3DDevice8* device = m_AshitaCore->GetDirect3DDevice();
     if (device == nullptr) {
         return;
     }
 
-    chat->Write(0, false, CHAT_HEADER "As the client draws a name:");
+    chat->Writef(0, false, CHAT_HEADER "%s", as);
 
     IDirect3DSurface8* surface = nullptr;
     DescribeSurface(chat, "target", SUCCEEDED(device->GetRenderTarget(&surface)) ? surface : nullptr);

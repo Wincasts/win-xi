@@ -51,7 +51,7 @@ local function popup(i, id, text, target, source, color, first)
     p.Scale = 1
     ffi.copy(p.Text, text)
 end
-popup(0, 6, '74', 0x0E, 0x40B, 0x18962626)
+popup(0, 6, '74', 0x0E, 0x40B, 0x18962626, 100) -- the copy, first listed a frame after the number
 popup(1, 5, '74', 0x0E, 0x40B, 0x40FF3C3C)
 popup(2, 7, ':', 0x14, 0x80C, 0x217A8C7A)
 popup(3, 8, '', 0x14, 0x80C, 0x15460F64)
