@@ -13,7 +13,7 @@
   help, party and alliance, NPC and death. Off to begin with. With namehook loaded and the name on screen it is
   the game's own colour, read from the plugin and held steady through the target's pulse.
 - Leader marks: the party leader's dot is yellow and the alliance leader's white (it was red). The **level sync
-  designee** has a red dot at the top right of their line (the party's flag 0x80).
+  designee** has a red dot at the top right of their line (the party's flag 0x100, as the server sends it).
 - **Monster Letters** (Target tab → Names, on to begin with): a monster's spawn letter after its name in a
   small box in the name's colour, the same letter name writes over it. Needs winxi 52, which now holds name's
   letters and its reading of the game's lists of names.

@@ -28,15 +28,15 @@ local roster = { }
 
 local Textures = { }
 
--- notes on PartyMemberFlagMask
--- bit 0: ? maybe party 2?
--- bit 1: ?
+-- PartyMemberFlagMask, as the server sends it (the group list packet 0x0DD's GAttr):
+-- bits 0-1: which party of the alliance
 -- bit 2: party leader
--- bit 3: alli leader
--- bit 4: ?
--- bit 5: ?
--- bit 6: ?
--- bit 7: level sync target
+-- bit 3: alliance leader
+-- bit 4: party recruiter
+-- bit 5: alliance recruiter
+-- bit 6: linkshell master
+-- bit 7: linkshell sub-master
+-- bit 8: level sync designee (0x100)
 
 ---@class PartyMember
 ---@field targetIndex      integer? entity index, from which entity is looked up each frame
@@ -260,7 +260,7 @@ local function ReadMember(place, party)
     member.isActive = place == 0 or party:GetMemberIsActive(place) == 1
     member.isPartyLeader = bit.band(flags, 4) == 4
     member.isAllianceLeader = bit.band(flags, 8) == 8
-    member.isLevelSync = bit.band(flags, 0x80) == 0x80
+    member.isLevelSync = bit.band(flags, 0x100) == 0x100
     local main = party:GetMemberMainJob(place)
     member.job = game.JobAbbr(main)
     member.jobLevel = party:GetMemberMainJobLevel(place)
