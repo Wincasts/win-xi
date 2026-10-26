@@ -67,11 +67,10 @@ then load the legacy plugins and reload the addons.
 
 ## Clock and compass
 
-The [clock addon](../../addons/clock/README.md) writes the clock on one line in place of the game's
-text, keeps the game's icons and hides the compass through the compass slot. Deploy winxi 5 and
-`/addon load clock` after loading uihook. **Unload hidecompass first**: it hides the shared native
-object and prevents both clock and compass render boundaries from running. Enable the native clock
-in the client. Radar can remain independently on or off. No compass addon/UI is included yet.
+The clock addon that used this (writing the clock on one line in place of the game's text, keeping
+the game's icons and hiding the compass through the compass slot) is retired; chatbox's Info Panel
+reads the same native clock. **Unload hidecompass first**: it hides the shared native object and
+prevents both clock and compass render boundaries from running.
 
 `hud.h` discovers the shared native compass object via hidecompass's update-step signature, verifies
 its tail jump to `Compass::Draw`, then cross-checks BOTH clock CALLs (radar-on/off branches) against
@@ -716,7 +715,6 @@ plugins/uihook/build.sh --diagnostics   # the diagnostics built in as well; both
 plugins/uihook/tests/run.sh
 luajit tests/nativehud_check.lua
 luajit tests/nativechat_check.lua
-luajit tests/harness.lua clock tests/clock_stand_in.lua tests/clock_check.lua
 python3 plugins/uihook/tests/check_hud_client.py /path/to/ffximain.bin /path/to/ffximain.txt
 python3 plugins/uihook/tests/check_window_client.py /path/to/ffximain.bin /path/to/ffximain.txt
 luajit tests/party_hook_performance_check.lua

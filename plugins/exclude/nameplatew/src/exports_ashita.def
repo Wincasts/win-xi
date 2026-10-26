@@ -1,6 +1,0 @@
-LIBRARY "nameplatew"
-VERSION 0.60
-EXPORTS
-    expCreatePlugin @1
-    expDestroyPlugin @2
-    expGetInterfaceVersion @3

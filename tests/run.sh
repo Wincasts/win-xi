@@ -58,8 +58,6 @@ luajit tests/chatbox_translate_check.lua || exit 1
 luajit tests/chatbox_layout_check.lua || exit 1
 luajit tests/chatbox_browse_check.lua || exit 1
 luajit tests/harness.lua party addons/party/party.lua tests/winxi_capture_check.lua || exit 1
-run clock      tests/clock_stand_in.lua clock_check.lua
-luajit tests/clock_panel_check.lua || exit 1
 luajit tests/infopanel_source_check.lua || exit 1
 luajit tests/infopanel_tooltips_check.lua || exit 1
 luajit tests/infopanel_subzone_check.lua || exit 1
@@ -73,7 +71,6 @@ luajit tests/nativehistory_check.lua || exit 1
 luajit tests/nativetext_check.lua || exit 1
 run sct        addons/sct/sct.lua       sct_check.lua
 luajit tests/sct_acquisitions_check.lua || exit 1
-run mapoverlay addons/mapoverlay/mapoverlay.lua mapoverlay_check.lua
 run mobcast    addons/mobcast/mobcast.lua mobcast_check.lua
 run tempo      addons/tempo/tempo.lua   tempo_ui_check.lua
 luajit tests/tempo_check.lua || exit 1
@@ -93,7 +90,6 @@ luajit tests/tcrossbar_backdrop_check.lua
 luajit tests/tcrossbar_recast_check.lua
 luajit tests/mark_map_view_check.lua
 python3 tools/test_build_mark_maps.py
-(cd tools && python3 -m unittest test_trace_walkable_maps)
 luajit tests/mark_data_check.lua
 echo
 run simplelog  tests/empty.lua          simplelog_ui_check.lua

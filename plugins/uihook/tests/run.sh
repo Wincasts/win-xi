@@ -26,7 +26,6 @@ luajit tests/nativechat_check.lua
 luajit tests/harness.lua nativeui addons/nativeui/nativeui.lua tests/nativeui_check.lua
 luajit tests/groupmirror_check.lua > /dev/null && echo 'groupmirror: 0 failures'
 luajit tests/harness.lua nativeui tests/nativeui_group_stand_in.lua tests/nativeui_group_check.lua
-luajit tests/harness.lua clock tests/clock_stand_in.lua tests/clock_check.lua
 luajit tests/party_hook_check.lua
 UIHOOK_TEST_PLUGIN=uihook luajit tests/party_hook_check.lua
 luajit tests/harness.lua buff addons/buff/buff.lua tests/buff_hook_check.lua
