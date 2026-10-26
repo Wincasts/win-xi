@@ -254,7 +254,41 @@ struct HookPopups {
     uint32_t Frame;       // HookShared::Frame of the list
     uint32_t Count;
     uint32_t Sequence;    // goes up each time the list is made ready
+    uint32_t Draw;        // where the HookPopupDraw is, for an addon that has the plugin draw claimed popups
     HookPopup Popups[HOOK_POPUPS_MAX];
+};
+
+#define HOOK_POPUP_QUADS_MAX 4096 // the quads of every popup an addon has drawn, together
+
+enum : uint32_t {
+    POPUP_DRAW_OVER = 1 << 0, // drawn over everything, never hidden by what is in front of it
+};
+
+// What an addon has drawn for one popup: its quads are placed as a name's are, from the popup's point.
+struct HookPopupDrawing {
+    uint32_t Id;          // the popup's HookPopup::Id
+    uint32_t Flags;       // POPUP_DRAW_*
+    HookDrawing Drawing;  // as for a name; its Frame is HookPopupDraw::Frame
+};
+
+// Claimed popups drawn by an addon for the plugin to put in the picture: found through HookPopups::Draw.
+// Every frame the addon sets Frame to HookShared::Frame, Count and QuadCount to 0, and then for each
+// popup it draws adds its quads and a drawing. While the popups are claimed, the plugin draws a
+// popup's quads where and when the client was about to draw the popup, so they rise and go with it.
+struct HookPopupDraw {
+    uint32_t Frame;
+    uint32_t QuadCount;
+    uint32_t QuadsMax;    // HOOK_POPUP_QUADS_MAX
+    uint32_t Reserved;    // optional 16.16 horizontal outline fit, as HookDraw's; 0 means 1:1
+    uint32_t Textures[HOOK_TEXTURES]; // each an IDirect3DTexture8*, HOOK_TEXTURE_FONT, or 0
+    uint32_t Count;       // drawings
+    uint32_t DrawingsMax; // HOOK_POPUPS_MAX
+    HookPopupDrawing Drawings[HOOK_POPUPS_MAX];
+    HookQuad Quads[HOOK_POPUP_QUADS_MAX];
+
+    float HorizontalFit() const {
+        return Reserved != 0 ? static_cast<float>(Reserved) / 65536.0f : 1.0f;
+    }
 };
 
 // What the plugin asks of its host once a frame, for sorting names into categories. An id or index of
@@ -325,6 +359,14 @@ class Nameplate {
         virtual void DrawCustom([[maybe_unused]] uint32_t entityIndex, [[maybe_unused]] const HookDrawing& drawing, [[maybe_unused]] const HookQuad* quads, [[maybe_unused]] const float* position) {}
 
         virtual void BeginBubbles([[maybe_unused]] const HookDraw& draw, [[maybe_unused]] bool fresh) {}
+
+        // Called from the client's popup drawing before the first claimed popup of a frame: fresh is
+        // whether an addon has drawn popups lately enough. Then, in place of the client drawing a
+        // claimed popup, its drawing at this point of the world (three floats); slot is where the
+        // drawing is in HookPopupDraw::Drawings.
+        virtual void BeginPopups([[maybe_unused]] const HookPopupDraw& draw, [[maybe_unused]] bool fresh) {}
+        virtual void DrawPopup([[maybe_unused]] uint32_t slot, [[maybe_unused]] const HookPopupDrawing& drawing,
+            [[maybe_unused]] const HookQuad* quads, [[maybe_unused]] const float* position) {}
         virtual void DrawBubble([[maybe_unused]] uint32_t entityIndex, [[maybe_unused]] const HookDrawing& drawing,
             [[maybe_unused]] const HookQuad* quads, [[maybe_unused]] const float* position) {}
 

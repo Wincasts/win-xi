@@ -89,6 +89,23 @@ struct TestPlugin : public Nameplate {
 	uint32_t GetSpawnFlags(uint32_t entityIndex) override {
 		return (entityIndex == 300) ? 0x10 : 0x02;
 	}
+	int popupsBegun = 0;
+	bool popupsFresh = false;
+	int popupsDrawn = 0;
+	uint32_t popupSlot = 0;
+	float popupX = 0.0f;
+	const HookQuad* popupQuads = nullptr;
+	void BeginPopups(const HookPopupDraw&, bool fresh) override {
+		popupsBegun++;
+		popupsFresh = fresh;
+	}
+	void DrawPopup(uint32_t slot, const HookPopupDrawing&, const HookQuad* quads, const float* position) override {
+		popupsDrawn++;
+		popupSlot = slot;
+		popupX = position[0];
+		popupQuads = quads;
+	}
+
 	// the actors the host knows: entity 0x123's and 0x456's
 	uintptr_t actors[2] = {};
 	int actorLooks = 0;
@@ -1102,6 +1119,9 @@ int main() {
 	{
 		CHECK(strcmp(Popups.Magic, "NAMEHOOKPOPUPS") == 0 && Popups.Version == 1);
 		CHECK(Popups.Size == sizeof(HookPopups) && Popups.PopupSize == sizeof(HookPopup));
+		// as winxi.popups reads them (tests/damage_check.lua checks the same)
+		CHECK(sizeof(HookPopup) == 84 && offsetof(HookPopups, Draw) == 52 && offsetof(HookPopups, Popups) == 56);
+		CHECK(sizeof(HookPopupDrawing) == 32 && offsetof(HookPopupDraw, Drawings) == 56 && offsetof(HookPopupDraw, Quads) == 56 + 32 * 64);
 		// the patch: the skip written where it is not hooked goes on to the client's code after the patch;
 		// a claimed popup jumps to the function's end, 0xAE from the patch's start
 		CHECK(DRAWDAMAGE_PATCH_POPUP_LOCATION + 2 + DrawDamage_PopupSkip[1] == DRAWDAMAGE_PATCH_SIZE);
@@ -1206,6 +1226,64 @@ int main() {
 		CHECK(OnDamagePopup(object, 0x80FFFFFF, at, size, &scale));
 		plugin.Publish(nullptr, nullptr, true);
 		Popups.Claimed = 0;
+
+		// a claimed popup is drawn as an addon has drawn it, where the client would have drawn it
+		{
+			// as Init leaves it, which is not run here
+			PopupDraw.QuadsMax = HOOK_POPUP_QUADS_MAX;
+			PopupDraw.DrawingsMax = HOOK_POPUPS_MAX;
+			object[POPUP_OBJECT_TEXT] = '3';
+			OnDamagePopup(object, 0x80FFFFFF, at, size, &scale);
+			plugin.Publish(nullptr, nullptr, true);
+			const uint32_t id = Popups.Popups[0].Id;
+			const int begun = plugin.popupsBegun, drawn = plugin.popupsDrawn;
+
+			// drawn by the client, nothing of the addon's is
+			PopupDraw.Frame = Shared.Frame;
+			PopupDraw.QuadCount = 3;
+			PopupDraw.Count = 2;
+			PopupDraw.Drawings[0] = { id + 1000, 0, { Shared.Frame, 0, 1, 1.0f, 0, 0 } };
+			PopupDraw.Drawings[1] = { id, POPUP_DRAW_OVER, { Shared.Frame, 1, 2, 1.0f, 0, 0 } };
+			CHECK(OnDamagePopup(object, 0x80FFFFFF, at, size, &scale));
+			CHECK(plugin.popupsBegun == begun && plugin.popupsDrawn == drawn);
+			plugin.Publish(nullptr, nullptr, true);
+
+			// claimed: the host readied once a frame, the popup's own drawing at its point
+			Popups.Claimed = 1;
+			Popups.ClaimFrame = Shared.Frame;
+			PopupDraw.Frame = Shared.Frame;
+			PopupDraw.Drawings[0].Drawing.Frame = PopupDraw.Drawings[1].Drawing.Frame = Shared.Frame;
+			CHECK(!OnDamagePopup(object, 0x80FFFFFF, at, size, &scale));
+			CHECK(plugin.popupsBegun == begun + 1 && plugin.popupsFresh && plugin.popupsDrawn == drawn + 1);
+			CHECK(plugin.popupSlot == 1 && plugin.popupQuads == &PopupDraw.Quads[1] && plugin.popupX == at[0]);
+			static uint8_t other[0x200] = {};
+			other[POPUP_OBJECT_TEXT] = '2';
+			CHECK(!OnDamagePopup(other, 0x80FFFFFF, at, size, &scale));
+			CHECK(plugin.popupsBegun == begun + 1 && plugin.popupsDrawn == drawn + 1); // no drawing of its own
+			plugin.Publish(nullptr, nullptr, true);
+
+			// a drawing past the quads, or one from before, is not drawn; a stale buffer, nothing is
+			PopupDraw.Frame = Shared.Frame;
+			PopupDraw.Drawings[1].Drawing.Frame = Shared.Frame;
+			PopupDraw.Drawings[1].Drawing.First = 2;
+			OnDamagePopup(object, 0x80FFFFFF, at, size, &scale);
+			CHECK(plugin.popupsDrawn == drawn + 1);
+			plugin.Publish(nullptr, nullptr, true);
+			PopupDraw.Drawings[1].Drawing.First = 1;
+			PopupDraw.Frame = Shared.Frame;
+			OnDamagePopup(object, 0x80FFFFFF, at, size, &scale);
+			CHECK(plugin.popupsDrawn == drawn + 1); // its own Frame is last frame's
+			plugin.Publish(nullptr, nullptr, true);
+			PopupDraw.Frame = Shared.Frame - HOOK_DRAW_FRAMES - 1;
+			PopupDraw.Drawings[1].Drawing.Frame = PopupDraw.Frame;
+			OnDamagePopup(object, 0x80FFFFFF, at, size, &scale);
+			CHECK(!plugin.popupsFresh && plugin.popupsDrawn == drawn + 1);
+			plugin.Publish(nullptr, nullptr, true);
+			Popups.Claimed = 0;
+			PopupDraw.Count = 0;
+			PopupDraw.QuadCount = 0;
+			object[POPUP_OBJECT_TEXT] = '7';
+		}
 
 		// more than the list holds: the rest drawn by the client, unlisted
 		static uint8_t many[HOOK_POPUPS_MAX + 1][0x200] = {};
