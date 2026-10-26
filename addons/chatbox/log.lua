@@ -64,6 +64,38 @@ function M.Clean(raw, icons, colors)
 end
 
 function M.New() return { messages = {}, revision = 0 } end
+-- Keep the newest Capacity messages overall AND for each routed window. The union
+-- stays chronological and bounded by Capacity * (1 + #retention), without copies
+-- of messages shown in both windows. A busy window cannot evict a quiet one's log.
+local function Prune(log)
+    local counts, removed = {}, {}
+    for i = #log.messages, 1, -1 do
+        local message = log.messages[i]
+        local keep = #log.messages - i < M.Capacity
+        for n, filter in ipairs(log.retention or {}) do
+            if filter(message) then
+                counts[n] = (counts[n] or 0) + 1
+                if counts[n] <= M.Capacity then keep = true end
+            end
+        end
+        if not keep then removed[message] = true end
+    end
+    if not next(removed) then return end
+    local kept = {}
+    for _, message in ipairs(log.messages) do
+        if not removed[message] then kept[#kept + 1] = message end
+    end
+    log.messages = kept
+    for _, layout in ipairs(log.wraps or {}) do
+        for message in pairs(removed) do layout.messages[message] = nil end
+    end
+end
+function M.SetRetention(log, filters)
+    if log.retention == filters then return end
+    log.retention = filters
+    Prune(log)
+    log.revision = log.revision + 1
+end
 function M.Clear(log)
     log.messages, log.cache, log.lastNpc, log.metrics, log.wraps = {}, nil, nil, nil, nil
     log.revision = log.revision + 1
@@ -110,10 +142,7 @@ function M.Add(log, text, mode, now, originalMode, spans, raw, tokens)
     end
     log.messages[#log.messages + 1] = { text = text, mode = mode, originalMode = originalMode,
         time = now or os.clock(), spans = spans, raw = tonumber(raw) or mode, tokens = type(tokens) == 'table' and tokens or nil }
-    if #log.messages > M.Capacity then
-        local removed = table.remove(log.messages, 1)
-        for _, layout in ipairs(log.wraps or {}) do layout.messages[removed] = nil end
-    end
+    if #log.messages > M.Capacity then Prune(log) end
     log.revision = log.revision + 1
     return true
 end
@@ -121,7 +150,7 @@ end
 -- Older messages put before the ones kept (the game's history, read as chatbox starts): entries oldest first, each
 -- { text, mode, originalMode, spans, raw, tokens }; as many of the newest as fit beside what is kept. Returns how many.
 function M.Prepend(log, entries)
-    local room = M.Capacity - #log.messages
+    local room = log.retention and M.Capacity or M.Capacity - #log.messages
     if room <= 0 or #entries == 0 then return 0 end
     local merged = {}
     for i = math.max(1, #entries - room + 1), #entries do
@@ -134,8 +163,13 @@ function M.Prepend(log, entries)
     local added = #merged
     for _, message in ipairs(log.messages) do merged[#merged + 1] = message end
     log.messages, log.cache, log.metrics = merged, nil, nil
+    Prune(log)
+    local retained = {}
+    for _, message in ipairs(log.messages) do retained[message] = true end
+    local kept = 0
+    for i = 1, added do if retained[merged[i]] then kept = kept + 1 end end
     log.revision = log.revision + 1
-    return added
+    return kept
 end
 
 -- Each boundary is a whole UTF-8 code point. Incoming text has already been decoded by Windows.

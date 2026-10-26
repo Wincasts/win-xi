@@ -1,11 +1,15 @@
 -- Chatbox's own auto-translate picker. The game's Tab menu would become the game's active menu and take the
 -- input bar back from chatbox, so chatbox keeps Tab from the game and offers the dictionary itself: a list
 -- drawn above the input bar, narrowed to the word at the caret, whose choice is written into the game's own
--- buffer as the phrase's six-byte token. Typing, history and sending stay the game's.
+-- buffer as the phrase's six-byte token. Typing, history and sending stay the game's. chatbox keeps the picker's
+-- keys from the game (Ashita's key events, and DirectInput's polled state, from which the game reads Enter).
 local bit = require('bit')
 local M = {}
 M.Rows = 10
 M.Limit = 200
+-- Ashita's native input setters clamp to 120 bytes. Never silently truncate a
+-- message (or cut a six-byte token / CP932 character) to make a phrase fit.
+M.MaxInputBytes = 120
 
 local SPACE, TOKEN = 0x20, 0xFD
 local function Lead(b) return (b >= 0x81 and b <= 0x9F) or (b >= 0xE0 and b <= 0xFC) end
@@ -112,6 +116,7 @@ function M.New(auto)
     end
 
     function picker.Open(r, c)
+        picker.pending = nil
         See(r, c)
         local wordFirst, wordLast, q = M.Word(raw, caret)
         if q then
@@ -156,12 +161,60 @@ function M.New(auto)
         picker.open = false
         mode, items, selected, first, query, typed, category = nil, {}, 1, 1, nil, nil, nil
     end
+    -- A chosen phrase not yet written is dropped too (chatbox off, zoning, reset); closing alone keeps it for Flush.
+    function picker.Cancel()
+        picker.Close()
+        picker.pending = nil
+    end
 
     -- Read the buffer back through pcall: the chat manager is the game's, and a stand-in or an older
     -- Ashita may lack a method.
     local function Read(chat)
         local ok, text = pcall(function() return chat:GetInputTextRaw() end)
         return ok and text or nil
+    end
+    -- The game's parsed buffer, where it differs from the raw one written: noted in Status, not refused, as what
+    -- the game keeps there for a line with a token in it has not been seen.
+    local function Parsed(chat, value)
+        local ok, parsed = pcall(function() return chat:GetInputTextParsed() end)
+        if ok and type(parsed) == 'string' and parsed ~= value then return '; parsed buffer differs (' .. #parsed .. ' bytes)' end
+        return ''
+    end
+
+    -- Written on the frame after the choice, outside the key callback. A stale choice never overwrites newer typing.
+    function picker.Flush(chat)
+        local pending = picker.pending
+        if not pending then return false end
+        picker.pending = nil
+        if Read(chat) ~= pending.before then
+            last = pending.text .. ' not written: input changed'
+            return false
+        end
+        local value = pending.raw
+        local ok, err = pcall(function() chat:SetInputText(value) end)
+        if ok and Read(chat) == value then
+            last = pending.text .. ' written' .. Parsed(chat, value)
+            return true
+        end
+        -- Where the combined setter did not keep it, each buffer set on its own
+        local repaired, failure = pcall(function()
+            assert(chat.SetInputTextRaw, 'native input setters unavailable')
+            chat:SetInputTextRaw(value, #value)
+            if chat.SetInputTextParsed then chat:SetInputTextParsed(value) end
+            if chat.SetInputTextDisplay then chat:SetInputTextDisplay(value) end
+        end)
+        if repaired and Read(chat) == value then
+            last = pending.text .. ' written raw' .. Parsed(chat, value)
+            return true
+        end
+        -- Nothing half written left behind: each buffer set back
+        local before = pending.before
+        pcall(function() chat:SetInputText(before) end)
+        pcall(function() chat:SetInputTextRaw(before, #before) end)
+        pcall(function() chat:SetInputTextParsed(before) end)
+        pcall(function() chat:SetInputTextDisplay(before) end)
+        last = pending.text .. ' not written: ' .. tostring(failure or err or 'the game kept its own text')
+        return false
     end
 
     function picker.Enter(chat)
@@ -185,24 +238,15 @@ function M.New(auto)
         if mode == 'phrases' then wordFirst, wordLast = M.Word(raw, caret) end
         if not wordFirst then wordFirst, wordLast = caret + 1, caret end
         local newRaw = raw:sub(1, wordFirst - 1) .. token .. raw:sub(wordLast + 1)
-        local text = item.text
+        if #newRaw > M.MaxInputBytes then
+            last = item.text .. ' not written: message exceeds ' .. M.MaxInputBytes .. ' bytes'
+            return false -- keep the picker and the original text so the user can shorten it
+        end
+        local pending = { before = raw, raw = newRaw, text = item.text }
         picker.Close()
-        local ok, err = pcall(function() chat:SetInputText(newRaw) end)
-        if not ok then
-            last = text .. ' not written: ' .. tostring(err)
-            return false
-        end
-        if Read(chat) == newRaw then
-            last = text .. ' written'
-            return true
-        end
-        local hasRaw = pcall(function() assert(chat.SetInputTextRaw) end)
-        if hasRaw and pcall(function() chat:SetInputTextRaw(newRaw, #newRaw) end) and Read(chat) == newRaw then
-            last = text .. ' written raw'
-            return true
-        end
-        last = text .. ': the game kept its own text'
-        return false
+        picker.pending = pending
+        last = item.text .. ' queued'
+        return true
     end
 
     function picker.Back()

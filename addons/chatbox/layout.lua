@@ -1,5 +1,5 @@
--- One layout for the native-backed log and input. Native animation moves the base anchor;
--- only clamp above the input, never subtract its height from an already-lifted log a second time.
+-- One layout for the native-backed log and input. Typing reserves space inside the compact
+-- footprint rather than lifting the whole log above a separate input bar.
 local M = {}
 function M.New() return {} end
 local function Valid(rect, sw, sh)
@@ -8,7 +8,7 @@ local function Valid(rect, sw, sh)
     return rect[1]>=0 and rect[2]>=0 and rect[3]<=sw and rect[4]<=sh and rect[3]>rect[1] and rect[4]>rect[2]
 end
 -- custom, optional: { x, y }, the box's bottom-left where it was dragged to (Position Custom), kept on the screen; the
--- input bar stands on that bottom and the log above the bar while typing. The game's log must still be drawn.
+-- input bar occupies the bottom of that footprint while typing. The game's log must still be drawn.
 function M.Arrange(state, primary, input, width, sw, sh, height, padding, match, custom)
     if not Valid(primary,sw,sh) then return nil end
     local nativeWidth=primary[3]-primary[1]
@@ -25,21 +25,34 @@ function M.Arrange(state, primary, input, width, sw, sh, height, padding, match,
     if custom then
         width=math.min(width,sw)
         left=math.max(0,math.min(custom[1],sw-width))
-        base=math.max(height+(input.active and input.height or 0),math.min(custom[2],sh))
+        base=math.max(height,math.min(custom[2],sh))
     end
     width=math.min(width,sw-left)
     if left<0 or width<2*padding+32 then return nil end
     -- Both boxes always share their horizontal edges, including native-size mode.
     input.x,input.width=left,width
     state.left,state.width=left,width -- the expanded log keeps these edges
-    if custom or not input.active then state.closedBottom=base end
-    if not (match and input.matched) then
-        input.bottom=(not custom and source and source[4]) or state.closedBottom or base
-    end
-    local bottom=base
-    if input.active then bottom=math.min(bottom,input.bottom-input.height) end
+    if custom or not input.active or not state.closedBottom then state.closedBottom=base end
+    -- The game may lift its log as input opens. Keep our closed footprint instead; input is
+    -- placed inside it after Activity and the info panel have finished sizing/placing the box.
+    local bottom=input.active and state.closedBottom or base
+    input.bottom=bottom
     if bottom<height then return nil end
     return {left=left,bottom=bottom,width=width,height=height,top=bottom-height}
+end
+-- Reserve input inside the final log footprint. Copy it: held geometry and panel anchors must
+-- remain the full size, otherwise subsequent frames would subtract input height repeatedly.
+function M.InsetInput(box, input, rows, fontSize, above, below, gap)
+    if not box or not input.active then return box, rows end
+    input.x,input.width,input.bottom=box.left,box.width,box.bottom
+    input.height=math.min(input.height,box.height)
+    local result={}
+    for k,v in pairs(box) do result[k]=v end
+    result.bottom=box.bottom-input.height
+    result.height=box.height-input.height
+    local available=math.max(0,result.height-above-below)
+    rows=math.min(rows,math.max(0,math.floor((available+gap)/(fontSize+gap))))
+    return result,rows
 end
 -- Whole rows of text that fit in a box of this height, inside its padding.
 function M.Fit(height, fontSize, padding, gap)
