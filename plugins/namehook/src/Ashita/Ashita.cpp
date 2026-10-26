@@ -91,6 +91,11 @@ private:
     NameBoundsCache m_PopupBounds[HOOK_POPUPS_MAX];
     float m_PopupFit = 1.0f;
     bool m_PopupsCanDraw = false;
+    // The client draws its popups with a view of its own (none: each popup placed by its world
+    // matrix), so they are placed with the camera as it was for the names: whether it was readied,
+    // and how many frames have been presented since
+    bool m_CameraKnown = false;
+    uint32_t m_CameraAge = 0;
 
     enum class Layer { Names, Bubbles, Popups };
     void RenderCustom(uint32_t slot, const HookDrawing& drawing, const HookQuad* quads, const float* position, Layer layer, bool over = false);
@@ -426,6 +431,7 @@ void AshitaNameplate::Direct3DEndScene(bool isRenderingBackBuffer) {
 void AshitaNameplate::Direct3DPresent([[maybe_unused]] const RECT* pSourceRect, [[maybe_unused]] const RECT* pDestRect, [[maybe_unused]] HWND hDestWindowOverride, [[maybe_unused]] const RGNDATA* pDirtyRegion) {
     ReleaseNameStates();
     PublishNames(true);
+    m_CameraAge++;
 }
 
 void AshitaNameplate::ReleaseNameStates() {
@@ -554,10 +560,12 @@ void AshitaNameplate::BeginNames(const HookDraw& draw, bool fresh, float& target
     IDirect3DBaseTexture8* font = fresh ? FontTexture(m_AshitaCore) : nullptr;
     fontTexture = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(font));
     RetainTextures(m_Textures, fresh ? draw.Textures : nullptr, font);
-    if (!fresh && !m_BubblesFresh) return;
 
+    // readied every frame, for the popups as well, which the client draws with no view of the world's;
     // the device's states for drawing are not made until there is a name to draw with them
-    m_CanDraw = PrepareCamera(device);
+    m_CameraKnown = PrepareCamera(device);
+    m_CameraAge = 0;
+    m_CanDraw = m_CameraKnown && (fresh || m_BubblesFresh);
 }
 
 // The camera as the client draws with it now, for placing what an addon has drawn: the picture's
@@ -602,9 +610,11 @@ void AshitaNameplate::BeginPopups(const HookPopupDraw& draw, bool fresh) {
     m_PopupsCanDraw = false;
     m_PopupFit = draw.HorizontalFit();
     RetainTextures(m_PopupTextures, fresh ? draw.Textures : nullptr, fresh ? FontTexture(m_AshitaCore) : nullptr);
+    // placed with the names' camera, this frame's or last frame's: none, and nothing is drawn
     IDirect3DDevice8* device = m_AshitaCore->GetDirect3DDevice();
-    if (fresh && device != nullptr) {
-        m_PopupsCanDraw = PrepareCamera(device);
+    if (fresh && device != nullptr && m_CameraKnown && m_CameraAge <= 1) {
+        m_Device = device;
+        m_PopupsCanDraw = true;
     }
 }
 
