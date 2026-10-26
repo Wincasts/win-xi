@@ -192,6 +192,17 @@ int main() {
         was=sides.Enter("menu    mapframe",6);
         Check(!sides.Placing(3440,1440,place,&pinch),"a tall framed one over the middle: left, not pinched");
         sides.Leave(was);
+        // the target's arrow as the game draws it: from inside the target window's drawing. The window is moved;
+        // the arrow, held out of it as of no window (Hold), is not, and the window's moving comes back after
+        frameOf("menu    targetwi",3000,3400,6);
+        NativeTransform tt;
+        was=sides.Enter("menu    targetwi",7);
+        Check(sides.Transform(3440,1440,tt),"the target window: moved, as a framed window");
+        NativeLook::Saved held=sides.Enter(nullptr,7);
+        Check(!sides.Transform(3440,1440,tt),"its arrow, held out of it: not moved");
+        sides.Leave(held);
+        Check(sides.Transform(3440,1440,tt),"the window's own draws after it: moved again");
+        sides.Leave(was);
     }
     bool whole=false;
     saved=sides.Enter("menu    netstat ",2);

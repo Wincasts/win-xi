@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.67
+
+- The target's arrow over the world is drawn where the game puts it again while the game's own target window shows (Party not replacing it). The game draws the arrow from the target window's own drawing, and the native look took it for one of that window's draws: with a menu scale it was moved with the window, scaled from the bottom right corner, far up and left of the target (seen 2026-10-26 with lens on and off alike; with Party's target window it was right, the game's window being replaced). The arrow is now drawn as of no window (`Native.Hold()` round its sprite call). tests/native.cpp: the target window moved, its arrow held out of it not, the window's draws after it moved again.
+
 ## 1.66
 
 - Shared blocks frozen at their 1.0 layout until 2.0 (plugins/ABI.md): each grows only at its end, records never, and `tools/abi_check.py` (in tests/run.sh) fails on any other change. lens's block is read by `lens::Live` when it is at least 1.0's size, so a newer lens that adds to it is still read. Nothing in any block's layout changed.
