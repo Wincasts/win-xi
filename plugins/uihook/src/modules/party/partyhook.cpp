@@ -349,7 +349,7 @@ class PartyHook : public IPlugin {
     bool Block() { if (blocking) Shared.BlockedCalls++; return blocking; }
     // A draw whose vertices are at hand: let through when the window allows what is outside it and this is
     bool Block(const void* data,unsigned count,unsigned stride) {
-        if (blocking && passing && DrawOutside(data,count,stride,passRect,passWidth,passHeight,PARTY_PASS_MARGIN)) return false;
+        if (blocking && passing && DrawOutside(data,count,stride,passRect,passWidth,passHeight,PARTY_PASS_REACH)) return false;
         return Block();
     }
 

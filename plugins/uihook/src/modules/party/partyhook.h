@@ -7,7 +7,7 @@
 // index 0..2: party/alliance; 3..5: main/sub/target-of-target (replayed together at targetwi).
 // capture=1 copies and consumes its drawing, 0 submits empty, -1 releases only this slot.
 // PARTY_PASS_OUTSIDE added to 0 or 1 (party/alliance only, where SupportedMask has PARTY_PASS_SUPPORTED): the
-// game's own drawing that falls wholly to the left or right of the window is let through, the rest replaced as ever (a hooked
+// game's own drawing that falls wholly away from the window (PARTY_PASS_REACH) is let through, the rest replaced as ever (a hooked
 // fish's stamina gauge, which the game draws with its party list in the middle of the screen).
 // index=-1: release all submissions immediately (addon unload, disabled, organize).
 // Visibility-rule hiding instead renews empty submissions so native lists remain suppressed.
@@ -25,7 +25,7 @@ struct PartyShared {
 #define PARTY_VERSION 3
 #define PARTY_PASS_OUTSIDE 4
 #define PARTY_PASS_SUPPORTED 0x10u
-#define PARTY_PASS_MARGIN 8.0f // pixels round the window still taken as its own (its edges and shadow)
+#define PARTY_PASS_REACH 0.125f // the share of the viewport's height round the window still taken as its own (its edges, shadow, pet bar)
 #define PARTY_MAX_VERTICES 196608
 #define PARTY_MAX_COMMANDS 4096
 // How long a submission is replayed without another. Eight frames, not two: under TrueFPS the game can
