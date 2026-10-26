@@ -371,7 +371,9 @@ public:
     }
     // A draw on the bar across the top that is not its frame (what the bar shows), moved for the whole bar alike: its
     // help text is drawn a letter or a few at a time, and each moved by where it lay (1.50) slid the sentence's start
-    // over its end. What is at its right end (its title) goes with that end; the rest with its left end, but while
+    // over its end. What is at its right end (its title: what ends within the reach of it, or starts in its last
+    // quarter, as all of "Help" does at 3440 wide where only its "p" ended within the reach) goes with that end;
+    // the rest with its left end, but while
     // the bar shows something over its middle (the frame before: the loading screen's progress line, with
     // "Downloading data..." centred by it) it stays in the middle with the bar, but what is near the left end.
     bool OnBar(const void* data,unsigned count,unsigned stride,NativeTransform& t) {
@@ -382,7 +384,7 @@ public:
         const float reach=t.inset+NATIVE_BAR_REACH;
         if (b[0]<t.middle && b[2]>t.middle) current->barSpanning=true;
         t.pinch=false;
-        if (b[0]>=t.middle && b[2]>f[2]-reach) { t.ax=t.width; t.dx=-t.inset; }
+        if (b[0]>=t.middle && (b[2]>f[2]-reach || b[0]>=(t.middle+f[2])/2)) { t.ax=t.width; t.dx=-t.inset; }
         else if (!current->barCentred || b[0]<f[0]+reach) { t.ax=0; t.dx=t.inset; }
         else { t.ax=t.middle; t.dx=0; }
         return true;
