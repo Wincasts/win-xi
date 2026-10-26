@@ -190,6 +190,8 @@ local ALWAYS_TARGET = 0x01;
 local OVERRIDE_SHOW, OVERRIDE_HIDE = 1, 2;
 
 local block = nil;         -- the plugin's block, while the plugin is loaded
+local module = nil;        -- the plugin's DLL the block was found in: { base, stamp, size }
+local generation = 0;      -- counts each time what was found in the plugin's DLL is let go of
 local why = 'unloaded';    -- why there is none: 'unloaded', 'old' or 'mismatch'
 local lookedAt = -LOOK_EVERY;
 local capabilities, capabilityOwner, capabilityLookedAt = nil, nil, -LOOK_EVERY;
@@ -204,15 +206,61 @@ local problems = {
     unhooked = 'The namehook plugin did not recognise this client\'s name drawing: names are shown and hidden, but none are listed.',
 };
 
--- The block lives in the plugin's DLL, so it is let go of the moment the plugin is no longer loaded.
+pcall(ffi.cdef, [[
+    void* __stdcall winxi_nameplates_GetModuleHandleA(const char*) __asm__("GetModuleHandleA");
+]]);
+local kernel = nil;
+
+-- The plugin's DLL as it is loaded now: where, and which build (its header's time stamp and size), or
+-- nil. The plugin can be unloaded and loaded again between two looks, at another address or as
+-- another build: what was found in the old one is then gone, though Ashita says it is loaded.
+-- (Away from Windows, as in the tests, there is no DLL to ask: one that never changes.)
+function nameplates.Module()
+    if (ffi.os ~= 'Windows') then return 1, 0, 0; end
+    local ok, base = pcall(function()
+        kernel = kernel or ffi.load('kernel32');
+        return kernel.winxi_nameplates_GetModuleHandleA(nameplates.Plugin .. '.dll');
+    end);
+    if (not ok or base == nil) then return nil; end
+    local at = tonumber(ffi.cast('uintptr_t', base));
+    if (at == 0) then return nil; end
+    local header = at + ffi.cast('uint32_t*', at + 0x3C)[0];
+    return at, ffi.cast('uint32_t*', header + 8)[0], ffi.cast('uint32_t*', header + 0x50)[0];
+end
+
+local function LetGo(reason)
+    if (block ~= nil or module ~= nil or capabilities ~= nil) then generation = generation + 1; end
+    block, module, why = nil, nil, reason;
+    capabilities, capabilityOwner, capabilityLookedAt = nil, nil, -LOOK_EVERY;
+    lookedAt = -LOOK_EVERY;
+    placedAt, placedOwner = nil, nil;
+    draw, drawing, quadLimit = nil, nil, 0;
+end
+
+-- Changes each time anything found in the plugin's DLL is let go of: an addon that keeps a block of
+-- the plugin's own (popups, bubbles) lets it go too when this is not what it was when it found it.
+function nameplates.Generation()
+    nameplates.Hook();
+    return generation;
+end
+
+-- The block lives in the plugin's DLL, so it is let go of the moment the plugin is no longer loaded,
+-- or is no longer the DLL it was found in.
 function nameplates.Hook()
     if (not AshitaCore:GetPluginManager():IsLoaded(nameplates.Plugin)) then
-        block, why = nil, 'unloaded';
-        capabilities, capabilityOwner, capabilityLookedAt = nil, nil, -LOOK_EVERY;
-        lookedAt = -LOOK_EVERY;
-        placedAt, placedOwner = nil, nil;
-        draw, drawing, quadLimit = nil, nil, 0;
+        LetGo('unloaded');
         return nil, why;
+    end
+    local base, stamp, size = nameplates.Module();
+    if (base == nil) then
+        LetGo('unloaded');
+        return nil, why;
+    end
+    if (module ~= nil and (module.base ~= base or module.stamp ~= stamp or module.size ~= size)) then
+        LetGo('unloaded');
+    end
+    if (module == nil) then
+        module = { base = base, stamp = stamp, size = size };
     end
 
     if (block ~= nil) then

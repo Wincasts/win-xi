@@ -103,6 +103,7 @@ local POPUPS_MAX, QUADS_MAX, QUADS_PER_POPUP, TEXTURES = 64, 4096, 256, 8;
 local DRAW_OVER = 1;
 
 local block = nil;
+local blockGeneration = nil; -- nameplates.Generation() when block was found
 local why = 'unloaded';
 local lookedAt = -LOOK_EVERY;
 
@@ -113,11 +114,16 @@ local problems = {
     unhooked = 'The namehook plugin did not recognise this client\'s damage popups: the game draws them as it does.',
 };
 
--- The block lives in the plugin's DLL, so it is let go of the moment the plugin is no longer loaded.
+-- The block lives in the plugin's DLL, so it is let go of the moment the plugin is no longer loaded,
+-- or has been loaded again since it was found (nameplates.Generation).
 function popups.Hook()
     if (not AshitaCore:GetPluginManager():IsLoaded(nameplates.Plugin)) then
         block, why, lookedAt = nil, 'unloaded', -LOOK_EVERY;
         return nil, why;
+    end
+    local generation = nameplates.Generation();
+    if (block ~= nil and blockGeneration ~= generation) then
+        block, why, lookedAt = nil, 'unloaded', -LOOK_EVERY;
     end
     if (block ~= nil) then
         return block;
@@ -139,7 +145,7 @@ function popups.Hook()
         why = 'mismatch';
         return nil, why;
     end
-    block, why = candidate, nil;
+    block, why, blockGeneration = candidate, nil, generation;
     return block;
 end
 

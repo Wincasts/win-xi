@@ -97,6 +97,9 @@
 -- 53: gamekeys, keys kept from the game's chat editor through uihook's keys ABI 1 (uihook 1.61)
 -- 54: popups, the game's damage numbers listed, claimed and drawn in its place (namehook 1.38);
 --     nameplates.FillQuad, one quad written as nameplates.Quad writes it
+-- 55: nameplates.Hook lets go of namehook's block when the DLL is not the one it was found in (unloaded
+--     and loaded again between two looks, at another address or as another build), and
+--     nameplates.Generation says so to popups and to addons keeping a block of namehook's own
 return {
-    Number = 54,
+    Number = 55,
 };

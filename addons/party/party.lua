@@ -1,6 +1,6 @@
 addon.name    = 'party'
 addon.author  = 'lin, win'
-addon.version = '0.3.2'
+addon.version = '0.3.3'
 addon.desc    = 'Party, target and pet frames in the style of XivParty'
 
 -- The addon in outline:
@@ -14,7 +14,7 @@ addon.desc    = 'Party, target and pet frames in the style of XivParty'
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 52 -- mob_letters and zone_names, for Monster Letters
+local winxiNeeded = 55 -- nameplates.Hook: namehook reloaded between two looks
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0

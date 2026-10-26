@@ -64,6 +64,52 @@ loaded=false;assert(plates.Hook()==nil)
 plates.SetTexture(0,456)
 assert(stale.Textures[0]==123, 'unload must drop stale writer pointers')
 loaded=true
+-- Unloaded and loaded again between two looks, at another address or as another build: Ashita says
+-- it is loaded throughout, and what was found in the old DLL is let go of all the same, popups too
+do
+    local base, stamp = 0x10000000, 1
+    local module = plates.Module
+    plates.Module = function() return base, stamp, 0x40000 end
+    local popupsLib = require('winxi.popups')
+    local popupBlock = ffi.new('namehook_popups_t')
+    popupBlock.Version, popupBlock.Size, popupBlock.PopupSize = 1, ffi.sizeof(popupBlock), ffi.sizeof('namehook_popup_t')
+    local find = ashita.memory.find
+    local popupScans = 0
+    ashita.memory.find = function(m, o, signature, ...)
+        if signature == '4E414D45484F4F4B504F505550530000' then
+            popupScans = popupScans + 1
+            return tonumber(ffi.cast('uintptr_t', ffi.cast('void*', popupBlock)))
+        end
+        return find(m, o, signature, ...)
+    end
+    local function at(p) return tonumber(ffi.cast('uintptr_t', ffi.cast('void*', p))) end
+    now = now + 2
+    local first = assert(plates.Hook())
+    assert(at(first) == at(hook) and popupsLib.Hook() ~= nil and popupScans == 1)
+    local generation = plates.Generation()
+    for _ = 1, 10 do assert(at(plates.Hook()) == at(hook) and popupsLib.Hook() ~= nil) end
+    assert(plates.Generation() == generation and popupScans == 1, 'the same DLL: kept, not looked for again')
+
+    local moved = ffi.new('namehook_t')
+    moved.Version, moved.Size, moved.NameSize, moved.Hooked = 3, ffi.sizeof(moved), ffi.sizeof('namehook_name_t'), 1
+    moved.Sequence, moved.Count = 1, 1
+    moved.Names[0].EntityIndex = 55
+    local old = hook
+    hook, base = moved, 0x20000000
+    assert(at(plates.Hook()) == at(moved), 'loaded again elsewhere: the new block, never the old')
+    assert(plates.Generation() == generation + 1 and plates.Find(55).EntityIndex == 55)
+    assert(popupsLib.Hook() ~= nil and popupScans == 2, 'popups let their block go with it')
+
+    hook, stamp = old, 2
+    assert(at(plates.Hook()) == at(old) and plates.Generation() == generation + 2, 'another build at the same address')
+    assert(popupsLib.Hook() ~= nil and popupScans == 3)
+
+    base = nil
+    assert(plates.Hook() == nil and plates.Generation() == generation + 3, 'no DLL to be found: nothing kept')
+    base = 0x10000000
+    ashita.memory.find, plates.Module = find, module
+end
+
 package.loaded['winxi.version']={Number=45}
 addon={}
 local ok,reason=pcall(dofile,'addons/name/name.lua')
