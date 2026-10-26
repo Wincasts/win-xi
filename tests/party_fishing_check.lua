@@ -1,11 +1,14 @@
--- Fishing: a hooked fish's stamina gauge is drawn with the game's own party list, so for the fight
--- party gives that list back (uihook stops replacing it) and hides its own, not to show the party twice.
+-- Fishing: a hooked fish's stamina gauge is drawn with the game's own party list, in the middle of the
+-- screen. For the fight party asks uihook to let what the list draws outside itself through, keeping its own
+-- windows; a uihook that cannot gives the list back, and party hides its own, not to show the party twice.
 H.load()
 local options = H.options()
 local fishing = require('fishing')
-local partyWanted, targetWanted
+local partyWanted, targetWanted, outsideWanted
+local canPass = true
 package.loaded.hook = {
-    Begin = function(party, target) partyWanted, targetWanted = party, target; return party or target end,
+    Begin = function(party, target, outside) partyWanted, targetWanted, outsideWanted = party, target, outside; return party or target end,
+    Passing = function() return partyWanted and outsideWanted and canPass or false end,
     Stop = function() end, Uses = function() return false end, Disable = function() end,
     Capture = function() return false end, Status = function() return 'test plugin' end,
 }
@@ -37,19 +40,27 @@ local function Action(id, mode)
 end
 
 Frame()
-assert(partyWanted == true and targetWanted == true and not fishing.Hooked(), 'no fish: the party list and target window replaced')
+assert(partyWanted == true and targetWanted == true and not outsideWanted and not fishing.Hooked(), 'no fish: the party list and target window replaced')
 assert(partyDrawn and targetDrawn, 'no fish: party\'s own windows drawn')
 Fish(60)
 Frame()
-assert(fishing.Hooked() and partyWanted == false, 'a fish on: the game\'s party list given back')
-assert(targetWanted == true and targetDrawn, 'a fish on: the target window still replaced, party\'s drawn')
-assert(not partyDrawn, 'a fish on: party\'s own party windows out of the way')
+assert(fishing.Hooked() and partyWanted == true and outsideWanted == true, 'a fish on: the gauge let through past the party list')
+assert(targetWanted == true and targetDrawn and partyDrawn, 'a fish on: party\'s own windows kept')
 Action(0x110, 5) -- "you don't know how much longer you can keep this one": the fight goes on
 Frame()
-assert(fishing.Hooked() and partyWanted == false, 'the time warning does not end the fight')
+assert(fishing.Hooked() and outsideWanted == true, 'the time warning does not end the fight')
 Action(0x110, 3)
 Frame()
-assert(not fishing.Hooked() and partyWanted == true and partyDrawn, 'the mini-game ended: the party list replaced again')
+assert(not fishing.Hooked() and not outsideWanted and partyDrawn, 'the mini-game ended: the list wholly replaced again')
+
+canPass = false
+Fish(60)
+Frame()
+assert(fishing.Hooked() and not partyDrawn and targetDrawn, 'a uihook without the pass: the list given back, party\'s own party windows aside')
+Action(0x110, 3)
+Frame()
+assert(partyDrawn, 'and back once the fight is over')
+canPass = true
 
 Fish(60); Action(0x066, 4)
 assert(not fishing.Hooked(), 'the older packet\'s release ends it too')
@@ -59,4 +70,4 @@ Fish(20); H.wait(49)
 assert(fishing.Hooked(), 'within the time limit and grace, still on')
 H.wait(2)
 assert(not fishing.Hooked(), 'past the time limit and grace, over')
-H.print('fishing: the game\'s party list given back from the bite to the end, party\'s own out of the way', true)
+H.print('fishing: the gauge let through past the party list from the bite to the end, or the list given back', true)

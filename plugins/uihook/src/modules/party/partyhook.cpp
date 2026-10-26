@@ -136,9 +136,10 @@ struct Drawing {
     uint32_t submitted = 0, drawn = 0;
     uint32_t held = 0; // frames in a row it has been kept in place of a refused capture (hold.h)
     float width = 0, height = 0;
+    bool passOutside = false; // the game's drawing outside the window let through (PARTY_PASS_OUTSIDE)
     void Clear() {
         for (auto& r : runs) if (r.texture) r.texture->Release();
-        runs.clear(); vertices.clear(); submitted = drawn = held = 0;
+        runs.clear(); vertices.clear(); submitted = drawn = held = 0; passOutside = false;
     }
     bool Fresh() const { return submitted != 0 && Shared.Frame-submitted <= PARTY_FRESH_FRAMES; }
 };
@@ -178,6 +179,10 @@ class PartyHook : public IPlugin {
     std::vector<uint8_t> scaledVertices; // a weather icon's vertices, drawn larger or smaller
     DWORD states = 0, saved = 0;
     bool blocking = false;
+    // The party window being replaced lets through what the game draws outside it: its rectangle, and the viewport's size
+    bool passing = false;
+    NativeRect passRect = {};
+    unsigned passWidth = 0, passHeight = 0;
     uint32_t primaryDeferred = 0; // the frame the first log's replay was held back for a second log stacked over it
     // What /uihook hud reports: the device as the clock replacement is drawn, and the game's own
     // clock draws. Read-only; it changes nothing that is drawn.
@@ -342,6 +347,11 @@ class PartyHook : public IPlugin {
         return states && saved;
     }
     bool Block() { if (blocking) Shared.BlockedCalls++; return blocking; }
+    // A draw whose vertices are at hand: let through when the window allows what is outside it and this is
+    bool Block(const void* data,unsigned count,unsigned stride) {
+        if (blocking && passing && DrawOutside(data,count,stride,passRect,passWidth,passHeight,PARTY_PASS_MARGIN)) return false;
+        return Block();
+    }
 
 public:
     static PartyHook* Instance;
@@ -418,7 +428,7 @@ public:
             if (party) memcpy(&main,party+PARTY_GLOBAL_AT,4);
             if (main && PartyGlobals(begin,module.SizeOfImage,main,globals)
                 && (WindowDetour.trampoline || Take(WindowDetour,begin,module.SizeOfImage))) {
-                Shared.SupportedMask=7; Shared.Hooked=1;
+                Shared.SupportedMask=7|PARTY_PASS_SUPPORTED; Shared.Hooked=1;
                 uintptr_t target=0; memcpy(&target,party+TARGET_GLOBAL_AT,4);
                 globals[3]=TargetGlobal(begin,module.SizeOfImage,target);
                 if (globals[3] && TakeArrows(Arrows,begin,module.SizeOfImage,reinterpret_cast<void*>(&DrawTargetArrow))) {
@@ -475,7 +485,7 @@ public:
         Diag.Unload();
         Skins.Unload();
         GiveWindowHooks();
-        GiveArrows(Arrows); GiveChatText(ChatText); GiveChatControls(ChatControls); Give(ExpandedChatDetour); Give(WindowDetour); blocking=targetScope=expandedSkin=false; ReleaseStates(); Stop(); StopHud(); Instance=nullptr;
+        GiveArrows(Arrows); GiveChatText(ChatText); GiveChatControls(ChatControls); Give(ExpandedChatDetour); Give(WindowDetour); blocking=targetScope=expandedSkin=passing=false; ReleaseStates(); Stop(); StopHud(); Instance=nullptr;
     }
     bool Direct3DInitialize(IDirect3DDevice8*) override { return true; }
     void Direct3DPresent(const RECT*,const RECT*,HWND,const RGNDATA*) override {
@@ -532,7 +542,7 @@ public:
         Measure(true,data,stride,n);
         if (!blocking && PanelFrame(data,n,stride)) return true;
         const SkinModule::SkinSwap skin=Skins.Begin(data,n,stride);
-        const bool done=Block() || Native.Draw(t,0,n,count,nullptr,D3DFMT_UNKNOWN,data,stride) || ScaleIcon(t,count,data,stride);
+        const bool done=Block(data,n,stride) || Native.Draw(t,0,n,count,nullptr,D3DFMT_UNKNOWN,data,stride) || ScaleIcon(t,count,data,stride);
         return Skins.End(skin,done,[&](IDirect3DDevice8* d) { return d->DrawPrimitiveUP(t,count,Skins.Vertices(skin,data,n,stride),stride); });
     }
     bool Direct3DDrawIndexedPrimitiveUP(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) override {
@@ -545,7 +555,7 @@ public:
         Measure(true,data,stride,vertices);
         if (!blocking && PanelFrame(first,vertices,stride)) return true;
         const SkinModule::SkinSwap skin=Skins.Begin(first,vertices,stride);
-        const bool done=Block() || Native.Draw(t,min,vertices,count,indices,format,data,stride) || ClockDraw(t,min,vertices,count,indices,format,data,stride);
+        const bool done=Block(first,vertices,stride) || Native.Draw(t,min,vertices,count,indices,format,data,stride) || ClockDraw(t,min,vertices,count,indices,format,data,stride);
         return Skins.End(skin,done,[&](IDirect3DDevice8* d) {
             return d->DrawIndexedPrimitiveUP(t,min,vertices,count,indices,format,Skins.Vertices(skin,data,min+vertices,stride),stride);
         });
@@ -733,12 +743,14 @@ public:
     int Capture(int index, int capture) {
         if (index<0) { Stop(); return 1; }
         if (index>10) return 0;
+        const bool pass=index<3 && capture>=0 && (capture & PARTY_PASS_OUTSIDE);
+        if (pass) capture&=~PARTY_PASS_OUTSIDE;
         Drawing& out=drawings[index];
         if (capture<0) { out.Clear(); Forgive(static_cast<unsigned>(index)); return 1; }
         if (index<6 ? (!Shared.Hooked || !(Shared.SupportedMask & (index<3 ? (1u<<index) : 8u)))
                     : index<8 ? !(Hud.SupportedMask & (1u<<(index-6)))
                               : !(Chat.SupportedMask & (1u<<(index-8)))) return 0;
-        if (!capture) { out.Clear(); out.submitted=Shared.Frame; return 1; }
+        if (!capture) { out.Clear(); out.submitted=Shared.Frame; out.passOutside=pass; return 1; }
         const unsigned slot=static_cast<unsigned>(index);
         auto* gui=core->GetGuiManager();
         ImDrawList* list=gui ? gui->GetWindowDrawList() : nullptr;
@@ -794,7 +806,7 @@ public:
             staging.Clear();
             if (!out.held && log) log->Logf(static_cast<uint32_t>(Ashita::LogLevel::Info),"uihook",
                 "%s: imgui's texture not ready at frame %u; the last capture is drawn until it is",PartySlotName(slot),Shared.Frame);
-            ++out.held; out.submitted=Shared.Frame;
+            ++out.held; out.submitted=Shared.Frame; out.passOutside=pass;
             for (int c=0;c<list->CmdBuffer.Size;c++) list->CmdBuffer[c].ElemCount=0;
             return 1;
         }
@@ -804,7 +816,7 @@ public:
             "%s: capture taken again at frame %u, the last one drawn for %u while imgui's texture was made",PartySlotName(slot),Shared.Frame,out.held);
         out.Clear();
         out.vertices.swap(staging.vertices); out.runs.swap(staging.runs);
-        out.width=staging.width; out.height=staging.height; out.submitted=Shared.Frame;
+        out.width=staging.width; out.height=staging.height; out.submitted=Shared.Frame; out.passOutside=pass;
         Shared.CapturedVertices=static_cast<uint32_t>(out.vertices.size());
         if ((index==8 || index==9) && !out.vertices.empty()) {
             const ImVec2 pos=gui->GetWindowPos(), size=gui->GetWindowSize();
@@ -1186,9 +1198,9 @@ public:
             void* object=globals[i] ? *globals[i] : nullptr;
             if (object && *reinterpret_cast<void**>(static_cast<uint8_t*>(object)+OBJECT_WINDOW)==window) { index=i; break; }
         }
-        bool was=blocking, wasTarget=targetScope, wasExpanded=expandedSkin;
+        bool was=blocking, wasTarget=targetScope, wasExpanded=expandedSkin, wasPassing=passing;
         expandedSkin=false;
-        blocking=false; // replacement GPU calls must not be caught by our own callbacks
+        blocking=false; passing=false; // replacement GPU calls must not be caught by our own callbacks
         const int chatIndex=chat.Identify(window);
         const int chatSlot=chatIndex==3 ? 0 : chatIndex;
         if (Menus.Supported) {
@@ -1225,13 +1237,19 @@ public:
         // a full log drawn afresh: its tabs, scrollbar and rows measured again, or not at all if the game leaves them out
         if (chatIndex==3) { Chat.TabFrame=Chat.ScrollFrame=Chat.TextFrame=0; chatViewportKnown=false; chatMeasure=nullptr; measuringTabs=false; rowCount=0; textUsed=0; selectionCount=0; }
         targetScope=index==3 && replaced;
+        if (replaced && index>=0 && index<3 && drawings[index].passOutside) {
+            // last frame's rectangle, read as the window is: what the game draws outside it is not the list
+            D3DVIEWPORT8 viewport={}; auto* device=core->GetDirect3DDevice();
+            passing=device && SUCCEEDED(device->GetViewport(&viewport)) && WindowRect(window,passRect);
+            passWidth=viewport.Width; passHeight=viewport.Height;
+        }
         reinterpret_cast<void(__fastcall*)(void*,void*)>(WindowDetour.trampoline)(window,nullptr);
         // Read after the client's animation/layout update, even when this window is not replaced.
         // Read-only capture geometry for Lua's next submission. Registered action menus alone
         // may have been retargeted above, before the native layout update.
         if (index>=0) RecordRect(static_cast<unsigned>(index),window);
         if (chatIndex>=0) RecordChatRect(chatIndex,window);
-        blocking=was; targetScope=wasTarget; expandedSkin=wasExpanded;
+        blocking=was; targetScope=wasTarget; expandedSkin=wasExpanded; passing=wasPassing;
     }
 };
 PartyHook* PartyHook::Instance=nullptr;

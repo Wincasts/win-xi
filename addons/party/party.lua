@@ -321,10 +321,13 @@ local function Present()
     if hooking and (saved.nativeParty[1] or saved.nativeTarget[1]) and not nativeHook then nativeHook = require('hook') end
     -- Renew empty replacements BEFORE the hiding rules, for each independently enabled group.
     -- Expanded chat/maps hide the replacement too, rather than allowing stock HUD frames back.
-    local native = nativeHook and nativeHook.Begin(
-        -- the game draws a hooked fish's stamina gauge with its party list: given back for the fight
-        hooking and saved.nativeParty[1] and saved.party.enabled[1] and not organizing and not fishing.Hooked(),
-        hooking and saved.nativeTarget[1] and saved.target.enabled[1] and not organizing)
+    -- The game draws a hooked fish's stamina gauge with its party list, in the middle of the screen: for the
+    -- fight uihook lets what the list draws outside itself through, or, where it cannot, the list is given back.
+    local hooked = fishing.Hooked()
+    local replaceParty = hooking and saved.nativeParty[1] and saved.party.enabled[1] and not organizing
+    local native = nativeHook and nativeHook.Begin(replaceParty,
+        hooking and saved.nativeTarget[1] and saved.target.enabled[1] and not organizing, hooked)
+    local listBack = hooked and replaceParty and not (nativeHook and nativeHook.Passing())
     local hidden=winxiGame.IsHidden(saved.hide)
     if native then
         nativeBehaviorGroups.party=saved.nativeBehavior[1] and nativeHook.Uses(windows.List.party1)
@@ -345,7 +348,7 @@ local function Present()
     windows.UpdateFade(rearranging)
     local showParty = saved.party.enabled[1] and (not hidden or nativeBehaviorGroups.party)
         and not (nativeHidden and nativeBehaviorGroups.party) and not windows.IsFadedOut('party')
-        and not fishing.Hooked() -- the game's own party list is back for the fight: not doubled
+        and not listBack -- the game's own party list is back for the fight: not doubled
     local showTarget = saved.target.enabled[1] and (not hidden or nativeBehaviorGroups.target)
         and not (nativeHidden and nativeBehaviorGroups.target) and not windows.IsFadedOut('target')
     if not showParty and not showTarget then

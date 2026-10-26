@@ -23,6 +23,8 @@ local plugin = 'uihook'
 local looked = -1
 local owned = false
 local reasonParty, reasonTarget
+local passing = false -- the party windows' replacement lets the game's drawing outside them through
+local PASS_OUTSIDE, PASS_SUPPORTED = 4, 0x10
 local reason = 'Load /load uihook, then /pt native on. Unload hideparty first.'
 
 local function Find()
@@ -64,6 +66,7 @@ local function Find()
 end
 
 function hook.Stop()
+    passing = false
     if reasonParty~=nil or reasonTarget~=nil then reason='Native replacement inactive.' end
     -- Always check loaded state before touching a cached block or calling code in the DLL.
     if owned and block then
@@ -85,8 +88,10 @@ function hook.Disable(target)
         bit.band(active,8)~=0 and 'active (native arrows preserved)' or 'off')
 end
 
-function hook.Begin(party, target)
-    active = 0
+-- outside: the game's own drawing outside the party windows is let through (a hooked fish's stamina gauge,
+-- drawn with the party list in the middle of the screen); a uihook that cannot gives the party list back instead.
+function hook.Begin(party, target, outside)
+    active, passing = 0, false
     if not party and not target then hook.Stop(); return false end
     local found = Find()
     if not found then return false end
@@ -95,12 +100,15 @@ function hook.Begin(party, target)
         reason = plugin .. ' did not recognise this client; using ordinary Party windows.'
         return false
     end
+    if outside and bit.band(found.SupportedMask, PASS_SUPPORTED) == 0 then party = false end
+    if not party and not target then hook.Stop(); return false end
     local partyReady = party and bit.band(found.SupportedMask, 7) == 7
     local targetReady = target and bit.band(found.SupportedMask, 8) ~= 0
+    passing = partyReady and outside and true or false
     owned=true -- Stop must also release a frame that fails partway through renewal.
     for i = 0, 5 do
         local wanted = (i < 3 and partyReady) or (i >= 3 and targetReady)
-        if submit(i, wanted and 0 or -1) == 0 then
+        if submit(i, wanted and (i < 3 and passing and PASS_OUTSIDE or 0) or -1) == 0 then
             hook.Stop(); reason = plugin .. ' rejected the frame.'; return false
         end
     end
@@ -123,8 +131,11 @@ function hook.Uses(window)
     return index ~= nil and bit.band(active, index < 3 and bit.lshift(1, index) or 8) ~= 0
 end
 function hook.Capture(window)
-    return hook.Uses(window) and submit(indexes[window.name], 1) ~= 0 or false
+    local index = indexes[window.name]
+    return hook.Uses(window) and submit(index, (index < 3 and passing) and 1 + PASS_OUTSIDE or 1) ~= 0 or false
 end
+-- Whether this frame's party replacement lets the game's drawing outside the windows through
+function hook.Passing() return passing end
 
 local rectIndexes = { ['xiframes.us.1']=0, ['xiframes.us.2']=1, ['xiframes.us.3']=2, ['xiframes.tgt.main']=3 }
 local rects = { {}, {}, {}, {} }
