@@ -17,14 +17,18 @@ each where the game's are.
 - Native and SimpleLog inline colours are always kept; uncoloured text takes its native chat-mode
   colour. The colours are the game's own, as configured, read through uihook; without that, close
   approximations.
-- The last 256 messages seen are kept **in memory only**. No chat is written to disk. As it starts
+- The last 256 messages seen are kept **in memory only**. With two log windows, each also retains
+  its own last 256 routed messages, so busy traffic in one cannot erase the other's older messages.
+  These share one chronological store (at most 768 messages, with overlapping messages stored once).
+  Routing changes apply to the retained messages; already evicted messages cannot be recovered.
+  No chat is written to disk. As it starts
   (and after a reset or a new character), chatbox reads the game's own history once through uihook,
   the first log window's last 100 lines, and puts them before its own, so a reload or a late load
   does not begin empty; lines it already has are left out. The game keeps a message as the lines it
   wrapped it into; with timestamps on, a line without one is joined back to the message before it, so
   each message is whole again (with timestamps off, each of the game's lines stays a message).
   `/chatbox status` says how many were read. The expanded log is the game's own.
-- The log lifts above the input bar while typing, and the game's clock and its icons follow the top
+- While typing, the input bar takes the compact log's bottom rows without moving or enlarging its total footprint. The game's clock and its icons follow the top
   of the log.
 - With **Log Window 2** on in the game's settings, a second box stands where the game puts its second
   window, over the first (its own game width and height in Follow Game) or beside it (the game's width and
@@ -98,8 +102,8 @@ of an existing clock panel.
 - Attach To Chat (with offsets), or use a custom position and size, which leaves chat where the game
   puts it. Attached, **Anchor** (Layout tab) chooses where:
   - **Bottom** (default): the panel takes the bottom of the logs' place and every drawn log is lifted
-    by its height, so chat sits wholly above it. While typing the panel stays at the bottom (the
-    input's own bottom): the input is lifted to sit on it, and the logs above the input as ever. The
+    by its height, so chat sits wholly above it. While typing the panel stays put: input occupies
+    the bottom of the first log's footprint, with fewer chat rows above it. The
     lowest visible log owns it: the primary, under a stacked or beside a side-by-side Window 2.
   - **Top**: flush over the upper log, its channel title drawn last at their shared seam; chat and
     the input stay where the game puts them. The upper visible log owns it: a stacked Window 2, or
@@ -189,8 +193,8 @@ the info panel (Anchor Above Info Panel, removed in 0.15.0).
 
 ```text
 /chatbox          the settings
-/chatbox on       Replace Native Chat on
-/chatbox off      Replace Native Chat off: the game's logs come back at once
+/chatbox on       Enable chatbox
+/chatbox off      Disable chatbox: the game's logs come back at once
 /chatbox clear    forget the messages this addon keeps
 /chatbox timestamps   toggle the Timestamps option (on or off to set it)
 /chatbox translate    toggle Auto-Translate, chatbox's own phrase list on Tab (on or off to set it)
@@ -208,28 +212,34 @@ the info panel (Anchor Above Info Panel, removed in 0.15.0).
 
 ## Settings
 
-`/chatbox` opens Settings, Info Panel and Winxi Theme tabs. Settings are kept for each character. The
+`/chatbox` opens Settings, Info Panel and Tooltips tabs. There is no Winxi Theme tab; Settings are kept for each character. The
 Chatbox and Look sections apply in both modes; the Layout and Activity sections are the WinXI Skin's and
 are shown only in it (their settings are kept, and ignored, in Follow Game). The look is WinXI's in both:
 the mode is how the boxes behave and where they stand.
 
 **Chatbox**
 
-- **Replace Native Chat**: the WinXI log and input bar in place of the game's (on to begin with).
+- **Enable** (on to begin with): enables chatbox's log and input bar. Off, the native log and input
+  return and all other controls in Settings, Info Panel and Tooltips are greyed out. Saved settings
+  are kept. `/chatbox on` and `/chatbox off` control this switch.
+- **Replace Native Chat** (on to begin with): on selects **Follow Game**; off selects **WinXI Skin**.
+  This changes layout behavior, not whether chatbox is enabled. Existing mode settings are preserved.
 - **Auto-Translate** (on to begin with): Tab while typing opens chatbox's own list of auto-translate
   phrases, from the installed client's dictionary, for the word at the caret (with no word, the 42
   categories), drawn above the input bar. Tab, Shift+Tab, Up and Down move, Page Up and Page Down move a
   page, Enter puts the phrase in (on a category, opens it), Escape closes (in a category, back to the
-  categories). Typing goes on narrowing the list. Off, Tab is the game's, whose own menu takes the input
-  bar back for as long as it is open. `/chatbox translate on` and `off` do the same.
-- **Mode**: **Follow Game** (to begin with) or **WinXI Skin**.
-  - *Follow Game*: the log, the input bar and the expanded log where the game puts its own, at its sizes.
+  categories). Typing goes on narrowing the list. The phrase goes into your line as its real token, so
+  others see it in their own language when you send. Off, Tab is the game's, whose own menu takes the
+  input bar back for as long as it is open. `/chatbox translate on` and `off` do the same.
+  Native window size does not necessarily mean the same number of lines.
+  - *On — Follow Game*: the log, the input bar and the expanded log where the game puts its own, at its sizes.
     Each log follows its game window's size and its lines, as the game grows its window a row for each
     message and shrinks it to its fewest while none come (at 0 lines nothing is drawn); the second window
-    stands where the game shows it, with the game's width and gap; the input bar takes the game's place,
-    width and height (a font too large for that height grows the bar enough to fit, its text centred);
+    stands where the game shows it, with the game's width and gap. The input bar uses the game's
+    height (or enough for the chosen font), centred text, and the log's width, but occupies the bottom
+    of the compact footprint rather than moving it when typing;
     the expanded log opens where the game puts it, at its full height.
-  - *WinXI Skin*: Width and rows of the addon's own, the activity controls, and the expanded log's place
+  - *Off — WinXI Skin*: Width and rows of the addon's own, the activity controls, and the expanded log's place
     and height, from the Layout and Activity sections.
 - **Timestamps** (on to begin with): the time in front of each line as SimpleLog's Timestamps or
   Ashita's timestamp addon writes it; chatbox adds none of its own. Off, those are hidden in the
@@ -237,7 +247,7 @@ the mode is how the boxes behave and where they stand.
   again at once. Enable timestamps in either SimpleLog or the timestamp addon to supply them;
   avoid enabling both providers at once to prevent duplicate stamps. `/chatbox timestamps on`
   and `off` do the same. There is no history-clear button; `/chatbox clear` remains available.
-- **Chat Tooltips** (on to begin with): resting the mouse on an item, key item, auto-translate phrase,
+- **Tooltips tab — Chat Tooltips** (on to begin with): resting the mouse on an item, key item, auto-translate phrase,
   spell, ability, weapon skill, quest or place in the compact log, Window 2 or (with Replace Expanded Log)
   the expanded log's rows shows a tooltip of it, the gap between two rows counted as the row above. While
   it is on, one switch for each kind, all on to begin with: **Items**, **Spells And Abilities**, **Weapon
@@ -265,7 +275,7 @@ the mode is how the boxes behave and where they stand.
 - **Position**: **At the Game's Chat** (to begin with), where the game puts its own log, or **Custom**,
   wherever it was dragged to or the **Place** typed under it (the log's bottom-left in pixels from the
   screen's top-left, kept on the screen). Choosing Custom takes the place the log stands at. The input
-  bar stands on that bottom (the log lifts above it while typing, as ever), a stacked or side-by-side
+  bar uses the bottom of that footprint while typing, a stacked or side-by-side
   second window keeps its place beside the first, the info panel attaches as before, and Expand In
   Place opens the expanded log there. The game's clock, which uihook keeps at its distance from the
   log, goes with it; Hide Game Clock in the Info Panel tab takes it away. The game's own log must still
@@ -336,17 +346,13 @@ window geometry matches the requested size.
   its own to click and drag, a menu of the game's open over the log keeps its mouse, the wheel goes
   through and scrolls, and Square, the arrows and Confirm choose rows. Off, the game's own are drawn in
   the WinXI frame, tinted to the theme, and the mouse is the game's.
-- **Chat Log Window** and **Input Text Box**: **Override Colours** and, with it on, **Background**
-  (with its opacity, over the chosen WinXI background style), **Border / Art Tint** (a plain border's
-  colour or the border art's tint, the art keeping its shading; its alpha the border's opacity),
-  **Default Text** (the log's base text colour, inline colours still winning, or the input's text,
-  prompt and caret) and, on the log, **Title**. Off, the shared or local WinXI theme's; the colours
-  chosen are kept. None of these change the theme or other addons.
+The chat log and input text box inherit WinXI theme colours. Per-window colour overrides and their
+settings sections have been removed; saved overrides are discarded. Source inline colours are preserved.
 
 Settings from before these: Follow Native Settings on (or, before it, either of Match Game Log Size and
 Match Game Input Size) becomes Follow Game, off WinXI Skin; the four Replace switches of the expanded
-log become Replace Expanded Log, on where all were; each window's Own Color boxes become Override
-Colours, on where any was. The old keys are dropped.
+log become Replace Expanded Log, on where all were. Old Own Color and Override Colours settings
+are dropped.
 
 ## Native behaviour and limitations
 
@@ -363,9 +369,10 @@ clears the kept messages. Windows stay click-through except for the wheel over a
 and its scrollbar, and the box is kept within the screen's width.
 
 **Anchoring.** The log follows the native primary chat base (or, in WinXI Skin with Position Custom,
-stands at its own place, the input bar on its bottom), and sits above the input bar while
-typing: the game's own upward movement is kept, with only a no-overlap clamp, never the input's
-height again. Log and input bar always share width and left edge. Uihook moves the native clock
+stands at its own place). While typing, its total footprint stays fixed: input occupies the bottom
+of that space, reducing the number of visible chat rows rather than lifting the whole log. Closing
+input restores those rows. Native input/log lifting does not move this footprint; the optional info
+panel and second window also stay put. Log and input bar always share width and left edge. Uihook moves the native clock
 text, day icon and weather icons by the difference between the replacement's top-left and the
 native log's, keeping the game's clock-to-log spacing, with the native clock and the `clock` addon
 alike (its rectangles are reported where they moved to). The compass stays put. Releasing the log,
@@ -375,18 +382,25 @@ or expanding it, restores ordinary clock placement.
 history, Enter and Escape are the **same native editor's**, as are the chat mode, commands and
 sending; the bar draws its text and blinking caret and scrolls to keep the caret in view.
 Auto-translate phrases already in the line use the game's display buffer, otherwise the raw-byte caret.
-With Auto-Translate on, chatbox takes Tab while the game's input is open (its press, repeats, release
-and character, through both Ashita's `key` and `key_data`), so the game's own auto-translate menu is
-never opened: that menu would become the game's active menu and take the input bar back. While
-chatbox's list is open it also takes Up, Down, Page Up, Page Down, Enter and Escape, each until it is
-let go, so Enter on a phrase never also sends the line; every other key is the game's. The one write to
-the input buffer is the chosen phrase's six-byte token, put in place of the word through Ashita's
-`SetInputText` (`/chatbox status` says whether the game kept it). Nothing else is made up, no second
-draft is kept, and no `+69`/`+6A` flag or chat timer is used. Uihook draws the captured bar at the
-`menu inline` boundary in place of the game's background, text and caret; the list is ImGui's own
-window above it, not captured. Input is its own slot: closing input, a decode, API or capture failure
-or a missing signature releases only it (and closes the list), and the game's editor shows. Clicking in
-the bar does not place the caret or select. IME menus stay the game's and want live testing.
+With Auto-Translate on, Tab while the game's input is open is chatbox's, so the game's own auto-translate
+menu, which would take the input bar back, never opens; while chatbox's list is open, Up, Down, Page Up,
+Page Down, Enter and Escape are its own too. They are blocked in Ashita's `key` event (which sees a key
+before the game's input handler) and DirectInput's `key_data`, each until it is let go. The game reads the
+Enter that sends the line from DirectInput's polled keyboard state, though, not from a key message, so
+blocking those alone sent the half-typed line: chatbox also clears the list's keys from that state
+(`key_state`, written through `data_modified_raw`) while the list is open and while a key it acted on is
+still down. No other key's state is touched; `/chatbox status` counts the times it cleared one. The chosen phrase's six-byte token replaces the word (or goes
+in at the caret from a category) on the next frame, through Ashita's `SetInputText`, or each buffer's
+setter where that is not kept, read back to be sure; text typed since the choice is never overwritten,
+and a line past the setters' 120 bytes is refused rather than cut. `/chatbox status` says what was
+written. Nothing is sent, no outgoing message is blocked and no key is pressed for the game: the next
+Enter sends the line as ever, the token in it.
+
+Off, the game's own auto-translate menu takes the input bar back from the skin while it is open. Uihook draws the
+captured bar at the `menu inline` boundary in place of the game's background, text and caret when it is
+safe to replace it. Input is its own slot: closing input, a decode, API or capture failure or a missing
+signature releases it, and the game's editor shows. Clicking in the skinned bar does not place the caret
+or select. IME menus stay the game's and want live testing.
 
 **Expanded log.** Use the game's Square/window selection on the log, then Confirm: a faint light
 over the box and the game's hand cursor at its newest line show the selection. The addon binds no
@@ -425,8 +439,8 @@ The **text** is the addon's with Replace Expanded Log on: uihook decodes each of
 game draws it (its glyph words back to the bytes the game was given, colour codes and all) and
 measures the row, and the addon lays the rows out as the compact log does: the chat's **Font** at
 **Font Size**, Font Size + 2 apart, the newest ending at the **Bottom Padding** and older ones up from
-it, from the log's left edge in by **Left Padding**, in the log's Default Text colour when it
-has its own, otherwise its message's chat-mode colour with the game's inline colours kept and auto-translate brackets as shapes, clipped
+it, from the log's left edge in by **Left Padding**, in its message's chat-mode colour with the game's
+inline colours kept and auto-translate brackets as shapes, clipped
 to the log's box; the game's cursor is drawn after the cursor row's text, where the game puts its
 mark. Which rows there are and their wrapping, the cursor, Confirm and its menus and the wheel are
 still the game's, followed by the rows' order (when the row the game has chosen is past what fits,
@@ -475,7 +489,7 @@ Native chat recognition lives in uihook, not in this addon.
 luajit tests/chatbox_log_check.lua
 luajit tests/chatbox_encoding_check.lua
 luajit tests/chatbox_inline_check.lua
-luajit tests/chatbox_appearance_check.lua
+luajit tests/chatbox_retention_check.lua
 luajit tests/chatbox_scrollbar_check.lua
 luajit tests/chatbox_ui_check.lua
 luajit tests/infopanel_source_check.lua

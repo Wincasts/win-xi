@@ -1,6 +1,6 @@
 -- A WinXI front end to FFXI's own input controller. Never grab ImGui keyboard focus:
 -- the game retains mode shortcuts, command dispatch, history and IME. Auto-translate is chatbox's own list on Tab
--- (translate.lua), whose phrase goes into this same buffer.
+-- (translate.lua), whose phrase goes into this same buffer. Nothing here sends a line or presses a key for the game.
 local M = {}
 function M.Prompt()
     return '> '

@@ -15,7 +15,9 @@ AshitaCore = { GetChatManager=function() return {
     GetInputTextRaw=function() return inputRaw end,
     GetInputTextDisplay=function() return inputDisplay end,
     GetInputTextRawCaretPosition=function() return inputCaret end,
+    GetInputTextParsed=function() return inputRaw end,
     SetInputText=function(_,value) inputSet=value; inputRaw=value end, -- the game's buffer then holds it, as read back
+    QueueCommand=function() error('chatbox must not synthesize input or send commands') end,
 } end }
 local flags = 0
 setmetatable(_G, {__index=function(_, key)
@@ -252,7 +254,9 @@ message('retained'); events.unload(); frame(); assert(#text==0)
 inputOpen=true; inputRaw='hello'; inputDisplay='hello'; inputCaret=5
 frame(); assert(hooks[2].captures==1 and text[#text].text=='hello','native-backed input rendered and captured independently')
 assert(text[#text-1].text=='> ' and measuredPos[2]==1018,'input shares the closed native base')
-assert(rendered['winxi.chatbox'].pos[2]==1000 and rendered['winxi.chatbox'].size[1]==rendered['winxi.chatbox.input'].size[1], 'log lifts above input, equal widths')
+assert(rendered['winxi.chatbox'].pos[2]==1000 and rendered['winxi.chatbox'].size[2]==126
+    and rendered['winxi.chatbox'].pos[2]-rendered['winxi.chatbox'].size[2]==1018-144
+    and rendered['winxi.chatbox'].size[1]==rendered['winxi.chatbox.input'].size[1], 'input replaces bottom rows, preserving total height, top and width')
 inputRaw='/l see you there'; inputDisplay=inputRaw; inputCaret=#inputRaw; frame()
 assert(rendered['winxi.chatbox'].style.title=='Linkshell 1','typing /l: the title says Linkshell while it is typed')
 assert(text[#text-1].text=='> ','input prompt stays plain even with a typed chat command')
@@ -269,9 +273,9 @@ throwing=false
 nativeLogRect={20,700,660,1018}
 -- Follow Game: the input bar where the game's is, at its size, in the WinXI look; the log sharing its width
 app.options.mode[1]='game'; nativeRect={0,1020,1920,1060}
-frame(); assert(measuredPos[1]==0 and measuredPos[2]==1060 and measuredSize[1]==1920 and measuredSize[2]==40)
+frame(); assert(measuredPos[1]==0 and measuredPos[2]==1018 and measuredSize[1]==1920 and measuredSize[2]==40)
 assert(lastWindowStyle.fontSize==12 and lastWindowStyle.padding==3 and look.Padding==20,'native input outer size keeps compact text')
-assert(text[#text].pos[2]==1020+(40-12)/2,'text stays centred in a taller native-sized input box')
+assert(text[#text].pos[2]==1018-40+(40-12)/2,'text stays centred in a taller native-sized input box inside the footprint')
 assert(rendered['winxi.chatbox'].size[1]==1920 and rendered['winxi.chatbox'].pos[1]==0,'log shares native input width and left edge')
 assert(rendered['winxi.chatbox.input'].style.background==nil and rendered['winxi.chatbox.input'].style.shadow==nil,'the theme\'s look, as in the skin')
 nativeRect=nil; frame(); assert(measuredSize[1]==1920 and measuredSize[2]==18,'native width retained when input geometry expires')
@@ -314,13 +318,6 @@ assert(hooks[0].expanded==true and rendered['winxi.chatbox.expanded'].style.titl
     'capture is explicitly frame-only; native tabs replace the custom title')
 assert(hooks[0].controls[1]==look.HighlightColor and hooks[0].controls[2]==look.TextColor,
     'native control colours follow current highlight and title/text theme')
-local logAppearance=app.options.appearance.log
-logAppearance.override[1]=true
-frame()
-assert(hooks[0].controls[2]==logAppearance.colors.titleColor and hooks[0].controls[3]==logAppearance.colors.border
-    and hooks[0].controls[4]==logAppearance.colors.border and #text==0,
-    'the log\'s own Title and Border / Art Tint style native controls without overlaying rows or hit-tests')
-logAppearance.override[1]=false
 captureOK=false; stops=hooks[0].stops; frame()
 assert(hooks[0].stops>stops and #text==0,'failed expanded capture restores native rather than a blank log')
 captureOK=true; frame()
@@ -443,9 +440,6 @@ app.options.expandedHeight[1]=100; frame()
 assert(rendered['winxi.chatbox.expanded'].size[2]==1020-100,'100%: the game\'s window, no higher')
 app.options.expandedHeight[1]=75
 -- the log's Default Text, as the compact log takes it, over the modes' colours
-app.options.appearance.log.override[1]=true; app.options.appearance.log.colors.textColor={0.1,0.8,0.2,1}; frame()
-assert(text[1].color==app.options.appearance.log.colors.textColor and text[2].color==text[1].color,'the log\'s own Default Text, as the compact log\'s')
-app.options.appearance.log.override[1]=false; frame()
 assert(text[1].color==require('palette').Mode(1),'without it, the modes\' colours')
 -- the whole log mirrored: with uihook able to leave all of it undrawn, the addon draws the light on the cursor's
 -- row (a row's pitch tall about its glyphs, across the log), brighter held down, and a marked row faintly
@@ -596,30 +590,37 @@ for _,name in ipairs(opened) do headers[name]=true end
 headers['Chat Log Window'], headers['Input Text Box'] = true, true
 opened={}
 spec.drawSettings(app.options)
-assert(table.concat(opened,',')=='Chatbox,Layout,Activity,Look,Chat Log Window,Input Text Box','open: every section drawn, the colours in Look')
+assert(table.concat(opened,',')=='Chatbox,Layout,Activity,Look','open: settings sections without per-window colour overrides')
 app.options.mode[1]='game'; opened={}
 spec.drawSettings(app.options)
-assert(table.concat(opened,',')=='Chatbox,Look,Chat Log Window,Input Text Box','Follow Game: the Chatbox and Look sections; no Layout or Activity')
+assert(table.concat(opened,',')=='Chatbox,Look','Follow Game: the Chatbox and Look sections; no Layout or Activity')
 app.options.mode[1]='skin'
 -- Each control in its section: Layout the sizes and the expanded log's place, Activity each window's, Look the rest.
 -- A window's Animate Resize, Resize Duration, Minimum Rows and Fade Duration are drawn only with their switch on,
 -- Idle Time with either.
 do
 local controlGroups,currentGroup={},nil
+local controlOrder={}
 local oldCheckbox,oldSliderInt,oldSliderFloat=imgui.Checkbox,imgui.SliderInt,imgui.SliderFloat
 package.loaded['winxi.widgets'].Header=function(name) currentGroup=name; return headers[name] end
-local function recordControl(id) controlGroups[id]=currentGroup; return false end
+local function recordControl(id) controlGroups[id]=currentGroup; controlOrder[#controlOrder+1]=id; return false end
 imgui.Checkbox,imgui.SliderInt,imgui.SliderFloat=recordControl,recordControl,recordControl
 spec.drawSettings(app.options)
+assert(controlOrder[1]=='##chatbox.enabled' and controlOrder[2]=='##chatbox.replaceNativeChat' and controlOrder[3]=='##chatbox.autoTranslate',
+    'Enable, Replace Native Chat, then Auto-Translate')
 assert(controlGroups['##chatbox.enabled']=='Chatbox' and controlGroups['##chatbox.timestamps']=='Chatbox',
     'the switches in the Chatbox section (the font is winxi\'s widget, not recorded here)')
-assert(controlGroups['##chatbox.chatTooltips']=='Chatbox' and controlGroups['##chatbox.tooltipNotes']=='Chatbox','Chat Tooltips and Tooltip Notes in the Chatbox section')
+assert(controlGroups['##chatbox.chatTooltips']==nil and controlGroups['##chatbox.tooltipNotes']==nil,
+    'tooltip controls no longer appear in the main Settings tab')
+headers['Chat Tooltips']=true
+spec.tabs[2].draw(app.options)
+assert(controlGroups['##chatbox.chatTooltips']=='Chat Tooltips' and controlGroups['##chatbox.tooltipNotes']=='Chat Tooltips','Chat Tooltips and Tooltip Notes in their own tab')
 for _,kind in ipairs(package.loaded.links.Kinds) do
-    assert(controlGroups['##chatbox.tooltips.'..kind.key]=='Chatbox','a kind\'s switch under Chat Tooltips while it is on: '..kind.key)
+    assert(controlGroups['##chatbox.tooltips.'..kind.key]=='Chat Tooltips','a kind\'s switch under Chat Tooltips while it is on: '..kind.key)
 end
 app.options.chatTooltips[1]=false; controlGroups={}
-spec.drawSettings(app.options)
-assert(controlGroups['##chatbox.chatTooltips']=='Chatbox' and controlGroups['##chatbox.tooltips.items']==nil and controlGroups['##chatbox.tooltipNotes']==nil,'Chat Tooltips off: no kinds, no notes switch')
+spec.tabs[2].draw(app.options)
+assert(controlGroups['##chatbox.chatTooltips']=='Chat Tooltips' and controlGroups['##chatbox.tooltips.items']==nil and controlGroups['##chatbox.tooltipNotes']==nil,'Chat Tooltips off: no kinds, no notes switch')
 app.options.chatTooltips[1]=true; controlGroups={}
 spec.drawSettings(app.options)
 for _,id in ipairs({'##chatbox.locked','##chatbox.width','##chatbox.window1Rows','##chatbox.window2Rows','##chatbox.expandInPlace','##chatbox.expandedHeight'}) do
@@ -632,7 +633,8 @@ for _,id in ipairs({'##chatbox.visibility.1.animate','##chatbox.visibility.1.min
     assert(controlGroups[id]==nil,'drawn only with its switch on: '..id)
 end
 assert(controlGroups['##chatbox.topPadding']=='Look' and controlGroups['##chatbox.replaceExpanded']=='Look'
-    and controlGroups['##chatbox.appearance.log.override']=='Chat Log Window','the paddings, Replace Expanded Log and each window\'s Override Colours in Look')
+    and controlGroups['##chatbox.appearance.log.override']==nil and controlGroups['##chatbox.appearance.input.override']==nil,
+    'Look retains paddings and Replace Expanded Log, without log/input colour overrides')
 assert(controlGroups['##chatbox.followNativeSettings']==nil and controlGroups['##chatbox.replaceTabs']==nil,'nothing of the settings before')
 app.options.visibility.window1.resize[1]=true; app.options.visibility.window2.fade[1]=true; controlGroups={}
 spec.drawSettings(app.options)
@@ -647,18 +649,53 @@ assert(controlGroups['##chatbox.visibility.1.resizeDuration']=='Activity','Anima
 app.options.visibility.window1.resize[1],app.options.visibility.window1.animate[1],app.options.visibility.window2.fade[1]=false,false,false
 imgui.Checkbox,imgui.SliderInt,imgui.SliderFloat=oldCheckbox,oldSliderInt,oldSliderFloat
 end
--- Mode, a combo in the Chatbox section: choosing the other mode saves it
+-- Enable stays interactive; all other settings and both extra tabs are disabled.
+do
+local oldBegin,oldEnd,oldCheckbox=imgui.BeginDisabled,imgui.EndDisabled,imgui.Checkbox
+local stack,states={},{}
+imgui.BeginDisabled=function(off) stack[#stack+1]=off or stack[#stack] or false end
+imgui.EndDisabled=function() assert(#stack>0); table.remove(stack) end
+imgui.Checkbox=function(id) states[id]=stack[#stack] or false; return false end
+app.options.enabled[1]=false
+spec.drawSettings(app.options)
+spec.tabs[2].draw(app.options)
+assert(states['##chatbox.enabled']==false and states['##chatbox.replaceNativeChat']==true
+    and states['##chatbox.timestamps']==true and states['##chatbox.replaceExpanded']==true
+    and states['##chatbox.chatTooltips']==true and #stack==0,
+    'Enable remains usable while main settings and tooltip controls are greyed out')
+local panelSettings=require('winxi.infopanel.chat_settings')
+local oldDraw=panelSettings.Draw
+panelSettings.Draw=function() assert(stack[#stack]==true,'Info Panel settings disabled with chatbox') end
+spec.tabs[1].draw(app.options)
+panelSettings.Draw=oldDraw
+app.options.enabled[1]=true; states={}
+spec.drawSettings(app.options); spec.tabs[2].draw(app.options)
+assert(states['##chatbox.replaceNativeChat']==false and states['##chatbox.chatTooltips']==false and #stack==0,
+    'enabling chatbox makes its settings interactive again')
+imgui.BeginDisabled,imgui.EndDisabled,imgui.Checkbox=oldBegin,oldEnd,oldCheckbox
+end
+-- Replace Native Chat is a checkbox backed by the existing saved mode.
 do
 local oldCombo,oldSelectable=imgui.BeginCombo,imgui.Selectable
-local comboLabel
-imgui.BeginCombo=function(id,label) if id=='##chatbox.mode' then comboLabel=label end; return id=='##chatbox.mode' end
-imgui.Selectable=function(label) return label:find('##chatbox.mode.game',1,true)~=nil end
+local oldCheckbox=imgui.Checkbox
+local shownReplace,changeReplace=false,true
+imgui.Checkbox=function(id,value)
+    if id~='##chatbox.replaceNativeChat' then return false end
+    shownReplace=value[1]
+    if changeReplace then value[1]=not value[1]; return true end
+    return false
+end
 local savesBefore=saves
 spec.drawSettings(app.options)
-assert(comboLabel=='WinXI Skin' and app.options.mode[1]=='game' and saves==savesBefore+1,'Follow Game chosen from WinXI Skin and saved')
+assert(not shownReplace and app.options.mode[1]=='game' and saves==savesBefore+1,'Replace Native Chat on selects Follow Game and saves')
+changeReplace=false
 spec.drawSettings(app.options)
-assert(comboLabel=='Follow Game' and saves==savesBefore+1,'the mode shown; choosing it again saves nothing')
-app.options.mode[1]='skin'
+assert(shownReplace and app.options.mode[1]=='game' and saves==savesBefore+1,'enabled mode is shown without saving')
+changeReplace=true
+spec.drawSettings(app.options)
+assert(shownReplace and app.options.mode[1]=='skin' and saves==savesBefore+2,'Replace Native Chat off selects WinXI Skin and saves')
+imgui.Checkbox=oldCheckbox
+local comboLabel
 -- Position, a combo in Layout: Custom chosen takes the log's place as it stands; the place's editor shown only then
 local placeEditors=0
 imgui.InputInt2=function(id) if id=='##chatbox.pos' then placeEditors=placeEditors+1 end; return false end
@@ -679,8 +716,9 @@ imgui.InputInt2=function() return false end
 end
 for k in pairs(headers) do headers[k]=nil end
 package.loaded['winxi.widgets'].Header=function(name) return headers[name] end
-assert(#spec.tabs == 1 and spec.tabs[1].label == 'Info Panel' and app.options.colors == nil and app.options.combat == nil,
-    'Info Panel tab added without channel colour controls or Combat Log tab')
+assert(#spec.tabs == 2 and spec.tabs[1].label == 'Info Panel' and spec.tabs[2].label == 'Tooltips'
+    and spec.hideAppearance == true and app.options.colors == nil and app.options.combat == nil,
+    'Info Panel and Tooltips tabs, no Winxi Theme or Combat Log tab')
 -- Font, Left Padding and source timestamps
 pushedFonts={}; app.options.fontFile='arial.ttf'; inputOpen=true; inputRaw='hi'; inputDisplay='hi'; inputCaret=2; frame()
 assert(#pushedFonts==2 and pushedFonts[1]=='font:arial.ttf' and pushedFonts[2]=='font:arial.ttf','the chosen font for the log and the input bar')
@@ -726,9 +764,9 @@ assert(app.options.colors == nil and app.options.themeColors == nil and app.opti
     and app.options.inlineColors == nil and app.options.timestampOwnColor == nil and app.options.timestampColor == nil,
     'retired settings cannot disable preservation or rewrite/filter source messages')
 assert(app.options.leftPadding[1]==40 and app.options.bottomPadding[1]==3 and app.options.rightPadding[1]==3 and app.options.fontFile=='','Left Padding and Font made whole')
--- Native expanded selection is not emulated: no keyboard hook, controller owner or injected tell.
+-- Native expanded selection is not emulated: no controller owner or injected tell.
 local clock=0; local realClock=os.clock; os.clock=function() return clock end
-assert(events.key_state==nil and binding==nil,'all keyboard and controller actions remain native')
+assert(events.text_out==nil and binding==nil,'no outgoing-chat interception or controller owner')
 spec.commands.clear()
 for i=1,30 do message(('Talker%s : line %d'):format(string.char(64+i%26+1),i),{mode=9}) end
 message('Melyon>> are you there',{mode=12})
@@ -865,30 +903,13 @@ message('inline sample', {mode=9}); frame()
 assert(#text == 1 and text[1].text == '[12:34:56] Alice' and text[1].color == require('palette').Color(31,2),
     'source colours, including timestamp colours, are always preserved')
 package.loaded.encoding.Decode = oldDecode
--- Log/input appearance overrides are independent and never write the shared theme.
+-- Log and input use theme colours, with no per-window override settings.
 spec.commands.clear()
-local originalThemeText = look.TextColor
-local logLook, inputLook = app.options.appearance.log, app.options.appearance.input
-logLook.override[1], inputLook.override[1] = true, true
-logLook.colors.textColor={0.1,0.8,0.2,1}
-inputLook.colors.textColor={0.9,0.4,0.1,1}
+assert(app.options.appearance==nil, 'no per-window appearance defaults')
 inputOpen,inputRaw,inputDisplay,inputCaret=true,'colour input','',4
 message('plain window',{mode=121}); frame()
-assert(rendered['winxi.chatbox'].style.background == logLook.colors.background
-    and rendered['winxi.chatbox'].style.border == logLook.colors.border
-    and rendered['winxi.chatbox'].style.titleColor == logLook.colors.titleColor)
-assert(rendered['winxi.chatbox.input'].style.background == inputLook.colors.background
-    and rendered['winxi.chatbox.input'].style.border == inputLook.colors.border)
-local foundLog,foundInput=false,false
-for _, drawnText in ipairs(text) do
-    if drawnText.text == 'plain window' then foundLog=drawnText.color == logLook.colors.textColor end
-    if drawnText.text == 'colour input' then foundInput=drawnText.color == inputLook.colors.textColor end
-end
-assert(foundLog and foundInput and look.TextColor == originalThemeText, 'both text colours are local to their windows')
-for _, section in pairs(app.options.appearance) do section.override[1]=false end
-frame()
 assert(rendered['winxi.chatbox'].style.background == nil and rendered['winxi.chatbox'].style.border == nil
-    and rendered['winxi.chatbox.input'].style.background == nil, 'theme restoration clears stale frame overrides')
+    and rendered['winxi.chatbox.input'].style.background == nil, 'log and input inherit theme colours')
 -- Wheel scrolling is row-based, bounded, and never reaches hidden native history.
 spec.commands.clear()
 app.options.mode[1]='skin'
@@ -1224,6 +1245,22 @@ app.options.mode[1]='game'
 nativeLogRect={20,700,660,1018}; splitRect={20,520,660,700}; frame()
 local function texts() local t={} for _,entry in ipairs(text) do t[#t+1]=entry.text end return table.concat(t,'|') end
 assert(texts()=='said|marked|said|partied','the first shows what is routed to it, and a line the game marks for it alone; the second its own; the tell neither')
+-- Window 1 traffic must not erase Window 2's sparse messages (and vice versa).
+spec.commands.clear()
+for i=1,9 do message('quiet second '..i,{mode=5}) end
+for i=1,600 do message('busy first '..i,{mode=9}) end
+frame()
+assert(text[#text-8].text=='quiet second 1' and text[#text].text=='quiet second 9',
+    'Window 2 retains older messages after more than two global history limits of Window 1 traffic')
+spec.commands.clear()
+for i=1,9 do message('quiet first '..i,{mode=9}) end
+for i=1,600 do message('busy second '..i,{mode=5}) end
+frame()
+assert(text[1].text=='quiet first 1' and text[9].text=='quiet first 9',
+    'Window 1 has an independent retention budget too')
+spec.commands.clear(); frame()
+assert(#text==0,'clear removes messages retained for either window')
+message('said',{mode=1}); message('partied',{mode=5}); message('told',{mode=12}); message('marked',{mode=0x8005})
 chatState.selected=true; chatState.selectedWindow=2; frame()
 local lit=Lit()
 assert(#lit==1 and lit[1].a[2]==520 and lit[1].b[2]==700 and #images==1 and images[1].a[2]>520 and images[1].a[2]<700,'the game\'s focus on the second window lights it alone, the cursor at its newest line')
@@ -1260,7 +1297,9 @@ split=rendered['winxi.chatbox.split']
 assert(split.pos[1]==680 and split.pos[2]==1018 and split.size[1]==320 and split.size[2]==318 and text[#text].text=='party 37','beside the first: the game\'s place and size for it, its scroll kept')
 local savedInputRect=nativeRect; nativeRect=nil -- the input over the log's foot: both boxes lift above it
 inputOpen=true; inputRaw='hi'; inputDisplay='hi'; inputCaret=2; frame()
-assert(rendered['winxi.chatbox'].pos[2]==1000 and rendered['winxi.chatbox.split'].pos[2]==1000,'both lift above the input')
+assert(rendered['winxi.chatbox'].pos[2]==1000 and rendered['winxi.chatbox'].size[2]==300
+    and rendered['winxi.chatbox.split'].pos[2]==1018 and rendered['winxi.chatbox.split'].size[2]==318,
+    'input consumes only the first window\'s bottom rows; side-by-side second window stays put')
 inputOpen=false; nativeRect=savedInputRect
 app.options.mode[1]='skin'; frame()
 split=rendered['winxi.chatbox.split']
@@ -1388,12 +1427,14 @@ inputOpen=true; inputRaw='hi'; inputDisplay='hi'; inputCaret=2; panelDraws={}; f
 local typed=panelDraws[1]
 assert(typed.top==1018-18 and typed.height==18,'the panel keeps the bottom while typing')
 assert(rendered['winxi.chatbox.input'].pos[2]==1018-18,'the input sits on the panel')
-assert(rendered['winxi.chatbox'].pos[2]==1018-18-18,'the log over the input')
+assert(rendered['winxi.chatbox'].pos[2]==1018-18-18 and rendered['winxi.chatbox'].size[2]==126
+    and rendered['winxi.chatbox'].pos[2]-rendered['winxi.chatbox'].size[2]==1018-18-144,
+    'the log loses rows to input, keeping its top and the panel fixed')
 assert(menuBounds==nil,'typing does not lift combat menus above the invisible chat frame')
 nativeRect={20,1042,660,1060} -- the game's input lower than the log: the log lifted only clear of it
 panelDraws={}; frame()
-assert(panelDraws[1].top==1060-18 and rendered['winxi.chatbox.input'].pos[2]==1060-18,'the panel at the input\'s bottom, the input on it')
-assert(rendered['winxi.chatbox'].pos[2]==1018,'the log already clear of the lifted input stays')
+assert(panelDraws[1].top==1018-18 and rendered['winxi.chatbox.input'].pos[2]==1018-18,'native input motion does not move the panel or themed input')
+assert(rendered['winxi.chatbox'].pos[2]==1018-36 and rendered['winxi.chatbox'].size[2]==126,'native input motion does not move the footprint')
 nativeRect=savedNative
 inputOpen=false; panelDraws={}; frame()
 assert(panelDraws[1].top==1018-18 and rendered['winxi.chatbox'].pos[2]==1018-18,'closed: the panel where it was, the log back on it')
@@ -1434,8 +1475,9 @@ assert(hooks[0].panel and rect.left==20 and rect.width==640 and rect.height==18 
 assert(rendered['winxi.chatbox'].pos[2]==1018 and menuBounds==nil,'top: the log in place, menus above the panel')
 local savedTopNative=nativeRect; nativeRect={20,1000,660,1018}
 inputOpen=true; inputRaw='hi'; inputDisplay='hi'; inputCaret=2; rect=PanelFrame()
-assert(rendered['winxi.chatbox.input'].pos[2]==1018 and rendered['winxi.chatbox'].pos[2]==1000 and rect.top==1000-144-18,
-    'top, typing: the input where the game puts it, the log over it, the panel over the log')
+assert(rendered['winxi.chatbox.input'].pos[2]==1018 and rendered['winxi.chatbox'].pos[2]==1000
+    and rendered['winxi.chatbox'].size[2]==126 and rect.top==1018-144-18,
+    'top, typing: input occupies bottom rows without moving the top panel')
 inputOpen=false; nativeRect=savedTopNative
 routes={split=true,first={[1]=true},second={[4]=true}}
 splitRect={20,520,660,700}; rect=PanelFrame()
@@ -1712,7 +1754,7 @@ inputOpen=true; inputRaw=''; inputDisplay=''; inputCaret=0; SmartFrame()
 assert(rendered['winxi.chatbox'] and rendered['winxi.chatbox.split'],'typing reveals both logs at full capacity')
 app.options.window1Rows[1],app.options.window2Rows[1]=3,6
 SmartFrame()
-assert(rendered['winxi.chatbox'].size[2]==46 and rendered['winxi.chatbox.split'].size[2]==88,'smart visibility uses custom row capacities when interacting')
+assert(rendered['winxi.chatbox'].size[2]==28 and rendered['winxi.chatbox.split'].size[2]==88,'smart visibility reserves input within the custom row capacity')
 inputOpen=false
 for i=1,5 do message('custom capacity '..i,{mode=1}) end
 SmartFrame()
@@ -1927,8 +1969,8 @@ do (function()
     assert(rendered['winxi.chatbox'].style.alpha==1,'and keeps no fade')
     app.options.mode[1]='skin'
     inputOpen=true; SmartFrame()
-    assert(rendered['winxi.chatbox'].size[2]==60 and rendered['winxi.chatbox.split'].size[2]==102,
-        'WinXI Skin: the row counts as they were')
+    assert(rendered['winxi.chatbox'].size[2]==42 and rendered['winxi.chatbox.split'].size[2]==102,
+        'WinXI Skin: saved capacity, with input taking space inside the first window')
     assert(smart1.resize[1] and smart1.fade[1] and smart1.animate[1],'the activity settings kept')
     -- settings from before Mode: Follow Native Settings, or either of the match switches before it, on was Follow
     -- Game; the four Replace switches of the expanded log all on was Replace Expanded Log; the old keys are dropped
@@ -1955,10 +1997,9 @@ do (function()
     assert(app.options.replaceExpanded[1]==true,'all on: on')
     app.options.replaceExpanded=nil; spec.onSettings(app.options)
     assert(app.options.replaceExpanded[1]==true,'missing: on')
-    app.options.appearance.log.override=nil; app.options.appearance.log.own={background={true}}
+    app.options.appearance={log={override={true},colors={textColor={1,0,0,1}}},input={override={true}}}
     spec.onSettings(app.options)
-    assert(app.options.appearance.log.override[1]==true and app.options.appearance.log.own==nil,'an Own Color box on: Override Colours on')
-    app.options.appearance.log.override[1]=false
+    assert(app.options.appearance==nil,'retired log/input overrides are discarded from saved settings')
     -- Lock Window, Position and the place made whole
     app.options.locked=nil; app.options.position={'sideways'}; app.options.pos={'x',0/0}
     spec.onSettings(app.options)
@@ -1971,8 +2012,9 @@ do (function()
     app.options.fontSize[1]=40; spec.onSettings(app.options); assert(app.options.fontSize[1]==24,'too large: 24')
     app.options.fontSize[1]=12
 end)() end
--- Auto-Translate: while typing, Tab is kept from the game in every form and opens chatbox's own list of phrases for
--- the word at the caret; Enter puts the phrase's token in the game's buffer, and its character after is kept too
+-- Auto-Translate: while typing, Tab is kept from the game and opens chatbox's own list of phrases for the word at the
+-- caret; the list's keys are cleared from DirectInput's polled state, from which the game reads Enter, so Enter puts
+-- the phrase's token in the game's buffer (on the next frame) without sending the line. Nothing is sent or pressed.
 do (function()
     chatState.expanded,chatState.selected,chatState.nativeBrowse,chatState.nested=false,false,false,false
     ready,captureOK,drawn,throwing=true,true,true,false
@@ -1982,70 +2024,99 @@ do (function()
     local RELEASE=0xC0000001 -- a key let go: bit 31, with bit 30 (it was down) and a repeat count of 1
     local REPEAT=0x40000001
     local function key(wparam,lparam) local e={wparam=wparam,lparam=lparam or 1,blocked=false}; events.key(e); return e end
-    -- a press, the character it types (the same wparam and lparam) and its release, each blocked or not
-    local function tap(wparam)
-        local down,char,up=key(wparam),key(wparam),key(wparam,RELEASE)
-        return down.blocked,char.blocked,up.blocked
-    end
+    local function tap(wparam) local down,up=key(wparam),key(wparam,RELEASE); return down.blocked,up.blocked end
     local function dik(id,down) local e={key=id,down=down~=false,blocked=false}; events.key_data(e); return e.blocked end
+    -- DirectInput's polled state, as Ashita hands it: a pointer to the 256 bytes the game will be given
+    local ffi=require('ffi')
+    local function poll(keys)
+        local state=ffi.new('uint8_t[256]')
+        for _,id in ipairs(keys) do state[id]=0x80 end
+        events.key_state({data_modified_raw=state,data_raw=state})
+        local left={}
+        for _,id in ipairs(keys) do left[id]=state[id]~=0 end
+        return left
+    end
     local said={}; app.Say=function(_,line) said[#said+1]=line end
     local function status() said={}; spec.commands.status(); for _,line in ipairs(said) do if line:find('^Auto%-Translate: ') then return line end end end
     local HELLO=string.char(0xFD,2,2,1,11,0xFD)
     inputOpen=false; inputRaw='hel'; inputDisplay='hel'; inputCaret=3; inputSet=nil
-    local a,b,c=tap(9); assert(not a and not b and not c,'Tab with the input closed: the game\'s')
+    local a,b=tap(9); assert(not a and not b,'Tab with the input closed: the game\'s')
     assert(not dik(0x0F),'DIK_TAB with the input closed: the game\'s')
-    inputOpen=true
+    inputOpen=true; frame()
+    assert(poll({0x1C})[0x1C],'typing, no list: Enter in the polled state the game\'s')
     assert(not key(38).blocked and not key(13).blocked,'no list open: Up and Enter are the game\'s')
-    a,b,c=tap(9); assert(a and b and c,'Tab while typing: press, character and release kept from the game')
-    assert(key(9,REPEAT).blocked and key(9,RELEASE).blocked,'and its auto-repeat')
+    key(13,RELEASE)
+    a,b=tap(9); assert(a and b,'Tab while typing: press and release blocked')
+    local open=poll({0x1C,0x9C,0x01,0xC8,0xD0,0xC9,0xD1})
+    for id,kept in pairs(open) do assert(not kept,('the list open: its key %02X cleared from the polled state at once'):format(id)) end
+    assert(key(9,REPEAT).blocked and key(9,RELEASE).blocked,'and Tab\'s auto-repeat')
     assert(dik(0x0F) and dik(0x0F,false),'DIK_TAB kept from the game while typing')
     assert(dik(0xC8) and dik(0x1C),'the list open: DirectInput\'s Up and Enter kept as well')
     rendered['winxi.chatbox.translate']=nil; frame()
     assert(rendered['winxi.chatbox.translate'],'the list drawn with the input bar')
-    local line=status(); assert(line and line~='Auto-Translate: off' and line~='Auto-Translate: closed','/chatbox status says the list is open: '..tostring(line))
-    a,b,c=tap(13)
-    assert(a and b and c,'Enter on the list kept from the game, its character and release too, though the list closed at the press')
-    assert(inputSet==HELLO,'Enter puts Hello! in as its token, the word replaced')
+    local line=status(); assert(line and line:find('open: ',1,true),'/chatbox status says the list is open: '..tostring(line))
+    local left=poll({0x1C,0x23,0x1E})
+    assert(not left[0x1C] and left[0x23] and left[0x1E],'the list open: Enter cleared from the polled state the game reads, H and A kept')
+    local enterDown=key(13)
+    assert(dik(0x1C),'DirectInput\'s Enter after the list closed at the press: still kept, until it is let go')
+    left=poll({0x1C,0x9C,0x01,0x0F})
+    assert(not left[0x1C] and not left[0x9C] and left[0x01] and left[0x0F],'still down after the list closed: Enter (both) kept from the polled state; Escape and Tab (let go) the game\'s')
+    a,b=enterDown.blocked,key(13,RELEASE).blocked
+    assert(a and b and inputSet==nil,'Enter on the list blocked; nothing written inside the key event')
+    frame()
+    assert(inputSet==HELLO,'the next frame: Hello! put in as its token, the word replaced')
+    line=status(); assert(line and line:find('Hello! written',1,true),'/chatbox status says it was written: '..tostring(line))
+    assert(poll({0x1C})[0x1C],'Enter let go: the polled state the game\'s again')
     assert(not key(13).blocked,'the list closed: the next Enter is the game\'s')
     key(13,RELEASE)
     assert(not dik(0x1C),'and DirectInput\'s Enter')
     rendered['winxi.chatbox.translate']=nil; frame()
     assert(not rendered['winxi.chatbox.translate'],'closed: no list drawn')
-    -- Tab, Down and Up move; Shift+Tab moves back
+    -- a phrase chosen, then typing before the next frame: the newer typing is kept, nothing written
+    inputRaw='hel'; inputDisplay='hel'; inputCaret=3; inputSet=nil
+    tap(9); tap(13); inputRaw='hel!'; frame()
+    assert(inputSet==nil and inputRaw=='hel!','typing since the choice: never overwritten')
+    line=status(); assert(line and line:find('input changed',1,true),'/chatbox status says why: '..tostring(line))
+    -- the input closed before the next frame: nothing written
     inputRaw='hel'; inputSet=nil
+    tap(9); tap(13); inputOpen=false; frame(); inputOpen=true; frame()
+    assert(inputSet==nil,'the input closed before the write: nothing written into the next line')
+    -- Tab, Down and Up move; Shift+Tab moves back
+    inputRaw='hel'; inputDisplay='hel'; inputCaret=3; inputSet=nil
     tap(9); assert(key(40).blocked and key(40,RELEASE).blocked and key(40,REPEAT).blocked,'Down moves, on every repeat')
     assert(key(38).blocked and key(38).blocked and key(38,RELEASE).blocked,'Up moves')
     assert(key(34).blocked and key(33).blocked,'Page Down and Page Up')
-    tap(9); key(16); tap(9); key(16,RELEASE); tap(13)
+    tap(9); key(16); tap(9); key(16,RELEASE); tap(13); frame()
     assert(inputSet==HELLO,'Tab then Shift+Tab: back on the first, Hello!')
     -- Escape closes; with no word, the categories, Enter into one, Escape back to them and again to close
     inputRaw='hel'; inputSet=nil
-    tap(9); a,b,c=tap(27); assert(a and b and c,'Escape kept from the game, its character and release too')
+    tap(9); a,b=tap(27); assert(a and b,'Escape blocked')
     assert(not key(40).blocked and not key(13).blocked and inputSet==nil,'Escape closed the list, nothing put in')
     key(13,RELEASE)
     inputRaw='say '; inputDisplay=inputRaw; inputCaret=4
-    tap(9); tap(13); assert(inputSet==nil and key(40).blocked,'no word: the categories; Enter opens one')
+    tap(9); tap(13); assert(key(40).blocked and not poll({0x1C})[0x1C],'no word: the categories; Enter opens one, the list still open')
     key(40,RELEASE)
     tap(27); assert(key(40).blocked,'Escape in a category: back to the categories, still open')
     key(40,RELEASE)
     tap(27); assert(not key(40).blocked,'Escape again: closed')
-    tap(9); tap(13); tap(13)
+    tap(9); tap(13); tap(13); frame()
     assert(type(inputSet)=='string' and #inputSet==10 and inputSet:sub(1,4)=='say ' and inputSet:sub(5,8)==string.char(0xFD,2,2,1) and inputSet:sub(10)==string.char(0xFD),
         'a Greetings phrase put in at the caret: '..tostring(inputSet and inputSet:gsub('.',function(ch) return ('%02X '):format(ch:byte()) end)))
-    -- the input closing closes the list
+    -- the input closing closes the list, and gives uihook's keys back
     inputRaw='hel'; inputDisplay='hel'; inputCaret=3; inputSet=nil
     tap(9); inputOpen=false; frame(); inputOpen=true
+    assert(poll({0x1C,0x0F})[0x1C],'the input closed: the polled state the game\'s')
     assert(not key(40).blocked,'the input closed: the list with it')
     -- off: Tab, and DirectInput's, are the game's; /chatbox translate says and saves
     local before=saves; said={}
     spec.commands.translate(app.options,{nil,nil,'off'})
     assert(app.options.autoTranslate[1]==false and saves==before+1 and said[1] and said[1]:find('Auto-Translate off',1,true),'/chatbox translate off saves and says')
-    a,b,c=tap(9); assert(not a and not b and not c and not dik(0x0F),'Auto-Translate off: Tab is the game\'s')
+    a,b=tap(9); assert(not a and not b and not dik(0x0F),'Auto-Translate off: Tab is the game\'s')
     assert(status()=='Auto-Translate: off','/chatbox status says off')
     spec.commands.translate(app.options,{nil,nil})
     assert(app.options.autoTranslate[1]==true and saves==before+2,'/chatbox translate alone turns it back on')
     -- chatbox off or zoning: the game's
-    app.options.enabled[1]=false
+    app.options.enabled[1]=false; frame()
     assert(not key(9).blocked and not dik(0x0F),'chatbox off: Tab is the game\'s'); key(9,RELEASE)
     app.options.enabled[1]=true
     events.packet_in({id=0x00b})
@@ -2059,5 +2130,6 @@ do (function()
     app.options.autoTranslate[1]=true
     app.Say=function() end
     inputOpen=false; inputRaw=''; inputDisplay=''; inputCaret=0; inputSet=nil
+    frame()
 end)() end
-print('Chatbox UI: Auto-Translate\'s Tab list, compact/expanded chat in Follow Game and WinXI Skin, the settings and their migration, routing, smart visibility, failure/lifecycle, chat tooltips and chat-owned info-panel capture/settings passed')
+print('Chatbox UI: Auto-Translate\'s Tab list, its keys kept from the polled state, compact/expanded chat, settings migration, routing, visibility, lifecycle, tooltips and info-panel settings passed')

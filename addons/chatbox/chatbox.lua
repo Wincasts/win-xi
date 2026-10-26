@@ -1,6 +1,6 @@
 addon.name = 'chatbox'
 addon.author = 'win'
-addon.version = '0.15.1'
+addon.version = '0.16.0'
 addon.desc = 'WinXI native-backed chat, input and expanded history, with an optional chat-owned three-slot info panel.'
 local winxiNeeded = 50
 do
@@ -28,7 +28,6 @@ local model = require('log')
 local render = require('render')
 local encoding = require('encoding')
 local channels = require('channels')
-local appearance = require('appearance')
 local scrollbar = require('scrollbar')
 local strip = require('strip')
 local palette = require('palette')
@@ -67,6 +66,27 @@ end
 
 local primary, secondary = native.new(native.Primary), native.new(native.Secondary)
 local history = model.New()
+-- Stable routing predicates serve both retention and the compact layout caches.
+local Filter, RefreshRetention
+do
+    local routeFilters = { routes = nil }
+    Filter = function(routes, window)
+        if not routes or not routes.split then return nil end
+        if routeFilters.routes ~= routes then
+            routeFilters.routes = routes
+            routeFilters[1] = function(message) return native.Shows(routes, 1, message.raw or message.mode) end
+            routeFilters[2] = function(message) return native.Shows(routes, 2, message.raw or message.mode) end
+        end
+        return routeFilters[window]
+    end
+    local retentionRoutes
+    RefreshRetention = function(routes)
+        -- A temporarily stale native snapshot must not discard a quiet window's history.
+        if not routes or retentionRoutes == routes then return end
+        retentionRoutes = routes
+        model.SetRetention(history, routes.split and { Filter(routes, 1), Filter(routes, 2) } or nil)
+    end
+end
 local decodeErrors, zoning = 0, false
 local decodeSample -- latest incoming event; bounded, memory-only diagnostics
 local anchorStatus = 'Waiting for native primary chat geometry.'
@@ -77,7 +97,6 @@ local TAB_TEXT_SCALE = 0.85 -- the expanded log's tab names, of Font Size
 -- Mode: how the boxes behave and where they stand, in the WinXI look either way. Follow Game: the boxes where the game
 -- puts its own, at its sizes, growing and shrinking as its do, the expanded log where the game puts it at its full
 -- height. WinXI Skin: Width, rows, activity and the expanded log's place and height of the addon's own.
-local MODES = { { key = 'game', label = 'Follow Game' }, { key = 'skin', label = 'WinXI Skin' } }
 local function Game(options) return options.mode[1] == 'game' end
 -- Position (WinXI Skin): the log at the game's chat, or Custom, its bottom-left wherever it was dragged to with Lock
 -- Window off (or typed), the input bar and the second window with it
@@ -129,67 +148,186 @@ local function ResetViews(scroll)
         if scroll then view.offset, view.visibility = 0, nil end
     end
 end
--- Auto-Translate: chatbox's own list of phrases on Tab while typing (translate.lua). The game's own menu, once open,
--- is the game's active menu and takes the input bar back from uihook for as long as it stays open, so Tab is kept
--- from the game and the phrase goes into the game's buffer as its token instead. The picker and the dictionary are
--- made on first use, so a missing one only turns the feature off, with the reason in /chatbox status.
-local translate, picker, translateProblem, pickerError
-local function Picker()
-    if picker == nil then
-        local ok, found = pcall(require, 'translate')
-        local okAuto, auto = false, nil
-        if ok then okAuto, auto = pcall(require, 'winxi.autotranslate') end
-        if not ok or type(found) ~= 'table' then picker, translateProblem = false, 'translate.lua could not be loaded: ' .. tostring(found)
-        elseif not okAuto or type(auto) ~= 'table' then picker, translateProblem = false, 'winxi.autotranslate could not be loaded: ' .. tostring(auto)
-        else
-            local made, built = pcall(found.New, auto)
-            if made and type(built) == 'table' then translate, picker = found, built
-            else picker, translateProblem = false, 'the picker could not be made: ' .. tostring(built) end
+local Translate = {} -- Auto-Translate's picker, its keys and status, in a block: the main chunk is near LuaJIT's 200 locals
+do
+    -- Auto-Translate: chatbox's own list of phrases on Tab while typing (translate.lua). The game's own menu, once open,
+    -- is the game's active menu and takes the input bar back from uihook for as long as it stays open, so Tab is kept
+    -- from the game and the phrase goes into the game's buffer as its token instead. The game sends the line on Enter
+    -- read from DirectInput's polled keyboard state, so the picker's keys are cleared from that state as well as blocked
+    -- in Ashita's key events (see key_state below). The picker and the dictionary are made on first use, so a missing
+    -- one only turns the feature off, with the reason in /chatbox status.
+    local ffi = require('ffi')
+    local translate, picker, translateProblem, pickerError
+    local function Picker()
+        if picker == nil then
+            local ok, found = pcall(require, 'translate')
+            local okAuto, auto = false, nil
+            if ok then okAuto, auto = pcall(require, 'winxi.autotranslate') end
+            if not ok or type(found) ~= 'table' then picker, translateProblem = false, 'translate.lua could not be loaded: ' .. tostring(found)
+            elseif not okAuto or type(auto) ~= 'table' then picker, translateProblem = false, 'winxi.autotranslate could not be loaded: ' .. tostring(auto)
+            else
+                local made, built = pcall(found.New, auto)
+                if made and type(built) == 'table' then translate, picker = found, built
+                else picker, translateProblem = false, 'the picker could not be made: ' .. tostring(built) end
+            end
+        end
+        return picker or nil
+    end
+    local function PickerOpen() return picker and picker.open == true or false end
+    local function ClosePicker() if picker then pcall(picker.Close) end end
+    local function CancelPicker() if picker then pcall(picker.Cancel) end end
+    -- One of the picker's own calls: a failure closes it, kept for /chatbox status, rather than reaching the game's
+    -- key handling or the frame
+    local function Use(name, ...)
+        local ok, result = pcall(picker[name], ...)
+        if ok then return result end
+        pickerError = name .. ': ' .. tostring(result)
+        CancelPicker()
+        return false
+    end
+    -- The game's input buffer as the picker reads it: its raw bytes and the caret's byte offset, nil where either fails
+    local function ReadInput()
+        local ok, raw, caret = pcall(function()
+            local chat = AshitaCore:GetChatManager()
+            return chat:GetInputTextRaw(), chat:GetInputTextRawCaretPosition()
+        end)
+        if not ok or type(raw) ~= 'string' or type(caret) ~= 'number' or caret ~= caret then return nil end
+        return raw, math.max(0, math.min(#raw, math.floor(caret)))
+    end
+    local function InputOpen()
+        local ok, state = pcall(function() return AshitaCore:GetChatManager():IsInputOpen() end)
+        return ok and state == 0x11
+    end
+    local function Translating() return app.options.enabled[1] and app.options.autoTranslate[1] and not zoning end
+    local VK_TAB = 9
+    local PICKER_KEYS = { [38] = 'up', [40] = 'down', [33] = 'pageUp', [34] = 'pageDown', [13] = 'enter', [27] = 'escape' }
+    -- The keys whose press the picker acted on: their repeats and release blocked too, and kept from the polled
+    -- state, though the list may have closed at the press; a fresh press is judged afresh
+    local taken = {}
+    -- Each frame the input bar is drawn: the picker follows what is typed (the word at the caret, read again from the
+    -- game's buffer, since typing stays the game's) and is drawn over the bar
+    local function DrawPicker(plan)
+        if not PickerOpen() then return end
+        local raw, caret = ReadInput()
+        if not raw or not app.options.autoTranslate[1] then return ClosePicker() end
+        Use('Refresh', raw, caret)
+        if not PickerOpen() then return end
+        local ok, err = pcall(translate.Draw, picker, plan, flags)
+        if not ok then
+            pickerError = 'Draw: ' .. tostring(err)
+            ClosePicker()
         end
     end
-    return picker or nil
-end
-local function PickerOpen() return picker and picker.open == true or false end
-local function ClosePicker() if picker then pcall(picker.Close) end end
--- One of the picker's own calls: a failure closes it, kept for /chatbox status, rather than reaching the game's
--- key handling or the frame
-local function Use(name, ...)
-    local ok, result = pcall(picker[name], ...)
-    if ok then return result end
-    pickerError = name .. ': ' .. tostring(result)
-    ClosePicker()
-    return false
-end
--- The game's input buffer as the picker reads it: its raw bytes and the caret's byte offset, nil where either fails
-local function ReadInput()
-    local ok, raw, caret = pcall(function()
-        local chat = AshitaCore:GetChatManager()
-        return chat:GetInputTextRaw(), chat:GetInputTextRawCaretPosition()
-    end)
-    if not ok or type(raw) ~= 'string' or type(caret) ~= 'number' or caret ~= caret then return nil end
-    return raw, math.max(0, math.min(#raw, math.floor(caret)))
-end
--- Each frame the input bar is drawn: the picker follows what is typed (the word at the caret, read again from the
--- game's buffer, since typing stays the game's) and is drawn over the bar
-local function DrawPicker(plan)
-    if not PickerOpen() then return end
-    local raw, caret = ReadInput()
-    if not raw or not app.options.autoTranslate[1] then return ClosePicker() end
-    Use('Refresh', raw, caret)
-    if not PickerOpen() then return end
-    local ok, err = pcall(translate.Draw, picker, plan, flags)
-    if not ok then
-        pickerError = 'Draw: ' .. tostring(err)
-        ClosePicker()
+    -- A phrase chosen last frame written into the game's buffer, while its input is still open
+    local function FlushPicker()
+        if not picker or not picker.pending then return end
+        if not InputOpen() or not Translating() then return CancelPicker() end
+        local ok, chat = pcall(function() return AshitaCore:GetChatManager() end)
+        if ok and chat then Use('Flush', chat) else CancelPicker() end
     end
+    -- Whether Shift is held, followed from its own presses and releases, for Shift+Tab
+    local shiftHeld = false
+    local function TranslateStatus()
+        if not app.options.autoTranslate[1] then return 'off' end
+        if not Picker() then return 'unavailable, ' .. translateProblem end
+        local ok, words = pcall(picker.Status)
+        words = ok and tostring(words) or 'no status (' .. tostring(words) .. ')'
+        words = words .. ('; keyboard state masked %d times'):format(Translate.Masked and Translate.Masked() or 0)
+        return pickerError and (words .. '; last failure ' .. pickerError) or words
+    end
+    -- Auto-Translate's keys, as Ashita's key event has them (before the game's input handler, which a blocked key down
+    -- never reaches). While the game's input is open and the setting is on, Tab opens the picker or moves it; while it is
+    -- open, Up, Down, Page Up, Page Down, Enter and Escape are its own. Each is blocked here too, so no bind or addon
+    -- acts on it. Tab, Enter and Escape act once a press; the arrows and pages move on every repeat. Nothing is sent,
+    -- written to the game's input but the chosen phrase, or pressed for the game.
+    local VK_SHIFTS = { [16] = true, [160] = true, [161] = true }
+    local ONCE = { [VK_TAB] = true, [13] = true, [27] = true }
+    -- DirectInput's ids for the same keys: Tab, and the picker's (both Enters), kept from the game's buttons the same way
+    local DIK_TAB = 0x0F
+    local DIK_PICKER = { [0xC8] = 38, [0xD0] = 40, [0xC9] = 33, [0xD1] = 34, [0x1C] = 13, [0x9C] = 13, [0x01] = 27 }
+    local function Act(action)
+        if action == 'up' then Use('Move', -1)
+        elseif action == 'down' then Use('Move', 1)
+        elseif action == 'pageUp' then Use('Page', -1)
+        elseif action == 'pageDown' then Use('Page', 1)
+        elseif action == 'enter' then
+            -- The buffer as it is now, not as the last frame saw it: a letter typed since would be left beside the token
+            local raw, caret = ReadInput()
+            if raw then Use('Refresh', raw, caret) end
+            local ok, chat = pcall(function() return AshitaCore:GetChatManager() end)
+            if ok and chat and PickerOpen() then Use('Enter', chat) else ClosePicker() end
+        elseif action == 'escape' then Use('Back') end
+    end
+    ashita.events.register('key', 'chatbox_translate', function(e)
+        local vk, lparam = tonumber(e.wparam) or 0, tonumber(e.lparam) or 0
+        local up, repeated = bit.band(lparam, 0x80000000) ~= 0, bit.band(lparam, 0x40000000) ~= 0
+        if VK_SHIFTS[vk] then shiftHeld = not up end
+        if taken[vk] then
+            if up or repeated then
+                e.blocked = true
+                if up then taken[vk] = nil end
+                return
+            end
+            taken[vk] = nil
+        end
+        if e.blocked or not Translating() then return end
+        if not InputOpen() then return ClosePicker() end
+        if vk == VK_TAB then
+            if not Picker() then return end -- no dictionary: Tab stays the game's
+            e.blocked = true
+            if up or repeated then return end
+            taken[vk] = true
+            if PickerOpen() then return Use('Move', shiftHeld and -1 or 1) end
+            local raw, caret = ReadInput()
+            if raw then Use('Open', raw, caret) else ClosePicker() end
+            return
+        end
+        local action = PickerOpen() and PICKER_KEYS[vk]
+        if not action then return end
+        e.blocked = true
+        if up or (repeated and ONCE[vk]) then return end
+        if ONCE[vk] then taken[vk] = true end
+        Act(action)
+    end)
+    -- The game reads Enter, which sends the line, from DirectInput's polled keyboard state, not from a message (uihook's
+    -- input handler, given every key message, saw none while the list was open, and the line was sent): the list's keys
+    -- are cleared from the state the game is given while it is open, and while a key it acted on is still down,
+    -- through the raw pointer Ashita gives (e.data is not a string). Only those keys' bytes are touched.
+    local masked = 0
+    local function Masking(vk) return taken[vk] or (PickerOpen() and InputOpen()) end
+    ashita.events.register('key_state', 'chatbox_translate_state', function(e)
+        if not picker or not Translating() then return end
+        if not next(taken) and not PickerOpen() then return end
+        local ok, err = pcall(function()
+            local raw = e.data_modified_raw
+            if raw == nil then raw = e.data_raw end
+            if raw == nil then return end
+            local state = ffi.cast('uint8_t*', raw)
+            for dik, vk in pairs(DIK_PICKER) do
+                if state[dik] ~= 0 and Masking(vk) then state[dik] = 0; masked = masked + 1 end
+            end
+            if state[DIK_TAB] ~= 0 and Masking(VK_TAB) then state[DIK_TAB] = 0; masked = masked + 1 end
+        end)
+        if not ok then pickerError = 'key_state: ' .. tostring(err) end
+    end)
+    Translate.Masked = function() return masked end
+    ashita.events.register('key_data', 'chatbox_translate_data', function(e)
+        if e.blocked or not Translating() then return end
+        local key = tonumber(e.key)
+        if key == DIK_TAB then
+            if InputOpen() and Picker() then e.blocked = true end
+            return
+        end
+        -- a key the picker acted on stays kept until it is let go, though the list closed at its press
+        local vk = DIK_PICKER[key]
+        if vk and (taken[vk] or (PickerOpen() and InputOpen())) then e.blocked = true end
+    end)
+    Translate.Close, Translate.Cancel, Translate.Draw, Translate.Flush, Translate.Status =
+        ClosePicker, CancelPicker, DrawPicker, FlushPicker, TranslateStatus
 end
--- The keys the picker has acted on, each kept from the game until it is let go (by virtual-key code: when it was
--- taken), and whether Shift is held, followed from its own presses and releases
-local taken, shiftHeld = {}, false
 local function Release()
     held, panelAttachment, moving = nil, nil, nil
-    ClosePicker()
-    taken = {}
+    Translate.Cancel()
     if logMenus then logMenus.StopLog() end -- the full log back where the game puts it
     infoPanel.Hud(nil) -- the game's clock and compass back
     ResetViews(false)
@@ -239,6 +377,7 @@ local function ImportLines(lines)
     end
     -- the newest of the game's lines may be messages chatbox already has: left out from the newest back
     while #entries > 0 and recent ~= '' and recent:find(entries[#entries].text, 1, true) do entries[#entries] = nil end
+    RefreshRetention(primary.Routes and primary.Routes() or nil)
     return model.Prepend(history, entries)
 end
 local function ImportHistory()
@@ -273,20 +412,13 @@ local function Reset()
     anchorStatus = 'Waiting for native primary chat geometry.'
 end
 local TapStatus -- where each line is read from, defined with the text tap below
-local function TranslateStatus()
-    if not app.options.autoTranslate[1] then return 'off' end
-    if not Picker() then return 'unavailable, ' .. translateProblem end
-    local ok, words = pcall(picker.Status)
-    words = ok and tostring(words) or 'no status (' .. tostring(words) .. ')'
-    return pickerError and (words .. '; last failure ' .. pickerError) or words
-end
 local function Status()
     local mode = Game(app.options) and 'Follow Game' or 'WinXI Skin'
     app:Say((app.options.enabled[1] and 'On' or 'Off') .. '. ' .. mode .. ', native-controlled expansion; ' .. #history.messages .. ' messages retained.')
     app:Say(primary.Status())
     app:Say(anchorStatus)
     app:Say('Input: ' .. input.Status())
-    app:Say('Auto-Translate: ' .. TranslateStatus())
+    app:Say('Auto-Translate: ' .. Translate.Status())
     app:Say('Lines: ' .. TapStatus() .. '.')
     app:Say('Game history: ' .. import.status .. '.')
     app:Say('Info Panel: ' .. (app.options.infoPanel.layout.enabled[1] and infoPanel.Status() or 'off'))
@@ -394,7 +526,7 @@ app = shell.New({
     defaults = T{ enabled = T{ true }, mode = T{ 'game' }, timestamps = T{ true }, width = T{ 640 }, fontSize = T{ 12 },
         locked = T{ true }, position = T{ 'game' }, pos = T{ 20, 1000 },
         replaceExpanded = T{ true }, expandInPlace = T{ true }, expandedHeight = T{ 75 },
-        appearance = appearance.Defaults(T, theme.Get()), fontFile = '', infoPanel = panelModel.Defaults(),
+        fontFile = '', infoPanel = panelModel.Defaults(),
         visibility = { window1 = visibility.Defaults(), window2 = visibility.Defaults() },
         window1Rows = T{ 0 }, window2Rows = T{ 0 },
         leftPadding = T{ 3 }, rightPadding = T{ 3 }, topPadding = T{ 3 }, bottomPadding = T{ 3 }, paddingVersion = T{ 0 },
@@ -402,50 +534,35 @@ app = shell.New({
         autoTranslate = T{ true } },
     command = '/chatbox',
     configTitle = 'Chatbox Settings',
+    hideAppearance = true,
     help = '/chatbox opens settings; /chatbox on, off, clear, status, modes, bytes; /chatbox timestamps [on|off] shows or hides the timestamps SimpleLog or the timestamp addon write; /chatbox panel [on|off|reset] controls the optional info panel; /chatbox clock and /chatbox compass [hide|show] the game\'s; /chatbox translate [on|off] turns chatbox\'s own auto-translate list on Tab on or off. Native selection, expansion and input controls.',
     drawSettings = function(options)
         local game = Game(options)
         if widgets.Header('Chatbox', true) then
-            widgets.Label('Replace Native Chat')
+            widgets.Label('Enable')
             if imgui.Checkbox('##chatbox.enabled', options.enabled) then
                 if not options.enabled[1] then Release() end
                 app.save()
             end
-            Tip('Draws the WinXI log and input bar in place of the game\'s own.\nOff, the game\'s chat log and input come back at once. /chatbox on and off do the same.')
+            Tip('Enables chatbox. Off, the game\'s chat log and input come back at once and all other chatbox settings are disabled.\n/chatbox on and off do the same; your settings are kept.')
+            imgui.BeginDisabled(not options.enabled[1])
+            widgets.Label('Replace Native Chat')
+            local replace = { game }
+            if imgui.Checkbox('##chatbox.replaceNativeChat', replace) then
+                game = replace[1]
+                options.mode[1] = game and 'game' or 'skin'
+                app.save()
+            end
+            Tip('On: Follow Game. The log, input bar and expanded log follow the native windows\' positions and sizes, not necessarily their number of lines.\nOff: WinXI Skin. Use chatbox\'s own width, rows, activity and expanded-log placement from the Layout and Activity sections.\nThe WinXI look is used either way; Enable controls whether chatbox runs.')
             widgets.Label('Auto-Translate')
             if imgui.Checkbox('##chatbox.autoTranslate', options.autoTranslate) then
-                if not options.autoTranslate[1] then ClosePicker() end
+                if not options.autoTranslate[1] then Translate.Cancel() end
                 app.save()
             end
             Tip('Tab while typing opens chatbox\'s own list of auto-translate phrases for the word at the caret (with no word, the categories);\nTab, Shift+Tab, Up and Down move, Enter puts the phrase in, Escape closes. Off, Tab is the game\'s, whose own menu takes the\ninput bar back for as long as it is open. /chatbox translate on and off do the same.')
-            widgets.Label('Mode')
-            if imgui.BeginCombo('##chatbox.mode', game and MODES[1].label or MODES[2].label) then
-                for _, entry in ipairs(MODES) do
-                    if imgui.Selectable(entry.label .. '##chatbox.mode.' .. entry.key, options.mode[1] == entry.key) and options.mode[1] ~= entry.key then
-                        options.mode[1] = entry.key
-                        app.save()
-                    end
-                end
-                imgui.EndCombo()
-            end
-            Tip('How the boxes behave and where they stand, in the WinXI look either way. Follow Game: the log, input bar and expanded log where the game puts\nits own, at its sizes, growing and shrinking as its do. WinXI Skin: Width, rows, activity and the expanded log\'s place, in the Layout and Activity sections.')
             widgets.Label('Timestamps')
             if imgui.Checkbox('##chatbox.timestamps', options.timestamps) then model.ShowStamps(history, options.timestamps[1]); app.save() end
             Tip('Shows timestamps supplied by either SimpleLog or the timestamp addon, including their original format and colours.\nEnable timestamps in one of those addons; chatbox adds none of its own. Avoid enabling both providers to prevent duplicates.\nOff, timestamps are hidden in the compact, second and expanded logs without deleting them. /chatbox timestamps on and off do the same.')
-            widgets.Label('Chat Tooltips')
-            if imgui.Checkbox('##chatbox.chatTooltips', options.chatTooltips) then app.save() end
-            Tip('Resting the mouse on an item, key item, auto-translate phrase, spell, ability, weapon skill, quest or place named in the\ncompact log, Window 2 or the expanded log (with Replace Expanded Log) shows what it is, in a tooltip. The shared Winxi tooltip\nsettings (whether they show, the delay and the look) apply.')
-            if options.chatTooltips[1] then
-                widgets.Label('Tooltip Notes')
-                if imgui.Checkbox('##chatbox.tooltipNotes', options.tooltipNotes) then app.save() end
-                Tip('The dimmed lines of a tooltip: what the catalogs cannot vouch for (presence is not availability, server units), and a\nphrase\'s category and kind. Off, only the name and the facts.')
-                imgui.TextDisabled('Shown for:')
-                for _, kind in ipairs(links.Kinds) do
-                    widgets.Label(kind.label)
-                    if imgui.Checkbox('##chatbox.tooltips.' .. kind.key, options.tooltipKinds[kind.key]) then app.save() end
-                    Tip(('Tooltips for %s in the log.'):format(kind.label))
-                end
-            end
             if widgets.FontFile(options, 'fontFile', '##chatbox.fontFile', { tooltip = 'The chat\'s font: one of C:\\Windows\\Fonts, or the theme\'s.' }) then
                 app.save()
             end
@@ -455,7 +572,9 @@ app = shell.New({
             if done then app.save() end
             imgui.TextDisabled('Native Square/window selection, confirm to expand, cancel to close.')
             imgui.TextDisabled(primary.Status())
+            imgui.EndDisabled()
         end
+        imgui.BeginDisabled(not options.enabled[1])
         if not game and widgets.Header('Layout') then
             widgets.Lock(options.locked, '##chatbox.locked', { tooltip = 'Off, the log can be taken hold of with the mouse and dragged wherever you want (Position becomes Custom); the wheel and the scrollbar\nstill work. On, it stays where it is, the mouse going through it to the game.' })
             widgets.Label('Position')
@@ -520,12 +639,33 @@ app = shell.New({
             widgets.Label('Replace Expanded Log')
             if imgui.Checkbox('##chatbox.replaceExpanded', options.replaceExpanded) then app.save() end
             Tip('Draws the expanded log\'s channel tabs as WinXI buttons, its scrollbar as the compact log\'s, its rows of text in the chat\'s Font at Font Size\nand its cursor and the light on its row. The rows stand at the chat\'s own pitch, not the game\'s, so the mouse over the log is kept from the game;\nthe wheel still scrolls, and Square, the arrows and Confirm choose rows. Off, the game\'s own are drawn in the WinXI frame, tinted, with its mouse.')
-            appearance.Draw(options.appearance, app.save)
         end
+        imgui.EndDisabled()
     end,
     tabs = {
         { label = 'Info Panel', draw = function(options)
+            imgui.BeginDisabled(not options.enabled[1])
             require('winxi.infopanel.chat_settings').Draw(options.infoPanel, infoPanel, app.save)
+            imgui.EndDisabled()
+        end },
+        { label = 'Tooltips', draw = function(options)
+            if not widgets.Header('Chat Tooltips', true) then return end
+            imgui.BeginDisabled(not options.enabled[1])
+            widgets.Label('Chat Tooltips')
+            if imgui.Checkbox('##chatbox.chatTooltips', options.chatTooltips) then app.save() end
+            Tip('Resting the mouse on an item, key item, auto-translate phrase, spell, ability, weapon skill, quest or place named in the\ncompact log, Window 2 or the expanded log (with Replace Expanded Log) shows what it is, in a tooltip. The shared Winxi tooltip\nsettings (whether they show, the delay and the look) apply.')
+            if options.chatTooltips[1] then
+                widgets.Label('Tooltip Notes')
+                if imgui.Checkbox('##chatbox.tooltipNotes', options.tooltipNotes) then app.save() end
+                Tip('The dimmed lines of a tooltip: what the catalogs cannot vouch for (presence is not availability, server units), and a\nphrase\'s category and kind. Off, only the name and the facts.')
+                imgui.TextDisabled('Shown for:')
+                for _, kind in ipairs(links.Kinds) do
+                    widgets.Label(kind.label)
+                    if imgui.Checkbox('##chatbox.tooltips.' .. kind.key, options.tooltipKinds[kind.key]) then app.save() end
+                    Tip(('Tooltips for %s in the log.'):format(kind.label))
+                end
+            end
+            imgui.EndDisabled()
         end },
     },
     commands = {
@@ -560,7 +700,7 @@ app = shell.New({
             elseif verb == 'on' then on[1] = true
             elseif verb == 'off' then on[1] = false
             else return app:Say('/chatbox translate [on|off] turns chatbox\'s own auto-translate list on Tab on or off.') end
-            if not on[1] then ClosePicker() end
+            if not on[1] then Translate.Cancel() end
             app.save()
             app:Say(on[1] and 'Auto-Translate on: Tab while typing opens chatbox\'s list of phrases.' or 'Auto-Translate off: Tab is the game\'s again.')
         end,
@@ -605,7 +745,7 @@ app = shell.New({
         -- Retire old display filters/rewriters and colour overrides, even for existing characters.
         options.combat, options.colors, options.themeColors = nil, nil, nil
         options.inlineColors, options.timestampOwnColor, options.timestampColor = nil, nil, nil
-        options.appearance = appearance.Repair(options.appearance, T, theme.Get())
+        options.appearance = nil -- retired per-window colour overrides; use the WinXI theme
         if type(options.fontFile) ~= 'string' then options.fontFile = '' end
         for _, side in ipairs(PADDING_SIDES) do
             if type(options[side.key]) ~= 'table' then options[side.key] = T{ PADDING_DEFAULT } end
@@ -709,6 +849,7 @@ local function Keep(line)
         original=type(line.original)=='string' and line.original:sub(1,256) or '',
         modified=raw:sub(1,256), final=type(line.final)=='string' and line.final:sub(1,256) or nil,
         expanded=type(expanded)=='string' and expanded:sub(1,256) or '', utf8=text:sub(1,256) }
+    RefreshRetention(primary.Routes and primary.Routes() or nil)
     model.Add(history, text, mode, nil, originalMode, spans, line.mode or line.originalMode, Tokens(raw))
 end
 -- Each line read through uihook after every addon (winxi.nativetext, uihook 0.8 or newer): chatbox's own text_in
@@ -901,7 +1042,11 @@ local function DrawLog(box, rowCount, fontSize, padding, view, filter, lit, styl
     local movement = view.pending < 0 and math.ceil(view.pending) or math.floor(view.pending)
     view.offset = math.max(0, view.offset + movement)
     view.pending = view.pending - movement
-    rows, view.offset, overflow = model.Tail(visible, width, font, size, render.Measure, rowCount, modes, 0, view.offset)
+    if rowCount > 0 then
+        rows, view.offset, overflow = model.Tail(visible, width, font, size, render.Measure, rowCount, modes, 0, view.offset)
+    else
+        rows, overflow = {}, metrics.total > 0 -- input can occupy a one-row box entirely
+    end
     -- The rows centred between the configured top and bottom padding; the
     -- newest at the foot of them, as the game's.
     local step = fontSize + ROW_GAP
@@ -915,7 +1060,7 @@ local function DrawLog(box, rowCount, fontSize, padding, view, filter, lit, styl
     logClipMin[1], logClipMin[2] = left, math.min(areaTop, areaBottom)
     logClipMax[1], logClipMax[2] = left + box.width, areaBottom
     list:PushClipRect(logClipMin, logClipMax, true)
-    if lit then
+    if lit and rowCount > 0 then
         DrawCursor(list, left, y + (#rows - 1) * step, fontSize)
     end
     local firstY = y
@@ -945,7 +1090,7 @@ local function DrawLog(box, rowCount, fontSize, padding, view, filter, lit, styl
     else
         view.drag = nil
     end
-    contentSize[1], contentSize[2] = width, box.height - padding * 2
+    contentSize[1], contentSize[2] = width, math.max(0, box.height - padding * 2)
     imgui.Dummy(contentSize)
     -- the box drawn written only now, all of it, as it was made only once the rows were drawn
     local drawn = DrawnTable(view)
@@ -1236,7 +1381,6 @@ local function DrawExpanded(state, sw, sh)
     -- Expand In Place.
     local game = Game(app.options)
     Paddings(app.options)
-    appearance.Apply(expandedOptions, app.options.appearance.log)
     local look = theme.Get()
     expandedColors[1] = look.HighlightColor or controller.HighlightColor
     expandedColors[2] = expandedOptions.titleColor or look.TitleColor or look.TextColor or white
@@ -1296,19 +1440,6 @@ local function DrawExpanded(state, sw, sh)
     anchorStatus = expandedStatus
 end
 
--- The game's routing between its two log windows, as functions of a message, one each, kept while the routing
--- is what it was, so the model's caches hold: nil (everything) while the game shows one window.
-local routeFilters = { routes = nil }
-local function Filter(routes, window)
-    if not routes or not routes.split then return nil end
-    if routeFilters.routes ~= routes then
-        routeFilters.routes = routes
-        routeFilters[1] = function(message) return native.Shows(routes, 1, message.raw or message.mode) end
-        routeFilters[2] = function(message) return native.Shows(routes, 2, message.raw or message.mode) end
-    end
-    return routeFilters[window]
-end
-
 do -- the frame's helpers are this block's, not the main chunk's (LuaJIT allows it 200 locals)
     -- The compact frame, in phases, each a function of its own called in turn from DrawFrame: MeasureFirst (the first
     -- box), MeasureSecond (the game's second log window), HoldBox (the last box kept a moment while the game's log
@@ -1353,9 +1484,7 @@ do -- the frame's helpers are this block's, not the main chunk's (LuaJIT allows 
         local fontSize, padding = FontSize(), PADDING_DEFAULT
         c.fontSize, c.padding = fontSize, padding
         windowOptions.fontSize, windowOptions.padding = fontSize, padding
-        appearance.Apply(windowOptions, app.options.appearance.log)
         splitOptions.fontSize, splitOptions.padding = fontSize, padding
-        appearance.Apply(splitOptions, app.options.appearance.log)
         local rowCount = model.Rows
         -- Exact row heights and inter-row gaps, with only the room above and below around them.
         local above, below = pad.top, pad.bottom
@@ -1378,7 +1507,6 @@ do -- the frame's helpers are this block's, not the main chunk's (LuaJIT allows 
         end
         size[2] = frameHeight
         local plan = input.Measure(size[1], sh, fontSize, padding, game, above, below)
-        appearance.Apply(plan, app.options.appearance.input)
         plan.font = fonts.Get(app.options.fontFile)
         plan.leftPadding, plan.rightPadding = pad.left, pad.right
         c.plan = plan
@@ -1400,6 +1528,7 @@ do -- the frame's helpers are this block's, not the main chunk's (LuaJIT allows 
     local function MeasureSecond(c, sw, sh)
         local routes = primary.Routes and primary.Routes() or nil
         c.routes = routes
+        RefreshRetention(routes)
         Fill(splitRect, secondary.Rect(sw, sh))
         local box, game, fontSize, above, below = c.box, c.game, c.fontSize, c.above, c.below
         local second
@@ -1537,9 +1666,9 @@ do -- the frame's helpers are this block's, not the main chunk's (LuaJIT allows 
         if not expandPlace then expandPlace = {} end
         expandPlace.left, expandPlace.bottom = left, bottom
     end
-    -- Open, the input is lifted onto the panel, which keeps the input's bottom; the logs above the input. An attached
-    -- panel takes the bottom of the logs' place: both boxes drawn wholly above it (copies, so a held box is not lifted
-    -- twice). Where the expanded log will open is asked for already, so the game lays it out there from its first frame.
+    -- The panel takes the same space whether input is open or closed. Once the full footprint is
+    -- placed above it, input takes the bottom of the first log, reducing its rows instead of moving
+    -- either log. Copies keep held geometry from shrinking again on the next frame.
     local function PanelAndLift(c)
         local box, second, plan, panelBase = c.box, c.second, c.plan, c.panelBase
         local open = plan.active and box ~= nil
@@ -1555,14 +1684,13 @@ do -- the frame's helpers are this block's, not the main chunk's (LuaJIT allows 
                     bottom = panelBase.bottom, height = 0 }
             end
         end
-        panelAttachment = infoPanel.Prepare(app.options.infoPanel, panelHost, panelSplit, plan.height, c.fontSize, app.options.fontFile,
-            open and plan.bottom or nil)
+        panelAttachment = infoPanel.Prepare(app.options.infoPanel, panelHost, panelSplit, plan.height, c.fontSize, app.options.fontFile)
         local lift = panelAttachment and panelAttachment.lift or 0
-        if panelAttachment then plan.bottom = plan.bottom - panelAttachment.inputLift end -- this frame's plan, measured afresh each frame
         if lift > 0 then box, second = Lifted(box, lift, liftedFirst), Lifted(second, lift, liftedSecond) end
-        if box and not open then SetExpandPlace(box.left, box.bottom + lift)
+        if box then SetExpandPlace(box.left, box.bottom + lift)
         elseif panelOnly and not open then SetExpandPlace(panelHost.left, panelHost.bottom) end
         PlaceLog(app.options)
+        box, c.rowCount = layout.InsetInput(box, plan, c.rowCount, c.fontSize, c.above, c.below, ROW_GAP)
         c.box, c.second, c.open, c.panelOnly = box, second, open, panelOnly
     end
     -- Each window's contents, drawn inside it (with the chat's font pushed round the log), then its panel slot
@@ -1600,7 +1728,7 @@ do -- the frame's helpers are this block's, not the main chunk's (LuaJIT allows 
         local box, second, state = c.box, c.second, c.state
         if box then
             place[1], place[2] = box.left, box.bottom
-            size[1], size[2] = box.width, box.height
+            size[1], size[2] = box.width, math.max(1, box.height) -- zero means auto-size to ImGui
             selectedWindow = state ~= nil and state.selectedWindow or nil
             -- the light and cursor on the window the game's focus is on; on the first while the second is not drawn
             c.litFirst = selectedWindow ~= nil and (selectedWindow == 1 or not second)
@@ -1663,7 +1791,7 @@ do -- the frame's helpers are this block's, not the main chunk's (LuaJIT allows 
         -- Input is independent: keep it working while waiting for the log's first geometry sample.
         c.inputDrawn = input.Draw(c.plan.width, sh, c.fontSize, c.padding, flags, c.game, c.plan) == true
         -- The picker only over the bar: a frame without it (closed, expanded, a failed capture) closes it, below
-        if c.inputDrawn then DrawPicker(c.plan) end
+        if c.inputDrawn then Translate.Draw(c.plan) end
     end
     -- The tooltips, drawn past every window
     local function Tooltips()
@@ -1677,11 +1805,12 @@ do -- the frame's helpers are this block's, not the main chunk's (LuaJIT allows 
         infoPanel.BeginFrame() -- renew menu placement only with this frame's successful host capture
         DrainTap() -- the frame's lines as uihook has them after every addon, or chatbox's own copies
         if not app.options.enabled[1] or zoning then Release(); return end
+        Translate.Flush() -- last frame's chosen phrase into the game's buffer
         infoPanel.Hud(app.options.infoPanel) -- Hide Game Clock and Hide Compass, with or without the panel or chat's capture
         ImportHistory() -- the game's history before chatbox's own, once
         if not primary.Begin() then
             ResetViews(false)
-            ClosePicker()
+            Translate.Close()
             secondary.Stop(); input.Stop(); return
         end
         captured, capturedSplit, selectedWindow, panelAttachment = false, false, nil, nil
@@ -1689,7 +1818,7 @@ do -- the frame's helpers are this block's, not the main chunk's (LuaJIT allows 
         local c = compact
         c.splitDrawn, c.firstHidden, c.compactMinSize, c.inputDrawn = false, false, false, false
         local ok, err = pcall(DrawFrame)
-        if not c.inputDrawn then ClosePicker() end
+        if not c.inputDrawn then Translate.Close() end
         if c.compactMinSize then imgui.PopStyleVar() end
         if not ok then Release(); error(err, 0) end
         -- The first log at 0 lines keeps Begin's empty hide, so nothing of the game's shows in its place either
@@ -1877,81 +2006,4 @@ ashita.events.register('mouse', 'chatbox_scroll', function(e)
     for _, view in ipairs(views) do
         if view.target and (not io.WantCaptureMouse or view.pressed) and Scroll(view, view.target, e, x, y) then return end
     end
-end)
-
--- Auto-Translate's keys. While the game's input is open and the setting is on, Tab is kept from the game in every
--- form (its press, repeats, release and the character it types), so the game's own menu never opens and the bar
--- stays chatbox's; a press opens the picker or moves it. While the picker is open, Up, Down, Page Up, Page Down,
--- Enter and Escape are its own. Tab, Enter and Escape act once a press and are then kept from the game until they
--- are let go: the character each types comes as a second press with the same lparam, and Enter's, reaching the game
--- after the phrase is in and the picker closed, would send the line. A taken key pressed afresh well after (its
--- release missed, the window having lost focus) is a new press. The arrows and pages type nothing and move on every
--- repeat. Anything else is the game's.
-local VK_TAB = 9
-local VK_SHIFTS = { [16] = true, [160] = true, [161] = true }
-local PICKER_KEYS = { [38] = 'up', [40] = 'down', [33] = 'pageUp', [34] = 'pageDown', [13] = 'enter', [27] = 'escape' }
-local ONCE = { [VK_TAB] = true, [13] = true, [27] = true }
-local TAKEN_AFRESH = 0.25 -- seconds after which a taken key's fresh press is a new one
--- DirectInput's ids for the same keys: Tab, and the picker's (both Enters), each kept by the same rule
-local DIK_TAB = 0x0F
-local DIK_PICKER = { [0xC8] = 38, [0xD0] = 40, [0xC9] = 33, [0xD1] = 34, [0x1C] = 13, [0x9C] = 13, [0x01] = 27 }
-local function InputOpen()
-    local ok, state = pcall(function() return AshitaCore:GetChatManager():IsInputOpen() end)
-    return ok and state == 0x11
-end
-local function Translating() return app.options.enabled[1] and app.options.autoTranslate[1] and not zoning end
-local function Act(action)
-    if action == 'up' then Use('Move', -1)
-    elseif action == 'down' then Use('Move', 1)
-    elseif action == 'pageUp' then Use('Page', -1)
-    elseif action == 'pageDown' then Use('Page', 1)
-    elseif action == 'enter' then
-        -- The buffer as it is now, not as the last frame saw it: a letter typed since would be left beside the token
-        local raw, caret = ReadInput()
-        if raw then Use('Refresh', raw, caret) end
-        local ok, chat = pcall(function() return AshitaCore:GetChatManager() end)
-        if ok and chat and PickerOpen() then Use('Enter', chat) else ClosePicker() end
-    elseif action == 'escape' then Use('Back') end
-end
-ashita.events.register('key', 'chatbox_translate', function(e)
-    local vk, lparam = tonumber(e.wparam) or 0, tonumber(e.lparam) or 0
-    local up, repeated = bit.band(lparam, 0x80000000) ~= 0, bit.band(lparam, 0x40000000) ~= 0
-    if VK_SHIFTS[vk] then shiftHeld = not up end
-    local since = taken[vk]
-    if since and (up or repeated or os.clock() - since < TAKEN_AFRESH) then
-        e.blocked = true
-        if up then taken[vk] = nil end
-        return
-    end
-    taken[vk] = nil
-    if e.blocked or not Translating() then return end
-    if not InputOpen() then return ClosePicker() end
-    if vk == VK_TAB then
-        if not Picker() then return end -- no dictionary: Tab stays the game's
-        e.blocked = true
-        if up or repeated then return end
-        taken[vk] = os.clock()
-        if PickerOpen() then return Use('Move', shiftHeld and -1 or 1) end
-        local raw, caret = ReadInput()
-        if raw then Use('Open', raw, caret) else ClosePicker() end
-        return
-    end
-    local action = PickerOpen() and PICKER_KEYS[vk]
-    if not action then return end
-    e.blocked = true
-    if up or (repeated and ONCE[vk]) then return end
-    if ONCE[vk] then taken[vk] = os.clock() end
-    Act(action)
-end)
--- The game's buttons come through DirectInput: Tab, and the picker's keys while it is open or taken, are kept from
--- that path as well, so the game never sees half of a key the picker has
-ashita.events.register('key_data', 'chatbox_translate_data', function(e)
-    if e.blocked then return end
-    local key = tonumber(e.key)
-    if key == DIK_TAB then
-        if Translating() and InputOpen() and Picker() then e.blocked = true end
-        return
-    end
-    local vk = DIK_PICKER[key]
-    if vk and (taken[vk] or (PickerOpen() and Translating() and InputOpen())) then e.blocked = true end
 end)
