@@ -760,7 +760,7 @@ window PushClipRect (0,0) (1920,1080) false
 window AddText (383,193) #F0E6C2FF Target
 window PopClipRect
 imgui End
-## filled with sample data, the settings open (bare): 671 calls
+## filled with sample data, the settings open (bare): 625 calls
 imgui Begin Party Settings
 imgui TextColored (1,0.75,0.55,1) [-] Mouse Interaction
 imgui Text Clickthrough:
@@ -770,52 +770,6 @@ imgui SameLine 22
 imgui NewLine
 imgui TextColored (1,0.75,0.55,1) [-] Positioning
 imgui Text Automatic Positioning:
-imgui SameLine 22
-imgui NewLine
-imgui TextColored (1,0.75,0.55,1) [-] Visibility
-imgui Text Hide While Map Open:
-imgui SameLine 22
-imgui Text Hide While Chat Open:
-imgui SameLine 22
-imgui Text Hide While Loading:
-imgui SameLine 22
-imgui Text Hide During Events:
-imgui SameLine 22
-imgui Text Hide With Game Interface:
-imgui SameLine 22
-imgui NewLine
-imgui TextColored (1,0.75,0.55,1) [-] Fading
-imgui Text Fade When Idle:
-imgui SameLine 22
-imgui NewLine
-imgui TextColored (1,0.75,0.55,1) [-] Timing And Opacity
-imgui Text Idle Time (Seconds):
-imgui SameLine 22
-imgui Text Idle Fade Time (Seconds):
-imgui SameLine 22
-imgui Text Fade In/Out Time (Seconds):
-imgui SameLine 22
-imgui Text Faded Opacity (%):
-imgui SameLine 22
-imgui NewLine
-imgui TextColored (1,0.75,0.55,1) [-] Keep Frames Visible
-imgui Text Stay Visible While Moving:
-imgui SameLine 22
-imgui Text Show On Party Changes:
-imgui SameLine 22
-imgui Text Stay Visible While Engaged:
-imgui SameLine 22
-imgui Text Stay Visible While Targeting:
-imgui SameLine 22
-imgui Text Stay Visible While Missing HP:
-imgui SameLine 22
-imgui Text Stay Visible While Healing:
-imgui SameLine 22
-imgui NewLine
-imgui TextColored (1,0.75,0.55,1) [-] Affected Windows
-imgui Text Party:
-imgui SameLine 22
-imgui Text Target:
 imgui SameLine 22
 imgui Separator
 imgui SameLine
