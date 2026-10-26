@@ -232,6 +232,11 @@ Unload Party and partyhook before replacing the DLL; keep hideparty unloaded.
   draws in the game's place, and **Follow Default UI Behavior** sits with them; each one's explanation is in the tooltip of the (?) after it. Pets are rows of the
   Party windows and go with Party. The choices are kept while the plugin is not loaded. `/pt native on` turns Use uihook on too; `/pt native status` says how the hooking is doing.
 
+While a fish is on the line, target mode lets the game's own target window draw, since the game shows the
+fish's stamina gauge in it, and Party's target windows step aside. This lasts from the bite (packet 0x115)
+until the fight ends (the client's fishing packet ending or releasing the catch, a change of area, or the
+fight's time limit passing).
+
 Target mode preserves the **game's own overhead main/subtarget arrows**, including placement, animation
 and range tints, by allowing their two verified native draw calls through HUD suppression. No Lua
 replacement cursor is drawn. All custom target windows share the native target window's lifecycle;
