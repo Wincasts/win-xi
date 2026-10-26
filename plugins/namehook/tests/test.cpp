@@ -196,7 +196,14 @@ struct TestPlugin : public Nameplate {
 		targetWidth = 1200.0f;
 		targetHeight = 900.0f;
 	}
-	void DrawCustom(uint32_t, const HookDrawing& drawing, const HookQuad* quads, const float* position) override {
+	uint32_t lastOwner = 0;
+	int slotsBegun = 0, slotsFresh = 0;
+	void BeginSlot(uint32_t, const HookDraw&, bool fresh) override {
+		slotsBegun++;
+		slotsFresh += fresh ? 1 : 0;
+	}
+	void DrawCustom(uint32_t owner, uint32_t, const HookDrawing& drawing, const HookQuad* quads, const float* position) override {
+		lastOwner = owner;
 		custom++;
 		lastX = position[0];
 		lastQuads = quads;
@@ -1045,6 +1052,66 @@ int main() {
 	Shared.Claimed = 0;
 	plugin.Publish(nullptr, nullptr, true);
 	plugin.Publish(nullptr, nullptr, true);
+
+	// A second addon drawing names, through a claim slot (HookClaims): by priority, the first claiming a
+	// name's category that has drawn it draws it; a claim with nothing drawn still keeps the client's name
+	// from being drawn; a slot whose claim lapses is freed
+	{
+		CHECK(memcmp(Claims.Magic, "NAMEHOOKCLAIMS", 14) == 0 && Claims.Version == 1 && Claims.Size == sizeof(HookClaims)
+			&& Claims.SlotSize == sizeof(HookClaimSlot) && Claims.SlotsMax == HOOK_CLAIM_SLOTS && Claims.SharedPriority == HOOK_CLAIM_PRIORITY);
+		for (uint32_t i = 0; i < HOOK_CLAIM_SLOTS; i++) { // as Init readies them
+			ZeroMemory(&SlotDraws[i], sizeof(SlotDraws[i]));
+			SlotDraws[i].QuadsMax = HOOK_QUADS_MAX;
+			Claims.Slots[i].Draw = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(&SlotDraws[i]));
+		}
+		auto claimBoth = [&](uint32_t priority) {
+			Shared.Claimed = CATEGORY_PARTY;
+			Shared.ClaimFrame = Shared.Frame;
+			Claims.Slots[1] = { 7, CATEGORY_PARTY, Shared.Frame, priority, Claims.Slots[1].Draw, {} };
+		};
+		auto drawBoth = [&](bool slot, bool shared) {
+			Draw.Frame = Shared.Frame; Draw.QuadCount = 4;
+			Draw.Entities[0x401] = { shared ? Draw.Frame : 0, 0, shared ? 4u : 0u, 1.0f, 0.0f, 0 };
+			SlotDraws[1].Frame = Shared.Frame; SlotDraws[1].QuadCount = 6;
+			SlotDraws[1].Entities[0x401] = { slot ? SlotDraws[1].Frame : 0, 2, slot ? 4u : 0u, 1.0f, 0.0f, 0 };
+		};
+		plugin.Publish(nullptr, nullptr, true);
+		claimBoth(200);
+		drawBoth(true, true);
+		int custom = plugin.custom, slotsBegun = plugin.slotsBegun;
+		Fresh();
+		CHECK(!Drawn(buddy) && plugin.custom == custom + 1 && plugin.lastOwner == 2 && plugin.lastQuads == &SlotDraws[1].Quads[2]);
+		CHECK(plugin.slotsBegun == slotsBegun + HOOK_CLAIM_SLOTS && plugin.slotsFresh > 0);
+		// below HookShared's own claim: that one draws it
+		plugin.Publish(nullptr, nullptr, true);
+		claimBoth(50);
+		drawBoth(true, true);
+		Fresh();
+		CHECK(!Drawn(buddy) && plugin.custom == custom + 2 && plugin.lastOwner == 0 && plugin.lastQuads == &Draw.Quads[0]);
+		// above it, but with the name not drawn: left to the next, HookShared's
+		plugin.Publish(nullptr, nullptr, true);
+		claimBoth(200);
+		drawBoth(false, true);
+		Fresh();
+		CHECK(!Drawn(buddy) && plugin.custom == custom + 3 && plugin.lastOwner == 0);
+		// the slot alone, claiming and drawing nothing: the client's name is still not drawn, nor any other
+		plugin.Publish(nullptr, nullptr, true);
+		claimBoth(200);
+		Shared.Claimed = 0;
+		drawBoth(false, false);
+		Fresh();
+		CHECK(!Drawn(buddy) && plugin.custom == custom + 3);
+		plugin.Publish(nullptr, nullptr, true);
+		CHECK(Shared.Count == 1 && Shared.Names[0].Flags == NAME_WANTED);
+		// its claim not made again: after half a second it lapses, the slot is freed and the client draws again
+		for (int i = 0; i < FRAMES_IN(HOOK_CLAIM_TIME) + 1; i++) {
+			plugin.Publish(nullptr, nullptr, true);
+		}
+		Fresh();
+		CHECK(Claims.Slots[1].Owner == 0 && Claims.Slots[1].Categories == 0 && Drawn(buddy));
+		Shared.Claimed = 0;
+		plugin.Publish(nullptr, nullptr, true);
+	}
 
 	// World-space speech bubbles: their own block and their own drawing, beside the names and
 	// independent of whether a name is shown or claimed

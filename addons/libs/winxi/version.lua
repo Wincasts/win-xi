@@ -110,6 +110,8 @@
 -- 59: 32 texture slots with namehook 1.43 (nameplates.TextureSlots, Feature.Textures32): SetTexture and
 --     popups.SetTexture take 8 to 31 there, and write past the eighth only when the plugin has them
 -- 60: camera, namehook 1.44's camera: Get, and Project, a world point placed as a name is, under lens too
+-- 61: a second names addon through namehook 1.45's claim slots: nameplates.Claims, OwnerOf, TakeSlot,
+--     ClaimSlot, SlotDrawing (for BeginDrawing) and ReleaseSlot; SharedPriority
 return {
-    Number = 60,
+    Number = 61,
 };

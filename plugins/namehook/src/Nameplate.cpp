@@ -305,6 +305,9 @@ static struct {
 static HookDraw Draw;
 static HookBubbles Bubbles = { "NAMEBUBBLES", 2, sizeof(HookBubbles), sizeof(HookDraw), {}, {} };
 static HookPopups Popups = { "NAMEHOOKPOPUPS", 1, sizeof(HookPopups), sizeof(HookPopup), 0, 0, 0, 0, 0, 0, 0, {} };
+// The claim slots and their drawings, for addons drawing names besides HookShared's (HookClaims)
+static HookDraw SlotDraws[HOOK_CLAIM_SLOTS];
+static HookClaims Claims = { "NAMEHOOKCLAIMS", 1, sizeof(HookClaims), sizeof(HookClaimSlot), HOOK_CLAIM_SLOTS, HOOK_CLAIM_PRIORITY, {}, {} };
 static HookCamera Camera = { "NAMEHOOKCAMERA", 1, sizeof(HookCamera), 0, 0, {}, {}, {}, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 static HookPopupDraw PopupDraw;
 
@@ -545,6 +548,71 @@ static bool IsClaimed(uint32_t category) {
 	return (Shared.Claimed & category) != 0 && FrameTime - ClaimTime <= HOOK_CLAIM_TIME;
 }
 
+// Each slot's claim last seen made, by whom, and when; as ClaimSeen and ClaimTime are HookShared's
+static uint32_t SlotClaimSeen[HOOK_CLAIM_SLOTS] = { 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF };
+static uint32_t SlotOwnerSeen[HOOK_CLAIM_SLOTS] = {};
+static uint64_t SlotClaimTime[HOOK_CLAIM_SLOTS] = {};
+
+static void NoteSlotClaims() {
+	for (uint32_t i = 0; i < HOOK_CLAIM_SLOTS; i++) {
+		const HookClaimSlot& slot = Claims.Slots[i];
+		if (slot.ClaimFrame != SlotClaimSeen[i] || slot.Owner != SlotOwnerSeen[i]) {
+			SlotClaimSeen[i] = slot.ClaimFrame;
+			SlotOwnerSeen[i] = slot.Owner;
+			SlotClaimTime[i] = FrameTime;
+		}
+	}
+}
+
+// Whether slot i's owner draws this category's names itself
+static bool SlotClaims(uint32_t i, uint32_t category) {
+	const HookClaimSlot& slot = Claims.Slots[i];
+	return slot.Owner != 0 && (slot.Categories & category) != 0 && FrameTime - SlotClaimTime[i] <= HOOK_CLAIM_TIME;
+}
+
+// Whether anybody, HookShared's claim or a slot's, draws this category's names itself
+static bool AnyClaims(uint32_t category) {
+	if (IsClaimed(category)) {
+		return true;
+	}
+	NoteSlotClaims();
+	for (uint32_t i = 0; i < HOOK_CLAIM_SLOTS; i++) {
+		if (SlotClaims(i, category)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+// The claims in the order a name is offered to them this frame: by priority, highest first, HookShared's
+// own (0) before a slot of the same; a slot is 1 + its index
+static uint32_t ClaimOrder[1 + HOOK_CLAIM_SLOTS];
+
+static void OrderClaims() {
+	for (uint32_t i = 0; i <= HOOK_CLAIM_SLOTS; i++) {
+		ClaimOrder[i] = i;
+	}
+	auto priority = [](uint32_t owner) { return owner == 0 ? static_cast<uint32_t>(HOOK_CLAIM_PRIORITY) : Claims.Slots[owner - 1].Priority; };
+	for (uint32_t i = 1; i <= HOOK_CLAIM_SLOTS; i++) {
+		for (uint32_t j = i; j > 0 && priority(ClaimOrder[j]) > priority(ClaimOrder[j - 1]); j--) {
+			const uint32_t t = ClaimOrder[j]; ClaimOrder[j] = ClaimOrder[j - 1]; ClaimOrder[j - 1] = t;
+		}
+	}
+}
+
+// Slots whose claim has lapsed are freed for another addon to take
+static void FreeLapsedSlots() {
+	NoteSlotClaims();
+	for (uint32_t i = 0; i < HOOK_CLAIM_SLOTS; i++) {
+		HookClaimSlot& slot = Claims.Slots[i];
+		if (slot.Owner != 0 && FrameTime - SlotClaimTime[i] > HOOK_CLAIM_TIME) {
+			slot.Owner = 0;
+			slot.Categories = 0;
+			SlotDraws[i].QuadCount = 0;
+		}
+	}
+}
+
 // Whether an addon has drawn names lately enough for them to be the ones to draw
 static bool IsDrawFresh() {
 	return Shared.Frame - Draw.Frame <= HOOK_DRAW_FRAMES;
@@ -581,6 +649,11 @@ static void DrawNameLineFrom(uintptr_t site, const XiModel* pModel, const float*
 		NamesFrame = Shared.Frame;
 		Instance->BeginBubbles(Bubbles.Draw, Bubbles.Draw.QuadCount > 0 && Bubbles.Draw.QuadCount <= HOOK_QUADS_MAX
 			&& Shared.Frame - Bubbles.Draw.Frame <= HOOK_DRAW_FRAMES);
+		OrderClaims();
+		NoteSlotClaims();
+		for (uint32_t i = 0; i < HOOK_CLAIM_SLOTS; i++) {
+			Instance->BeginSlot(i, SlotDraws[i], SlotClaims(i, CATEGORY_ALL) && Shared.Frame - SlotDraws[i].Frame <= HOOK_DRAW_FRAMES);
+		}
 		Instance->BeginNames(Draw, IsDrawFresh(), Shared.TargetWidth, Shared.TargetHeight, Shared.FontTexture);
 	}
 
@@ -677,14 +750,23 @@ static void DrawNameLineFrom(uintptr_t site, const XiModel* pModel, const float*
 		const uint32_t category = Classify(pEntity, flags);
 		if (IsWanted(pEntity, category, flags)) {
 			flags |= NAME_WANTED;
-			if (!IsClaimed(category)) {
+			if (!AnyClaims(category)) {
 				flags |= NAME_DRAWN;
 			} else if (!repeat && at != nullptr && Instance != nullptr) {
-				// claimed by an addon: if it has drawn the name, that is put where the client's would be
-				const HookDrawing* pDrawing = FindDrawing(pEntity->EntityIndex);
-				if (pDrawing != nullptr) {
-					Instance->DrawCustom(pEntity->EntityIndex, *pDrawing, &Draw.Quads[pDrawing->First], at);
-					flags |= NAME_CUSTOM;
+				// claimed by an addon: the first claiming it, by priority, that has drawn the name has it put
+				// where the client's would be
+				for (uint32_t k = 0; k <= HOOK_CLAIM_SLOTS; k++) {
+					const uint32_t owner = ClaimOrder[k];
+					if (owner == 0 ? !IsClaimed(category) : !SlotClaims(owner - 1, category)) {
+						continue;
+					}
+					const HookDraw& draw = owner == 0 ? Draw : SlotDraws[owner - 1];
+					const HookDrawing* pDrawing = FindDrawing(pEntity->EntityIndex, draw);
+					if (pDrawing != nullptr) {
+						Instance->DrawCustom(owner, pEntity->EntityIndex, *pDrawing, &draw.Quads[pDrawing->First], at);
+						flags |= NAME_CUSTOM;
+						break;
+					}
 				}
 			}
 		}
@@ -1658,7 +1740,7 @@ void Nameplate::SayStatus() {
 
 	if (Shared.Hooked == 0) {
 		Sayf(this, "This client's name drawing was not recognised: names are shown and hidden, but none are listed for addons.");
-	} else if (IsClaimed(CATEGORY_ALL)) {
+	} else if (AnyClaims(CATEGORY_ALL)) {
 		Sayf(this, "%u names last frame. An addon is drawing some in place of the client.", static_cast<unsigned>(Shared.Count));
 	} else {
 		Sayf(this, "%u names last frame.", static_cast<unsigned>(Shared.Count));
@@ -2138,6 +2220,14 @@ int Nameplate::Init() {
 	Bubbles.Draw.Frame = 0 - (HOOK_DRAW_FRAMES + 1);
 	Draw.QuadsMax = HOOK_QUADS_MAX;
 	Draw.Frame = 0 - (HOOK_DRAW_FRAMES + 1); // nothing drawn yet
+	for (uint32_t i = 0; i < HOOK_CLAIM_SLOTS; i++) {
+		ZeroMemory(&SlotDraws[i], sizeof(SlotDraws[i]));
+		SlotDraws[i].QuadsMax = HOOK_QUADS_MAX;
+		SlotDraws[i].Frame = 0 - (HOOK_DRAW_FRAMES + 1);
+		ZeroMemory(&Claims.Slots[i], sizeof(Claims.Slots[i]));
+		Claims.Slots[i].Draw = static_cast<uint32_t>(reinterpret_cast<uintptr_t> (&SlotDraws[i]));
+		SlotClaimSeen[i] = 0xFFFFFFFF;
+	}
 	ZeroMemory(&PopupDraw, sizeof(PopupDraw));
 	PopupDraw.QuadsMax = HOOK_POPUP_QUADS_MAX;
 	PopupDraw.DrawingsMax = HOOK_POPUPS_MAX;
@@ -2309,6 +2399,7 @@ void Nameplate::Publish(const float* view, const float* projection, bool frameDo
 		PopupFilling.Published = false;
 		NoteClaim(); // a claim made last frame is timed from then
 		NotePopupClaim();
+		FreeLapsedSlots();
 		SayNewPopups(this);
 		Shared.Frame++;
 		FrameTime = Clock();
@@ -2384,6 +2475,11 @@ int Nameplate::Deinit() {
 	Popups.Hooked = 0;
 	Popups.Count = 0;
 	Popups.Draw = 0;
+	for (uint32_t i = 0; i < HOOK_CLAIM_SLOTS; i++) {
+		Claims.Slots[i].Owner = 0;
+		Claims.Slots[i].Categories = 0;
+		Claims.Slots[i].Draw = 0;
+	}
 
 	// Already stranded (a load refused, or one whose commit could not be taken back): nothing more to do
 	if (Stranded) {

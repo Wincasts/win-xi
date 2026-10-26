@@ -1,5 +1,11 @@
 # Changelog
 
+## namehook 1.45 — a second names addon
+
+- A new block, `HookClaims` (magic `NAMEHOOKCLAIMS`, version 1): three claim slots, each with an `Owner` (an addon's own number; 0 is free), the `Categories` it claims, its `ClaimFrame`, a `Priority` and a `HookDraw` of its own. An addon takes a free slot, claims and draws into it each frame as HookShared's claim is made and drawn. The client draws no name whose category anyone claims; of those claiming it, by priority, highest first (HookShared's own claim is 100, `SharedPriority`), the first that has drawn the name draws it, so a higher one can leave names to a lower. A slot's claim lapses as HookShared's does, and the slot is then freed. HookShared's claim works as it did: an addon that knows nothing of slots is the one at 100.
+- The host keeps each slot's textures and bounds apart (`BeginSlot`, and `DrawCustom` says whose drawing it is).
+- Tests: the block's header; a slot above HookShared's claim draws, below it the shared claim does, above it with the name not drawn the shared claim does; a slot claiming alone keeps the client's name from being drawn; a lapsed slot freed and the client drawing again.
+
 ## namehook 1.44 — the camera, shared
 
 - A new block, `HookCamera` (magic `NAMEHOOKCAMERA`, version 1): the camera names are placed with, as readied for this frame's first name: view, projection and the two together, the picture's viewport, and lens's warp when it bends the world (mode, strength and the picture's half fields of view as tangents). `Frame` is the HookShared frame it was readied in and `Valid` 1 once it holds a camera; a frame with no names (the game's names off) leaves it as it was. For an addon to place anything over the world where a name at that point would be, under lens too.

@@ -147,6 +147,26 @@ ffi.cdef[[
         namehook_quad_t Quads[16384];
         uint32_t TexturesExtra[24]; // namehook 1.43, Feature.Textures32: written only then
     } namehook_draw_t;
+
+    typedef struct {
+        uint32_t Owner;
+        uint32_t Categories;
+        uint32_t ClaimFrame;
+        uint32_t Priority;
+        uint32_t Draw;
+        uint32_t Reserved[3];
+    } namehook_claim_slot_t;
+
+    typedef struct {
+        char     Magic[16];
+        uint32_t Version;
+        uint32_t Size;
+        uint32_t SlotSize;
+        uint32_t SlotsMax;
+        uint32_t SharedPriority;
+        uint32_t Reserved[3];
+        namehook_claim_slot_t Slots[3];
+    } namehook_claims_t;
 ]]
 
 local nameplates = {};
@@ -656,6 +676,118 @@ function nameplates.EndName()
         draw.QuadCount = drawing.First + drawing.Count;
         drawing = nil;
     end
+end
+
+-- A second addon drawing names (namehook 1.45): beside the one claiming through the plugin's own claim (Name,
+-- with nameplates.Claim), up to three more each take a claim slot and draw into its own buffer. Of those
+-- claiming a name's category, by priority, highest first, the first that has drawn the name draws it; the
+-- plugin's own claim is priority 100 (nameplates.SharedPriority). Each frame:
+--
+--   local owner = nameplates.OwnerOf(addon.name)          -- a number of the addon's own, never 0
+--   slot = slot or nameplates.TakeSlot(owner)             -- nil and why where none is free or the plugin is older
+--   if slot and nameplates.ClaimSlot(slot, owner, categories, priority) then
+--       local scale = nameplates.BeginDrawing(nameplates.SlotDrawing(slot), true)
+--       ... nameplates.BeginName / Quad / EndName, nameplates.SetTexture, as for the plugin's own claim
+--   else slot = nil end                                    -- lost (it lapsed and another took it): take one again
+--
+-- and nameplates.ReleaseSlot(slot, owner) on unload. A claim not renewed lapses in half a second, and the
+-- plugin frees the slot.
+local CLAIMS_MAGIC = '4E414D45484F4F4B434C41494D530000'; -- "NAMEHOOKCLAIMS" and the two 0s after it
+local claims, claimsGeneration, claimsLookedAt = nil, nil, -LOOK_EVERY;
+
+nameplates.SharedPriority = 100;
+
+-- The plugin's claim slots (its HookClaims), or nil and why not
+function nameplates.Claims()
+    local hook = nameplates.Hook();
+    if (hook == nil) then claims, claimsLookedAt = nil, -LOOK_EVERY; return nil, problems.unloaded; end
+    local generation = nameplates.Generation();
+    if (claims ~= nil and claimsGeneration ~= generation) then claims, claimsLookedAt = nil, -LOOK_EVERY; end
+    if (claims == nil) then
+        local now = os.clock();
+        if (now - claimsLookedAt < LOOK_EVERY) then return nil, 'Looking for namehook\'s claim slots.'; end
+        claimsLookedAt = now;
+        local found = ashita.memory.find(nameplates.Plugin .. '.dll', 0, CLAIMS_MAGIC, 0, 0);
+        if (found == nil or found == 0) then return nil, 'A second names addon needs namehook 1.45 or newer.'; end
+        local candidate = ffi.cast('namehook_claims_t*', found);
+        if (not abi.Accepts(candidate, 'namehook_claims_t', 1) or candidate.SlotSize ~= ffi.sizeof('namehook_claim_slot_t')) then
+            return nil, 'namehook keeps its claim slots another way than this addon reads: one of the two is older than the other.';
+        end
+        claims, claimsGeneration = candidate, generation;
+        nameplates.SharedPriority = tonumber(candidate.SharedPriority);
+    end
+    return claims;
+end
+
+-- A number of the addon's own for its slot, from its name: never 0
+function nameplates.OwnerOf(name)
+    -- FNV-1a, its multiply split in two so that no product passes the 2^53 a double holds exactly
+    local h = 2166136261;
+    for i = 1, #name do
+        h = bit.bxor(h, name:byte(i)) % 4294967296;
+        local low, high = h % 65536, math.floor(h / 65536);
+        h = (low * 16777619 + ((high * 16777619) % 65536) * 65536) % 4294967296;
+    end
+    return h ~= 0 and h or 1;
+end
+
+local function SlotOf(slot)
+    local c = nameplates.Claims();
+    if (c == nil or slot == nil or slot < 1 or slot > math.min(c.SlotsMax, 3)) then return nil; end
+    return c.Slots[slot - 1];
+end
+
+-- Takes a free slot for owner (or the one it holds already): the slot's number, or nil and why not
+function nameplates.TakeSlot(owner, priority)
+    local c, why = nameplates.Claims();
+    if (c == nil) then return nil, why; end
+    local hook = nameplates.Hook();
+    local free = nil;
+    for i = 0, math.min(c.SlotsMax, 3) - 1 do
+        if (c.Slots[i].Owner == owner) then return i + 1; end
+        if (free == nil and c.Slots[i].Owner == 0) then free = i; end
+    end
+    if (free == nil) then return nil, 'Every one of namehook\'s claim slots is taken by another addon.'; end
+    local s = c.Slots[free];
+    s.Categories, s.Priority, s.ClaimFrame = 0, priority or nameplates.SharedPriority, hook.Frame;
+    s.Owner = owner; -- last: the slot is the addon's once the rest is in place
+    return free + 1;
+end
+
+-- Renews the slot's claim, made every frame: false where the slot is no longer the owner's
+function nameplates.ClaimSlot(slot, owner, categories, priority)
+    local s, hook = SlotOf(slot), nameplates.Hook();
+    if (s == nil or hook == nil or s.Owner ~= owner) then return false; end
+    s.Categories = categories or 0;
+    if (priority ~= nil) then s.Priority = priority; end
+    s.ClaimFrame = hook.Frame;
+    return true;
+end
+
+-- What to hand nameplates.BeginDrawing to draw into the slot's buffer, or nil
+function nameplates.SlotDrawing(slot)
+    local s, hook = SlotOf(slot), nameplates.Hook();
+    if (s == nil or hook == nil or s.Draw == 0) then return nil; end
+    return { Hooked = hook.Hooked, Frame = hook.Frame, Draw = s.Draw, Width = hook.Width, Height = hook.Height,
+        TargetWidth = hook.TargetWidth, TargetHeight = hook.TargetHeight };
+end
+
+-- Gives the slot back, its drawing cleared, where it is still the owner's
+function nameplates.ReleaseSlot(slot, owner)
+    local s, hook = SlotOf(slot), nameplates.Hook();
+    draw, drawing, quadLimit = nil, nil, 0;
+    if (s == nil or hook == nil or s.Owner ~= owner) then return; end
+    if (s.Draw ~= 0) then
+        local target = ffi.cast('namehook_draw_t*', s.Draw);
+        target.QuadCount = 0;
+        ffi.fill(target.Textures, ffi.sizeof(target.Textures));
+        if nameplates.Supports(nameplates.Feature.Textures32) then
+            ffi.fill(target.TexturesExtra, ffi.sizeof(target.TexturesExtra));
+        end
+        target.Frame = hook.Frame - 9;
+    end
+    s.Categories = 0;
+    s.Owner = 0;
 end
 
 return nameplates;
