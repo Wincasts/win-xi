@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include "slots.h"
+#include "../../common/CodePatch.h"
 
 IPlugin* CreateBuffModule();
 IPlugin* CreatePartyModule();
@@ -15,12 +16,18 @@ public:
     const char* GetAuthor() const override { return "win"; }
     const char* GetDescription() const override { return "The game's own interface changed: buffs, party and alliance, target, clock, compass and chat replaced by addons' own, and its menus skinned, moved and scaled."; }
     const char* GetLink() const override { return "https://github.com/Wincasts/win-xi"; }
-    double GetVersion() const override { return 1.67; }
+    double GetVersion() const override { return 1.68; }
     // UseCommands: Ashita gives plugins commands only when they ask, and /uihook hud is one; UseText: each line given
     // to the game's chat log, recorded for addons as it stands at uihook's turn
     uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseCommands | Ashita::PluginFlags::UseText | Ashita::PluginFlags::UseDirect3D); }
     bool Initialize(IAshitaCore* core, ILogManager* log, uint32_t id) override {
         m_Core = core;
+        // An earlier unload left a site something else had written over, and the client may go through it into this
+        // DLL: it was kept loaded, and its hooks' state is still what that code reads
+        if (CodeStranded()) {
+            core->GetChatManager()->Write(0, false, "[uihook] An earlier unload had to leave some of uihook's patches in place. Restart the game to load it again.");
+            return false;
+        }
         if (core->GetPluginManager()->IsLoaded("buffhook") || core->GetPluginManager()->IsLoaded("partyhook")
             || GetModuleHandleA("buffhook.dll") || GetModuleHandleA("partyhook.dll")) {
             core->GetChatManager()->Write(0, false, "[uihook] Unload buffhook and partyhook before loading uihook.");
@@ -39,6 +46,9 @@ public:
     void Release() override {
         if (party) { party->Release(); party.reset(); }
         if (buffs) { buffs->Release(); buffs.reset(); }
+        if (CodeStranded() && m_Core) {
+            m_Core->GetChatManager()->Write(0, false, "[uihook] Something else changed the game's code where uihook had patched it, so those patches were left in place and uihook stays in memory. Restart the game before loading uihook again.");
+        }
     }
     bool HandleIncomingText(int32_t mode, bool indent, const char* message, int32_t* modifiedMode, bool* modifiedIndent, char* modifiedMessage, bool injected, bool blocked) override {
         return party && party->HandleIncomingText(mode, indent, message, modifiedMode, modifiedIndent, modifiedMessage, injected, blocked);

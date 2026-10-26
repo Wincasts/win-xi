@@ -29,7 +29,7 @@ int main() {
     uint8_t* image=static_cast<uint8_t*>(VirtualAlloc(nullptr,4096,MEM_COMMIT|MEM_RESERVE,PAGE_EXECUTE_READWRITE));
     memset(image,0xcc,4096); memcpy(image+100,bytes,sizeof(bytes));
     Check(FindPattern(image,4096,WINDOW_PATTERN)==image+100,"native window renderer signature matches captured bytes");
-    Detour detour={WINDOW_PATTERN,WINDOW_STOLEN,-1,reinterpret_cast<void*>(&Replacement),nullptr,nullptr,{}};
+    Detour detour={WINDOW_PATTERN,WINDOW_STOLEN,-1,reinterpret_cast<void*>(&Replacement),nullptr,nullptr,{},{}};
     memcpy(image+200,bytes,sizeof(bytes));
     Check(!Take(detour,image,4096),"duplicate renderer matches are rejected without patching");
     memset(image+200,0xcc,sizeof(bytes));
@@ -40,10 +40,29 @@ int main() {
     // Executable trampoline exercises stack preservation and calling convention with a safe body.
     uint8_t safe[]={0x83,0xec,0x24,0x53,0x55,0x56,0xb8,42,0,0,0,0x5e,0x5d,0x5b,0x83,0xc4,0x24,0xc3};
     memcpy(image+100,safe,sizeof(safe));
-    Detour roundtrip={"83 EC 24 53 55 56 B8 2A",6,-1,reinterpret_cast<void*>(&Replacement),nullptr,nullptr,{}};
+    Detour roundtrip={"83 EC 24 53 55 56 B8 2A",6,-1,reinterpret_cast<void*>(&Replacement),nullptr,nullptr,{},{}};
     Check(Take(roundtrip,image,4096),"safe renderer-shaped fixture taken");
     Check(reinterpret_cast<int(__fastcall*)(void*,void*)>(roundtrip.trampoline)(nullptr,nullptr)==42,"trampoline runs original with stack intact");
     Give(roundtrip);
+    // Something else writes over the jump after it is taken: given back only while ours, so left as the other
+    // left it, the trampoline kept, and uihook kept loaded (stranded) as the client may go through it into this DLL
+    memcpy(image+100,safe,sizeof(safe));
+    Detour overwritten={"83 EC 24 53 55 56 B8 2A",6,-1,reinterpret_cast<void*>(&Replacement),nullptr,nullptr,{},{}};
+    Check(Take(overwritten,image,4096) && image[100]==0xE9,"taken: the jump in");
+    uint8_t* const kept=overwritten.trampoline;
+    image[100]=0xE9; image[101]^=0x55; // another's jump in its place
+    const uint8_t foreign[2]={image[100],image[101]};
+    Check(!CodeStranded(),"not stranded before");
+    Give(overwritten);
+    Check(image[100]==foreign[0] && image[101]==foreign[1],"another's jump left as it is, not our original put over it");
+    Check(CodeStranded() && overwritten.trampoline==nullptr && kept[0]==safe[0],"stranded, the trampoline kept for whatever goes through it");
+    CodeStranded()=false;
+    // put back as it was found by something else: nothing lost, nothing stranded
+    memcpy(image+100,safe,sizeof(safe));
+    Check(Take(overwritten,image,4096),"taken again");
+    memcpy(image+100,safe,6);
+    Give(overwritten);
+    Check(!CodeStranded() && memcmp(image+100,safe,sizeof(safe))==0,"put back by another as found: given back, not stranded");
 
     const char* names[]={"menu    partywin","menu    raid1   ","menu    raid2   "};
     for(unsigned j=0;j<3;j++) {
@@ -83,6 +102,12 @@ int main() {
     Check(arrows.sprite==image+2400 && memcmp(image+2400,sprite,sizeof(sprite))==0,"general sprite renderer is not patched");
     GiveArrows(arrows);
     Check(memcmp(mainCall,mainSaved,5)==0 && memcmp(subCall,subSaved,5)==0,"both arrow calls restored on unload");
+    // one of the two arrow calls written over by something else after: the other given back, that one left
+    Check(TakeArrows(arrows,image,4096,reinterpret_cast<void*>(&Replacement)),"arrows taken again");
+    uint8_t other[5]={0xE8,1,2,3,4}; memcpy(subCall,other,5);
+    GiveArrows(arrows);
+    Check(memcmp(mainCall,mainSaved,5)==0 && memcmp(subCall,other,5)==0 && CodeStranded(),"the main arrow call given back; another's in the sub's left, stranded");
+    CodeStranded()=false; memcpy(subCall,subSaved,5);
     subCall[1]^=1;
     Check(!TakeArrows(arrows,image,4096,reinterpret_cast<void*>(&Replacement)) && memcmp(mainCall,mainSaved,5)==0,
         "different arrow callee rejected before changing either call");

@@ -39,10 +39,10 @@ static void __cdecl DrawStatusIcon(void* list, int32_t extra, int32_t x, int32_t
 static void __cdecl DrawStatusTime(void* list, int32_t extra, int32_t x, int32_t y, int32_t index, int32_t chosen);
 
 static Detour IconDetour = {
-    ICON_PATTERN, ICON_STOLEN, ICON_CALL_AT, reinterpret_cast<void*>(&DrawStatusIcon), nullptr, nullptr, {},
+    ICON_PATTERN, ICON_STOLEN, ICON_CALL_AT, reinterpret_cast<void*>(&DrawStatusIcon), nullptr, nullptr, {}, {},
 };
 static Detour TimeDetour = {
-    TIME_PATTERN, TIME_STOLEN, TIME_CALL_AT, reinterpret_cast<void*>(&DrawStatusTime), nullptr, nullptr, {},
+    TIME_PATTERN, TIME_STOLEN, TIME_CALL_AT, reinterpret_cast<void*>(&DrawStatusTime), nullptr, nullptr, {}, {},
 };
 
 // ---------------------------------------------------------------------------------------------------

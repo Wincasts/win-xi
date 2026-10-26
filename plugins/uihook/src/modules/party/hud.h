@@ -137,38 +137,42 @@ static HudDiscovery FindHud(uint8_t* begin,size_t size) {
     return out;
 }
 using ClockText = void(__cdecl*)(int32_t,int32_t,const char*,uint32_t);
-struct ClockTextCall { uint8_t* call=nullptr; ClockText original=nullptr; uint8_t saved[5]={}; };
+struct ClockTextCall { uint8_t* call=nullptr; ClockText original=nullptr; uint8_t saved[5]={}; CodeSite<WindowsCodeMemory> site; };
 // E8 stays E8, so the game's return address is kept; checked to call the text routine before writing.
 static bool TakeClockText(ClockTextCall& text,uint8_t* call,uint8_t* target,void* replacement) {
     if (!call || !target || !VerifyCall(call,target)) return false;
     text.call=call; text.original=reinterpret_cast<ClockText>(target);
     memcpy(text.saved,call,5);
-    uint8_t jump[5]={0xe8,0,0,0,0};
-    int32_t distance=Distance(call+5,replacement); memcpy(jump+1,&distance,4);
-    WriteCode(call,jump,5);
+    if (!WriteCall(text.site,call,replacement)) {
+        if (text.site.Abandoned) StrandCode();
+        text=ClockTextCall(); return false;
+    }
     return true;
 }
 // The three icon calls, each aimed at its own replacement, which knows which icon it is drawing.
 using ClockIcon = void(__fastcall*)(void*,void*,int32_t,int32_t,uint32_t,uint32_t,uint32_t);
-struct ClockIconCalls { uint8_t* calls[3]={}; ClockIcon original=nullptr; uint8_t saved[3][5]={}; };
+struct ClockIconCalls { uint8_t* calls[3]={}; ClockIcon original=nullptr; uint8_t saved[3][5]={}; CodeSite<WindowsCodeMemory> sites[3]; };
 static bool TakeClockIcons(ClockIconCalls& icons,uint8_t* const calls[3],uint8_t* target,void* const replacements[3]) {
     if (!target) return false;
     for (unsigned i=0;i<3;i++) if (!calls[i] || !VerifyCall(calls[i],target)) return false;
     icons.original=reinterpret_cast<ClockIcon>(target);
+    // all three or none: those written given back where one will not go in
     for (unsigned i=0;i<3;i++) {
         icons.calls[i]=calls[i]; memcpy(icons.saved[i],calls[i],5);
-        uint8_t jump[5]={0xe8,0,0,0,0};
-        int32_t distance=Distance(calls[i]+5,replacements[i]); memcpy(jump+1,&distance,4);
-        WriteCode(calls[i],jump,5);
+        if (!WriteCall(icons.sites[i],calls[i],replacements[i])) {
+            if (icons.sites[i].Abandoned) StrandCode();
+            for (unsigned j=0;j<i;j++) GiveSite(icons.sites[j]);
+            icons=ClockIconCalls(); return false;
+        }
     }
     return true;
 }
 static void GiveClockIcons(ClockIconCalls& icons) {
-    for (unsigned i=0;i<3;i++) if (icons.calls[i]) WriteCode(icons.calls[i],icons.saved[i],5);
+    for (unsigned i=0;i<3;i++) if (icons.calls[i]) GiveSite(icons.sites[i]);
     icons=ClockIconCalls();
 }
 static void GiveClockText(ClockTextCall& text) {
-    if (text.call) WriteCode(text.call,text.saved,5);
+    if (text.call) GiveSite(text.site);
     text=ClockTextCall();
 }
 // Screen-space vertices (x, y the first two floats of each) grown or shrunk about (cx, cy), in place;

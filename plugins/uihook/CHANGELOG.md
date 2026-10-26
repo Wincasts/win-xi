@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.68
+
+- Every write to the game's code goes through `CodeSite` (`plugins/common/CodePatch.h`, namehook's since 1.40, now shared): the detours' jumps (party and buffs), the target arrows, the clock's text and icons, the chat log's art and text, and the window content call. A site is written over what is there, and given back on unload only while it holds what uihook wrote: one something else has written over since is left as it is. Grouped calls go in together or not at all (both arrows, the three clock icons, every chat art call): where one will not, those written are given back. Where a site has to be left, uihook stays in memory (its DLL pinned) and keeps that detour's trampoline, as the game may still go through them into it, says so as it unloads, and refuses to load again until the game is restarted. A write is checked: before, a failed one was taken as done.
+- Tests: a detour's jump written over by another: left, the trampoline kept, stranded; put back by another as found: given back, not stranded; one arrow call written over: the other given back, that one left.
+
 ## 1.67
 
 - The target's arrow over the world is drawn where the game puts it again while the game's own target window shows (Party not replacing it). The game draws the arrow from the target window's own drawing, and the native look took it for one of that window's draws: with a menu scale it was moved with the window, scaled from the bottom right corner, far up and left of the target (seen 2026-10-26 with lens on and off alike; with Party's target window it was right, the game's window being replaced). The arrow is now drawn as of no window (`Native.Hold()` round its sprite call). tests/native.cpp: the target window moved, its arrow held out of it not, the window's draws after it moved again.

@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include "../../../../common/CodePatch.h"
 
 // One function of the game's, taken over by having its first bytes jump to ours. What they were is
 // kept, and run from the trampoline before it jumps back to the rest, for when the game's own is wanted.
@@ -17,6 +18,7 @@ struct Detour {
     uint8_t* target;
     uint8_t* trampoline;
     uint8_t saved[16];
+    CodeSite<WindowsCodeMemory> site; // the function's first bytes, written and given back only while ours
 };
 
 // The first place in begin's size bytes that the pattern fits: its bytes in hex, ?? for any
@@ -52,12 +54,14 @@ static uint8_t* FindPattern(uint8_t* begin, size_t size, const char* pattern) {
     return nullptr;
 }
 
-static void WriteCode(uint8_t* at, const uint8_t* bytes, uint32_t count) {
-    DWORD was = 0;
-    VirtualProtect(at, count, PAGE_EXECUTE_READWRITE, &was);
-    memcpy(at, bytes, count);
-    VirtualProtect(at, count, was, &was);
-    FlushInstructionCache(GetCurrentProcess(), at, count);
+// Gives a site back; one something else has written over since is left, and this DLL kept loaded (StrandCode),
+// as the client may still go through it into this DLL. False then.
+static bool GiveSite(CodeSite<WindowsCodeMemory>& site) {
+    if (site.Restore()) {
+        return true;
+    }
+    StrandCode();
+    return false;
 }
 
 static int32_t Distance(const uint8_t* from, const void* to) {
@@ -98,13 +102,28 @@ static bool Take(Detour& detour, uint8_t* begin, size_t size) {
     jump[0] = 0xE9;
     const int32_t to = Distance(detour.target + 5, detour.replacement);
     memcpy(jump + 1, &to, 4);
-    WriteCode(detour.target, jump, detour.stolen);
+    if (!detour.site.Write(reinterpret_cast<uintptr_t>(detour.target), jump, detour.stolen)) {
+        // not written: nothing goes through the trampoline. Written in part: the function is neither ours nor the
+        // game's, and the trampoline and this DLL are kept for whatever runs it
+        if (detour.site.Abandoned) {
+            StrandCode();
+        } else {
+            VirtualFree(detour.trampoline, 0, MEM_RELEASE);
+        }
+        detour.trampoline = nullptr;
+        detour.target = nullptr;
+        return false;
+    }
     return true;
 }
 
 static void Give(Detour& detour) {
     if (detour.target != nullptr) {
-        WriteCode(detour.target, detour.saved, detour.stolen);
+        // the jump given back only while it is ours; else left, and the trampoline kept, as whatever wrote over
+        // the jump may still go through it
+        if (!GiveSite(detour.site)) {
+            detour.trampoline = nullptr;
+        }
         detour.target = nullptr;
     }
     if (detour.trampoline != nullptr) {
