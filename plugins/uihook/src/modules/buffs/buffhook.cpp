@@ -360,16 +360,20 @@ BuffHook* BuffHook::Instance = nullptr;
 
 static void __cdecl DrawStatusIcon(void* list, int32_t extra, int32_t x, int32_t y, int32_t index, int32_t chosen) {
     BuffHook* plugin = BuffHook::Instance;
-    // the game draws its icon a pixel in from the item's corner
+    // the game draws its icon a pixel in from the item's corner; the bar where the first is with the cursor on it
+    int32_t barX = x, barY = y;
     if (plugin != nullptr && index == 0) {
-        plugin->Place(static_cast<const uint8_t*>(list), static_cast<float>(x + 1), static_cast<float>(y + 1));
+        const int32_t cursor = *reinterpret_cast<const int32_t*>(static_cast<const uint8_t*>(list) + LIST_CURSOR);
+        barX = SteadyFirst(x, cursor);
+        barY = SteadyFirst(y, cursor);
+        plugin->Place(static_cast<const uint8_t*>(list), static_cast<float>(barX + 1), static_cast<float>(barY + 1));
     }
     if (plugin == nullptr || !BuffHook::Fresh()) {
         reinterpret_cast<ItemCallback>(IconDetour.trampoline)(list, extra, x, y, index, chosen);
         return;
     }
     if (index == 0) {
-        plugin->DrawBar(static_cast<float>(x + 1), static_cast<float>(y + 1));
+        plugin->DrawBar(static_cast<float>(barX + 1), static_cast<float>(barY + 1));
     }
 }
 

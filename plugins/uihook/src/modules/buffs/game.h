@@ -27,3 +27,13 @@
 #define CURSOR_OFFSET_X -5
 #define CURSOR_OFFSET_Y -5
 #define CURSOR_AWAY -30000 // so far off the picture the hand is never seen
+
+// The menu hands the item its cursor is on a pixel up and to the left of where it would be (read from the live game,
+// 2026-10-26: the first icon at 144,50 with the cursor on it, 145,51 with it on the second; the icon callback itself
+// draws every icon at the place it is given, a pixel in). The bar is kept where the first icon is with the cursor on
+// it, wherever the cursor is, so that it does not move a pixel as the cursor comes to or leaves the first status.
+#define CHOSEN_LIFT 1
+
+inline int32_t SteadyFirst(int32_t at, int32_t cursor) {
+    return cursor == 0 ? at : at - CHOSEN_LIFT;
+}

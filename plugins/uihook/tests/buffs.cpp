@@ -107,9 +107,16 @@ static void CheckTaking() {
     VirtualFree(code, 0, MEM_RELEASE);
 }
 
+static void CheckSteady() {
+    Check(SteadyFirst(143, 0) == 143 && SteadyFirst(49, 0) == 49, "the first icon with the cursor on it: where the game puts it");
+    Check(SteadyFirst(144, 1) == 143 && SteadyFirst(50, 1) == 49, "the cursor on the second: the bar where the first is with the cursor on it");
+    Check(SteadyFirst(144, -1) == 143, "the cursor on none: the same");
+}
+
 int main() {
     CheckPatterns();
     CheckTaking();
+    CheckSteady();
     printf(failures == 0 ? "all passed\n" : "%d failed\n", failures);
     return failures == 0 ? 0 : 1;
 }
