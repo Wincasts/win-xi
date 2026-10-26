@@ -305,6 +305,7 @@ static struct {
 static HookDraw Draw;
 static HookBubbles Bubbles = { "NAMEBUBBLES", 2, sizeof(HookBubbles), sizeof(HookDraw), {}, {} };
 static HookPopups Popups = { "NAMEHOOKPOPUPS", 1, sizeof(HookPopups), sizeof(HookPopup), 0, 0, 0, 0, 0, 0, 0, {} };
+static HookCamera Camera = { "NAMEHOOKCAMERA", 1, sizeof(HookCamera), 0, 0, {}, {}, {}, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 static HookPopupDraw PopupDraw;
 
 // The frame whose first name has been seen, so that what is done once a frame is done then
@@ -2170,6 +2171,32 @@ static bool NamesWanted(bool frameDone) {
 
 static bool PopupsWanted(bool frameDone) {
 	return PopupFilling.Changed || (frameDone && !PopupFilling.Published && Popups.Count != 0);
+}
+
+void Nameplate::PublishCamera(const float* view, const float* projection, const float* viewProjection, const float* viewport,
+		const float* lens, uint32_t lensMode) {
+	// not valid while it is being written, so an addon reading between never takes half of it
+	Camera.Valid = 0;
+	if (view == nullptr || projection == nullptr || viewProjection == nullptr || viewport == nullptr) {
+		Camera.Frame = Shared.Frame;
+		return;
+	}
+	CopyMemory(Camera.View, view, sizeof(Camera.View));
+	CopyMemory(Camera.Projection, projection, sizeof(Camera.Projection));
+	CopyMemory(Camera.ViewProjection, viewProjection, sizeof(Camera.ViewProjection));
+	Camera.ViewportX = viewport[0];
+	Camera.ViewportY = viewport[1];
+	Camera.ViewportWidth = viewport[2];
+	Camera.ViewportHeight = viewport[3];
+	Camera.ViewportMinZ = viewport[4];
+	Camera.ViewportMaxZ = viewport[5];
+	Camera.Lens = lens != nullptr ? 1 : 0;
+	Camera.LensMode = lens != nullptr ? lensMode : 0;
+	Camera.LensStrength = lens != nullptr ? lens[0] : 0.0f;
+	Camera.LensTanH = lens != nullptr ? lens[1] : 0.0f;
+	Camera.LensTanV = lens != nullptr ? lens[2] : 0.0f;
+	Camera.Frame = Shared.Frame;
+	Camera.Valid = 1;
 }
 
 bool Nameplate::WantsPublish(bool frameDone) const {

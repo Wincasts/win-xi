@@ -1,5 +1,10 @@
 # Changelog
 
+## namehook 1.44 — the camera, shared
+
+- A new block, `HookCamera` (magic `NAMEHOOKCAMERA`, version 1): the camera names are placed with, as readied for this frame's first name: view, projection and the two together, the picture's viewport, and lens's warp when it bends the world (mode, strength and the picture's half fields of view as tangents). `Frame` is the HookShared frame it was readied in and `Valid` 1 once it holds a camera; a frame with no names (the game's names off) leaves it as it was. For an addon to place anything over the world where a name at that point would be, under lens too.
+- Tests: what the host readies, with and without lens's warp, and none to be had.
+
 ## namehook 1.43 — 32 texture slots
 
 - HookDraw and HookPopupDraw gain `TexturesExtra[24]` after their 1.0 layout: a quad's `Texture` may be 8 to 31, from there, as 0 to 7 are from `Textures` (the bubbles' HookDraw too). Announced by `FEATURE_TEXTURES_32` (32) in HookCapabilities, as these buffers have no Size of their own: an addon writes the extra slots only when it is set. An older addon never gives them, and draws as before.
