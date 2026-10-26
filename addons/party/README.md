@@ -60,6 +60,10 @@ calls per category; averages and maxima cover the full interval.
 - **Behavior → Mouse Interaction → Hover Details**, beside Clickthrough, is off by default and works
   only with Clickthrough off: names, jobs and pet owners.
   Each buff/debuff icon has a Winxi tooltip whenever Clickthrough is off, even without Hover Details.
+- **Shift+drag** moves a window when **Clickthrough** is off: hold Shift as you click it, and the drag goes
+  on until the mouse is let go. Without Shift the windows stay put, so a click on them does not move them.
+  With Clickthrough on they cannot be dragged except while organizing. A window placed by Automatic
+  Positioning or by uihook, or linked to another, is not moved this way (Organize unlinks it).
   Tooltips follow **winxisettings → Tooltips**, including visibility, delay and appearance.
   Enemy duration tooltips explicitly describe estimates, not exact server timers.
   No click-to-target behavior is introduced.
@@ -296,8 +300,8 @@ Frame scale and text sizes are unchanged. Manual positions and the main party's 
 preserved, and disabling Automatic Positioning returns to the manual layout. Turn it off to drag
 the managed frames to custom positions.
 
-With this option off, positions remain absolute pixels. Use **Positioning** or **Organize** to place
-frames manually. The original defaults include positions beyond a 1920-wide output. Oversized frames
+With this option off, positions remain absolute pixels. Use **Organize**, or Shift+drag with
+Clickthrough off, to place frames manually. The original defaults include positions beyond a 1920-wide output. Oversized frames
 cannot fit completely on small screens, and buff icons extending outside a window may still reach
 the screen edge; this is basic adaptation, not a full responsive layout system.
 

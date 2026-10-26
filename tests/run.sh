@@ -120,6 +120,7 @@ luajit tests/party_hook_performance_check.lua
 run party      addons/party/party.lua party_hook_integration_check.lua
 run party      addons/party/party.lua party_native_shadow_check.lua
 run party      addons/party/party.lua party_native_positioning_check.lua
+run party      addons/party/party.lua party_shift_drag_check.lua
 run party      addons/party/party.lua party_cursor_check.lua
 run party      addons/party/party.lua party_dropdowns_check.lua
 run party      addons/party/party.lua winxi_fonts_check.lua

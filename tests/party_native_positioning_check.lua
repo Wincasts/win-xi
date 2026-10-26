@@ -37,6 +37,10 @@ ImGuiWindowFlags_NoMove=0x100000
 local begin=imgui.Begin
 imgui.Begin=function(name,open,flags) begun=flags or 0; return begin(name,open,flags) end
 options.automaticPositioning[1]=false
+-- with Clickthrough off and Shift held, as a manual window is dragged
+options.clickThrough[1]=false
+local shiftHeld=windows.ShiftHeld
+windows.ShiftHeld=function() return true end
 windows.UpdatePositions()
 windows.Draw(windows.List.party2,function() end)
 assert(places==1 and moves==0,'ordinary manual placement remains in use')
@@ -49,6 +53,7 @@ assert(places==1 and moves==1,'old native flags do not disable ordinary automati
 -- its place cut to that clip: not to be dragged
 assert(bit.band(begun,ImGuiWindowFlags_NoMove)~=0,'an automatically placed window cannot be dragged')
 imgui.Begin,ImGuiWindowFlags_NoMove=begin,noMove
+windows.ShiftHeld=shiftHeld
 local widgets=require('winxi.widgets')
 local headers={}
 widgets.Header=function(text) headers[#headers+1]=text; return true end
