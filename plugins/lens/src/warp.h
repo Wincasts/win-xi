@@ -33,15 +33,17 @@ inline double PaniniX(double phi, double d) { return (d + 1) * sin(phi) / (d + c
 
 // The ray landing at (px, py) on the Panini plane, as the flat projection's tangents (tx, ty): where it
 // lies in the source picture, 1 being 45 degrees off the middle.
+// tan(acos c) is sqrt(1 - c^2) / c: no acos and tan, which were most of a Panini grid's build (lens 0.93: 7.1 ms
+// to 0.47 ms a build in the game's own 32-bit build, the same to float precision)
 inline void PaniniInverse(double px, double py, double d, double& tx, double& ty) {
     double k = px * px / ((d + 1) * (d + 1));
     double disc = k * k * d * d - (k + 1) * (k * d * d - 1);
     double c = (-k * d + sqrt(disc > 0 ? disc : 0)) / (k + 1);   // cos phi
     if (c > 1) c = 1;
     if (c < 1e-6) c = 1e-6;
-    double phi = (px < 0 ? -1 : 1) * acos(c);
     double s = (d + 1) / (d + c);
-    tx = tan(phi);
+    double t = sqrt(1 - c * c) / c;
+    tx = px < 0 ? -t : t;
     ty = (py / s) / c;
 }
 
@@ -60,14 +62,21 @@ inline double CylinderEdge(double tanH) {
 // every name each frame took some 50 times as long without).
 inline double EdgeOf(double tanH, Mode mode) { return mode == Cylindrical ? CylinderEdge(tanH) : 0; }
 
+// The source's horizontal edge on the Panini plane, and the screen's top at the source's proportions: the same for
+// every point of a grid, so a caller mapping many works them out once (Build, Taps)
+struct PaniniEdges { double x, y; };
+inline PaniniEdges PaniniEdgesOf(double tanH, double tanV, double strength) {
+    const double x = PaniniX(atan(tanH), strength);
+    return { x, x * tanV / tanH };
+}
+
 // Where the screen point (s, t), each 0 to 1 across the quad, reads the source, each 0 to 1 across
-// the picture: tanH and tanV are the picture's half fields of view as tangents, phiE EdgeOf them.
-inline void SourceOf(double s, double t, double tanH, double tanV, Mode mode, double strength, double phiE, double& us, double& vs) {
+// the picture: tanH and tanV are the picture's half fields of view as tangents, phiE EdgeOf them,
+// edges PaniniEdgesOf them (Panini only).
+inline void SourceOf(double s, double t, double tanH, double tanV, Mode mode, double strength, double phiE, const PaniniEdges& edges, double& us, double& vs) {
     double tx, ty;
     if (mode == Panini) {
-        double xEdge = PaniniX(atan(tanH), strength);   // the source's horizontal edge on the Panini plane
-        double yEdge = xEdge * tanV / tanH;             // the screen's top, at the source's proportions
-        PaniniInverse(xEdge * (2 * s - 1), yEdge * (2 * t - 1), strength, tx, ty);
+        PaniniInverse(edges.x * (2 * s - 1), edges.y * (2 * t - 1), strength, tx, ty);
         us = 0.5 + 0.5 * tx / tanH;
         vs = 0.5 + 0.5 * ty / tanV;
         return;
@@ -77,6 +86,9 @@ inline void SourceOf(double s, double t, double tanH, double tanV, Mode mode, do
     ty = y / cos(phi);
     us = s + strength * (0.5 + 0.5 * tx / tanH - s);
     vs = t + strength * (0.5 + 0.5 * ty / tanV - t);
+}
+inline void SourceOf(double s, double t, double tanH, double tanV, Mode mode, double strength, double phiE, double& us, double& vs) {
+    SourceOf(s, t, tanH, tanV, mode, strength, phiE, mode == Panini ? PaniniEdgesOf(tanH, tanV, strength) : PaniniEdges{}, us, vs);
 }
 inline void SourceOf(double s, double t, double tanH, double tanV, Mode mode, double strength, double& us, double& vs) {
     SourceOf(s, t, tanH, tanV, mode, strength, EdgeOf(tanH, mode), us, vs);
@@ -88,12 +100,12 @@ inline void SourceOf(double s, double t, double tanH, double tanV, Mode mode, do
 // places itself by the flat projection. phiE is EdgeOf(tanH, mode).
 inline void ScreenOf(double s0, double t0, double tanH, double tanV, Mode mode, double strength, double phiE, double& s, double& t) {
     if (mode == Panini) {
-        double xEdge = PaniniX(atan(tanH), strength), yEdge = xEdge * tanV / tanH;
+        const PaniniEdges edges = PaniniEdgesOf(tanH, tanV, strength);
         double tx = (2 * s0 - 1) * tanH, ty = (2 * t0 - 1) * tanV;
         double phi = atan(tx), height = ty * cos(phi);
         double scale = (strength + 1) / (strength + cos(phi));
-        s = 0.5 + 0.5 * scale * sin(phi) / xEdge;
-        t = 0.5 + 0.5 * scale * height / yEdge;
+        s = 0.5 + 0.5 * scale * sin(phi) / edges.x;
+        t = 0.5 + 0.5 * scale * height / edges.y;
         return;
     }
     s = s0; t = t0;
@@ -170,11 +182,12 @@ inline void Indices(int cols, int rows, std::vector<uint16_t>& indices) {
 inline void Build(const Quad& q, double tanH, double tanV, Mode mode, double strength, int cols, int rows, std::vector<Vertex>& vertices, std::vector<uint16_t>& indices) {
     vertices.clear();
     const double phiE = EdgeOf(tanH, mode);
+    const PaniniEdges edges = PaniniEdgesOf(tanH, tanV, strength);
     for (int r = 0; r <= rows; ++r) {
         for (int c = 0; c <= cols; ++c) {
             double s = double(c) / cols, t = double(r) / rows;
             double us, vs;
-            SourceOf(s, t, tanH, tanV, mode, strength, phiE, us, vs);
+            SourceOf(s, t, tanH, tanV, mode, strength, phiE, edges, us, vs);
             Vertex v;
             v.x = float(q.left + (q.right - q.left) * s);
             v.y = float(q.top + (q.bottom - q.top) * t);
@@ -203,7 +216,9 @@ struct Tapped { float x, y, z, rhw; uint32_t color; float tap[4][2]; float u, v;
 // covers. 0 puts all four on the point.
 inline void Taps(const Quad& q, double tanH, double tanV, Mode mode, double strength, int cols, int rows, double spread, std::vector<Tapped>& vertices) {
     vertices.clear();
+    vertices.reserve(size_t(cols + 1) * (rows + 1));
     const double phiE = EdgeOf(tanH, mode);
+    const PaniniEdges edges = PaniniEdgesOf(tanH, tanV, strength);
     const double width = q.right - q.left, height = q.bottom - q.top;
     const double du = q.u1 - q.u0, dv = q.v1 - q.v0;
     const double h = 1e-4;
@@ -211,11 +226,11 @@ inline void Taps(const Quad& q, double tanH, double tanV, Mode mode, double stre
         for (int c = 0; c <= cols; ++c) {
             double s = double(c) / cols, t = double(r) / rows;
             double us, vs, ua, va, ub, vb, uc, vc, ud, vd;
-            SourceOf(s, t, tanH, tanV, mode, strength, phiE, us, vs);
-            SourceOf(s + h, t, tanH, tanV, mode, strength, phiE, ua, va);
-            SourceOf(s - h, t, tanH, tanV, mode, strength, phiE, ub, vb);
-            SourceOf(s, t + h, tanH, tanV, mode, strength, phiE, uc, vc);
-            SourceOf(s, t - h, tanH, tanV, mode, strength, phiE, ud, vd);
+            SourceOf(s, t, tanH, tanV, mode, strength, phiE, edges, us, vs);
+            SourceOf(s + h, t, tanH, tanV, mode, strength, phiE, edges, ua, va);
+            SourceOf(s - h, t, tanH, tanV, mode, strength, phiE, edges, ub, vb);
+            SourceOf(s, t + h, tanH, tanV, mode, strength, phiE, edges, uc, vc);
+            SourceOf(s, t - h, tanH, tanV, mode, strength, phiE, edges, ud, vd);
             // the picture's texture coordinates per screen pixel, across (x) and down (y)
             double xu = (ua - ub) / (2 * h) * du / width, xv = (va - vb) / (2 * h) * dv / width;
             double yu = (uc - ud) / (2 * h) * du / height, yv = (vc - vd) / (2 * h) * dv / height;

@@ -72,6 +72,33 @@ int main() {
         round = round && Near(tx, tan(phi)) && Near(ty, t / cos(phi));
     }
     Check(round, "the inverse undoes the forward mapping");
+    // the inverse without acos and tan (0.94) gives what it gave with them
+    bool inverse = true;
+    for (double d : { 0.0, 0.1, 0.25, 0.5, 1.0, 2.0 }) for (double px = -1.5; px <= 1.5; px += 0.01) for (double py : { -1.0, -0.3, 0.0, 0.7 }) {
+        double k = px * px / ((d + 1) * (d + 1));
+        double disc = k * k * d * d - (k + 1) * (k * d * d - 1);
+        double c = (-k * d + sqrt(disc > 0 ? disc : 0)) / (k + 1);
+        if (c > 1) c = 1;
+        if (c < 1e-6) c = 1e-6;
+        double phi = (px < 0 ? -1 : 1) * acos(c);
+        double ox = tan(phi), oy = (py / ((d + 1) / (d + c))) / c;
+        double tx, ty;
+        lens::PaniniInverse(px, py, d, tx, ty);
+        inverse = inverse && fabs(tx - ox) <= 1e-9 * (1 + fabs(ox)) && fabs(ty - oy) <= 1e-9 * (1 + fabs(oy));
+    }
+    Check(inverse, "the inverse without acos and tan gives what it did with them");
+    // the Panini edges worked out once for a grid map as worked out at each point
+    bool edges = true;
+    for (double d : { 0.0, 0.25, 1.0 }) {
+        const lens::PaniniEdges e = lens::PaniniEdgesOf(tanH, tanV, d);
+        for (double s0 = 0; s0 <= 1; s0 += 0.125) for (double t0 = 0; t0 <= 1; t0 += 0.25) {
+            double a, b, c, f;
+            lens::SourceOf(s0, t0, tanH, tanV, lens::Panini, d, a, b);
+            lens::SourceOf(s0, t0, tanH, tanV, lens::Panini, d, 0, e, c, f);
+            edges = edges && a == c && b == f;
+        }
+    }
+    Check(edges, "the Panini edges handed in map as worked out each time");
     // ScreenOf undoes SourceOf: where the warp shows a point of the flat picture, for overlays
     bool back = true;
     for (lens::Mode mode : { lens::Panini, lens::Cylindrical }) for (double k : { 0.0, 0.25, 0.5, 0.75 })

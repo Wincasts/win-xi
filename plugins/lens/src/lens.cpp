@@ -51,6 +51,8 @@ class Lens : public IPlugin {
     int m_Built = -1;           // the strength it was built for (0 with the warp off); -1 for none
     lens::Mode m_BuiltMode = lens::Panini;
     uint32_t m_Warped = 0;      // frames warped, for the status
+    uint32_t m_Builds = 0;      // times the grid was built, and how long the last took, for the status
+    double m_BuildMs = 0;
     UINT m_BackW = 0, m_BackH = 0;  // the back buffer's size at the last warp
     UINT m_SourceW = 0, m_SourceH = 0;  // the world's texture's, for the status
     uint32_t m_CopyFrame = 0;   // the Frame the game's copy was last taken over in
@@ -102,7 +104,7 @@ public:
     const char* GetAuthor() const override { return "win"; }
     const char* GetDescription() const override { return "The world through a Panini or cylindrical projection, for wide screens without stretched edges."; }
     const char* GetLink() const override { return "https://github.com/Wincasts/win-xi"; }
-    double GetVersion() const override { return 0.93; }
+    double GetVersion() const override { return 0.94; }
     uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseCommands | Ashita::PluginFlags::UseDirect3D); }
 
     bool Initialize(IAshitaCore* core, ILogManager*, uint32_t) override {
@@ -182,6 +184,11 @@ public:
         Say(ProjectionText());
         Say(CameraText());
         Say(Smoothing());
+        if (m_Builds) {
+            char built[120];
+            snprintf(built, sizeof(built), "the grid built %u time%s, the last in %.2f ms.", m_Builds, m_Builds == 1 ? "" : "s", m_BuildMs);
+            Say(built);
+        }
     }
     // battle as the ini and the status have it: game, same or the distance
     std::string BattleWord() const { return lens::BattleWord(m_Battle, m_BattleDistance); }
@@ -722,6 +729,10 @@ private:
         if (m_BackW && Shared.Frame - m_CopyFrame <= 2 && (q.right - q.left < m_BackW * 0.9f || q.bottom - q.top < m_BackH * 0.9f)) return false;
         auto* device = m_Core->GetDirect3DDevice();
         if (!device) return false;
+        // otherwise (the first frames, or the copy not seen lately) the viewport, one cheap question, tells
+        // most of them apart before the shader, texture and target are asked after
+        D3DVIEWPORT8 view = {};
+        if (SUCCEEDED(device->GetViewport(&view)) && (q.right - q.left < view.Width * 0.9f || q.bottom - q.top < view.Height * 0.9f)) return false;
         DWORD shader = 0;
         if (FAILED(device->GetVertexShader(&shader)) || shader != 0x144) return false;
         IDirect3DBaseTexture8* base = nullptr;
@@ -746,8 +757,14 @@ private:
         double tanH = 1.0 / p._11, tanV = 1.0 / p._22;
         const int strength = m_Strength;
         if (m_Built != strength || m_BuiltMode != m_Mode || memcmp(&q, &m_Quad, sizeof(q)) != 0 || tanH != m_TanH || tanV != m_TanV) {
+            LARGE_INTEGER start, end, frequency;
+            QueryPerformanceCounter(&start);
             lens::Taps(q, tanH, tanV, m_Mode, strength / 100.0, Cols, Rows, 0.25, m_Vertices);
-            lens::Indices(Cols, Rows, m_Indices);
+            if (m_Indices.empty()) lens::Indices(Cols, Rows, m_Indices);   // the same for every grid of Cols by Rows
+            QueryPerformanceCounter(&end);
+            QueryPerformanceFrequency(&frequency);
+            m_BuildMs = 1000.0 * double(end.QuadPart - start.QuadPart) / double(frequency.QuadPart);
+            m_Builds++;
             m_Quad = q; m_TanH = tanH; m_TanV = tanV; m_Built = strength; m_BuiltMode = m_Mode;
             m_Written = false;
         }
