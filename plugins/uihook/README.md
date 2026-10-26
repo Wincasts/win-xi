@@ -434,6 +434,23 @@ a reader keeps the last serial it read and takes the ones after, at most a ring'
 zero in the DLL's file, its magic written as the plugin initializes, so the half-megabyte ring costs
 the file nothing. Nothing is read from the game or written to it, and no line is changed or blocked.
 
+## Keys kept from the game's chat editor (1.61)
+
+`winxi.gamekeys` uses the independent **keys ABI 1**, magic `UIHOOK-KEYS` (`src/modules/window/keys.h`): Magic[16],
+Version, Size, Frame, Supported, Hold[8], HoldFrame and Kept, 72 bytes. The game's chat editor reads each key in the
+game's own message loop, in the handler the native look's mouse is taken at (0x31c16c0, `GAME_INPUT_PATTERN`), given
+the MSG before TranslateMessage and DispatchMessage: WM_KEYDOWN goes to the editor (0x33729f0) for every key but
+Enter, Escape and 6C, and each WM_CHAR to 0x31c7860, which sends the line on Enter's (0D). Ashita's `key` event comes
+from the window procedure, after, so a key it blocks has reached the editor already, and Enter's character, which it
+never sees, sends the line. An addon writes the virtual keys to keep as bits of Hold (bit vk % 32 of word vk / 32),
+then HoldFrame, the block's Frame, as the commit, again each frame; `KEYS_HOLD_FRAMES` (3) after the last nothing is
+kept. A press begun while its key is held is kept from the game whole: the key down, its repeats, the characters it
+types (matched by scan code, the extended bit with it) and its release, though the key is no longer held by then. A
+press begun with the key not held is the game's, whole, so a release lost to the window losing focus keeps nothing
+past the next press. Ashita, imgui and every addon see each message as it was. Supported is 1 where the handler was
+taken (with the window hooks); Kept counts the messages kept. chatbox's Auto-Translate keeps Tab while typing and its
+list's keys while the list is open, so Enter on a phrase puts it in without sending the line.
+
 ## Diagnostics: built with `--diagnostics` (1.58)
 
 The menu census and the texture census are the tools the window hooks and the skin were found with. They are

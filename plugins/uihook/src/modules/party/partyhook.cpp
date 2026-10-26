@@ -27,6 +27,7 @@
 #include "../chat/texttap.h"
 #include "../window/window.h"
 #include "../window/mouse.h"
+#include "../window/keys.h"
 #include "../census/census.h"
 #include "../census/diagnostics.h"
 #include "../native/skinmodule.h"
@@ -103,6 +104,9 @@ static Mirror GroupMirror;
 // The game's mouse handler in its message loop (window/mouse.h), taken so a message on a window drawn elsewhere is
 // given to it at the same place on the game's own (the native look's Mouse)
 static void __cdecl GameInput(MSG);
+// The keys an addon keeps from the game's chat editor, in the same handler (window/keys.h; independent keys ABI 1)
+static KeysShared KeysBlock = { "UIHOOK-KEYS", 1, sizeof(KeysShared), 0, 0, {}, 0, 0 };
+static GameKeys Keys;
 static Detour InputDetour = { GAME_INPUT_PATTERN, GAME_INPUT_STOLEN, -1, reinterpret_cast<void*>(&GameInput), nullptr, nullptr, {} };
 // The five bytes mov edx,[ecx]; call [edx+10] made a call to ours, which makes the same call: the
 // return address the game's own, the owner still in ecx
@@ -427,6 +431,7 @@ public:
         GroupMirror.shared=&MirrorBlock; Native.mirror=&GroupMirror;
         if (module.lpBaseOfDll && TakeWindowHooks(static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage) && (MirrorBlock.Supported=MIRROR_SUPPORTED))
             Native.inputHooked=Take(InputDetour,static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage);
+        Keys.shared=&KeysBlock; Keys.Clear(); KeysBlock.Supported=Native.inputHooked ? 1 : 0;
         core->GetChatManager()->Write(0,false, Shared.Hooked ?
             (Shared.SupportedMask & 8 ? "[uihook:party] Party/target hooks ready (native arrows preserved). /pt native [target] on; unload hideparty first." :
              "[uihook:party] Party hook ready; target/cursor signatures unavailable. /pt native on; unload hideparty first.") :
@@ -477,7 +482,7 @@ public:
         GroupMirror.Publish(Shared.Frame);
         Diag.Present();
         ++Shared.Frame;
-        Diag.Counted(); MirrorBlock.Frame=Shared.Frame;
+        Diag.Counted(); MirrorBlock.Frame=KeysBlock.Frame=Shared.Frame;
         Native.look.mirrorOn=GroupMirror.Wanted();
         Hud.Frame=Chat.Frame=Menus.Frame=Shared.Frame;
         ChatReadReset(); // the regions found readable last frame are asked about again
@@ -613,6 +618,7 @@ public:
     void GiveWindowHooks() {
         MirrorBlock.Supported=0; MirrorBlock.RequestFrame=0; GroupMirror.Clear(); Native.look.mirrorOn=false;
         Give(InputDetour); Native.inputHooked=false;
+        KeysBlock.Supported=0; KeysBlock.HoldFrame=0; Keys.Clear();
         Diag.Stop();
         GiveContentCall(); Give(TextBitmapDetour); Give(TextScaledDetour); Give(TextFontDetour);
         windowHooks=false;
@@ -1272,6 +1278,7 @@ static uint32_t __fastcall TextFont(void* font,void*,int32_t x,int32_t y,const c
 }
 // A mouse message on its way to the game, given to it as the native look says (or kept from it)
 static void __cdecl GameInput(MSG message) {
+    if (!Keys.Pass(message)) return;
     if (!Native.Mouse(message)) return;
     reinterpret_cast<void(__cdecl*)(MSG)>(InputDetour.trampoline)(message);
 }

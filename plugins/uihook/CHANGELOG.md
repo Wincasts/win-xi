@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.61
+
+- Keys kept from the game's chat editor (independent keys ABI 1, `UIHOOK-KEYS`, `window/keys.h`, 72 bytes). The
+  editor reads each key in the game's message loop, in the handler the native look's mouse is taken at, before
+  TranslateMessage and DispatchMessage, and sends the line on Enter's WM_CHAR: Ashita's key event, at the window
+  procedure, can keep neither from it, which is why chatbox's Auto-Translate list sent the line on Enter. An addon
+  names virtual keys in Hold, renewed each frame (HoldFrame; three frames after the last, none); a press begun while
+  its key is named is kept from the game whole, its repeats, characters (by scan code) and release too. Ashita, imgui
+  and addons still see every message. `winxi.gamekeys` (winxi 53) reads and writes it. The handler was already taken
+  for the native look's mouse; nothing else is hooked.
+- tests/keys.cpp (in run.sh): a held key's press, character, repeats and release kept, though it is let go of after
+  it is held no longer; the next press and a letter typed meanwhile the game's; Up kept and numpad 8 (the same scan
+  code, not extended) not; a lost release; the hold expiring three frames after its commit; not supported, never
+  committed; the count. Not yet tried in game.
+
 ## 1.60
 
 - No blink of the party, alliance and target windows, the clock and compass, or chatbox's logs while imgui makes

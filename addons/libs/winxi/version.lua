@@ -94,6 +94,7 @@
 --     screen, as one of its own, on the screen, was still seen stretched over it
 -- 52: mob_letters and zone_names, name's spawn letters and the game's lists of an area's names, shared
 --     so party can letter its target as name does; mob_letters.Quiet
+-- 53: gamekeys, keys kept from the game's chat editor through uihook's keys ABI 1 (uihook 1.61)
 return {
-    Number = 52,
+    Number = 53,
 };
