@@ -109,7 +109,7 @@ function hook.Begin(party, target)
     local t=targetReady and 1 or (target and 2 or 0)
     if reasonParty~=p or reasonTarget~=t then
         reasonParty,reasonTarget=p,t
-        reason = ('Experimental native rendering: party %s; target %s.'):format(
+        reason = ('Native rendering: party %s; target %s.'):format(
             partyReady and 'active' or (party and 'unsupported' or 'off'),
             targetReady and 'active (native arrows preserved)' or (target and 'unsupported (target/cursor signatures not found)' or 'off'))
     end
