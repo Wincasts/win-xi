@@ -80,6 +80,22 @@ hook.Disable(false)
 assert(not hook.Uses({name='xiframes.us.1'}) and hook.Uses({name='xiframes.tgt.main'}),'party-off does not release target mode')
 hook.Begin(false,false)
 assert(calls[#calls][1]==-1 and not hook.Capture({name='xiframes.us.1'}),'disabled/organize gives native HUD back immediately')
+-- A hooked fish: the game's drawing outside the party windows let through, where uihook can
+fake.SupportedMask=15
+assert(hook.Begin(true,true,true) and not hook.Passing() and not hook.Uses({name='xiframes.us.1'})
+    and hook.Uses({name='xiframes.tgt.main'}),'a uihook without the pass gives the party list back, the target kept')
+fake.SupportedMask=15+16
+assert(hook.Begin(true,true,true) and hook.Passing() and hook.Uses({name='xiframes.us.1'}),'with it the list stays replaced')
+for i=0,5 do
+    local call=calls[#calls-5+i]
+    assert(call[1]==i and call[2]==(i<3 and 4 or 0),'party empties renewed with the pass; target slots as ever')
+end
+assert(hook.Capture({name='xiframes.us.2'}) and calls[#calls][1]==1 and calls[#calls][2]==5,'party captures carry the pass')
+assert(hook.Capture({name='xiframes.tgt.main'}) and calls[#calls][2]==1,'target captures do not')
+assert(hook.Begin(true,true) and not hook.Passing() and calls[#calls-5][2]==0,'the fight over: no pass')
+assert(hook.Begin(true,true,true) and hook.Passing()); hook.Stop()
+assert(not hook.Passing(),'stopping ends the pass')
+fake.SupportedMask=15
 local n=#calls
 loaded=false; hook.Stop()
 assert(#calls==n,'unload never calls a dangling DLL function pointer')
@@ -90,4 +106,4 @@ local previous = scans
 moduleBase = 200 -- unload/reload at another base between frames, without observing IsLoaded=false
 assert(hook.Begin(true) and scans>previous,'relocated DLL invalidates cached pointers even between frames')
 package.loaded.ffi=realffi; os.clock=clock
-print('Party native hook: ABI 3/native geometry, independent party/target modes, six slots, cursor diagnostics, disable/unload/reload passed')
+print('Party native hook: ABI 3/native geometry, independent party/target modes, six slots, cursor diagnostics, the pass outside the party windows, disable/unload/reload passed')

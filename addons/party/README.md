@@ -239,9 +239,10 @@ Unload Party and partyhook before replacing the DLL; keep hideparty unloaded.
   draws in the game's place, and **Follow Default UI Behavior** sits with them; each one's explanation is in the tooltip of the (?) after it. Pets are rows of the
   Party windows and go with Party. The choices are kept while the plugin is not loaded. `/pt native on` turns Use uihook on too; `/pt native status` says how the hooking is doing.
 
-While a fish is on the line, party mode lets the game's own party list draw, since the game draws the
-fish's stamina gauge with it (in the middle of the screen, not where the list sits), and Party's party
-windows step aside so the party is not shown twice. This lasts from the bite (packet 0x115)
+While a fish is on the line, party mode lets through what the game's own party list draws outside the list,
+since the game draws the fish's stamina gauge with it (in the middle of the screen, not where the list sits):
+the gauge shows and Party's windows stay. This needs uihook 1.65; with an older uihook the game's whole party
+list is given back for the fight instead, and Party's party windows step aside so the party is not shown twice. This lasts from the bite (packet 0x115)
 until the fight ends (the client's fishing packet ending or releasing the catch, a change of area, or the
 fight's time limit passing).
 
