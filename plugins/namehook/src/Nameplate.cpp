@@ -312,6 +312,11 @@ static HookClaims Claims = { "NAMEHOOKCLAIMS", 1, sizeof(HookClaims), sizeof(Hoo
 static HookLayerDraw LayerDraws[HOOK_LAYERS];
 static HookLayers Layers = { "NAMEHOOKLAYERS", 1, sizeof(HookLayers), sizeof(HookLayerSlot), HOOK_LAYERS, {}, {} };
 static HookCamera Camera = { "NAMEHOOKCAMERA", 1, sizeof(HookCamera), 0, 0, {}, {}, {}, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+// Every block an addon finds by its magic, its address exported: an object whose address leaves the DLL is
+// kept whole. Without it the optimiser split HookCamera, whose magic, version and size the plugin never
+// reads, into its written fields alone, and left no magic for an addon to find (1.46 in game).
+extern "C" __declspec(dllexport) const void* const NamehookBlocks[] = { &Shared, &Bubbles, &Popups, &Camera, &Claims, &Layers };
 static HookPopupDraw PopupDraw;
 
 // The frame whose first name has been seen, so that what is done once a frame is done then

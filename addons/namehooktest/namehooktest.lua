@@ -1,6 +1,6 @@
 addon.name    = 'namehooktest';
 addon.author  = 'win';
-addon.version = '0.1';
+addon.version = '0.2';
 addon.desc    = 'Shows namehook 1.46\'s layers, camera and claim slots at work on the target, to check them in game.';
 
 -- A tool for checking namehook in game, not an addon to play with. Each part draws at the target's name
@@ -10,8 +10,8 @@ addon.desc    = 'Shows namehook 1.46\'s layers, camera and claim slots at work o
 --           at the same point anchored to the world (from last frame's names): the two together
 --   camera  a blue dot where winxi.camera puts the same point on the screen: on the cross, under lens too
 --   over    the cross and square drawn over everything, not hidden by what is in front of the target
---   slot    monsters claimed through a claim slot above Name's: the target's name an orange bar; every
---           other monster's left to Name (or hidden, without Name), as a lower claim has it
+--   slot    every name claimed through a claim slot above Name's: the target's name an orange bar, whatever
+--           it is; every other name left to Name (or hidden, without Name), as a lower claim has it
 --
 --   /nht                         what is on, and how each part is doing
 --   /nht layer|camera|over|slot [on|off]
@@ -39,7 +39,7 @@ local layer, slot = nil, nil;
 local said = { layer = nil, slot = nil, camera = nil }; -- each part's trouble, as last said
 local seen = { layer = 0, world = 0, camera = 0, slot = 0 }; -- frames each was drawn in, since loaded
 
-local MONSTER = 0x80;
+local EVERY = 0xFF; -- every category: the target's, whatever it is
 local TEST_PRIORITY = 200; -- above Name's own claim (nameplates.SharedPriority, 100)
 
 local function say(words)
@@ -129,14 +129,14 @@ local function DrawSlot(index, u, v)
         slot, why = nameplates.TakeSlot(owner, TEST_PRIORITY);
         if (slot == nil) then trouble('slot', why); return; end
     end
-    if (not nameplates.ClaimSlot(slot, owner, MONSTER, TEST_PRIORITY)) then slot = nil; return; end
+    if (not nameplates.ClaimSlot(slot, owner, EVERY, TEST_PRIORITY)) then slot = nil; return; end
     trouble('slot', nil);
     -- never BeginDrawing(nil): that is the plugin's own claim's buffer, Name's
     local target = nameplates.SlotDrawing(slot);
     local scale = target and nameplates.BeginDrawing(target, true);
     if (not scale) then return; end
     nameplates.SetTexture(0, fonts.Texture());
-    -- the target's name alone: every other monster's is left to a lower claim
+    -- the target's name alone: every other name is left to a lower claim
     if (index ~= nil and nameplates.BeginName(index, 1, 1, 0xFF000000)) then
         Box(nameplates.Quad, 0, -8, 90, 14, 0xFFFF9020, u, v, scale);
         nameplates.EndName();
@@ -181,7 +181,7 @@ local function Status()
     local cam, why = camera.Get();
     say('camera: ' .. (cam and ('this frame\'s' .. (cam.Lens ~= 0 and ', lens warping' or ', no lens warp')) or tostring(why)));
     for part, why in pairs(said) do if (why ~= nil) then say(part .. ': ' .. why); end end
-    say('With a target: the green cross, the red square and the blue dot should be one on another, under lens too; with slot on, the target\'s name an orange bar and every other monster\'s as Name draws it.');
+    say('With a target: the green cross, the red square and the blue dot should be one on another, under lens too; with slot on, the target\'s name an orange bar and every other name as Name draws it.');
 end
 
 ashita.events.register('command', 'namehooktest_command', function (e)

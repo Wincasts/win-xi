@@ -1,5 +1,9 @@
 # Changelog
 
+## namehook 1.47 — the camera found
+
+- 1.44 to 1.46's `HookCamera` could not be found: the optimiser, seeing the plugin never read the block's magic, version or size, kept only the fields it writes, and its magic was in neither the DLL nor the game's memory (read in game with namehooktest: the claims and layers blocks there, the camera not). Every block found by magic now has its address in an exported table, `NamehookBlocks`, and an object whose address leaves the DLL is kept whole. `tools/abi_check.py` now looks for each block's magic and size in the built DLL, so a block dropped this way fails the checks.
+
 ## namehook 1.46 — layers of the world
 
 - A new block, `HookLayers` (magic `NAMEHOOKLAYERS`, version 1): four layers an addon takes as it takes a claim slot (`Owner`), renews each frame (`ClaimFrame`) and fills: its `HookLayerDraw` holds up to 512 drawings and 8,192 quads, with 32 texture slots of its own. A drawing is at an entity (`LAYER_AT_ENTITY`: its name point, offset in the world by X, Y and Z, while `ServerId` is still the one at that index) or at a point of the world (`LAYER_AT_WORLD`), and is drawn as a name is: as deep as its point, hidden by what is in front of it unless `LAYER_DRAW_OVER`, and at its own shape under lens's warp. Layers are drawn by `Order`, lowest first: points of the world as the client draws its first name of a frame, an entity's as the client comes to its name, whatever its category or claim. A layer not renewed lapses as a claim does, and the plugin frees it. A drawing that does not hold together is refused and counted in `DrawingsRefused`.

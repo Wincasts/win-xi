@@ -61,7 +61,7 @@ H.print('over: drawn over everything', layerDraw.Drawings[0].Flags == 1 + 4 and 
 H.command('/nht slot on')
 H.frames(2)
 local s = claims.Slots[0]
-H.print('slot: monsters claimed above Name', s.Owner == nameplates.OwnerOf('namehooktest') and s.Categories == 0x80 and s.Priority == 200 and s.ClaimFrame == 40)
+H.print('slot: every name claimed above Name', s.Owner == nameplates.OwnerOf('namehooktest') and s.Categories == 0xFF and s.Priority == 200 and s.ClaimFrame == 40)
 H.print('the target\'s name alone drawn into it', slotDraw.Entities[0x401].Count == 1 and slotDraw.QuadCount == 1)
 targetIndex = 0
 H.frames(1)

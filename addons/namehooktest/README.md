@@ -16,9 +16,10 @@ target, and where its parts agree, they are right. Needs namehook 1.46 and winxi
   cross, under lens's warp as well as without it.
 - **over** (off to start): the cross and square drawn over everything. Off, a wall or another character
   between you and the target hides them, as it hides a name.
-- **slot** (off to start): monsters claimed through a claim slot above Name's claim. The target's name
-  is an **orange bar**; every other monster's name is left to Name as it draws them (or hidden, without
-  Name), as a lower claim has it.
+- **slot** (off to start): every name claimed through a claim slot above Name's claim. The target's
+  name, whatever it is, is an **orange bar**; every other name is left to Name as it draws them (or
+  hidden, without Name), as a lower claim has it. (0.1 claimed monsters alone, so an NPC or a player
+  targeted kept its name.)
 
 What to look for, and what each part tells about namehook: the cross and square together say that drawings
 at an entity and at a point of the world land where names do; the dot on them says the shared camera, and

@@ -262,6 +262,35 @@ def compare_lua(layout):
     return problems, notes
 
 
+# Blocks whose magic the plugin writes as it starts (memcpy into Magic), so it is in memory, not in the file
+MAGIC_AT_RUN = {'TextTapShared', 'MirrorShared'}
+
+
+def compare_dlls(layout):
+    """Each block found by magic is in its plugin's built DLL as an addon finds it: the magic, padded to 16
+    bytes, with the block's size in the eight bytes after (its Version and Size, in either order). A DLL
+    not built is passed over. Catches the optimiser keeping only the fields a plugin writes (HookCamera,
+    namehook 1.46)."""
+    problems = []
+    import struct
+    for plugin, name, magic, _, _ in BLOCKS:
+        if magic is None or name in MAGIC_AT_RUN:
+            continue
+        dll = ROOT / f'plugins/{plugin}/build/{plugin}.dll'
+        if not dll.is_file():
+            continue
+        data = dll.read_bytes()
+        needle = magic.encode() + b'\0' * (16 - len(magic))
+        at = data.find(needle)
+        if at < 0:
+            problems.append(f'{name}: its magic {magic} is not in {dll.relative_to(ROOT)}: an addon cannot find it (export its address)')
+            continue
+        after = struct.unpack_from('<2I', data, at + 16)
+        if layout[name]['size'] not in after:
+            problems.append(f'{name}: in {dll.relative_to(ROOT)} its header says {after}, not its size {layout[name]["size"]}')
+    return problems
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--freeze', action='store_true', help='write the 1.0 baseline from the plugins as they are')
@@ -281,6 +310,7 @@ def main():
     problems = compare(baseline, layout)
     lua_problems, notes = compare_lua(layout)
     problems += lua_problems
+    problems += compare_dlls(layout)
     if args.verbose:
         for note in notes:
             print('abi: ' + note)
