@@ -13,6 +13,7 @@ package.path = root .. 'addons/libs/?.lua;' .. package.path
 package.path = (target:match('^(.*)/[^/]*$') or '.') .. '/?.lua;' .. package.path
 
 local handlers, present, calls, printed, clock = {}, {}, {}, {}, 0
+local lockFlags = 0 -- the target's lock-on flags, set by H.lockOn
 local cpuClock = os.clock
 os.clock = function() return clock end
 local realprint = print
@@ -151,7 +152,7 @@ AshitaCore = { GetInstallPath = function() return 'C:\\ashita' end,
             GetIsZoning = function() return 0 end, GetStatusIcons = function() return {} end } end,
         GetParty = function() return { GetMemberTargetIndex = function() return 0 end, GetMemberName = function() return 'Tester' end } end,
         GetTarget = function() return { GetIsSubTargetActive = function() return 0 end, GetSubTargetFlags = function() return 0xFFFFFFFF end,
-            GetTargetIndex = function() return 0 end } end } end,
+            GetTargetIndex = function() return 0 end, GetLockedOnFlags = function() return lockFlags end } end } end,
     GetResourceManager = function() return { GetItemById = function(_, id) return { Id = id, Name = { 'Item ' .. id },
         ResourceId = id, Type = id >= 20000 and 5 or 1, Flags = 0, Targets = 0, StackSize = id < 1000 and 12 or 1,
         LogNameSingular = { 'item ' .. id }, LogNamePlural = { 'items ' .. id }, Description = { 'About item ' .. id },
@@ -200,6 +201,7 @@ H = {
     packet = function(id) fire('packet_in', { id = id, data = '' }) end,
     packetData = function(id, data) fire('packet_in', { id = id, data = data, data_raw = data }) end, -- a packet with its bytes
     packetOut = function(id) fire('packet_out', { id = id, data = '' }) end,
+    lockOn = function(on) lockFlags = on and 1 or 0 end, -- the player locked on to the target, or not
     packetOutData = function(id, data) fire('packet_out', { id = id, data = data, data_raw = data }) end, -- one of the client's, with its bytes
     load = function() fire('load') end,                    -- Ashita's own, once the addon's file has run
     unload = function() fire('unload') end,
