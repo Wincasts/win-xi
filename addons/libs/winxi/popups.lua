@@ -173,9 +173,9 @@ function popups.Each(hook)
     return nextPopup, hook, 0;
 end
 
--- One popup for each hit: of the popups over the same one, from the same one, first listed in the
--- same frame and saying the same, the one the game made first (the lower id: the number, not its
--- copy); the empty copy of a miss is never one
+-- One popup for each hit: of the popups over the same one, from the same one and saying the same,
+-- the one the game made first (the lower id: the number, not its copy, which is first listed a frame
+-- or so after it); the empty copy of a miss is never one
 local hitKeys, hits = {}, {};
 function popups.Hits(hook)
     hook = hook or popups.Hook();
@@ -189,7 +189,7 @@ function popups.Hits(hook)
     for i = 0, math.min(hook.Count, POPUPS_MAX) - 1 do
         local popup = hook.Popups[i];
         if (popup.Text[0] ~= 0) then
-            local key = ('%d:%d:%d:%s'):format(popup.EntityIndex, popup.SourceIndex, popup.FirstFrame, ffi.string(popup.Text));
+            local key = ('%d:%d:%s'):format(popup.EntityIndex, popup.SourceIndex, ffi.string(popup.Text));
             local at = hitKeys[key];
             if (at == nil) then
                 count = count + 1;

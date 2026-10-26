@@ -960,6 +960,9 @@ static uint32_t NextPopupId = 1;
 // The frame whose first claimed popup has been drawn, so that the host is readied once a frame
 static uint32_t PopupsDrawFrame = 0xFFFFFFFF;
 
+// Set by /namehook popups probe: the next claimed popup has the host say what it is drawn on
+static bool PopupProbeWanted = false;
+
 // Whether an addon has drawn popups lately enough for them to be the ones to draw
 static bool IsPopupDrawFresh() {
 	return PopupDraw.QuadCount <= HOOK_POPUP_QUADS_MAX && PopupDraw.Count <= HOOK_POPUPS_MAX
@@ -992,6 +995,10 @@ static void DrawClaimedPopup(uint32_t id, const float* position) {
 		Instance->BeginPopups(PopupDraw, IsPopupDrawFresh());
 	}
 	const uint32_t slot = FindPopupDrawing(id);
+	if (PopupProbeWanted) {
+		PopupProbeWanted = false;
+		Instance->ProbePopup(position, slot < HOOK_POPUPS_MAX);
+	}
 	if (slot < HOOK_POPUPS_MAX) {
 		const HookPopupDrawing& drawing = PopupDraw.Drawings[slot];
 		Instance->DrawPopup(slot, drawing, &PopupDraw.Quads[drawing.Drawing.First], position);
@@ -1563,6 +1570,17 @@ static bool SayPopupSummary(Nameplate* plugin) {
 void Nameplate::ParsePopupsCommand(const char* cmd) {
 	if (eat_space_and_is_end(cmd)) {
 		SayPopups();
+		return;
+	}
+
+	if (eat_space_token_match_and_advance(cmd, "probe")) {
+		// not in the help: for finding out how the client draws its popups
+		if (eat_space_and_is_end(cmd)) {
+			PopupProbeWanted = true;
+			Sayf(this, "The next damage popup an addon draws will be looked at.");
+		} else {
+			CommandError("popups");
+		}
 		return;
 	}
 

@@ -380,6 +380,10 @@ class Nameplate {
         // Asked for by the probe command, and called from the client's name drawing code, once.
         virtual void ProbeScene() {}
 
+        // The same, as the client draws a claimed damage popup, with where its point (three floats) comes
+        // in the picture and whether an addon has drawn it (found). Asked for by /namehook popups probe.
+        virtual void ProbePopup([[maybe_unused]] const float* position, [[maybe_unused]] bool found) {}
+
         // The client has drawn a line of a name itself, with its own functions, since the host last
         // drew for an addon: whatever the host kept of the device's state is no longer the client's
         virtual void ClientDrew() {}
