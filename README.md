@@ -12,7 +12,6 @@ with `winxi`, a shared library that gives every addon the same look, set once in
 | [vis](addons/vis) | World and entity draw distance with the fog at its own scale, objects that don't pop in or lose detail, distant terrain drawn; saved per character, with presets for cities, the outdoors and dungeons and a zone's own values over them; replaces drawdistance (drawscale before 2.1) | `/vis` |
 | [hidecompass](addons/hidecompass) | Hides the game's compass | `/hidecompass` |
 | [mark](addons/mark) | Pick a notorious monster and see its placeholders, their respawns, where it spawns on the map, its window and its drops | `/mark` |
-| [menutoggle](addons/menutoggle) | Start opens and closes the main menu, and closes the social menu too | `/menutoggle` |
 | [mobcast](addons/mobcast) | What the enemies about you are casting, readying and using, in a small window, as the chat log says it | `/mobcast` |
 | [nativeui](addons/nativeui) | The game's own menus in a uihook skin (the winxi look), and the menus it stacks over the chat log (the command menu, shops, yes-or-no, item descriptions) moved where you want them; needs `uihook` | `/nativeui` |
 | [name](addons/name) | Shows and hides the names over characters' heads by what they are, and draws them in winxi's style; needs the `namehook` plugin | `/name` |
@@ -52,12 +51,9 @@ occlusionfix needs the `winxi` library. Copy into your Ashita folder, merging fo
   [plugins/lens](plugins/lens))
 
 Then, in game: `/addon load <the addon>`. For `name`, `/load namehook` first; for `buff` or native
-`party`, `/load uihook` first. Uihook replaces `buffhook` and `partyhook`; unload those before loading
-it and remove their startup commands. Party native rendering remains opt-in; unload `hideparty`
-before enabling it. The experimental [clock addon](addons/clock/README.md) uses uihook 0.2 to
-draw a configurable three-slot info panel with movable day/weather icons and themed dividers,
-with the original single-line clock available as a legacy mode. It can hide the compass;
-unload `hidecompass` first. Clock requires winxi 21.
+`party`, `/load uihook` first. Uihook replaces the retired `buffhook` and `partyhook` plugins; unload
+those before loading it and remove their startup commands. Party native rendering remains opt-in;
+unload `hideparty` before enabling it.
 [Chatbox](addons/chatbox/README.md) includes a native-backed WinXI input bar and requires
 winxi 22 and uihook 0.5 with chat ABI 13 (0.6 for native action-menu anchoring above the panel, and
 for the expanded log drawn wholly by chatbox, opened in place, and the game's history read at start).

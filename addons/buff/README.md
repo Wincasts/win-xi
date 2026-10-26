@@ -58,11 +58,11 @@ events. The configurable addon hiding rules still apply in both positioning mode
 expanded chat and maps by default). Existing character settings are updated once to restore map
 hiding, after which manual changes to the hiding rules are respected.
 
-## Under the game's menus: the buffhook plugin
+## Under the game's menus: the uihook plugin
 
-With the `buffhook` plugin loaded (`/load buffhook`, before `/addon load buff`), the anchored bar is
-drawn by the plugin where, and when, the game draws its own row of status icons, in their place (see
-[plugins/buffhook](../../plugins/buffhook)). It then behaves as the game's icons do: the menus the
+With the `uihook` plugin loaded (`/load uihook`, before `/addon load buff`; the retired `buffhook` is
+still read where it is loaded instead), the anchored bar is drawn by the plugin where, and when, the
+game draws its own row of status icons, in their place (see [plugins/uihook](../../plugins/uihook)). It then behaves as the game's icons do: the menus the
 game opens over them (the macro palettes, the main menu and the rest) are drawn over the bar, a menu
 that covers part of it covers just that part, and it goes when the game would not draw its icons.
 It is placed where the game puts its first icon, not where it was measured to be: **Anchor

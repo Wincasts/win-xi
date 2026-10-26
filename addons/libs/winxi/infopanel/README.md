@@ -26,8 +26,7 @@ published bounds. The game's menus are not moved.
 
 Custom icon sets live in `icons/<set>/days` and `icons/<set>/weather`, using the filenames in the
 bundled `gems` set: the eight days, the eight elements, and `clear`, `clouds` and `fog` for the skies the game
-draws no icon for. They can follow the same format as clock's existing icon sets. The legacy clock
-keeps searching `addons/clock/icons`; chatbox does not require that folder or the clock addon.
+draws no icon for.
 
 Bundled gems are repository-generated MIT artwork. Regenerate this shared copy with:
 

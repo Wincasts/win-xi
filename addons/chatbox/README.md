@@ -496,7 +496,6 @@ luajit tests/infopanel_source_check.lua
 luajit tests/winxi_frame_check.lua
 luajit tests/nativemenus_check.lua
 luajit tests/nativehistory_check.lua
-luajit tests/clock_panel_check.lua
 luajit tests/chatbox_input_check.lua
 luajit tests/chatbox_translate_check.lua
 luajit tests/chatbox_layout_check.lua

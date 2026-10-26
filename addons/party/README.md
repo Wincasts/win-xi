@@ -177,7 +177,7 @@ with JIT disabled after warm-up. These isolated budgets exclude rendering-librar
 Native renewal/rectangle/anchoring paths also have zero-allocation budgets; idle-disabled hooks make
 no repeated DLL calls. Manual layout avoids unused display queries, and target polling skips discarded
 ToT entity lookups or all target reads when every target window is disabled. Native capture/replay
-optimization details and the CPU-only benchmark are in the [partyhook README](../../plugins/partyhook/README.md#optimization-checks).
+is uihook's party module (`plugins/uihook/src/modules/party`).
 
 Empty alliance slots skip stats, jobs and buffs. Pet options invalidate the pet snapshot
 immediately rather than waiting for its polling interval. Invitations and automaton state
@@ -225,8 +225,8 @@ User testing confirms party/rearranging, chat hiding, target/native arrows, menu
 range colours, rapid switching/despawns/doors, cutscenes, interface hide/show and independent toggles.
 **Zoning remains untested**, as do font/device-reset recovery and broader client compatibility.
 
-Build/install/update and live checklist: [plugins/partyhook](../../plugins/partyhook/README.md).
-**This addon requires partyhook 0.3 (shared ABI 3); update both addon and DLL, not just the addon.**
+Build/install/update: [plugins/uihook](../../plugins/uihook/README.md). The retired partyhook plugin (shared ABI 3)
+is still read where it is loaded instead.
 Unload Party and partyhook before replacing the DLL; keep hideparty unloaded.
 
 - `/pt native on|off`: party/alliance lists, including embedded pet rows.
