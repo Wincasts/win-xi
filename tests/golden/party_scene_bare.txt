@@ -762,14 +762,14 @@ window PopClipRect
 imgui End
 ## filled with sample data, the settings open (bare): 625 calls
 imgui Begin Party Settings
+imgui TextColored (1,0.75,0.55,1) [-] Positioning
+imgui Text Automatic Positioning:
+imgui SameLine 22
+imgui NewLine
 imgui TextColored (1,0.75,0.55,1) [-] Mouse Interaction
 imgui Text Clickthrough:
 imgui SameLine 22
 imgui Text Show Tooltips:
-imgui SameLine 22
-imgui NewLine
-imgui TextColored (1,0.75,0.55,1) [-] Positioning
-imgui Text Automatic Positioning:
 imgui SameLine 22
 imgui Separator
 imgui SameLine
