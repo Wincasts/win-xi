@@ -118,6 +118,7 @@ struct CodePatchSite {
 	bool Written;   // what this plugin wrote is there
 	bool Abandoned; // changed by something else since it was written: left as it was found
 	bool Deferred;  // not written by Commit, but on its own when wanted
+	bool Harmless;  // holds nothing that leads into the plugin: abandoned, it strands nothing
 	uint8_t Original[CODE_PATCH_BYTES_MAX];
 	uint8_t Bytes[CODE_PATCH_BYTES_MAX]; // what is written, or to be
 };
@@ -165,7 +166,12 @@ struct CodePatches {
 		if (site.Written) {
 			return true;
 		}
-		if (site.Abandoned || !Holds(site, site.Original) || !Code.Write(site.At, site.Bytes, site.Size)) {
+		if (site.Abandoned || !Holds(site, site.Original)) {
+			return false;
+		}
+		if (!Code.Write(site.At, site.Bytes, site.Size)) {
+			// a write that went in only in part is not as found: nothing more is done there
+			site.Abandoned = !Holds(site, site.Original);
 			return false;
 		}
 		site.Written = true;
@@ -203,8 +209,12 @@ struct CodePatches {
 		}
 		CodePatchSite& site = Sites[index];
 		if (!site.Written) {
+			// not written yet, or given back as found by something else: written afresh where wanted
+			if (site.Abandoned) {
+				return false;
+			}
 			memcpy(site.Bytes, bytes, site.Size);
-			return true;
+			return site.Deferred || Write(index);
 		}
 		if (!Holds(site, site.Bytes)) {
 			site.Abandoned = !Holds(site, site.Original);
@@ -235,15 +245,23 @@ struct CodePatches {
 		return true;
 	}
 
-	// Every site taken back, last first. How many are left abandoned.
+	// Every site taken back, last first. How many are left abandoned that are not harmless.
 	size_t RestoreAll() {
-		size_t abandoned = 0;
 		for (size_t i = Count; i-- > 0;) {
-			if (!Restore(static_cast<int>(i))) {
-				abandoned++;
+			Restore(static_cast<int>(i));
+		}
+		return Stranding();
+	}
+
+	// How many abandoned sites may still lead into the plugin
+	size_t Stranding() const {
+		size_t count = 0;
+		for (size_t i = 0; i < Count; i++) {
+			if (Sites[i].Abandoned && !Sites[i].Harmless) {
+				count++;
 			}
 		}
-		return abandoned;
+		return count;
 	}
 
 	bool AnyWritten() const {

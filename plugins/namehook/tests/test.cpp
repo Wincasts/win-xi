@@ -38,6 +38,7 @@ struct FakeCode {
 	uint8_t Bytes[256] = {};
 	int WritesLeft = -1; // writes before every one fails; -1 for never
 	int FailOnce = -1;   // the one write, counted from 0, that fails
+	bool Partial = false; // that write gets its first byte in before failing
 	int Writes = 0, Tried = 0;
 	bool Read(uintptr_t at, uint8_t* out, size_t size) {
 		if (at + size > sizeof(Bytes)) { return false; }
@@ -45,7 +46,10 @@ struct FakeCode {
 		return true;
 	}
 	bool Write(uintptr_t at, const uint8_t* bytes, size_t size) {
-		if (Tried++ == FailOnce || at + size > sizeof(Bytes) || WritesLeft == 0) { return false; }
+		if (Tried++ == FailOnce || at + size > sizeof(Bytes) || WritesLeft == 0) {
+			if (Partial && at < sizeof(Bytes)) { Bytes[at] = bytes[0]; }
+			return false;
+		}
 		if (WritesLeft > 0) { WritesLeft--; }
 		Writes++;
 		memcpy(Bytes + at, bytes, size);
@@ -104,6 +108,28 @@ static void TestCodePatches() {
 		CHECK(live.Rewrite(0, jump) && live.Code.Bytes[5] == 0xEB && live.Rewrite(0, jnz) && live.Code.Bytes[5] == 0x75);
 		live.Code.Bytes[5] = 0x90;
 		CHECK(!live.Rewrite(0, jump) && live.Code.Bytes[5] == 0x90 && live.Sites[0].Abandoned);
+		CHECK(!live.Rewrite(0, jnz) && live.Code.Bytes[5] == 0x90);
+
+		// given back as found by something else, a later change writes it afresh
+		CodePatches<FakeCode> again;
+		CHECK(again.Add(5, jump, sizeof(jump)) == 0 && again.Commit() && again.Code.Bytes[5] == 0xEB);
+		again.Code.Bytes[5] = 0;
+		CHECK(!again.Rewrite(0, jnz) && !again.Sites[0].Abandoned && !again.Sites[0].Written);
+		CHECK(again.Rewrite(0, jump) && again.Code.Bytes[5] == 0xEB && again.Sites[0].Written);
+
+		// a write that went in only in part leaves the site abandoned, not thought as found
+		CodePatches<FakeCode> torn;
+		CHECK(torn.Add(0, a, sizeof(a)) == 0);
+		torn.Code.FailOnce = 0;
+		torn.Code.Partial = true;
+		CHECK(!torn.Commit() && torn.Sites[0].Abandoned && torn.Code.Bytes[0] == 0xA1 && torn.Stranding() == 1);
+
+		// a harmless site abandoned strands nothing
+		CodePatches<FakeCode> harmless;
+		CHECK(harmless.Add(0, c, sizeof(c)) == 0 && harmless.Commit());
+		harmless.Sites[0].Harmless = true;
+		harmless.Code.Bytes[0] = 0x90;
+		CHECK(harmless.RestoreAll() == 0 && harmless.Sites[0].Abandoned);
 
 		// a site that cannot be given back after a failed commit is left abandoned, not forgotten
 		CodePatches<FakeCode> stuck;
@@ -1582,6 +1608,15 @@ int main() {
 		CHECK(client[8] == 0x75 && plugin.messages.empty());
 		CHECK(plugin.Deinit() == 0 && client[0] == 0x75 && Patches.Count == 0 && !Globals.Patched && !Stranded);
 
+		// the stars' jump written over by something else is left, and strands nothing
+		CHECK(Patches.Add(pClient, patch, sizeof(patch)) == 0 && Patches.Add(pClient + 8, jnz, sizeof(jnz)) == 1 && Patches.Commit());
+		Patches.Sites[1].Harmless = true;
+		Globals.Patched = true;
+		Globals.StarsSite = 1;
+		client[8] = 0xCC;
+		CHECK(plugin.Deinit() == 0 && !Stranded && client[0] == 0x75 && client[8] == 0xCC && Patches.Count == 0);
+		client[8] = 0x75;
+
 		// a site something else wrote over since: left, the plugin stranded, and never loaded again
 		CHECK(Patches.Add(pClient, patch, sizeof(patch)) == 0 && Patches.Add(pClient + 8, jnz, sizeof(jnz)) == 1 && Patches.Commit());
 		Globals.Patched = true;
@@ -1594,6 +1629,7 @@ int main() {
 		CHECK(client[8] == 0xCC && plugin.messages.size() == 1 && plugin.messages[0] == MESSAGE::PATCH_ERROR);
 		CHECK(plugin.Deinit() == -26 && Stranded && Globals.Patched && client[1] == 0xE9 && client[8] == 0xCC);
 		CHECK(plugin.Init() == -24 && Globals.Patched);
+		CHECK(plugin.Deinit() == 0 && Stranded && Globals.Patched && client[1] == 0xE9); // a refused load's unload
 		Stranded = false;
 		Patches.Drop(0);
 		ZeroMemory(&Globals, sizeof(Globals));

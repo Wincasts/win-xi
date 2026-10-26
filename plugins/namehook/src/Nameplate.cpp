@@ -1995,6 +1995,7 @@ int Nameplate::Init() {
 	if (Globals.StarsSite < 0) {
 		return -22;
 	}
+	Patches.Sites[Globals.StarsSite].Harmless = true; // a jump within the client's own code
 
 	CopyMemory(bytes, &DrawName3_V2_Patch[0], DRAWNAME3_V2_PATCH_SIZE);
 	WriteAddress(bytes + DRAWNAME3_V2_PATCH_ADDRESS_LOCATION, reinterpret_cast<const void*> (&ShouldDrawNameplate));
@@ -2094,11 +2095,9 @@ int Nameplate::Init() {
 
 	if (!Patches.Commit()) {
 		// Commit has taken back what it wrote; a site it could not take back strands the plugin
-		for (size_t i = 0; i < Patches.Count; i++) {
-			if (Patches.Sites[i].Written || Patches.Sites[i].Abandoned) {
-				Strand();
-				return -23;
-			}
+		if (Patches.Stranding() != 0) {
+			Strand();
+			return -23;
 		}
 		Patches.Drop(0);
 		ZeroMemory(&Globals, sizeof(Globals));
@@ -2335,6 +2334,11 @@ int Nameplate::Deinit() {
 	Popups.Hooked = 0;
 	Popups.Count = 0;
 	Popups.Draw = 0;
+
+	// Already stranded (a load refused, or one whose commit could not be taken back): nothing more to do
+	if (Stranded) {
+		return 0;
+	}
 
 	// Every site given back, last first. One something else has changed since is left as it is: the
 	// client may still call into this plugin from there, so its module is kept loaded, and what that
