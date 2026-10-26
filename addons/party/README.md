@@ -57,9 +57,11 @@ calls per category; averages and maxima cover the full interval.
   not action-specific range guarantees.
 - **Style → Appearance → Bar Shadows**: Off, Simple (one layer), or Full (two layers). This is
   independent of Winxi window shadows.
-- **Behavior → Mouse Interaction → Hover Details**, beside Clickthrough, is off by default and works
-  only with Clickthrough off: names, jobs and pet owners.
-  Each buff/debuff icon has a Winxi tooltip whenever Clickthrough is off, even without Hover Details.
+- **Behavior → Mouse Interaction → Hover Details**, beside Clickthrough, is off by default: names, jobs
+  and pet owners.
+  Each buff/debuff icon has a Winxi tooltip, even without Hover Details.
+- **Clickthrough** lets clicks through to the game, but the windows are still hovered: their tooltips
+  show either way. Another window drawn over them, wanting the mouse, keeps them from showing.
 - **Shift+drag** moves a window when **Clickthrough** is off: hold Shift as you click it, and the drag goes
   on until the mouse is let go. Without Shift the windows stay put, so a click on them does not move them.
   With Clickthrough on they cannot be dragged except while organizing. A window placed by Automatic
@@ -87,7 +89,7 @@ with only newly observed effects, never a reconstructed complete enemy status li
 After reloading Party in Ashita, run `/pt perf` with settings closed for solo, full party, full alliance,
 pet-heavy and target-debuff scenarios; repeat with `/pt perf counters` when investigating work counts.
 Compare Full/Simple/Off bar shadows under the same conditions. Validate six-pet positioning, theme-font
-switches, status overflow near both screen edges, two-row icons, tooltips with Clickthrough off, and
+switches, status overflow near both screen edges, two-row icons, tooltips, and
 zone/disable/re-enable tracking. Offline checks cannot validate actual GPU performance, DPI or mouse
 behavior in the game.
 

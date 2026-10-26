@@ -11,6 +11,9 @@
 - **Shift+drag** moves a window while Clickthrough is off: Shift held as it is clicked, the drag kept until the
   mouse is let go. Without Shift the windows no longer move when clicked. Not with Clickthrough on, nor for a
   window placed by Automatic Positioning or uihook or linked to another; organizing drags as before.
+- Tooltips show with **Clickthrough** on: it lets clicks and drags through to the game, no longer hovering. Hover
+  Details is no longer greyed with Clickthrough on, and a target's debuff letters are hovered by their place, as
+  the icons and names already were.
 
 ## 0.3.1
 

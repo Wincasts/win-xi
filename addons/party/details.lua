@@ -4,10 +4,15 @@ local tooltip = require('winxi.tooltip')
 local details = {}
 local names = {}
 local mouseX, mouseY
--- Called once by Present, not once per member/icon (including measurement passes).
-function details.BeginFrame(enabled)
+-- Called once by Present, not once per member/icon (including measurement passes). Hovering is a test of
+-- the mouse against each rect, not imgui's, so it works through windows the mouse goes through
+-- (Clickthrough): those are never imgui's hovered window, so one that wants the mouse is another, drawn
+-- over them, and nothing here is hovered.
+function details.BeginFrame(enabled, clickThrough)
     mouseX, mouseY = nil, nil
-    if enabled then mouseX, mouseY = imgui.GetMousePos() end
+    if enabled and not (clickThrough and imgui.GetIO().WantCaptureMouse) then
+        mouseX, mouseY = imgui.GetMousePos()
+    end
 end
 function details.StatusName(id)
     if names[id] == nil then

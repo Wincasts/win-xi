@@ -340,7 +340,8 @@ local function Present()
     end
 
     -- Native menus block clicks, not read-only buff/debuff hover (including in combat).
-    details.BeginFrame(not saved.clickThrough[1] and not hidden)
+    -- With Clickthrough the windows are still hovered for their tooltips, just not clicked or dragged.
+    details.BeginFrame(not hidden, saved.clickThrough[1])
     if saved.automaticPositioning[1] then
         local count = 0
         if saved.pets.enabled[1] then

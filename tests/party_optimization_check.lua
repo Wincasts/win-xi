@@ -46,8 +46,8 @@ H.frames(3)
 assert(reads == 4, 'Present samples mouse once per visible frame')
 o.clickThrough[1] = true
 H.frames(3)
-assert(reads == 4)
-H.print('hover coordinates sampled once per enabled frame, never with clickthrough', true)
+assert(reads == 7, 'clickthrough still samples the mouse once per visible frame, for tooltips')
+H.print('hover coordinates sampled once per enabled frame, with or without clickthrough', true)
 
 local statuses, perf = require('statuses'), require('perf')
 local count, originalCount = 0, perf.Count

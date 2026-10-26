@@ -528,7 +528,7 @@ function options.Style(saved)
     style.castRange, style.targetRange = kept.castRange[1] / 100, kept.targetRange[1]
     style.nearOpacity, style.farOpacity = kept.nearOpacity[1] / 100, kept.farOpacity[1] / 100
     style.lowHp = kept.lowHp[1]
-    style.hoverDetails = kept.hoverDetails[1] and not saved.clickThrough[1]
+    style.hoverDetails = kept.hoverDetails[1]
     style.debuffsFirst = kept.debuffsFirst[1]
     style.priorityStatuses, style.hiddenStatuses = kept.priorityStatuses[1], kept.hiddenStatuses[1]
     style.buffLimit, style.buffRows = kept.buffLimit[1], kept.buffRows[1]
