@@ -628,6 +628,21 @@ public:
         if (command && !_strnicmp(command,"/uihook census",14)) { Diag.CensusCommand(command[14]==' ' ? command+15 : ""); return true; }
         if (command && (!_stricmp(command,"/uihook skin") || !_strnicmp(command,"/uihook skin ",13))) { Skins.Command(command[12]==' ' ? command+13 : ""); return true; }
         if (command && !_strnicmp(command,"/uihook textures",16)) { Diag.TexturesCommand(command[16]==' ' ? command+17 : ""); return true; }
+        if (command && _stricmp(command,"/uihook keys")==0) {
+            char line[512];
+            int at=snprintf(line,sizeof(line),"[uihook:keys] supported %u, frame %u, committed %u; named:",KeysBlock.Supported,KeysBlock.Frame,KeysBlock.HoldFrame);
+            for (unsigned vk=0;vk<256 && at<200;vk++) if ((KeysBlock.Hold[vk>>5]>>(vk&31))&1) at+=snprintf(line+at,sizeof(line)-at," %02X",vk);
+            snprintf(line+at,sizeof(line)-at,"; kept %u; seen %u down, %u up, %u characters.",KeysBlock.Kept,Keys.seenDown,Keys.seenUp,Keys.seenChar);
+            core->GetChatManager()->Write(0,false,line);
+            at=snprintf(line,sizeof(line),"[uihook:keys] last:");
+            const uint32_t count=Keys.seenNext<16 ? Keys.seenNext : 16;
+            for (uint32_t i=0;i<count;i++) {
+                const auto& e=Keys.seen[(Keys.seenNext-count+i)%16];
+                at+=snprintf(line+at,sizeof(line)-at," %c%02X%s",e.kind,e.wParam,e.kept?"*":"");
+            }
+            core->GetChatManager()->Write(0,false,count ? line : "[uihook:keys] no keyboard message has reached the game's input handler while Enter was named.");
+            return true;
+        }
         if (command && _stricmp(command,"/uihook menus")==0) {
             char line[256];
             snprintf(line,sizeof(line),"[uihook:menus] supported %u; frame/request %u/%u, host %u; applied/restored %u/%u; last %.16s at %u.",

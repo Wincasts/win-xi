@@ -31,6 +31,15 @@ struct GameKeys {
     KeysShared* shared=nullptr;
     bool taken[256]={};           // a press being kept, by virtual key, until its release
     uint8_t chars[512]={};        // characters still to keep, by scan code (bit 8 the extended key's)
+    // /uihook keys: the keyboard messages the handler has been given, counted, and the last 16 of them (D down, U up,
+    // C character; its wParam; whether it was kept) while Enter is named, the list open, so typing the command after
+    // does not push them out: to see what reaches the game's editor through it
+    uint32_t seenDown=0, seenUp=0, seenChar=0, seenNext=0;
+    struct Seen { char kind; uint32_t wParam; bool kept; } seen[16]={};
+    void Note(char kind,WPARAM wParam,bool kept) {
+        if (kind=='D') ++seenDown; else if (kind=='U') ++seenUp; else ++seenChar;
+        if (Holding(VK_RETURN)) seen[seenNext++%16]={kind,uint32_t(wParam),kept};
+    }
     static uint32_t Code(LPARAM lParam) { return uint32_t(lParam>>16)&0x1ff; }
     bool Holding(uint32_t vk) const {
         if (!shared || !shared->Supported || vk>255) return false;
@@ -45,6 +54,14 @@ struct GameKeys {
     }
     // Whether the game is given the message
     bool Pass(const MSG& message) {
+        const bool given=Decide(message);
+        const UINT kind=message.message;
+        if (kind==WM_KEYDOWN || kind==WM_SYSKEYDOWN) Note('D',message.wParam,!given);
+        else if (kind==WM_KEYUP || kind==WM_SYSKEYUP) Note('U',message.wParam,!given);
+        else if (kind==WM_CHAR || kind==WM_SYSCHAR || kind==WM_DEADCHAR || kind==WM_SYSDEADCHAR) Note('C',message.wParam,!given);
+        return given;
+    }
+    bool Decide(const MSG& message) {
         const UINT kind=message.message;
         if (kind==WM_KEYDOWN || kind==WM_SYSKEYDOWN) {
             if (message.wParam>255) return true;

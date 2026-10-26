@@ -54,12 +54,14 @@ public:
         if (_stricmp(words[1], "textures") == 0) { std::string line = "/uihook textures"; if (words[2][0]) line += std::string(" ") + words[2]; return party && party->HandleCommand(mode, line.c_str(), injected); }
         if (_stricmp(words[1], "native") == 0) return party && party->HandleCommand(mode, command, injected);
         if (_stricmp(words[1], "menus") == 0) return party && party->HandleCommand(mode, "/uihook menus", injected);
+        if (_stricmp(words[1], "keys") == 0) return party && party->HandleCommand(mode, "/uihook keys", injected);
         if (!words[1][0] || _stricmp(words[1], "addons") == 0) { Addons(); return true; }
         Say("/uihook (or /uihook addons): the addons handing uihook something now.");
         Say("  /uihook hud | chat | chat history | menus: what the clock, chat and action-menu replacements found and drew; chat history prints the game's newest chat lines as it keeps them.");
         Say("  /uihook skin <name> | reload | off: the game's interface drawn with the pictures in config\\uihook\\skins\\<name>\\ (tex-<hash>.png) in place of its textures, every menu at once.");
         Say("  /uihook skin font <menu|title> <file|off> [regular|bold] [outline=<px>]: the skin's fonts drawn in a font of C:\\Windows\\Fonts.");
         Say("  /uihook native [group <x> <y> | group off | inset <pixels> | size <factor>]: the windows the game stacks over the chat log moved together, the sides brought in, or every framed window drawn larger; the game's menus and controller input left as they are.");
+        Say("  /uihook keys: the keys an addon keeps from the game's chat editor, and the keyboard messages its input handler was given.");
         Say("  /uihook native mouse on|off: the game's mouse given each window where it is drawn (an experiment).");
         Say("  /uihook native frames <fill> <border> <rounding> <thickness> | off: the frames of the windows over the chat log drawn as panels in those colours (AARRGGBB), the rest of them the game's (an experiment).");
 #if UIHOOK_DIAGNOSTICS
