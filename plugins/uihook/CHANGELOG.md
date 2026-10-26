@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.62
+
+- Keys: a held key's control character is kept whether or not its key down reached the handler. 1.61 kept nothing in
+  game (the live keys block: Supported 1, keys named, Kept 0): Ashita's key event sees a key down before the game's
+  handler, and the key down chatbox blocked there never reached it, so 1.61, which kept a character only after seeing
+  its key down, let Enter's through and the line was sent. Now while Enter, Tab, Escape or Backspace is held, the
+  character it types is kept (by the character, not its scan code's key: numpad 8's is Up's), and a held key's key down
+  and release are kept too. chatbox names a key it acted on until it is let go, so Enter's character, after the list
+  closed at its press, is still kept. tests/keys.cpp: Enter's character, the main and the numpad one, and its release
+  kept with no key down seen; another character and Enter's once no longer held, the game's. Not yet tried in game.
+
 ## 1.61
 
 - Keys kept from the game's chat editor (independent keys ABI 1, `UIHOOK-KEYS`, `window/keys.h`, 72 bytes). The

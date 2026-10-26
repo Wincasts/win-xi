@@ -51,11 +51,20 @@ int main() {
     Check(keys.Pass(Message(D,VK_RETURN,0x1c)) && keys.Pass(Message(C,'\r',0x1c)),"one frame more: the game's");
     keys.Pass(Message(U,VK_RETURN,0x1c,false,false,true));
     Hold(block,{VK_RETURN}); block.Supported=0;
-    Check(keys.Pass(Message(D,VK_RETURN,0x1c)),"the handler not taken (Supported clear): nothing kept");
+    Check(keys.Pass(Message(D,VK_RETURN,0x1c)) && keys.Pass(Message(C,'\r',0x1c)),"the handler not taken (Supported clear): nothing kept");
     block.Supported=1; block.HoldFrame=0;
-    Check(keys.Pass(Message(D,VK_RETURN,0x1c)),"never committed: nothing kept");
+    Check(keys.Pass(Message(D,VK_RETURN,0x1c)) && keys.Pass(Message(C,'\r',0x1c)),"never committed: nothing kept");
+    keys.Pass(Message(U,VK_RETURN,0x1c,false,false,true)); block.Supported=1;
     Check(keys.Pass(Message(WM_MOUSEMOVE,0,0)),"other messages untouched");
-    Check(block.Kept==14,"each kept message counted");
+    // Ashita blocks the key down, so it never reaches the handler: its character is kept by its key being named
+    block.Frame+=1; Hold(block,{VK_RETURN});
+    Check(!keys.Pass(Message(C,'\r',0x1c)),"Enter named, its key down never seen: its character kept, the line not sent");
+    Check(!keys.Pass(Message(C,'\r',0x1c,true)),"numpad Enter's (extended) too");
+    Check(!keys.Pass(Message(U,VK_RETURN,0x1c,false,false,true)),"and its release");
+    Check(keys.Pass(Message(C,'h',0x23)),"another key's character the game's");
+    memset(block.Hold,0,sizeof(block.Hold));
+    Check(keys.Pass(Message(C,'\r',0x1c)),"Enter named no longer: its character the game's");
+    Check(block.Kept==17,"each kept message counted");
     printf("%d failures\n",failures);
     return failures ? 1 : 0;
 }
