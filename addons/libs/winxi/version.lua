@@ -92,6 +92,8 @@
 --     highlight go through it, so a window at the screen's edge no longer has them stretched over the screen
 -- 51: clip.Screen, the whole screen as the clip for what reaches past its window; a title's clip is the whole
 --     screen, as one of its own, on the screen, was still seen stretched over it
+-- 52: mob_letters and zone_names, name's spawn letters and the game's lists of an area's names, shared
+--     so party can letter its target as name does; mob_letters.Quiet
 return {
-    Number = 51,
+    Number = 52,
 };

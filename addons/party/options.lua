@@ -119,6 +119,8 @@ options.Tabs = {
         { kind = 'check', section = 'target', key = 'totDebuffs', label = 'Target Of Target Debuffs', default = false },
         { kind = 'check', section = 'target', key = 'gameNameColors', label = 'Game Name Colors', default = false,
           tooltip = 'The name is written in the colour the game gives it over the head: an enemy yellow while unclaimed, red claimed by your party or alliance, purple by anyone else and orange once help is called for; a player white, or blue in your party or alliance; an NPC green; anything dead grey.' },
+        { kind = 'check', section = 'target', key = 'monsterLetters', label = 'Monster Letters', default = true,
+          tooltip = 'A monster\'s spawn letter after its name, in a small box in the name\'s colour, the same letter name writes over it:\nthe monsters of one name in an area lettered A, B, C and on by their places in the game\'s own list of the area, so every player sees the same.\nPast Z the letters start again at A. Where the game\'s list cannot be read, or differs from what the game shows, there are none.' },
         { kind = 'check', section = 'target', key = 'lockBrackets', label = 'Lock-On Brackets', default = true,
           tooltip = 'While you are locked on to your target, brackets stand at the left and right of the target window, as the game frames its own.' },
         { kind = 'color', section = 'target', key = 'bracketColor', label = 'Bracket Color', default = { 1, 1, 1, 1 },
@@ -216,7 +218,7 @@ local groups = {
     },
     Target = {
         { 'Frames', 'enabled', 'showMain', 'mainDebuffs', 'showSub', 'subDebuffs', 'showTot', 'totDebuffs', 'debuffStyle' },
-        { 'Names', 'gameNameColors' },
+        { 'Names', 'gameNameColors', 'monsterLetters' },
         { 'Lock-On', 'lockBrackets', 'bracketColor' },
         { 'Positioning', 'mainPos', 'subPos', 'totPos' },
         { 'Advanced: Value Positioning', 'hpOffset', 'distanceOffset', collapsed = true },

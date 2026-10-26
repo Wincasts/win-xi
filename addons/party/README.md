@@ -23,6 +23,10 @@ addon [XivParty](https://github.com/Tylas11/XivParty)'s compact one.
   anything dead grey. With namehook loaded and the name on screen, the colour is read from the game itself,
   exactly, held steady while the game pulses the target's name; otherwise it is worked out, the NPC green,
   the player white and the party blue measured from the game, the enemy colours close to it.
+  **Monster Letters** (Target tab → Names, on to begin with) puts a monster's spawn letter after its name, in
+  a small box in the name's colour: the letter name writes over it (A, B, C… among the monsters of one name in
+  the area, by their places in the game's own list, so every player sees the same; past Z, A again). None for
+  players or NPCs, or where the area's list cannot be read or differs from what the game shows.
   **Lock-On Brackets** (Target tab → Lock-On, on to begin with) stand a [ and a ] at the left and right of
   the main target's window while you are locked on to it, as the game frames its own, in the **Bracket
   Color** (white to begin with) with the theme's Text Outline.

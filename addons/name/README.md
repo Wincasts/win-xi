@@ -534,7 +534,8 @@ ImGui default font is the recovery fallback. No updated plugin DLL is required.
 Remove the token to hide letters. Player, pet and NPC nameplates are unaffected. All mobs, including targeted and checked mobs, use the same format.
 
 **Consistency across users:** the addon reads the game's own list of the area's names from the client's
-files as the area is entered (`zone_names.lua`), groups it by exact name, sorts each group by stable
+files as the area is entered (winxi's `zone_names.lua`; the letters are winxi's `mob_letters.lua`, which party
+uses too), groups it by exact name, sorts each group by stable
 entity index, and labels those spawn slots `a` through `z`, then wraps to `a`. The first slot is `a`,
 including for a name with only one known slot. It includes slots you have not encountered or cannot
 currently see. Entering from a different side, different draw/encounter order, checking, deaths, addon

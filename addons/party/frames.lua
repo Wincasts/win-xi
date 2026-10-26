@@ -29,6 +29,7 @@
 --     statusIds                their buffs
 --     nameColor                the name's colour, where not the theme's text colour (a target's, by Game Name Colors)
 --     lockedOn                 a target the player is locked on to: brackets at either side of the window
+--     letter                   a monster's spawn letter (as name writes it), in a badge after the name
 --
 -- style says how (options.lua makes one from the settings), each left out for the usual:
 --     scale, nameSize, valueSize, buffSize     percentages: of everything, and of each alone
@@ -519,6 +520,7 @@ end
 -- Returns how much room it took, in the layout's units, for the name to start after it.
 local nameFont = 0
 local nameFontFile = nil  -- the names' font, as chosen: a name is fitted again when it changes
+local nameFace = nil      -- and its face, as imgui takes it, for the list being drawn
 local valueFontFile = nil -- the values' font, as chosen: a value's width is measured again when it changes
 
 local function Circle(x, y, radius, color)
@@ -543,6 +545,36 @@ local function DrawLeaderMarks(member)
         Circle(centre, top + nameFont * 0.52, radius, colors.Party)
     end
     return (2 * radius + 1 + nameFont * 0.22) / scale
+end
+
+-- A monster's letter after its name, as name writes it over the monster: a rounded box in the name's
+-- colour, a little smaller than the name's letters, with the letter in the outline's dark cut into it
+-- (and a pair of letters, past z, in a box half as wide again). Returns how wide it is, in pixels,
+-- with the room before it; drawn only when left is given.
+local badge = { size = 0.68, gap = 0.3, pair = 1.5, glyph = 0.8, rounding = 0.12 } -- of the names' font size
+local dark = { 0, 0, 0, 1 }
+local function LetterBadge(state, letter, left, top, color)
+    local side = math.max(4, math.floor(nameFont * badge.size + 0.5))
+    local width = #letter > 1 and math.floor(side * badge.pair + 0.5) or side
+    local gap = math.max(2, math.floor(nameFont * badge.gap + 0.5))
+    if left == nil then return gap + width end
+    local x1 = math.floor(left + gap)
+    local y1 = math.floor(top + (nameFont - side) * 0.55)
+    local rounding = math.max(1, side * badge.rounding)
+    if outlined then
+        draw.Rect(x1 - outlineEdge, y1 - outlineEdge, x1 + width + outlineEdge, y1 + side + outlineEdge, outlinePacked, rounding + outlineEdge)
+    end
+    draw.Rect(x1, y1, x1 + width, y1 + side, draw.Packed(color, 1), rounding)
+    local size = math.max(4, math.floor(side * badge.glyph + 0.5))
+    imgui.PushFont(nameFace, size)
+    if state.letterOf ~= letter or state.letterSize ~= size or state.letterFace ~= nameFontFile then
+        state.letterOf, state.letterSize, state.letterFace = letter, size, nameFontFile
+        state.letterWidth = TextSize(letter)
+    end
+    draw.Text(math.floor(x1 + (width - state.letterWidth) / 2), math.floor(y1 + (side - size) / 2),
+        outlined and outlinePacked or draw.Packed(dark, 1), letter)
+    imgui.PopFont()
+    return gap + width
 end
 
 -- A member's name after their leader's mark and the game's animated DAT cursor when selected.
@@ -586,11 +618,19 @@ local function DrawName(member, state)
     -- again only when the name, its room, its mark or its font has changed
     local hpFrame = layout.hp.frame
     local room = math.floor((hpFrame.x + hpFrame.width - x) * scale + 0.5)
+    local letter = member.letter
+    if letter then room = room - LetterBadge(state, letter) end
     if state.fitFrom ~= full or state.fitRoom ~= room or state.fitFont ~= nameFont or state.fitFace ~= nameFontFile then
         state.fitFrom, state.fitRoom, state.fitFont, state.fitFace = full, room, nameFont, nameFontFile
         state.fitted = Fitted(full, room)
+        state.fittedWidth = nil
     end
     Write(state.fitted, x, name.y, color or member.nameColor)
+    if letter then
+        state.fittedWidth = state.fittedWidth or TextSize(state.fitted)
+        LetterBadge(state, letter, math.floor(itemX + x * scale) + state.fittedWidth, math.floor(itemY + name.y * scale),
+            color or member.nameColor or textColor)
+    end
 end
 
 -- A bar's figure, or for TP, which has no bar, the figure that is all there is of it. fontSize is the
@@ -955,7 +995,8 @@ function frames.Draw(members, kind, StatusTexture, style)
     DrawBars(count, 'mp', layout.mp)
 
     -- each written in its own font where one is chosen, or the theme's (nil keeps the one in use)
-    local nameFace, valueFace = fonts.Get(style.nameFont), fonts.Get(style.valueFont)
+    nameFace = fonts.Get(style.nameFont)
+    local valueFace = fonts.Get(style.valueFont)
     nameFont = FontSize(layout.name.size * nameScale)
     imgui.PushFont(nameFace, nameFont)
     nameFontFile = nameFace or theme.Get().FontFile or ''

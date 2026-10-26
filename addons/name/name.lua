@@ -5,7 +5,7 @@ addon.desc    = 'Shows and hides the names over characters\' heads by what they 
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 49; -- Quad's softRect on a textured quad, the textured bars' fill
+local winxiNeeded = 52; -- mob_letters and zone_names, now winxi's
 do
     local ok, found = pcall(require, 'winxi.version');
     local number = ok and type(found) == 'table' and found.Number or 0;

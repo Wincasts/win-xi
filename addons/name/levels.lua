@@ -35,8 +35,8 @@
 -- showing it, or as the place is seen alive again. It is kept five minutes at most, so that a long evening of checking in one
 -- place does not leave more and more kept. Nothing is asked of the game for this: only its answers are read.
 local levels = {};
-local mobLetters = require('mob_letters');
-local zoneNames = require('zone_names');
+local mobLetters = require('winxi.mob_letters');
+local zoneNames = require('winxi.zone_names');
 local mobs = require('winxi.mobs');
 
 local data = nil;      -- the area's tables: { Indices = { [index] = monster }, Names = { [name] = monster } }
