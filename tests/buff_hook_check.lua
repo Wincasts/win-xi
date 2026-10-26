@@ -233,13 +233,45 @@ H.print('a click on Haste removes it', #H.sent == sent + 1)
 H.ret.GetMousePos = { -1000, -1000 }; H.ret.IsItemHovered = { false }; H.ret.IsItemClicked = { false }
 menu = ''
 
--- The controller is the game's: A in the selector is left to it, whose confirm removes the status
+-- The controller's confirm in the selector removes the status its cursor is on: the press is left to
+-- the game, and buff asks only if the game has not a moment later
 o.anchorToDefault[1] = true
 local function frame(n) block.Frame = n; block.DrawnFrame = n; H.frames(1) end
 menu = 'menu    buff    '; block.CursorStatus = 33; frame(40)
 local sent = #H.sent
-H.print('A on Haste in the selector: the game\'s, nothing sent', H.tap(H.Button.A) == false, #H.sent == sent)
-menu = ''; frame(44)
+H.print('A on Haste in the selector: left to the game', H.tap(H.Button.A) == false, '| nothing sent at once', #H.sent == sent)
+frame(41); frame(42); frame(43); frame(44); frame(45); frame(46); frame(47); frame(48); frame(49)
+H.print('the game did not ask: buff asks for Haste once', #H.sent == sent + 1, H.sent[#H.sent] == 'F1:33')
+frame(50); frame(51); frame(52); frame(53); frame(54); frame(55); frame(56); frame(57); frame(58)
+H.print('and only once', #H.sent == sent + 1)
+sent = #H.sent
+H.tap(H.Button.A)
+H.packetOutData(0xF1, string.char(0xF1, 4, 0, 0, 33, 0, 0, 0))
+for n = 60, 70 do frame(n) end
+H.print('the game asked for it itself: nothing more sent', #H.sent == sent)
+o.controllerType = 'playstation'
+H.print('PlayStation cross (DirectInput 49) left to the game', H.dinput(49, 128) == false); H.dinput(49, 0)
+for n = 71, 81 do frame(n) end
+H.print('and Haste asked for', #H.sent == sent + 1)
+sent = #H.sent
+H.dinput(48, 128); H.dinput(48, 0)
+for n = 82, 92 do frame(n) end
+H.print('square: nothing', #H.sent == sent)
+o.controllerType = 'xinput'
+block.CursorStatus = 40; frame(93)
+H.tap(H.Button.A)
+for n = 94, 104 do frame(n) end
+H.print('A on Protect, which cannot be removed: nothing', #H.sent == sent)
+block.CursorStatus = 33; o.controller[1] = false; frame(105)
+H.tap(H.Button.A)
+for n = 106, 116 do frame(n) end
+H.print('with Controller Navigation off: nothing', #H.sent == sent)
+o.controller[1] = true
+menu = ''; frame(117)
+H.tap(H.Button.A)
+for n = 118, 128 do frame(n) end
+H.print('A out of the selector: nothing', #H.sent == sent)
+block.CursorStatus = 0xFFFF; frame(129)
 
 -- The bar is written only when something of it changes, and handed over again as it was otherwise;
 -- a plugin loaded again has nothing of it, and it is written afresh
