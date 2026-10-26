@@ -73,7 +73,7 @@ assert(windows.BlockNativeInputs, 'combat menu still blocks native window clicks
 assert(details.Hover(0, 0, 40, 50), 'combat menu must not block status tooltip hover')
 options.clickThrough[1] = true
 H.frames(1)
-assert(not details.Hover(0, 0, 40, 50), 'explicit clickthrough still disables hover')
+assert(details.Hover(0, 0, 40, 50), 'clickthrough lets clicks through, not hover')
 options.clickThrough[1] = clickThrough
 game.MenuName, imgui.GetMousePos = menuName, mousePos
 windows.Draw(windows.List.main, function() end)

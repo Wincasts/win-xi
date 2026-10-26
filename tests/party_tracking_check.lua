@@ -54,10 +54,10 @@ shared.TooltipsEnabled = true
 details.Status(4)
 assert(tooltip == 'Effect 4 (4)', 'party buffs and debuffs show their name and ID')
 o.style.hoverDetails[1], o.clickThrough[1] = true, true
-assert(not require('options').Style(o).hoverDetails)
+assert(require('options').Style(o).hoverDetails, 'Hover Details kept with Clickthrough on')
 o.clickThrough[1] = false
 assert(require('options').Style(o).hoverDetails)
-H.print('hover: owner/jobs, status names on icons, estimated durations and clickthrough opt-in', true)
+H.print('hover: owner/jobs, status names on icons, estimated durations, Hover Details with or without clickthrough', true)
 
 local perf = require('perf')
 local now, report = 0, nil

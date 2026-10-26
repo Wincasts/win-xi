@@ -57,9 +57,14 @@ local function DrawStatusEntry(text, isActive, color)
     end
 
     imgui.Text(text)
-    if hoverEnabled and imgui.IsItemHovered() then
-        local id = tracker.StatusIds[hoverKind]
-        if id then details.Status(id, hoverServer) end
+    -- the letter's rect against the mouse, as imgui does not hover a window the mouse goes through
+    if hoverEnabled then
+        local left, top = imgui.GetItemRectMin()
+        local right, bottom = imgui.GetItemRectMax()
+        if details.Hover(left, top, right, bottom) then
+            local id = tracker.StatusIds[hoverKind]
+            if id then details.Status(id, hoverServer) end
+        end
     end
     imgui.SameLine()
     imgui.PopStyleColor()
