@@ -35,6 +35,7 @@ local vendors = require('vendors');
 local roles = require('roles');
 local special = require('special');
 local nameColours = require('name_colours');
+local invisible = require('invisible');
 local inline = require('inline_tokens');
 local nameTypes = require('name_types');
 local entityTypes = require('entity_types');
@@ -1423,7 +1424,8 @@ function custom.Frame(options, hook, formats)
     for i = 0, hook.Count - 1 do
         local name = hook.Names[i];
 
-        if (bit.band(name.Flags, WANTED) ~= 0) then
+        -- no name over one under Invisible, whatever would show it
+        if (bit.band(name.Flags, WANTED) ~= 0 and not invisible.Is(name.ServerId)) then
             local maximumSize, minimumSize = fullSize, leastSize;
             local written = parse(name);
             written.role = ranks and roles.Of(name.ServerId) or nil;

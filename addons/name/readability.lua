@@ -1,6 +1,7 @@
 -- Optional presentation policies. Never move plates or suppress the name itself.
 local bit = require('bit');
 local plates = require('winxi.nameplates');
+local invisible = require('invisible');
 local readability = {};
 local active, pending, pendingAt, count = false, nil, nil, 0;
 local rangeEnabled, epoch = false, 0;
@@ -48,7 +49,7 @@ function readability.Begin(options, hook, now)
     count=0;
     for i=0,hook.Count-1 do
         local name=hook.Names[i];
-        if bit.band(name.Flags,plates.Flag.Wanted)~=0 and name.Scale>0 and bit.rshift(name.NameColor,24)>0 then
+        if bit.band(name.Flags,plates.Flag.Wanted)~=0 and not invisible.Is(name.ServerId) and name.Scale>0 and bit.rshift(name.NameColor,24)>0 then
             local x,y=plates.Screen(name,hook);
             if x and y and x>=0 and x<=display.x and y>=0 and y<=display.y then count=count+1; end
         end
