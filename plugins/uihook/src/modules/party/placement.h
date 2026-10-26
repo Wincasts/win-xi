@@ -15,21 +15,26 @@ static bool MakeNativeRect(const int16_t* rect,bool scaled,int menuWidth,int men
         rect[2]*sx/viewportWidth,rect[3]*sy/viewportHeight,frame};
     return true;
 }
-// Whether a draw of pre-transformed vertices (x and y the first two floats of each) lies wholly beside a
-// window, to its left or right, its sides in pixels moved out by margin: none of it in the window's columns.
-// What is above or below the window in its columns is taken as its own (the party list's pet bar, drawn
-// just above it). A draw with no vertices, or any vertex not a finite position, is not taken to be outside.
+// Whether a draw of pre-transformed vertices (x and y the first two floats of each) lies wholly away from a
+// window: none of it within reach of the window's rectangle (reach a share of the viewport's height, in
+// pixels on every side). What is drawn against the window is taken as its own: its edges and shadow, and the
+// party list's pet bar, which the game puts above or beside the list. The game draws a hooked fish's stamina
+// with that same bar, named "Fish", well away from the list. A draw with no vertices, or any vertex not a
+// finite position, is not taken to be away.
 static bool DrawOutside(const void* data,unsigned count,unsigned stride,const NativeRect& rect,
-    unsigned viewportWidth,unsigned viewportHeight,float margin) {
-    if (!data || !count || stride<8) return false;
-    if (!viewportHeight) return false;
-    const float left=rect.Left*viewportWidth-margin, right=rect.Right*viewportWidth+margin;
-    float minX=0, maxX=0;
+    unsigned viewportWidth,unsigned viewportHeight,float reach) {
+    if (!data || !count || stride<8 || !viewportWidth || !viewportHeight) return false;
+    const float margin=reach*viewportHeight;
+    const float left=rect.Left*viewportWidth-margin, top=rect.Top*viewportHeight-margin;
+    const float right=rect.Right*viewportWidth+margin, bottom=rect.Bottom*viewportHeight+margin;
+    float minX=0, minY=0, maxX=0, maxY=0;
     for (unsigned i=0;i<count;i++) {
         float xy[2]; memcpy(xy,static_cast<const uint8_t*>(data)+size_t(i)*stride,sizeof(xy));
         if (!(xy[0]==xy[0]) || !(xy[1]==xy[1]) || xy[0]>1e7f || xy[0]<-1e7f || xy[1]>1e7f || xy[1]<-1e7f) return false;
         if (!i || xy[0]<minX) minX=xy[0];
+        if (!i || xy[1]<minY) minY=xy[1];
         if (!i || xy[0]>maxX) maxX=xy[0];
+        if (!i || xy[1]>maxY) maxY=xy[1];
     }
-    return maxX<=left || minX>=right;
+    return maxX<=left || minX>=right || maxY<=top || minY>=bottom;
 }

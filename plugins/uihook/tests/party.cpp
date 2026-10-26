@@ -167,25 +167,25 @@ int main() {
         Check(old.refs==0,"and goes with the capture");
     }
     {
-        // The party list at the screen's bottom right (normalized, a 1000x500 viewport): 800,400 to 1000,500
+        // The party list at the screen's bottom right (normalized, a 1000x500 viewport): 800,400 to 1000,500;
+        // what is within an eighth of the height (62.5 pixels) of it is its own
         NativeRect list={0.8f,0.8f,1.0f,1.0f,1};
         struct V { float x,y,z,rhw; uint32_t color; float u,v; };
-        V gauge[4]={{400,200,0,1,0,0,0},{600,200,0,1,0,0,0},{400,230,0,1,0,0,0},{600,230,0,1,0,0,0}};
-        Check(DrawOutside(gauge,4,sizeof(V),list,1000,500,PARTY_PASS_MARGIN),"a gauge mid-screen is outside the party list");
-        V row[4]={{820,410,0,1,0,0,0},{980,410,0,1,0,0,0},{820,430,0,1,0,0,0},{980,430,0,1,0,0,0}};
-        Check(!DrawOutside(row,4,sizeof(V),list,1000,500,PARTY_PASS_MARGIN),"a row of the list is inside it");
-        V edge[4]={{780,450,0,1,0,0,0},{804,450,0,1,0,0,0},{780,460,0,1,0,0,0},{804,460,0,1,0,0,0}};
-        Check(!DrawOutside(edge,4,sizeof(V),list,1000,500,PARTY_PASS_MARGIN),"a frame piece reaching into the list is its own");
-        V shade[4]={{790,450,0,1,0,0,0},{795,450,0,1,0,0,0},{790,460,0,1,0,0,0},{795,460,0,1,0,0,0}};
-        Check(!DrawOutside(shade,4,sizeof(V),list,1000,500,PARTY_PASS_MARGIN),"a shadow within the margin is its own");
-        V pet[4]={{820,330,0,1,0,0,0},{980,330,0,1,0,0,0},{820,380,0,1,0,0,0},{980,380,0,1,0,0,0}};
-        Check(!DrawOutside(pet,4,sizeof(V),list,1000,500,PARTY_PASS_MARGIN),"the pet bar above the list, in its columns, is its own");
-        V high[4]={{400,20,0,1,0,0,0},{600,20,0,1,0,0,0},{400,40,0,1,0,0,0},{600,40,0,1,0,0,0}};
-        Check(DrawOutside(high,4,sizeof(V),list,1000,500,PARTY_PASS_MARGIN),"beside the list at any height is outside");
+        auto Quad=[](V* q,float l,float t,float r,float b) { V v[4]={{l,t,0,1,0,0,0},{r,t,0,1,0,0,0},{l,b,0,1,0,0,0},{r,b,0,1,0,0,0}}; memcpy(q,v,sizeof(v)); };
+        auto Away=[&](float l,float t,float r,float b) { V q[4]; Quad(q,l,t,r,b); return DrawOutside(q,4,sizeof(V),list,1000,500,PARTY_PASS_REACH); };
+        Check(Away(400,200,600,230),"the fish's bar mid-screen is away from the party list");
+        Check(Away(820,50,980,80),"far above the list, in its columns, is away");
+        Check(!Away(820,410,980,430),"a row of the list is its own");
+        Check(!Away(780,450,804,460),"a frame piece reaching into the list is its own");
+        Check(!Away(790,450,795,460),"a shadow against it is its own");
+        Check(!Away(820,330,980,380),"the pet bar just above the list is its own");
+        Check(!Away(700,470,790,490),"the pet bar just beside it is its own");
         V bad[2]={{NAN,0,0,1,0,0,0},{0,0,0,1,0,0,0}};
-        Check(!DrawOutside(bad,2,sizeof(V),list,1000,500,PARTY_PASS_MARGIN) && !DrawOutside(nullptr,4,sizeof(V),list,1000,500,8)
-            && !DrawOutside(gauge,0,sizeof(V),list,1000,500,8) && !DrawOutside(gauge,4,4,list,1000,500,8),
-            "no position, no vertices or too short a vertex: not outside");
+        V gauge[4]; Quad(gauge,400,200,600,230);
+        Check(!DrawOutside(bad,2,sizeof(V),list,1000,500,PARTY_PASS_REACH) && !DrawOutside(nullptr,4,sizeof(V),list,1000,500,PARTY_PASS_REACH)
+            && !DrawOutside(gauge,0,sizeof(V),list,1000,500,PARTY_PASS_REACH) && !DrawOutside(gauge,4,4,list,1000,500,PARTY_PASS_REACH)
+            && !DrawOutside(gauge,4,sizeof(V),list,0,500,PARTY_PASS_REACH),
+            "no position, no vertices, too short a vertex or no viewport: not away");
     }
     printf("%d failures\n",failures); return failures?1:0;
 }
