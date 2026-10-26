@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.2
+
+- A new **Visibility** tab, after Behavior, holds the hiding rules (Hide Windows, formerly Behavior → Visibility)
+  and Fading, moved out of Behavior. The settings are the same and are kept.
+
 ## 0.3.1
 
 - A window placed by Automatic Positioning cannot be dragged, as the README says: it was, and imgui laid it

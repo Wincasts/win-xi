@@ -246,7 +246,7 @@ local function DrawEntries(tab, saved)
     end
 end
 
--- When the windows get out of the way, and whether the mouse goes through them
+-- Whether the mouse goes through the windows, where they are placed, and uihook
 local function DrawGlobal(saved)
     widgets.BeginLabels('xiframes.global')
     if widgets.Header('Mouse Interaction', true) then
@@ -261,30 +261,6 @@ local function DrawGlobal(saved)
         widgets.Label('Automatic Positioning')
         if imgui.Checkbox('##party.automaticPositioning', saved.automaticPositioning) then Save() end
         Tooltip('Main party: 15px from the right and bottom. Target: 5px above the main party.\nAlliance 2: right edge, with room reserved for full parties and a 35px gap above the fully expanded Target. Alliance 3 stays linked 5px below Alliance 2.\nSub-target and target of target are unchanged. Manual positions are preserved; disable to use them.\nDoes not resize frames. If the full layout cannot fit, windows are clamped to the screen and gaps may be smaller.')
-    end
-
-    if widgets.Header('Visibility') then
-        widgets.Hide(saved.hide, Save)
-    end
-
-    if widgets.Header('Fading') then
-        imgui.Indent()
-        widgets.PushControlWidth()
-        local fade = saved.fade
-        widgets.Fade(fade, Save, true)
-
-        -- A chosen window fades out while idle, and fades in and out as it appears and goes (the target
-        -- window as a target is taken and dropped)
-        if fade.Enabled and widgets.Header('Affected Windows') then
-            for _, group in ipairs(windows.Groups) do
-                widgets.Label(group.label)
-                group.id = group.id or ('##xiframes.fade.%s'):format(group.key)
-                if imgui.Checkbox(group.id, fade.windows[group.key]) then Save() end
-                Tooltip('Fades out while you are idle, and fades in and out as it appears and goes.')
-            end
-        end
-        widgets.PopControlWidth()
-        imgui.Unindent()
     end
 
     -- Only with uihook (or the older partyhook) loaded: the windows can be drawn in the game's own place
@@ -309,8 +285,37 @@ local function DrawGlobal(saved)
     end
 end
 
+-- When the windows are hidden, and how they fade while idle
+local function DrawVisibility(saved)
+    widgets.BeginLabels('xiframes.visibility')
+    if widgets.Header('Hide Windows', true) then
+        widgets.Hide(saved.hide, Save)
+    end
+
+    if widgets.Header('Fading') then
+        imgui.Indent()
+        widgets.PushControlWidth()
+        local fade = saved.fade
+        widgets.Fade(fade, Save, true)
+
+        -- A chosen window fades out while idle, and fades in and out as it appears and goes (the target
+        -- window as a target is taken and dropped)
+        if fade.Enabled and widgets.Header('Affected Windows') then
+            for _, group in ipairs(windows.Groups) do
+                widgets.Label(group.label)
+                group.id = group.id or ('##xiframes.fade.%s'):format(group.key)
+                if imgui.Checkbox(group.id, fade.windows[group.key]) then Save() end
+                Tooltip('Fades out while you are idle, and fades in and out as it appears and goes.')
+            end
+        end
+        widgets.PopControlWidth()
+        imgui.Unindent()
+    end
+end
+
 config.Tabs = {
     { name = 'Behavior', draw = DrawGlobal },
+    { name = 'Visibility', draw = DrawVisibility },
 }
 for _, tab in ipairs(options.Tabs) do
     tab.labels = ('xiframes.%s'):format(tab.name:lower())
