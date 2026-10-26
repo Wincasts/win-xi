@@ -48,7 +48,7 @@ luajit tests/chatbox_log_check.lua || exit 1
 luajit tests/chatbox_optimization_check.lua || exit 1
 luajit tests/chatbox_encoding_check.lua || exit 1
 luajit tests/chatbox_inline_check.lua || exit 1
-luajit tests/chatbox_appearance_check.lua || exit 1
+luajit tests/chatbox_retention_check.lua || exit 1
 luajit tests/chatbox_scrollbar_check.lua || exit 1
 luajit tests/chatbox_render_check.lua || exit 1
 luajit tests/chatbox_ui_check.lua || exit 1
@@ -122,6 +122,7 @@ run party      addons/party/party.lua party_native_shadow_check.lua
 run party      addons/party/party.lua party_native_positioning_check.lua
 run party      addons/party/party.lua party_shift_drag_check.lua
 run party      addons/party/party.lua party_clickthrough_hover_check.lua
+run party      addons/party/party.lua party_value_offsets_check.lua
 run party      addons/party/party.lua party_cursor_check.lua
 run party      addons/party/party.lua party_dropdowns_check.lua
 run party      addons/party/party.lua winxi_fonts_check.lua
