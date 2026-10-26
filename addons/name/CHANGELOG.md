@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.82
+
+- The diagnostics report says what did not make it: the names namehook's list had no room for last frame and the drawings it refused since loading (namehook 1.42), and the names and quads Name could not hand over since it was loaded, the buffer or a name being full. Requires winxi 58.
+
 ## 1.81
 
 - Requires winxi 55: where namehook is unloaded and loaded again between two frames, at another address or as another build, the block found in the old DLL is let go of, never read or written.

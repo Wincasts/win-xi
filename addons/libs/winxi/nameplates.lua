@@ -114,6 +114,9 @@ ffi.cdef[[
         uint32_t FontTexture;
         uint8_t  Override[0x900];
         namehook_name_t Names[256];
+        uint32_t LoadId;          // namehook 1.42: read only where abi.Has says it is there
+        uint32_t NamesDropped;
+        uint32_t DrawingsRefused;
     } namehook_t;
 
     typedef struct {
@@ -192,6 +195,7 @@ local OVERRIDE_SHOW, OVERRIDE_HIDE = 1, 2;
 
 local block = nil;         -- the plugin's block, while the plugin is loaded
 local module = nil;        -- the plugin's DLL the block was found in: { base, stamp, size }
+local loadId = nil;        -- the load the block was found in (namehook 1.42's LoadId), nil before that
 local generation = 0;      -- counts each time what was found in the plugin's DLL is let go of
 local why = 'unloaded';    -- why there is none: 'unloaded', 'old' or 'mismatch'
 local lookedAt = -LOOK_EVERY;
@@ -231,7 +235,7 @@ end
 
 local function LetGo(reason)
     if (block ~= nil or module ~= nil or capabilities ~= nil) then generation = generation + 1; end
-    block, module, why = nil, nil, reason;
+    block, module, loadId, why = nil, nil, nil, reason;
     capabilities, capabilityOwner, capabilityLookedAt = nil, nil, -LOOK_EVERY;
     lookedAt = -LOOK_EVERY;
     placedAt, placedOwner = nil, nil;
@@ -260,6 +264,11 @@ function nameplates.Hook()
     if (module ~= nil and (module.base ~= base or module.stamp ~= stamp or module.size ~= size)) then
         LetGo('unloaded');
     end
+    -- loaded again at the same address as the same build: another load all the same (namehook 1.42).
+    -- Read only once the DLL is known to be the one the block was found in, so the memory is there.
+    if (block ~= nil and loadId ~= nil and block.LoadId ~= loadId) then
+        LetGo('unloaded');
+    end
     if (module == nil) then
         module = { base = base, stamp = stamp, size = size };
     end
@@ -281,15 +290,32 @@ function nameplates.Hook()
     end
 
     local candidate = ffi.cast('namehook_t*', found);
-    if (not abi.Accepts(candidate, 'namehook_t', VERSION) or candidate.NameSize ~= ffi.sizeof('namehook_name_t')) then
+    if (not abi.Accepts(candidate, 'namehook_t', VERSION, 'LoadId') or candidate.NameSize ~= ffi.sizeof('namehook_name_t')) then
         why = 'mismatch';
         return nil, why;
     end
 
     block, why = candidate, nil;
+    loadId = abi.Has(candidate, 'namehook_t', 'LoadId') and candidate.LoadId or nil;
     placedAt, placedOwner = nil, nil;
     draw, drawing, quadLimit = nil, nil, 0;
     return block;
+end
+
+-- What did not make it, for diagnostics: { namesDropped, drawingsRefused, namesRefused, quadsRefused }.
+-- namesDropped: the names the client drew last frame that the list had no room for; drawingsRefused:
+-- addons' drawings the plugin refused since it was loaded (more quads than a name may have, or past the
+-- end of the quads); both nil from a namehook before 1.42, which does not count them. namesRefused and
+-- quadsRefused: what this addon could not hand over since it was loaded, the buffer or a name being full.
+function nameplates.Dropped(hook)
+    hook = hook or nameplates.Hook();
+    local counted = hook ~= nil and abi.Has(hook, 'namehook_t', 'DrawingsRefused');
+    return {
+        namesDropped = counted and tonumber(hook.NamesDropped) or nil,
+        drawingsRefused = counted and tonumber(hook.DrawingsRefused) or nil,
+        namesRefused = namesRefused,
+        quadsRefused = quadsRefused,
+    };
 end
 
 -- The optional sidecar is separate from ABI 3, so older consumers still work.
@@ -540,9 +566,17 @@ function nameplates.SetTexture(slot, texture)
     end
 end
 
+-- What this addon could not hand over since it was loaded: names begun with the buffer full, and quads
+-- past a name's 256 or the buffer's end. Read by nameplates.Dropped.
+local namesRefused, quadsRefused = 0, 0;
+
 function nameplates.BeginName(entityIndex, alpha, edge, edgeColor)
     drawing = nil;
-    if (draw == nil or entityIndex < 0 or entityIndex >= ENTITIES or draw.QuadCount >= quadLimit) then
+    if (draw == nil or entityIndex < 0 or entityIndex >= ENTITIES) then
+        return false;
+    end
+    if (draw.QuadCount >= quadLimit) then
+        namesRefused = namesRefused + 1;
         return false;
     end
 
@@ -582,7 +616,11 @@ function nameplates.FillQuad(quad, fit, x0, y0, x1, y1, u0, v0, u1, v1, color, s
 end
 
 function nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged, edgeOpacity, softRect, tightEdge, edgeRadius, doubled)
-    if (drawing == nil or drawing.Count >= QUADS_PER_NAME or drawing.First + drawing.Count >= quadLimit) then
+    if (drawing == nil) then
+        return;
+    end
+    if (drawing.Count >= QUADS_PER_NAME or drawing.First + drawing.Count >= quadLimit) then
+        quadsRefused = quadsRefused + 1;
         return;
     end
     nameplates.FillQuad(draw.Quads[drawing.First + drawing.Count], horizontalFit,

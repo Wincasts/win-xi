@@ -67,8 +67,10 @@ if not abi.Accepts(block, 'uihook_keys_t', 1) then ... end      -- this Version,
 if abi.Has(block, 'uihook_keys_t', 'SomeLaterField') then ... end -- the plugin is new enough for the field
 ```
 
-- **Accept a block** when its Version is the addon's and its `Size` is at least the addon's `ffi.sizeof`.
-  Never ask for an exact size: that refuses every newer plugin.
+- **Accept a block** when its Version is the addon's and its `Size` reaches as far as the addon needs: its
+  `ffi.sizeof`, or, where its copy has fields a plugin added after 1.0, the first of them
+  (`abi.Accepts(block, 'namehook_t', 3, 'LoadId')`), so an older plugin is still read. Never ask for an
+  exact size: that refuses every newer plugin.
 - **A record's size is exact** (`NameSize`, `PopupSize`): records never change, so any other size is not this
   plugin's.
 - **A field the plugin's 1.0 layout did not have** is read only after `abi.Has` (or the plugin's feature bit)

@@ -331,6 +331,22 @@ struct FakeStateDevice {
 
 int main() {
 	TestCodePatches();
+	{
+		// a drawing drawn this frame but not as it can be drawn is refused and counted; none at all is not counted
+		static HookDraw draw;
+		ZeroMemory(&draw, sizeof(draw));
+		draw.Frame = Shared.Frame;
+		draw.QuadCount = 10;
+		const uint32_t before = Shared.DrawingsRefused;
+		CHECK(FindDrawing(5, draw) == nullptr && Shared.DrawingsRefused == before);
+		draw.Entities[5] = { draw.Frame, 0, 4, 1.0f, 0.0f, 0 };
+		CHECK(FindDrawing(5, draw) != nullptr && Shared.DrawingsRefused == before);
+		draw.Entities[5].Count = HOOK_QUADS_PER_NAME + 1;
+		CHECK(FindDrawing(5, draw) == nullptr && Shared.DrawingsRefused == before + 1);
+		draw.Entities[5] = { draw.Frame, 8, 4, 1.0f, 0.0f, 0 };
+		CHECK(FindDrawing(5, draw) == nullptr && Shared.DrawingsRefused == before + 2);
+		CHECK(offsetof(HookShared, LoadId) == offsetof(HookShared, Names) + sizeof(Shared.Names));
+	}
     {
         FakeStateDevice device;
         DWORD token = 0;
