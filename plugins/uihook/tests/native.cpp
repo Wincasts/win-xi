@@ -231,6 +231,13 @@ int main() {
         V words[2]={{1300,20,0,1,0,0,0},{1500,32,0,1,0,0,0}};
         NativeTransform c; sides.Transform(3440,1440,c); Check(sides.OnBar(words,2,sizeof(V),c) && Near(c.ax,1720) && Near(c.dx,0),"while it shows something over its middle (loading): what is by it left in the middle");
         NativeTransform r; sides.Transform(3440,1440,r); Check(sides.OnBar(title,2,sizeof(V),r) && Near(r.ax,3440) && Near(r.dx,-100),"its title, by its right end: with that end");
+        // no inset, scaled: "Hel" ends beyond the reach of the bar's end and "p" within it; all of it goes with the end
+        sides.Inset(0);
+        V hel[2]={{3236,12,0,1,0,0,0},{3254,21,0,1,0,0,0}},pee[2]={{3255,12,0,1,0,0,0},{3263,21,0,1,0,0,0}};
+        NativeTransform th; sides.Transform(3440,1440,th); NativeTransform tp; sides.Transform(3440,1440,tp);
+        Check(sides.OnBar(hel,2,sizeof(V),th) && Near(th.ax,3440) && sides.OnBar(pee,2,sizeof(V),tp) && Near(tp.ax,3440),"no inset: the whole title by its right end, \"Hel\" with its \"p\"");
+        { float x=3236,y=12; th.Apply(x,y); Check(x<3440,"and \"Hel\" kept on the screen"); }
+        sides.Inset(100);
     }
     sides.Phase(PHASE_FRAME);
     {

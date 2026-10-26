@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.64
+
+- Native: with Menu Scale and no Bring Sides In, the top bar's title ("Help") showed only its "p". What ends within
+  48 pixels of the bar's right end (and the inset) went with that end, the rest with its left end, scaled from the
+  screen's left: "Hel", ending a few pixels short at 3440 wide, went 10% further right at 1.1, off the screen. A piece
+  starting in the bar's last quarter goes with its right end too. tests/native.cpp: no inset, "Hel" and "p" both by
+  the right end, "Hel" on the screen. Not yet tried in game.
+
 ## 1.63
 
 - Buffs: the anchored bar no longer moves a pixel as the buff selector's cursor comes to or leaves the first status.
