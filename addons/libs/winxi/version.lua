@@ -107,6 +107,8 @@
 --     nameplates lets go of a namehook loaded again at the same address (1.42's LoadId), and
 --     nameplates.Dropped says what did not make it: names and drawings the plugin dropped, names and
 --     quads the addon could not hand over
+-- 59: 32 texture slots with namehook 1.43 (nameplates.TextureSlots, Feature.Textures32): SetTexture and
+--     popups.SetTexture take 8 to 31 there, and write past the eighth only when the plugin has them
 return {
-    Number = 58,
+    Number = 59,
 };

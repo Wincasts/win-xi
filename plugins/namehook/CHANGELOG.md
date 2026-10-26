@@ -1,5 +1,9 @@
 # Changelog
 
+## namehook 1.43 — 32 texture slots
+
+- HookDraw and HookPopupDraw gain `TexturesExtra[24]` after their 1.0 layout: a quad's `Texture` may be 8 to 31, from there, as 0 to 7 are from `Textures` (the bubbles' HookDraw too). Announced by `FEATURE_TEXTURES_32` (32) in HookCapabilities, as these buffers have no Size of their own: an addon writes the extra slots only when it is set. An older addon never gives them, and draws as before.
+
 ## namehook 1.42 — load id and what was dropped
 
 - After HookShared's 1.0 layout (plugins/ABI.md): `LoadId`, a number of each load's own, never 0 and never the last load's, so an addon tells a namehook loaded again at the same address as the same build from the one it found; `NamesDropped`, the names the client drew last frame that `Names` had no room for (256); `DrawingsRefused`, addons' drawings refused since loading (more than 256 quads, or past `QuadCount`), names' and bubbles' both. Nothing before them moved.
