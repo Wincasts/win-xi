@@ -109,6 +109,16 @@ private:
     uint32_t m_CameraAge = 0;
 
     enum class Layer { Names, Bubbles, Popups, World };
+
+    // What drawing for addons costs, frame by frame, for /namehook perf: the time spent in RenderCustom, and
+    // the drawings put in the picture, their quads, the draw calls made and the device's state captured
+    struct PerfFrame { double micros; uint32_t drawings, quads, draws, captures; };
+    static const uint32_t PERF_FRAMES = 240;
+    PerfFrame m_PerfNow{};
+    PerfFrame m_Perf[PERF_FRAMES]{};
+    uint32_t m_PerfAt = 0, m_PerfCount = 0;
+    double m_TicksToMicros = 0;
+    void SayPerformance() override;
     void RenderCustom(uint32_t slot, const HookDrawing& drawing, const HookQuad* quads, const float* position, Layer layer, bool over = false, uint32_t owner = 0);
     bool PrepareCamera(IDirect3DDevice8* device);
 
@@ -443,6 +453,11 @@ void AshitaNameplate::Direct3DEndScene(bool isRenderingBackBuffer) {
 }
 
 void AshitaNameplate::Direct3DPresent([[maybe_unused]] const RECT* pSourceRect, [[maybe_unused]] const RECT* pDestRect, [[maybe_unused]] HWND hDestWindowOverride, [[maybe_unused]] const RGNDATA* pDirtyRegion) {
+    // the frame's cost kept with the last PERF_FRAMES'
+    m_Perf[m_PerfAt] = m_PerfNow;
+    m_PerfAt = (m_PerfAt + 1) % PERF_FRAMES;
+    if (m_PerfCount < PERF_FRAMES) m_PerfCount++;
+    m_PerfNow = {};
     ReleaseNameStates();
     PublishNames(true);
     m_CameraAge++;
@@ -724,6 +739,21 @@ void AshitaNameplate::DrawBubble(uint32_t entityIndex, const HookDrawing& drawin
 // What an addon has drawn, at this point of the world: a name or a bubble, by its entity's index, or a
 // popup, by where its drawing is. over: drawn over everything, without the picture's depth.
 void AshitaNameplate::RenderCustom(uint32_t slot, const HookDrawing& drawing, const HookQuad* quads, const float* position, Layer layer, bool over, uint32_t owner) {
+    // timed whichever way it returns, for /namehook perf
+    struct Timed {
+        AshitaNameplate& host; LARGE_INTEGER began;
+        explicit Timed(AshitaNameplate& h) : host(h) { QueryPerformanceCounter(&began); }
+        ~Timed() {
+            LARGE_INTEGER now;
+            QueryPerformanceCounter(&now);
+            if (host.m_TicksToMicros == 0) {
+                LARGE_INTEGER rate;
+                QueryPerformanceFrequency(&rate);
+                host.m_TicksToMicros = rate.QuadPart > 0 ? 1e6 / static_cast<double>(rate.QuadPart) : 0;
+            }
+            host.m_PerfNow.micros += static_cast<double>(now.QuadPart - began.QuadPart) * host.m_TicksToMicros;
+        }
+    } timed(*this);
     const bool popup = layer == Layer::Popups;
     // a name is drawn from its owner's textures: HookShared's claim (0), or a claim slot's (1 on)
     const bool slotted = layer == Layer::Names && owner >= 1 && owner <= HOOK_CLAIM_SLOTS;
@@ -898,6 +928,11 @@ void AshitaNameplate::RenderCustom(uint32_t slot, const HookDrawing& drawing, co
     // The client's state is captured before the first name of a run, and put back after each; while the
     // client draws nothing itself between two names (ClientDrew), what was captured is still its state,
     // and is not captured again. Off (keepstates off), it is captured before every name as it was.
+    if (!m_StatesCaptured || !KeepsStates()) {
+        m_PerfNow.captures++;
+    }
+    m_PerfNow.drawings++;
+    m_PerfNow.quads += drawing.Count;
     if (!NameStateBlocks::Activate(device, m_SavedStates, m_NameStates, m_StatesCaptured, KeepsStates())) {
         m_CanDraw = false;
         m_PopupsCanDraw = false;
@@ -917,6 +952,7 @@ void AshitaNameplate::RenderCustom(uint32_t slot, const HookDrawing& drawing, co
         }
         device->SetTexture(0, textures[Runs[i].texture]);
         device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, Runs[i].count / 3, &Vertices[Runs[i].first], sizeof(NameVertex));
+        m_PerfNow.draws++;
     }
     if (doubling) {
         device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
@@ -935,6 +971,7 @@ void AshitaNameplate::RenderCustom(uint32_t slot, const HookDrawing& drawing, co
                 device->SetTexture(0, textures[Runs[i].texture]);
             }
             device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, Runs[i].count / 3, &Vertices[Runs[i].first], sizeof(NameVertex));
+            m_PerfNow.draws++;
         }
     }
 
@@ -942,6 +979,29 @@ void AshitaNameplate::RenderCustom(uint32_t slot, const HookDrawing& drawing, co
         m_CanDraw = false;
         m_PopupsCanDraw = false;
     }
+}
+
+void AshitaNameplate::SayPerformance() {
+    if (m_PerfCount == 0) {
+        Debug("No frames counted yet.");
+        return;
+    }
+    double total = 0, worst = 0;
+    uint64_t drawings = 0, quads = 0, draws = 0, captures = 0;
+    uint32_t busiest = 0;
+    for (uint32_t i = 0; i < m_PerfCount; i++) {
+        const PerfFrame& f = m_Perf[i];
+        total += f.micros;
+        if (f.micros > worst) worst = f.micros;
+        drawings += f.drawings; quads += f.quads; draws += f.draws; captures += f.captures;
+        if (f.drawings > busiest) busiest = f.drawings;
+    }
+    const double n = static_cast<double>(m_PerfCount);
+    char text[320];
+    snprintf(text, sizeof(text), "Drawing for addons over the last %u frames: %.3f ms a frame on average, %.3f ms at worst; "
+        "%.1f drawings (%u at most), %.0f quads, %.1f draw calls and %.1f captures of the device's state a frame.",
+        m_PerfCount, total / n / 1000.0, worst / 1000.0, drawings / n, busiest, quads / n, draws / n, captures / n);
+    Debug(text);
 }
 
 void AshitaNameplate::PublishNames(bool frameDone) {
@@ -978,6 +1038,8 @@ static void AshitaLongHelp(IChatManager* chat) {
     chat->Write(0, true , "List last frame's damage popups, or say each new one as it appears");
     chat->Write(0, false, "\x1e\x6a/namehook status");
     chat->Write(0, true , "Say which categories are shown and hidden, and how many names were listed for addons last frame");
+    chat->Write(0, false, "\x1e\x6a/namehook perf");
+    chat->Write(0, true , "Say what drawing for addons has cost over the last 240 frames, and what did not fit");
     chat->Write(0, false, "\x1e\x6a/namehook whitelist add\x1e\x6a <name>...");
     chat->Write(0, true , "Always show these players' nameplates, though players are hidden; saved at once to\x1e\x6a config\\namehook\\whitelist.txt");
     chat->Write(0, false, "\x1e\x6a/namehook whitelist remove\x1e\x6a <name>...");

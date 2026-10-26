@@ -26,6 +26,7 @@ If not, see <https://www.gnu.org/licenses/>.
 
 #include "findsignature.h"
 #include "CodePatch.h"
+#include "InstructionLength.h"
 
 // No copyright is claimed on the following "fair use for interoperability" section.
 /* Begin "fair use for interoperability" section */
@@ -239,6 +240,7 @@ static struct {
 	int DrawNameLine2Sites[LINE_CALLS_MAX];
 	size_t DrawNameLineCallCount;
 	size_t DrawNameLine2CallCount;
+	uint32_t CallsRefused; // calls found to a name-line function that were not where an instruction begins
 	bool OtherCallsTaken;
 	DrawNameLineFn DrawNameLineOrig;
 	DrawNameLine2Fn DrawNameLine2Orig;
@@ -1095,10 +1097,19 @@ static size_t FindCalls(uintptr_t target, uintptr_t first, uintptr_t* sites, siz
 		if (n > LINE_CALLS_MAX * 2) {
 			return 1;
 		}
+		// only where an instruction begins: E8 and a rel32 that goes there can be bytes inside another
+		// instruction, which patched would break the client's code
+		const uint8_t* sectionBegin = base + section->VirtualAddress;
+		const uint8_t* sectionEnd = sectionBegin + section->Misc.VirtualSize;
 		for (size_t j = 0; j < n && count < max; j++) {
-			if (found[j] != first) {
-				sites[count++] = found[j];
+			if (found[j] == first) {
+				continue;
 			}
+			if (!InstructionLength::CallSiteDecodes(sectionBegin, sectionEnd, reinterpret_cast<const uint8_t*> (found[j]))) {
+				Globals.CallsRefused++;
+				continue;
+			}
+			sites[count++] = found[j];
 		}
 	}
 	return count;
@@ -1722,6 +1733,14 @@ bool Nameplate::ParseCommand(const char* cmd, bool includesName) {
 		} else {
 			CommandError("status");
 		}
+	} else if (eat_space_token_match_and_advance(cmd, "perf")) {
+		if (eat_space_and_is_end(cmd)) {
+			SayPerformance();
+			Sayf(this, "Last frame %u names were listed, %u had no room in the list; %u drawings refused since loading.",
+				static_cast<unsigned>(Shared.Count), static_cast<unsigned>(Shared.NamesDropped), static_cast<unsigned>(Shared.DrawingsRefused));
+		} else {
+			CommandError("perf");
+		}
 	} else if (eat_space_token_match_and_advance(cmd, "whitelist")
 			|| eat_space_token_match_and_advance(cmd, "wl")) {
 		ParseWhitelistCommand(cmd);
@@ -1898,6 +1917,9 @@ void Nameplate::SayStatus() {
 			(Globals.DrawNameLineCallCount <= 1 && Globals.DrawNameLine2CallCount <= 1) ? "there are no others to take"
 				: (Globals.OtherCallsTaken ? "all are taken" : "only the first is taken (othercalls off)"),
 			static_cast<unsigned>(Globals.UnownedLast));
+		if (Globals.CallsRefused != 0) {
+			Sayf(this, "%u more calls to them were found but not taken: they were not where an instruction begins.", static_cast<unsigned>(Globals.CallsRefused));
+		}
 		Sayf(this, "%u names last frame were drawn again after their first time (%u of those by the call that draws all the names), and were listed and drawn for an addon once; %u were taken from a lower line and drawn where the higher had been.",
 			static_cast<unsigned>(Globals.RepeatsLast), static_cast<unsigned>(Globals.RepeatsMainLast), static_cast<unsigned>(Globals.LiftedLast));
 		Sayf(this, "The device's state is %s (keepstates %s).", KeepStates != 0 ? "captured once for a run of names an addon has drawn" : "captured before each name an addon has drawn", KeepStates != 0 ? "on" : "off");

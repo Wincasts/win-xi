@@ -1,5 +1,11 @@
 # Changelog
 
+## namehook 1.48 — calls taken only where an instruction begins, and /namehook perf
+
+- The client's other calls to the two name-line functions (`othercalls`) are found by their bytes, `E8` and a rel32 going to the function, and such bytes can lie inside another instruction. Each is now taken only where decoding the code before it lands on it (`InstructionLength.h`, `CallSiteDecodes`): from every byte of the 256 before, the code is decoded forward, and the site is taken only where at least 64 of those starts reach it and 90% land on it. Checked against objdump over the client's own code (1.17 million instructions; its 3DNow! known too): of 66,927 real calls 66,625 would be taken, of 6,375 `E8` bytes inside other instructions none, the best landed on from 46.5% of starts. On this client the two name-line functions are called from their main calls alone, so nothing more is taken either way. `/namehook status` says how many found calls were refused.
+- `/namehook perf`: what drawing for addons has cost over the last 240 frames, the time in the plugin's drawing on average and at worst, and the drawings, quads, draw calls and captures of the device's state a frame; then the names listed, dropped and refused.
+- Tests: instruction lengths of the encodings the client uses (x87, 3DNow!, SIB and displacements, prefixes) and unknown ones refused; a real call amid code taken, an `E8` inside a mov's immediate going to the same place refused, one too near the start refused.
+
 ## namehook 1.47 — the camera found
 
 - 1.44 to 1.46's `HookCamera` could not be found: the optimiser, seeing the plugin never read the block's magic, version or size, kept only the fields it writes, and its magic was in neither the DLL nor the game's memory (read in game with namehooktest: the claims and layers blocks there, the camera not). Every block found by magic now has its address in an exported table, `NamehookBlocks`, and an object whose address leaves the DLL is kept whole. `tools/abi_check.py` now looks for each block's magic and size in the built DLL, so a block dropped this way fails the checks.
