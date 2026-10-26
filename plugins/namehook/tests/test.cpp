@@ -11,6 +11,7 @@
 #include "../src/NameBounds.h"
 #include "../src/NameSubmission.h"
 #include "../src/NameStateBlocks.h"
+#include "../src/NameTextures.h"
 #include "../../lens/src/warp.h"
 
 #include <string>
@@ -383,9 +384,59 @@ static void TestInstructionLength() {
 	CHECK(!InstructionLength::CallSiteDecodes(code.data(), code.data() + code.size(), code.data() + real + 1)); // not an E8
 }
 
+// Each owner's textures (NameTextures.h): what an addon gives held while drawn from and let go once replaced or
+// gone, imgui's font texture (given as HOOK_TEXTURE_FONT) only borrowed, the counts back where they began
+struct CountedTexture {
+	int refs = 1;
+	ULONG AddRef() { return ++refs; }
+	ULONG Release() { return --refs; }
+};
+static void TestNameTextures() {
+	static CountedTexture a, b, font, nextFont;
+	auto at = [](CountedTexture& t) { return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(&t)); };
+	NameTextures<CountedTexture, 32> held;
+	uint32_t givens[8] = {}, extras[24] = {};
+	givens[0] = at(a); givens[1] = HOOK_TEXTURE_FONT; extras[3] = at(b);
+	held.Retain(givens, 8, extras, &font);
+	CHECK(held[0] == &a && held[1] == &font && held[11] == &b && held[2] == nullptr);
+	CHECK(a.refs == 2 && b.refs == 2 && font.refs == 1); // given ones held, the font borrowed
+	held.Retain(givens, 8, extras, &font);
+	CHECK(a.refs == 2 && b.refs == 2 && font.refs == 1); // the same again: nothing more taken
+	// the font made again (a reset, or imgui's atlas grown): the new one borrowed, the old never let go of
+	held.Retain(givens, 8, extras, &nextFont);
+	CHECK(held[1] == &nextFont && font.refs == 1 && nextFont.refs == 1);
+	// a slot from a texture to another: the old let go, the new held
+	givens[0] = at(b);
+	held.Retain(givens, 8, extras, &nextFont);
+	CHECK(held[0] == &b && a.refs == 1 && b.refs == 3);
+	// the font's own texture given by its address (owned), then as the font again (borrowed): taken and let go once
+	givens[1] = at(nextFont);
+	held.Retain(givens, 8, extras, &nextFont);
+	CHECK(held[1] == &nextFont && nextFont.refs == 2 && !held.Borrowed[1]);
+	givens[1] = HOOK_TEXTURE_FONT;
+	held.Retain(givens, 8, extras, &nextFont);
+	CHECK(held[1] == &nextFont && nextFont.refs == 1 && held.Borrowed[1]);
+	// no font this frame: the slot empty, nothing let go
+	held.Retain(givens, 8, extras, nullptr);
+	CHECK(held[1] == nullptr && nextFont.refs == 1);
+	// one list of all 32, as a layer gives them
+	uint32_t all[32] = {};
+	all[31] = at(a); all[0] = HOOK_TEXTURE_FONT;
+	NameTextures<CountedTexture, 32> layer;
+	layer.Retain(all, 32, nullptr, &font);
+	CHECK(layer[31] == &a && layer[0] == &font && a.refs == 2 && font.refs == 1);
+	// let go of: every held one released, the borrowed never, every count where it began
+	held.Clear();
+	layer.Clear();
+	CHECK(a.refs == 1 && b.refs == 1 && font.refs == 1 && nextFont.refs == 1 && held[0] == nullptr && layer[31] == nullptr);
+	held.Clear();
+	CHECK(a.refs == 1 && b.refs == 1); // twice is nothing
+}
+
 int main() {
 	TestCodePatches();
 	TestInstructionLength();
+	TestNameTextures();
 	{
 		// a drawing drawn this frame but not as it can be drawn is refused and counted; none at all is not counted
 		static HookDraw draw;
