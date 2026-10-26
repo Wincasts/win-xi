@@ -16,7 +16,7 @@
   small box in the name's colour, the same letter name writes over it. Needs winxi 52, which now holds name's
   letters and its reading of the game's lists of names.
 - **Lock-On Brackets** (Target tab → Lock-On, on to begin with): while you are locked on to your target, a
-  [ and a ] stand at the left and right of its window, in the **Bracket Color** (white to begin with),
+  [ and a ] stand outside the left and right of its window, enclosing the frame without touching it, in the **Bracket Color** (white to begin with),
   edged with the theme's Text Outline. The sample target shows them while the settings are open.
 - **Fishing**: while a fish is on the line, uihook's target replacement lets the game's own target window
   draw, as the game draws the fish's stamina gauge with it (away from the window), and Party's target windows

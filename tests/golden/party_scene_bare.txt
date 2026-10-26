@@ -1381,12 +1381,12 @@ window AddImage 4.png (64.5,30.8) (88.8,63.2) (0.12,0) (0.88,1) #FFFFFFFF
 imgui PushFont
 window AddText (30,30) #FFFFFFFF +2
 imgui PopFont
-window AddRectFilled (2,20) (5,78) #FFFFFFFF
-window AddRectFilled (2,20) (11,23) #FFFFFFFF
-window AddRectFilled (2,75) (11,78) #FFFFFFFF
-window AddRectFilled (260,20) (263,78) #FFFFFFFF
-window AddRectFilled (254,20) (263,23) #FFFFFFFF
-window AddRectFilled (254,75) (263,78) #FFFFFFFF
+window AddRectFilled (92,192) (95,358) #FFFFFFFF
+window AddRectFilled (92,192) (101,195) #FFFFFFFF
+window AddRectFilled (92,355) (101,358) #FFFFFFFF
+window AddRectFilled (405,192) (408,358) #FFFFFFFF
+window AddRectFilled (399,192) (408,195) #FFFFFFFF
+window AddRectFilled (399,355) (408,358) #FFFFFFFF
 window PopClipRect
 window PushClipRect (0,0) (1920,1080) false
 window AddText (383,193) #F0E6C2FF Target
