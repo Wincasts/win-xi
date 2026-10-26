@@ -19,7 +19,17 @@ local target = require('target')
 local packed, rect = draw.Packed, draw.Rect
 local brackets, windows = 0, { }
 draw.Packed = function(color, ...) if color == options.target.bracketColor then return 'bracket' end return packed(color, ...) end
-draw.Rect = function(x1, y1, x2, y2, color) if color == 'bracket' then brackets = brackets + 1 end return rect(x1, y1, x2, y2, color) end
+-- each must stand wholly outside the window's frame, its own rectangle, touching none of it
+local imgui, outside = require('imgui'), true
+draw.Rect = function(x1, y1, x2, y2, color)
+    if color == 'bracket' then
+        brackets = brackets + 1
+        local x, y = imgui.GetWindowPos()
+        local width, height = imgui.GetWindowSize()
+        outside = outside and (x2 <= x or x1 >= x + width or y2 <= y or y1 >= y + height)
+    end
+    return rect(x1, y1, x2, y2, color)
+end
 local function Count(main, sub, tot)
     target.Indexes = function() return main, sub, tot end
     brackets = 0
@@ -32,6 +42,7 @@ H.lockOn(false)
 assert(Count(10, 0, 0) == 0, 'not locked on: no brackets')
 H.lockOn(true)
 assert(Count(10, 0, 0) == 6, 'locked on: a bracket at each side, a bar and two ticks each')
+assert(outside, 'the brackets stand outside the window\'s frame')
 assert(Count(10, 11, 12) == 6, 'only the main target\'s window is bracketed')
 assert(Count(0, 11, 12) == 0, 'no main target, no brackets')
 options.target.lockBrackets[1] = false

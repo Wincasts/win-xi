@@ -862,9 +862,10 @@ local function HoverMembers(members)
     end
 end
 
--- The lock-on brackets: a [ at the left of the window and a ] at its right, as tall as what is in it
--- and standing a little out from it, each a bar with a tick in at its top and bottom, over the theme's
--- dark edge where text is outlined
+-- The lock-on brackets: a [ at the left of the window and a ] at its right, wholly outside its frame
+-- (the window's own rectangle, which its background and border fill): each a bar beside it, standing
+-- out from it as far above and below as to the side, with a tick in along its top and bottom, so the
+-- two enclose the frame without touching it. Over the theme's dark edge where text is outlined.
 local bracket = { gap = 3, thick = 2, tick = 6 } -- in units of the frames, before scale
 local function Bracket(x, top, bottom, inward, thick, tick, packed, grow)
     local outer = x - grow * inward
@@ -879,7 +880,7 @@ local function DrawBrackets(x, y, width, height, scale, color)
     local thick = math.max(1, math.floor(bracket.thick * scale + 0.5))
     local tick = math.max(thick + 1, math.floor(bracket.tick * scale + 0.5))
     local left, right = math.floor(x) - gap - thick, math.floor(x + width) + gap + thick
-    local top, bottom = math.floor(y), math.floor(y + height)
+    local top, bottom = math.floor(y) - gap - thick, math.floor(y + height) + gap + thick
     for pass = 1, outlined and 2 or 1 do
         local edge = (outlined and pass == 1) and outlineEdge or 0
         local packed = edge > 0 and outlinePacked or draw.Packed(color, 1)
@@ -1066,7 +1067,9 @@ function frames.Draw(members, kind, StatusTexture, style)
     end
 
     if kind == 'target' and members[1].lockedOn then
-        DrawBrackets(windowX, windowY, room[1], room[2], scale, style.bracketColor or white)
+        local frameX, frameY = imgui.GetWindowPos()
+        local frameWidth, frameHeight = imgui.GetWindowSize()
+        DrawBrackets(frameX, frameY, frameWidth, frameHeight, scale, style.bracketColor or white)
     end
 
     if style.hoverDetails then HoverMembers(members) end

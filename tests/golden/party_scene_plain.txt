@@ -2854,18 +2854,18 @@ window AddText (67,38) #000000E6 8.0m
 window AddText (67,40) #000000E6 8.0m
 window AddText (66,39) #FFFFFFFF 8.0m
 imgui PopFont
-window AddRectFilled (4,19) (8,60) #000000E6
-window AddRectFilled (4,19) (12,23) #000000E6
-window AddRectFilled (4,56) (12,60) #000000E6
-window AddRectFilled (176,19) (180,60) #000000E6
-window AddRectFilled (172,19) (180,23) #000000E6
-window AddRectFilled (172,56) (180,60) #000000E6
-window AddRectFilled (5,20) (7,59) #FFFFFFFF
-window AddRectFilled (5,20) (11,22) #FFFFFFFF
-window AddRectFilled (5,57) (11,59) #FFFFFFFF
-window AddRectFilled (177,20) (179,59) #FFFFFFFF
-window AddRectFilled (173,20) (179,22) #FFFFFFFF
-window AddRectFilled (173,57) (179,59) #FFFFFFFF
+window AddRectFilled (94,194) (98,356) #000000E6
+window AddRectFilled (94,194) (102,198) #000000E6
+window AddRectFilled (94,352) (102,356) #000000E6
+window AddRectFilled (402,194) (406,356) #000000E6
+window AddRectFilled (398,194) (406,198) #000000E6
+window AddRectFilled (398,352) (406,356) #000000E6
+window AddRectFilled (95,195) (97,355) #FFFFFFFF
+window AddRectFilled (95,195) (101,197) #FFFFFFFF
+window AddRectFilled (95,353) (101,355) #FFFFFFFF
+window AddRectFilled (403,195) (405,355) #FFFFFFFF
+window AddRectFilled (399,195) (405,197) #FFFFFFFF
+window AddRectFilled (399,353) (405,355) #FFFFFFFF
 window PopClipRect
 window PushClipRect (0,0) (1920,1080) false
 window AddText (382,192) #000000E6 Target
