@@ -89,6 +89,11 @@ private:
     bool m_BubblesFresh = false;
     // Claimed damage popups an addon has drawn: drawn in the client's popup drawing, and not the names'
     IDirect3DBaseTexture8* m_PopupTextures[HOOK_TEXTURES_ALL]{};
+    // Names drawn through a claim slot (HookClaims), each with its own textures, as the names' own
+    IDirect3DBaseTexture8* m_SlotTextures[HOOK_CLAIM_SLOTS][HOOK_TEXTURES_ALL]{};
+    NameBoundsCache m_SlotBounds[HOOK_CLAIM_SLOTS][HOOK_ENTITIES];
+    float m_SlotFit[HOOK_CLAIM_SLOTS] = { 1.0f, 1.0f, 1.0f };
+    bool m_SlotsFresh = false;
     NameBoundsCache m_PopupBounds[HOOK_POPUPS_MAX];
     float m_PopupFit = 1.0f;
     bool m_PopupsCanDraw = false;
@@ -99,7 +104,7 @@ private:
     uint32_t m_CameraAge = 0;
 
     enum class Layer { Names, Bubbles, Popups };
-    void RenderCustom(uint32_t slot, const HookDrawing& drawing, const HookQuad* quads, const float* position, Layer layer, bool over = false);
+    void RenderCustom(uint32_t slot, const HookDrawing& drawing, const HookQuad* quads, const float* position, Layer layer, bool over = false, uint32_t owner = 0);
     bool PrepareCamera(IDirect3DDevice8* device);
 
     bool MakeNameStates();
@@ -134,7 +139,8 @@ public:
         m_StatesCaptured = false;
     }
     virtual void BeginNames(const HookDraw& draw, bool fresh, float& targetWidth, float& targetHeight, uint32_t& fontTexture) override;
-    virtual void DrawCustom(uint32_t entityIndex, const HookDrawing& drawing, const HookQuad* quads, const float* position) override;
+    virtual void DrawCustom(uint32_t owner, uint32_t entityIndex, const HookDrawing& drawing, const HookQuad* quads, const float* position) override;
+    virtual void BeginSlot(uint32_t slot, const HookDraw& draw, bool fresh) override;
     virtual void BeginBubbles(const HookDraw& draw, bool fresh) override;
     virtual void DrawBubble(uint32_t entityIndex, const HookDrawing& drawing, const HookQuad* quads, const float* position) override;
     virtual void BeginPopups(const HookPopupDraw& draw, bool fresh) override;
@@ -488,6 +494,10 @@ void AshitaNameplate::ReleaseTextures() {
     RetainTextures(m_Textures, nullptr, nullptr, nullptr);
     RetainTextures(m_BubbleTextures, nullptr, nullptr, nullptr);
     RetainTextures(m_PopupTextures, nullptr, nullptr, nullptr);
+    for (uint32_t i = 0; i < HOOK_CLAIM_SLOTS; i++) {
+        RetainTextures(m_SlotTextures[i], nullptr, nullptr, nullptr);
+    }
+    m_SlotsFresh = false;
     m_BubblesFresh = false;
     m_PopupsCanDraw = false;
 }
@@ -496,6 +506,18 @@ void AshitaNameplate::BeginBubbles(const HookDraw& draw, bool fresh) {
     m_BubblesFresh = fresh;
     m_BubbleFit = draw.HorizontalFit();
     RetainTextures(m_BubbleTextures, fresh ? draw.Textures : nullptr, fresh ? draw.TexturesExtra : nullptr, fresh ? FontTexture(m_AshitaCore) : nullptr);
+}
+
+void AshitaNameplate::BeginSlot(uint32_t slot, const HookDraw& draw, bool fresh) {
+    if (slot >= HOOK_CLAIM_SLOTS) {
+        return;
+    }
+    if (slot == 0) {
+        m_SlotsFresh = false; // the frame's slots begin
+    }
+    m_SlotsFresh = m_SlotsFresh || fresh;
+    m_SlotFit[slot] = draw.HorizontalFit();
+    RetainTextures(m_SlotTextures[slot], fresh ? draw.Textures : nullptr, fresh ? draw.TexturesExtra : nullptr, fresh ? FontTexture(m_AshitaCore) : nullptr);
 }
 
 // Everything of the device's state that drawing a name changes. Recorded twice over: once to be
@@ -568,7 +590,7 @@ void AshitaNameplate::BeginNames(const HookDraw& draw, bool fresh, float& target
     // the device's states for drawing are not made until there is a name to draw with them
     m_CameraKnown = PrepareCamera(device);
     m_CameraAge = 0;
-    m_CanDraw = m_CameraKnown && (fresh || m_BubblesFresh);
+    m_CanDraw = m_CameraKnown && (fresh || m_BubblesFresh || m_SlotsFresh);
 }
 
 // The camera as the client draws with it now, for placing what an addon has drawn: the picture's
@@ -660,8 +682,8 @@ static DWORD FadeColor(uint32_t color, float alpha) {
     return (faded << 24) | (color & 0x00FFFFFF);
 }
 
-void AshitaNameplate::DrawCustom(uint32_t entityIndex, const HookDrawing& drawing, const HookQuad* quads, const float* position) {
-    RenderCustom(entityIndex, drawing, quads, position, Layer::Names);
+void AshitaNameplate::DrawCustom(uint32_t owner, uint32_t entityIndex, const HookDrawing& drawing, const HookQuad* quads, const float* position) {
+    RenderCustom(entityIndex, drawing, quads, position, Layer::Names, false, owner <= HOOK_CLAIM_SLOTS ? owner : 0);
 }
 
 void AshitaNameplate::DrawBubble(uint32_t entityIndex, const HookDrawing& drawing, const HookQuad* quads, const float* position) {
@@ -670,11 +692,13 @@ void AshitaNameplate::DrawBubble(uint32_t entityIndex, const HookDrawing& drawin
 
 // What an addon has drawn, at this point of the world: a name or a bubble, by its entity's index, or a
 // popup, by where its drawing is. over: drawn over everything, without the picture's depth.
-void AshitaNameplate::RenderCustom(uint32_t slot, const HookDrawing& drawing, const HookQuad* quads, const float* position, Layer layer, bool over) {
+void AshitaNameplate::RenderCustom(uint32_t slot, const HookDrawing& drawing, const HookQuad* quads, const float* position, Layer layer, bool over, uint32_t owner) {
     const bool popup = layer == Layer::Popups;
-    auto** textures = popup ? m_PopupTextures : (layer == Layer::Bubbles ? m_BubbleTextures : m_Textures);
-    auto* boundsCache = popup ? m_PopupBounds : (layer == Layer::Bubbles ? m_BubbleBounds : m_NameBounds);
-    const float horizontalFit = popup ? m_PopupFit : (layer == Layer::Bubbles ? m_BubbleFit : m_HorizontalFit);
+    // a name is drawn from its owner's textures: HookShared's claim (0), or a claim slot's (1 on)
+    const bool slotted = layer == Layer::Names && owner >= 1 && owner <= HOOK_CLAIM_SLOTS;
+    auto** textures = popup ? m_PopupTextures : (layer == Layer::Bubbles ? m_BubbleTextures : (slotted ? m_SlotTextures[owner - 1] : m_Textures));
+    auto* boundsCache = popup ? m_PopupBounds : (layer == Layer::Bubbles ? m_BubbleBounds : (slotted ? m_SlotBounds[owner - 1] : m_NameBounds));
+    const float horizontalFit = popup ? m_PopupFit : (layer == Layer::Bubbles ? m_BubbleFit : (slotted ? m_SlotFit[owner - 1] : m_HorizontalFit));
     if (!(popup ? m_PopupsCanDraw : m_CanDraw) || slot >= (popup ? HOOK_POPUPS_MAX : HOOK_ENTITIES)
             || drawing.Count == 0 || drawing.Count > HOOK_QUADS_PER_NAME) {
         return;

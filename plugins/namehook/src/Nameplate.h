@@ -213,6 +213,36 @@ struct HookDraw {
     }
 };
 
+// Addons that draw names besides the one claiming through HookShared (1.45): found by magic. An addon takes a
+// free slot (Owner 0) by writing a number of its own into Owner, then each frame claims its categories as
+// HookShared's claim is made (Categories, ClaimFrame) and draws into the slot's HookDraw, at Draw, as
+// HookShared::Draw is drawn into. The client draws no name whose category anyone claims. Of those claiming
+// a name's category, by Priority, highest first (HookShared's own claim is HOOK_CLAIM_PRIORITY), the first
+// that has drawn that name this frame draws it: a higher one can leave names to a lower. A claim not made
+// again lapses as HookShared's does, and the plugin then frees the slot (Owner 0).
+#define HOOK_CLAIM_SLOTS 3
+#define HOOK_CLAIM_PRIORITY 100
+
+struct HookClaimSlot {
+    uint32_t Owner;      // the addon's own number, never 0; 0: free. Written by the addon taking it
+    uint32_t Categories; // the categories it draws, CATEGORY_*
+    uint32_t ClaimFrame; // the HookShared::Frame the claim was last made in
+    uint32_t Priority;   // higher draws a name first
+    uint32_t Draw;       // the plugin's: where the slot's HookDraw is
+    uint32_t Reserved[3];
+};
+
+struct HookClaims {
+    char Magic[16];          // "NAMEHOOKCLAIMS"
+    uint32_t Version;        // 1
+    uint32_t Size;
+    uint32_t SlotSize;
+    uint32_t SlotsMax;       // HOOK_CLAIM_SLOTS
+    uint32_t SharedPriority; // HOOK_CLAIM_PRIORITY: HookShared's own claim among the slots'
+    uint32_t Reserved[3];
+    HookClaimSlot Slots[HOOK_CLAIM_SLOTS];
+};
+
 // Independent additive world-space layer. Found by magic without changing HookShared.
 // Version 2: a texture may be HOOK_TEXTURE_FONT, which version 1 would have taken for an address.
 // A bubble never claims a name or obeys its category's hide setting. ServerIds prevents
@@ -386,8 +416,13 @@ class Nameplate {
         virtual void BeginNames([[maybe_unused]] const HookDraw& draw, [[maybe_unused]] bool fresh, [[maybe_unused]] float& targetWidth, [[maybe_unused]] float& targetHeight, [[maybe_unused]] uint32_t& fontTexture) {}
 
         // Puts an addon's drawing of a name in the picture, at this point of the world (three floats).
-        // Called from the client's name drawing code, in place of the client drawing the name.
-        virtual void DrawCustom([[maybe_unused]] uint32_t entityIndex, [[maybe_unused]] const HookDrawing& drawing, [[maybe_unused]] const HookQuad* quads, [[maybe_unused]] const float* position) {}
+        // Called from the client's name drawing code, in place of the client drawing the name. owner is
+        // whose drawing it is: 0 for HookShared's claim, 1 to HOOK_CLAIM_SLOTS for a slot's (HookClaims).
+        virtual void DrawCustom([[maybe_unused]] uint32_t owner, [[maybe_unused]] uint32_t entityIndex, [[maybe_unused]] const HookDrawing& drawing, [[maybe_unused]] const HookQuad* quads, [[maybe_unused]] const float* position) {}
+
+        // Before the first name of each frame, for each claim slot (0 to HOOK_CLAIM_SLOTS - 1, every frame, in
+        // order): its HookDraw, and whether it claims anything and has drawn lately enough to be drawn from
+        virtual void BeginSlot([[maybe_unused]] uint32_t slot, [[maybe_unused]] const HookDraw& draw, [[maybe_unused]] bool fresh) {}
 
         virtual void BeginBubbles([[maybe_unused]] const HookDraw& draw, [[maybe_unused]] bool fresh) {}
 
