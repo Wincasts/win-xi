@@ -46,6 +46,8 @@ A name that is shown may still not be drawn by the game: an addon that draws nam
 | `/namehook hide <category>...` | Hides them. |
 | `/namehook toggle <category>...` | Shows those that are hidden and hides those that are shown. |
 | `/namehook target on` / `off` | Always shows your target's name, whatever its category. Your own name is the exception: hidden, it stays hidden while you have yourself targeted. Off by default. |
+| `/namehook popups` | Says the damage popups of last frame: what each says, whose it is, its colour, size and place, and whether the client drew it. |
+| `/namehook popups watch on` / `off` | Says each new damage popup as it first appears. Off when the plugin is loaded, and not saved. |
 | `/namehook status` | Says which categories are shown and hidden, how many names were listed last frame, from how many places the client draws names, and how many names it drew more than once, and how many of those it moved up to where they were drawn highest. |
 | `/namehook othercalls on` / `off` | Whether every place the client draws a name from is taken, or only the one that draws all the names. On by default; turn it off if something that is no name over a head goes missing. |
 | `/namehook keepstates on` / `off` | Whether the device's state is captured once for a run of names an addon has drawn, or before each one. On by default; turn it off if what the client draws after the names looks wrong. |
@@ -216,6 +218,26 @@ addons do not need to change. Only one producer should own the bubble buffer.
 The game's `/names off` and other client name-pass culling still apply. Bubbles
 are billboards at nameplate depth, not physical meshes; their layout is prepared
 at present and drawn at the next frame's current world anchor.
+
+### Damage popups (1.38+)
+
+The damage numbers the client pops up over whoever was hit, and its "Miss!", are listed in a third block, `HookPopups` in `src/Nameplate.h`, found by `NAMEHOOKPOPUPS` followed by two zero bytes. Its header has `Version` (1), `Size` (`sizeof(HookPopups)`), `PopupSize` (`sizeof(HookPopup)`) and `Hooked`, 1 while the client's popups go through the plugin. `Count` popups follow, those the client drew (or would have drawn) last frame, up to 64; `Sequence` goes up each time the list is made ready. A popup off screen is not drawn by the client, and so not listed.
+
+Each `HookPopup` has:
+
+- `Id`: the same for as long as the popup is drawn, a new one for each, never 0. One the client stops drawing for more than eight frames is a new popup if it comes back.
+- `Object`: the client's object that draws it.
+- `EntityIndex`: whose it is, with `POPUP_OWNER` (4) in `Flags`. The host looks for the object, and the two pointers the client's drawing reads from it at `+0xFC`, among the entities' actors.
+- `Flags`: `POPUP_DRAWN` (1) drawn by the client, `POPUP_ON_SCREEN` (2) the screen fields filled in, `POPUP_OWNER` (4).
+- `Color` as the client draws it, `0xAARRGGBB` with `0x80` for full: its alpha is the popup's fading.
+- `FirstFrame`, the `HookShared::Frame` it was first listed in.
+- `X`, `Y`, `Z`: where the client puts it in the world. `Scale` is the client's size for it; `Width` and `Height` are the size of a letter after the damage font size.
+- `ScreenX`, `ScreenY`, `Depth`: the same point on screen, as for a name.
+- `Text`: what it says, up to the client's 16 characters.
+
+An addon that draws the popups itself sets `Claimed` to anything but 0 and `ClaimFrame` to `HookShared::Frame`, every frame: the client then draws none, and they are still listed, without `POPUP_DRAWN`. The claim lapses as a name claim does, half a second after it was last made. The plugin does not yet draw anything for a claimed popup.
+
+`/namehook popups` says last frame's popups in the chat log, and `/namehook popups watch on` says each new one as it first appears, until `watch off`. The watch is not saved.
 
 ### How it works
 

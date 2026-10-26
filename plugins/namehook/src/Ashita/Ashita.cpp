@@ -133,6 +133,16 @@ public:
         return (entity != nullptr) ? entity->SpawnFlags : 0;
     }
 
+    virtual uint32_t GetActorEntity(uintptr_t actor) override {
+        IEntity* entities = m_AshitaCore->GetMemoryManager()->GetEntity();
+        for (uint32_t i = 0; entities != nullptr && i < HOOK_ENTITIES; i++) {
+            if (entities->GetActorPointer(i) == actor) {
+                return i;
+            }
+        }
+        return HOOK_ENTITIES;
+    }
+
     virtual bool GetConfigPath(wchar_t path[UNICODE_MAX_PATH]) override {
         const char* installPath = m_AshitaCore->GetInstallPath();
 
@@ -796,6 +806,8 @@ static void AshitaLongHelp(IChatManager* chat) {
     chat->Write(0, true , "Take every place the client draws a name from, or only the one that draws all the names");
     chat->Write(0, false, "\x1e\x6a/namehook keepstates on\x1e\x01 |\x1e\x6a off");
     chat->Write(0, true , "Capture the device's state once for a run of names an addon draws, or before each one");
+    chat->Write(0, false, "\x1e\x6a/namehook popups\x1e\x01 [\x1e\x6awatch on\x1e\x01 |\x1e\x6a off\x1e\x01]");
+    chat->Write(0, true , "List last frame's damage popups, or say each new one as it appears");
     chat->Write(0, false, "\x1e\x6a/namehook status");
     chat->Write(0, true , "Say which categories are shown and hidden, and how many names were listed for addons last frame");
     chat->Write(0, false, "\x1e\x6a/namehook whitelist add\x1e\x6a <name>...");
