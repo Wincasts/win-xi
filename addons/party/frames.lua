@@ -27,6 +27,7 @@
 --     isTarget, isSubTarget, isPartyTarget     native DAT cursor before the name; text markers on load failure
 --     isPlayer, targetIndex, entity            for how far away they are: bars dim with distance
 --     statusIds                their buffs
+--     nameColor                the name's colour, where not the theme's text colour (a target's, by Game Name Colors)
 --
 -- style says how (options.lua makes one from the settings), each left out for the usual:
 --     scale, nameSize, valueSize, buffSize     percentages: of everything, and of each alone
@@ -583,7 +584,7 @@ local function DrawName(member, state)
         state.fitFrom, state.fitRoom, state.fitFont, state.fitFace = full, room, nameFont, nameFontFile
         state.fitted = Fitted(full, room)
     end
-    Write(state.fitted, x, name.y, color)
+    Write(state.fitted, x, name.y, color or member.nameColor)
 end
 
 -- A bar's figure, or for TP, which has no bar, the figure that is all there is of it. fontSize is the
