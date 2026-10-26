@@ -311,6 +311,7 @@ enum class MESSAGE : uint32_t {
     LONG_HELP,
     LOAD_ERROR,
     SAVE_ERROR,
+    PATCH_ERROR, // a live change to the client's code left undone: the code is not as this plugin left it
 
     MESSAGE_MAX,
 };

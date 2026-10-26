@@ -26,6 +26,132 @@ static uint64_t FakeClock() { return fakeTime += fakeStep; }
 
 #define CHECK(what) do { if (!(what)) { failures++; printf("FAILED line %d: %s\n", __LINE__, #what); } } while (0)
 
+// The rel32 of a call or jump written straight into a test's own stretch of code, its opcode left
+static void SetCallTarget(uintptr_t pCall, uintptr_t target) {
+	uint8_t call[5];
+	CallBytes(call, pCall, target);
+	memcpy(reinterpret_cast<uint8_t*> (pCall) + 1, call + 1, 4);
+}
+
+// Code memory whose reads and writes can be made to fail, over a buffer of its own
+struct FakeCode {
+	uint8_t Bytes[256] = {};
+	int WritesLeft = -1; // writes before every one fails; -1 for never
+	int FailOnce = -1;   // the one write, counted from 0, that fails
+	int Writes = 0, Tried = 0;
+	bool Read(uintptr_t at, uint8_t* out, size_t size) {
+		if (at + size > sizeof(Bytes)) { return false; }
+		memcpy(out, Bytes + at, size);
+		return true;
+	}
+	bool Write(uintptr_t at, const uint8_t* bytes, size_t size) {
+		if (Tried++ == FailOnce || at + size > sizeof(Bytes) || WritesLeft == 0) { return false; }
+		if (WritesLeft > 0) { WritesLeft--; }
+		Writes++;
+		memcpy(Bytes + at, bytes, size);
+		return true;
+	}
+};
+
+static DWORD ProtectionAt(const void* at) {
+	MEMORY_BASIC_INFORMATION info;
+	return VirtualQuery(at, &info, sizeof(info)) == sizeof(info) ? info.Protect : 0;
+}
+
+static void TestCodePatches() {
+	static const uint8_t a[] = { 0xA1, 0xA2, 0xA3, 0xA4 }, b[] = { 0xB1, 0xB2 }, c[] = { 0xC1 };
+	{
+		// a site is kept with its bytes as found; one that overlaps another, is empty, too large or
+		// unreadable is refused
+		CodePatches<FakeCode> patches;
+		for (int i = 0; i < 256; i++) { patches.Code.Bytes[i] = static_cast<uint8_t>(i); }
+		CHECK(patches.Add(10, a, sizeof(a)) == 0 && patches.Sites[0].Original[0] == 10 && patches.Sites[0].Original[3] == 13);
+		CHECK(patches.Add(13, b, sizeof(b)) == -1 && patches.Add(7, a, sizeof(a)) == -1 && patches.Add(9, b, sizeof(b)) == -1);
+		CHECK(patches.Add(14, b, sizeof(b)) == 1 && patches.Add(30, c, 0) == -1 && patches.Add(254, a, sizeof(a)) == -1);
+		CHECK(patches.Add(0, a, CODE_PATCH_BYTES_MAX + 1) == -1 && patches.Count == 2);
+		CHECK(patches.Add(40, c, sizeof(c), true) == 2);
+		CHECK(patches.Code.Writes == 0);
+
+		// committed in order, the deferred left for Write; taken back last first
+		CHECK(patches.Commit() && patches.Code.Bytes[10] == 0xA1 && patches.Code.Bytes[15] == 0xB2 && patches.Code.Bytes[40] == 40);
+		CHECK(patches.Sites[0].Written && patches.Sites[1].Written && !patches.Sites[2].Written);
+		CHECK(patches.Write(2) && patches.Code.Bytes[40] == 0xC1 && patches.Write(2) && patches.Code.Writes == 3);
+		CHECK(patches.RestoreAll() == 0 && patches.Code.Bytes[10] == 10 && patches.Code.Bytes[15] == 15 && patches.Code.Bytes[40] == 40);
+		CHECK(!patches.AnyWritten());
+
+		// a write that fails partway: what this commit wrote is taken back, and it is false
+		patches.Code.FailOnce = patches.Code.Tried + 1;
+		CHECK(!patches.Commit() && patches.Code.Bytes[10] == 10 && patches.Code.Bytes[14] == 14 && !patches.AnyWritten());
+		CHECK(!patches.Sites[0].Abandoned && !patches.Sites[1].Abandoned);
+
+		// something else writes over a site: left as it is on unload, and never written again; the rest
+		// are given back all the same
+		CHECK(patches.Commit());
+		patches.Code.Bytes[11] = 0xE9;
+		CHECK(patches.RestoreAll() == 1 && patches.Sites[0].Abandoned && patches.Code.Bytes[11] == 0xE9 && patches.Code.Bytes[15] == 15);
+		CHECK(!patches.Write(0) && patches.Code.Bytes[10] == 0xA1 && patches.RestoreAll() == 1);
+
+		// put back by something else as it was found: nothing is lost, nothing left
+		CodePatches<FakeCode> back;
+		CHECK(back.Add(20, b, sizeof(b)) == 0 && back.Commit());
+		back.Code.Bytes[20] = back.Code.Bytes[21] = 0;
+		CHECK(back.Restore(0) && !back.Sites[0].Abandoned && !back.Sites[0].Written);
+
+		// a written site changed in place only while it is as last written
+		CodePatches<FakeCode> live;
+		CHECK(live.Add(5, c, sizeof(c)) == 0 && live.Commit());
+		static const uint8_t jump[] = { 0xEB }, jnz[] = { 0x75 };
+		CHECK(live.Rewrite(0, jump) && live.Code.Bytes[5] == 0xEB && live.Rewrite(0, jnz) && live.Code.Bytes[5] == 0x75);
+		live.Code.Bytes[5] = 0x90;
+		CHECK(!live.Rewrite(0, jump) && live.Code.Bytes[5] == 0x90 && live.Sites[0].Abandoned);
+
+		// a site that cannot be given back after a failed commit is left abandoned, not forgotten
+		CodePatches<FakeCode> stuck;
+		CHECK(stuck.Add(0, a, sizeof(a)) == 0 && stuck.Add(8, b, sizeof(b)) == 1);
+		stuck.Code.WritesLeft = 1;
+		CHECK(!stuck.Commit() && stuck.Sites[0].Abandoned && stuck.Code.Bytes[0] == 0xA1);
+
+		// a write over a site no longer as found is refused before anything is written
+		CodePatches<FakeCode> raced;
+		CHECK(raced.Add(0, a, sizeof(a)) == 0);
+		raced.Code.Bytes[2] = 0x77;
+		CHECK(!raced.Commit() && raced.Code.Writes == 0 && raced.Code.Bytes[0] == 0);
+	}
+	{
+		// the real code memory: a write across an executable read-only page and a read-only one is made,
+		// each page given back its own protection; nothing is written where nothing can be read
+		SYSTEM_INFO info;
+		GetSystemInfo(&info);
+		const size_t page = info.dwPageSize;
+		auto* pages = static_cast<uint8_t*>(VirtualAlloc(nullptr, page * 3, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE));
+		CHECK(pages != nullptr);
+		if (pages != nullptr) {
+			memset(pages, 0xCC, page * 3);
+			DWORD was = 0;
+			CHECK(VirtualProtect(pages, page, PAGE_EXECUTE_READ, &was) && VirtualProtect(pages + page, page, PAGE_READONLY, &was)
+				&& VirtualProtect(pages + page * 2, page, PAGE_NOACCESS, &was));
+			WindowsCodeMemory memory;
+			static const uint8_t bytes[] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+			const uintptr_t across = reinterpret_cast<uintptr_t> (pages + page - 4);
+			CHECK(memory.Write(across, bytes, sizeof(bytes)) && memcmp(pages + page - 4, bytes, sizeof(bytes)) == 0);
+			CHECK(ProtectionAt(pages) == PAGE_EXECUTE_READ && ProtectionAt(pages + page) == PAGE_READONLY);
+			uint8_t out[8] = {};
+			CHECK(memory.Read(across, out, sizeof(out)) && memcmp(out, bytes, sizeof(out)) == 0);
+			const uintptr_t into = reinterpret_cast<uintptr_t> (pages + page * 2 - 4);
+			CHECK(!memory.Read(into, out, sizeof(out)) && !memory.Write(into, bytes, sizeof(bytes)));
+			CHECK(pages[page * 2 - 4] == 0xCC && ProtectionAt(pages + page) == PAGE_READONLY);
+			CHECK(!memory.Read(0, out, 1) && !memory.Write(reinterpret_cast<uintptr_t> (pages), bytes, 0));
+
+			// a patch over real code, ownership and all
+			CodePatches<WindowsCodeMemory> patches;
+			const uintptr_t at = reinterpret_cast<uintptr_t> (pages + 16);
+			CHECK(patches.Add(at, a, sizeof(a)) == 0 && patches.Commit() && pages[16] == 0xA1 && ProtectionAt(pages) == PAGE_EXECUTE_READ);
+			CHECK(patches.RestoreAll() == 0 && pages[16] == 0xCC && ProtectionAt(pages) == PAGE_EXECUTE_READ);
+			VirtualFree(pages, 0, MEM_RELEASE);
+		}
+	}
+}
+
 struct TestPlugin : public Nameplate {
 	std::vector<std::string> said;
 	std::vector<std::string> errors;
@@ -178,6 +304,7 @@ struct FakeStateDevice {
 };
 
 int main() {
+	TestCodePatches();
     {
         FakeStateDevice device;
         DWORD token = 0;
@@ -1151,6 +1278,12 @@ int main() {
 	// the other calls are pointed at the plugin and back by the command, and the setting is kept
 	Globals.DrawNameLineCalls[0] = 0;
 	Globals.DrawNameLineCalls[1] = pStretch + 3;
+	{
+		uint8_t call[5];
+		CallBytes(call, pStretch + 3, reinterpret_cast<uintptr_t> (&DrawNameLine));
+		Globals.DrawNameLineSites[1] = Patches.Add(pStretch + 3, call, sizeof(call), true);
+		CHECK(Globals.DrawNameLineSites[1] == 0);
+	}
 	Globals.DrawNameLineCallCount = 2;
 	Globals.DrawNameLine2CallCount = 0;
 	Shared.Hooked = 1;
@@ -1160,7 +1293,15 @@ int main() {
 	CHECK(Globals.OtherCallsTaken == false && OtherCalls == 0);
 	int32_t back;
 	memcpy(&back, &stretch[4], sizeof(back));
-	CHECK(pStretch + 3 + 5 + static_cast<uintptr_t>(back) == reinterpret_cast<uintptr_t> (Globals.DrawNameLineOrig));
+	CHECK(pStretch + 3 + 5 + static_cast<uintptr_t>(back) == callee); // as it was found
+	// a call something else has changed since is left as it is, and the change is said to be undone
+	plugin.ParseCommand("/namehook othercalls on", true);
+	stretch[5] ^= 0xFF;
+	plugin.messages.clear();
+	plugin.ParseCommand("/namehook othercalls off", true);
+	CHECK(plugin.messages.size() == 1 && plugin.messages[0] == MESSAGE::PATCH_ERROR && Patches.Sites[0].Abandoned);
+	plugin.messages.clear();
+	Patches.Drop(0);
 	plugin.ParseCommand("/namehook save", true);
 	OtherCalls = 1;
 	plugin.ParseCommand("/namehook load", true);
@@ -1421,6 +1562,42 @@ int main() {
 		CHECK(plugin.said.size() == 1 && plugin.said[0].find("not recognised") != std::string::npos);
 		Globals.pWindowWidth = nullptr;
 		Globals.pWindowHeight = nullptr;
+	}
+
+	{
+		// unload gives every site back; the stars' jump is changed in place while it is as left
+		static uint8_t client[64];
+		memset(client, 0x75, sizeof(client));
+		const uintptr_t pClient = reinterpret_cast<uintptr_t> (&client[0]);
+		static const uint8_t patch[] = { 0x90, 0x90, 0x90 };
+		const uint8_t jnz[1] = { 0x75 };
+		CHECK(Patches.Add(pClient, patch, sizeof(patch)) == 0);
+		Globals.StarsSite = Patches.Add(pClient + 8, jnz, sizeof(jnz));
+		CHECK(Globals.StarsSite == 1 && Patches.Commit());
+		Globals.Patched = true;
+		plugin.messages.clear();
+		plugin.ParseCommand("/namehook hidestars", true);
+		CHECK(client[8] == 0xEB && client[0] == 0x90);
+		plugin.ParseCommand("/namehook showstars", true);
+		CHECK(client[8] == 0x75 && plugin.messages.empty());
+		CHECK(plugin.Deinit() == 0 && client[0] == 0x75 && Patches.Count == 0 && !Globals.Patched && !Stranded);
+
+		// a site something else wrote over since: left, the plugin stranded, and never loaded again
+		CHECK(Patches.Add(pClient, patch, sizeof(patch)) == 0 && Patches.Add(pClient + 8, jnz, sizeof(jnz)) == 1 && Patches.Commit());
+		Globals.Patched = true;
+		Globals.StarsSite = 1;
+		client[1] = 0xE9;
+		plugin.ParseCommand("/namehook hidestars", true);
+		CHECK(client[8] == 0xEB);
+		client[8] = 0xCC;
+		plugin.ParseCommand("/namehook showstars", true);
+		CHECK(client[8] == 0xCC && plugin.messages.size() == 1 && plugin.messages[0] == MESSAGE::PATCH_ERROR);
+		CHECK(plugin.Deinit() == -26 && Stranded && Globals.Patched && client[1] == 0xE9 && client[8] == 0xCC);
+		CHECK(plugin.Init() == -24 && Globals.Patched);
+		Stranded = false;
+		Patches.Drop(0);
+		ZeroMemory(&Globals, sizeof(Globals));
+		AsmSettings.HideStars = 0;
 	}
 
 	printf(failures == 0 ? "all checks passed\n" : "%d checks FAILED\n", failures);

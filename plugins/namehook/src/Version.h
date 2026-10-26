@@ -3,7 +3,7 @@
 // One source for the runtime, help, CMake and Windows resource versions.
 // Keep these integer definitions simple: CMake reads them before project().
 #define NAMEHOOK_VERSION_MAJOR 1
-#define NAMEHOOK_VERSION_MINOR 39
+#define NAMEHOOK_VERSION_MINOR 40
 #define NAMEHOOK_VERSION_PATCH 0
 #define NAMEHOOK_STRINGIFY_INNER(value) #value
 #define NAMEHOOK_STRINGIFY(value) NAMEHOOK_STRINGIFY_INNER(value)

@@ -17,7 +17,7 @@ The original findings below are retained as the audit record. Follow-up changes 
 
 Follow-up validation: all **27 Name Lua checks pass**, native core/guard-page/fake-device tests pass under Wine, party name-colour and Damage integration checks pass, and the 1.39 DLL builds successfully. An additional 100,000-case scanner comparison against a naive matcher, plus malformed-encoding inputs, passes ASan/UBSan using unchanged extracted portable scanner bodies. `git diff --check` is clean. No deployment was performed.
 
-The broader transactional/ownership-aware native instruction-patch rewrite (risk A), native draw instrumentation, GPU profiling and in-client reset/occlusion/Lens certification remain open. They were not silently bundled into the confirmed-defect fixes. Shared ABI/capabilities are unchanged; deploy updated WinXI alongside Name when these changes are released.
+Risk A is addressed in namehook 1.40 (`src/CodePatch.h`: transactional install with rollback, page-protection handling and instruction-cache flushing, ownership-checked restore and live changes, pinning when a site cannot be given back); `FindCallsIn` still scans bytes without decoding instructions, now with readable-section and overlap checks. Native draw instrumentation, GPU profiling and in-client reset/occlusion/Lens certification remain open. They were not silently bundled into the confirmed-defect fixes. Shared ABI/capabilities are unchanged; deploy updated WinXI alongside Name when these changes are released.
 
 ## Scope and confidence
 

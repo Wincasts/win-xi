@@ -1,5 +1,12 @@
 # Changelog
 
+## namehook 1.40 — safe patching of the client's code
+
+- Every write to the client's code goes through `src/CodePatch.h`. Each site keeps its bytes as found; all the patches are made ready first and go in together, and a load that cannot write one takes back those it wrote and fails (-22 unreadable, -23 unwritable) with the client unchanged. Writes make each page writable only while writing, give it back its own protection and flush the instruction cache, instead of relying on the code pages being writable already.
+- Unload gives a site back only while it holds what namehook wrote, and so never undoes a patch something else has put over it since. Such a site is left alone; namehook's module is then pinned, as the client may still call into it from there, unload reports -26, and loading again before a restart is refused with -24. `hidestars`/`showstars` and `othercalls` check the same before changing a site, and say when they cannot.
+- Reads of the client's code beside the patches (the line calls and the functions they go to, the damage patch's surroundings) are checked as readable first; sections that are not committed are skipped when looking for calls, and a found call that overlaps a patch is not taken.
+- Tests: commit, rollback after a failed write, a failed rollback, a site changed before it is written, conflicting writers on unload and on a live change, the real code memory across an execute-read page and a read-only one (protections restored) and before a no-access page, and the plugin's unload, stranding and refusal to load again.
+
 ## namehook 1.39 — scanner bounds and state-block failure handling
 
 - Bound the whole decoded signature, including wildcard prefixes and trailing runs, before forming a candidate pointer. Missing modules, short images and malformed run encodings fail closed. Scan only committed readable image regions, retaining matches across adjacent readable protection regions. Literal/wildcard runs longer than 128 bytes are split, and one-byte literal needles are supported.

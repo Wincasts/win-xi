@@ -25,6 +25,7 @@ If not, see <https://www.gnu.org/licenses/>.
 #include "Nameplate.h"
 
 #include "findsignature.h"
+#include "CodePatch.h"
 
 // No copyright is claimed on the following "fair use for interoperability" section.
 /* Begin "fair use for interoperability" section */
@@ -64,6 +65,20 @@ static uint32_t ReadOperand(uintptr_t at) {
 static void WriteAddress(uint8_t* pLoc, const void* function) {
     const uint32_t address = static_cast<uint32_t>(reinterpret_cast<uintptr_t> (function));
     memcpy(pLoc, &address, sizeof(address));
+}
+
+// Every write to the client's code goes through here (CodePatch.h)
+static CodePatches<WindowsCodeMemory> Patches;
+
+// Set when an unload found a site something else had changed since, and so left it: this plugin's code
+// may still be called from the client, so its module is pinned and it is never loaded again this run.
+static bool Stranded = false;
+
+static void Strand() {
+	Stranded = true;
+	HMODULE self = nullptr;
+	GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN,
+		reinterpret_cast<LPCWSTR> (&Stranded), &self);
 }
 
 static constexpr auto getFrameDeltaSig = MakeSig<GETFRAMEDELTA>();
@@ -112,6 +127,9 @@ static constexpr uint8_t DrawName_Patch1[DRAWNAME_PATCH1_SIZE] = {
 
 // No custom assembly here-- just patching a jnz to a jmp
 #define DRAWNAME2_PATCH_ADDRESS_LOCATION 8
+static_assert(DRAWNAME2_PATCH_ADDRESS_LOCATION < DRAWNAME2_PATCH_SIZE, "the jump is within what the signature matched");
+static_assert(DRAWNAME_PATCH0_SIZE <= CODE_PATCH_BYTES_MAX && DRAWNAME_PATCH1_SIZE <= CODE_PATCH_BYTES_MAX
+	&& DRAWNAME3_V2_PATCH_SIZE <= CODE_PATCH_BYTES_MAX && DRAWDAMAGE_PATCH_SIZE <= CODE_PATCH_BYTES_MAX, "each patch fits a site");
 
 // Past the end of the DrawName3 V2 patch, in the same function, are the two calls that draw a name:
 // its first line, the name itself, and its second, the Job Mastery stars. Each goes through a small
@@ -170,6 +188,7 @@ static constexpr uint8_t DrawDamage_Position[] = {
 static constexpr uint8_t DrawDamage_End[] = { 0x5f, 0x5e, 0x83, 0xc4, 0x40, 0xc3 };
 
 #define LINE_CALLS_MAX 8
+static_assert(5 + 2 * LINE_CALLS_MAX <= CODE_PATCH_SITES_MAX, "the five patches and every call fit");
 
 // "CGame" - various application-level rendering-related things.
 typedef struct CGame {
@@ -207,26 +226,17 @@ static struct {
 	uint16_t* pPlayerEntityIndex;
 	bool* pNamesOff;
 
-	uintptr_t DrawNamePatch0Addr;
-	uint8_t DrawNamePatch0Orig[DRAWNAME_PATCH0_SIZE];
-
-	uintptr_t DrawNamePatch1Addr;
-	uint8_t DrawNamePatch1Orig[DRAWNAME_PATCH1_SIZE];
-
-	uintptr_t DrawName2PatchAddr;
-	uint8_t DrawName2PatchOrig[DRAWNAME2_PATCH_SIZE];
-
-	uintptr_t DrawName3V2PatchAddr;
-	uint8_t DrawName3V2PatchOrig[DRAWNAME3_V2_PATCH_SIZE];
-
-	uintptr_t DrawDamagePatchAddr;
-	uint8_t DrawDamagePatchOrig[DRAWDAMAGE_PATCH_SIZE];
+	// Whether the patches are in, and which of Patches' sites is the jump that hides the stars
+	bool Patched;
+	int StarsSite;
 
 	// The calls that draw a name's lines, and the client's functions they called before. The first of
 	// each is the one in the function that draws every name; the rest are whatever else in the client
 	// calls the same functions, which draws a name by another way (the one under the cursor, for one).
 	uintptr_t DrawNameLineCalls[LINE_CALLS_MAX];
 	uintptr_t DrawNameLine2Calls[LINE_CALLS_MAX];
+	int DrawNameLineSites[LINE_CALLS_MAX];   // each call's site in Patches
+	int DrawNameLine2Sites[LINE_CALLS_MAX];
 	size_t DrawNameLineCallCount;
 	size_t DrawNameLine2CallCount;
 	bool OtherCallsTaken;
@@ -769,13 +779,13 @@ static void __fastcall DrawNameLine2(const XiModel* pModel, [[maybe_unused]] voi
 
 // Where a CALL rel32 at this address goes, or 0 if that is not what is there, or it goes far off.
 static uintptr_t CallTarget(uintptr_t pCall) {
-	const uint8_t* pLoc = reinterpret_cast<const uint8_t*> (pCall);
-	if (pLoc[0] != 0xE8) {
+	uint8_t code[5];
+	if (!Patches.Code.Read(pCall, code, sizeof(code)) || code[0] != 0xE8) {
 		return 0;
 	}
 
 	int32_t rel;
-	memcpy(&rel, pLoc + 1, sizeof(rel));
+	memcpy(&rel, code + 1, sizeof(rel));
 	if (rel < -0x10000 || rel > 0x10000) {
 		return 0;
 	}
@@ -783,9 +793,11 @@ static uintptr_t CallTarget(uintptr_t pCall) {
 	return pCall + 5 + rel;
 }
 
-static void SetCallTarget(uintptr_t pCall, uintptr_t target) {
-	int32_t rel = static_cast<int32_t>(target - (pCall + 5));
-	memcpy(reinterpret_cast<uint8_t*> (pCall) + 1, &rel, sizeof(rel));
+// A CALL rel32 at pCall to target, as the bytes to write there
+static void CallBytes(uint8_t code[5], uintptr_t pCall, uintptr_t target) {
+	const int32_t rel = static_cast<int32_t>(target - (pCall + 5));
+	code[0] = 0xE8;
+	memcpy(code + 1, &rel, sizeof(rel));
 }
 
 // Every CALL rel32 in a stretch of code that goes to this function: where each is, up to max of them.
@@ -839,6 +851,9 @@ static size_t FindCalls(uintptr_t target, uintptr_t first, uintptr_t* sites, siz
 			continue;
 		}
 
+		if (!WindowsCodeMemory::Committed(reinterpret_cast<uintptr_t> (base + section->VirtualAddress), section->Misc.VirtualSize)) {
+			continue;
+		}
 		uintptr_t found[LINE_CALLS_MAX * 2];
 		size_t n = FindCallsIn(base + section->VirtualAddress, section->Misc.VirtualSize, target, found, LINE_CALLS_MAX * 2);
 		// more than there is room for is more than was looked for: something else is being found
@@ -854,26 +869,31 @@ static size_t FindCalls(uintptr_t target, uintptr_t first, uintptr_t* sites, siz
 	return count;
 }
 
-// Points every call but the first of each kind at this plugin, or back at the client
-static void TakeOtherCalls(bool take) {
+// Points every call but the first of each kind at this plugin, or back at the client. A call that is
+// no longer as this plugin left it is left alone. False where any could not be changed.
+static bool TakeOtherCalls(bool take) {
+	bool ok = true;
 	for (size_t i = 1; i < Globals.DrawNameLineCallCount; i++) {
-		SetCallTarget(Globals.DrawNameLineCalls[i], take ? reinterpret_cast<uintptr_t> (&DrawNameLine) : reinterpret_cast<uintptr_t> (Globals.DrawNameLineOrig));
+		ok = (take ? Patches.Write(Globals.DrawNameLineSites[i]) : Patches.Restore(Globals.DrawNameLineSites[i])) && ok;
 	}
 	for (size_t i = 1; i < Globals.DrawNameLine2CallCount; i++) {
-		SetCallTarget(Globals.DrawNameLine2Calls[i], take ? reinterpret_cast<uintptr_t> (&DrawNameLine2) : reinterpret_cast<uintptr_t> (Globals.DrawNameLine2Orig));
+		ok = (take ? Patches.Write(Globals.DrawNameLine2Sites[i]) : Patches.Restore(Globals.DrawNameLine2Sites[i])) && ok;
 	}
 	Globals.OtherCallsTaken = take;
+	return ok;
 }
 
 // Whether the function here is one of the model's two for drawing a line of its name: it begins as
 // both do, and gives back the stack that one of them does.
 static bool IsDrawNameLine(uintptr_t pFunction, size_t retOffset, uint8_t retBytes) {
 	static const uint8_t begins[] = { 0x66, 0x83, 0xB9, 0xB2, 0x00, 0x00, 0x00, 0x00 };
-	const uint8_t* pLoc = reinterpret_cast<const uint8_t*> (pFunction);
+	uint8_t code[0x40];
+	if (pFunction == 0 || retOffset + 3 > sizeof(code) || !Patches.Code.Read(pFunction, code, retOffset + 3)) {
+		return false;
+	}
 
-	return pFunction != 0
-		&& memcmp(pLoc, begins, sizeof(begins)) == 0
-		&& pLoc[retOffset] == 0xC2 && pLoc[retOffset + 1] == retBytes && pLoc[retOffset + 2] == 0x00;
+	return memcmp(code, begins, sizeof(begins)) == 0
+		&& code[retOffset] == 0xC2 && code[retOffset + 1] == retBytes && code[retOffset + 2] == 0x00;
 }
 
 // Resolution ratios and font-size divisions need only change with the settings
@@ -1441,8 +1461,8 @@ bool Nameplate::ParseCommand(const char* cmd, bool includesName) {
 
 		if (otherCalls >= 0 && eat_space_and_is_end(cmd)) {
 			OtherCalls = otherCalls;
-			if (Shared.Hooked != 0) {
-				TakeOtherCalls(otherCalls != 0);
+			if (Shared.Hooked != 0 && !TakeOtherCalls(otherCalls != 0)) {
+				ShowMessage(MESSAGE::PATCH_ERROR);
 			}
 		} else {
 			CommandError("othercalls");
@@ -1846,6 +1866,11 @@ int Nameplate::SaveWhitelist() {
 }
 
 int Nameplate::Init() {
+	// An earlier load left code of the client's calling into this module: Globals is still what it reads
+	if (Stranded) {
+		return -24;
+	}
+
 	ZeroMemory(&Globals, sizeof(Globals));
 	ZeroMemory(&Seen, sizeof(Seen));
 
@@ -1941,68 +1966,72 @@ int Nameplate::Init() {
 		return -18;
 	}
 
-	uint8_t* pLoc;
+	// Every write is made ready first, each at a site of its own whose bytes as found are kept, and
+	// they go in together or not at all (CodePatch.h)
+	Patches.Drop(0);
+	uint8_t bytes[CODE_PATCH_BYTES_MAX];
 
-	CopyMemory(&Globals.DrawNamePatch0Orig[0], reinterpret_cast<const void*> (pDrawNamePatch0), DRAWNAME_PATCH0_SIZE);
-	CopyMemory(reinterpret_cast<void*> (pDrawNamePatch0), &DrawName_Patch0[0], DRAWNAME_PATCH0_SIZE);
-
-	pLoc = reinterpret_cast<uint8_t*> (pDrawNamePatch0 + DRAWNAME_PATCH0_ADDRESS_LOCATION);
-	WriteAddress(pLoc, reinterpret_cast<const void*> (&GetNameplateScale));
-
-	CopyMemory(&Globals.DrawNamePatch1Orig[0], reinterpret_cast<const void*> (pDrawNamePatch1), DRAWNAME_PATCH1_SIZE);
-	CopyMemory(reinterpret_cast<void*> (pDrawNamePatch1), &DrawName_Patch1[0], DRAWNAME_PATCH1_SIZE);
-
-	pLoc = reinterpret_cast<uint8_t*> (pDrawNamePatch1 + DRAWNAME_PATCH1_ADDRESS_LOCATION);
-	WriteAddress(pLoc, reinterpret_cast<const void*> (&GetNameplateScale));
-
-	CopyMemory(&Globals.DrawName2PatchOrig[0], reinterpret_cast<const void*> (pDrawName2Patch), DRAWNAME2_PATCH_SIZE);
-
-	pLoc = reinterpret_cast<uint8_t*> (pDrawName2Patch + DRAWNAME2_PATCH_ADDRESS_LOCATION);
-
-	// Stick a JMP there.
-	pLoc[0] = (AsmSettings.HideStars != 0) ? 0xEB : 0x75;
-
-	CopyMemory(&Globals.DrawName3V2PatchOrig[0], reinterpret_cast<const void*> (pDrawName3V2Patch), DRAWNAME3_V2_PATCH_SIZE);
-	CopyMemory(reinterpret_cast<void*> (pDrawName3V2Patch), &DrawName3_V2_Patch, DRAWNAME3_V2_PATCH_SIZE);
-	WriteAddress(reinterpret_cast<uint8_t*> (pDrawName3V2Patch + DRAWNAME3_V2_PATCH_ADDRESS_LOCATION), reinterpret_cast<const void*> (&ShouldDrawNameplate));
-
-	CopyMemory(&Globals.DrawDamagePatchOrig[0], reinterpret_cast<const void*> (pDrawDamagePatch), DRAWDAMAGE_PATCH_SIZE);
-	CopyMemory(reinterpret_cast<void*> (pDrawDamagePatch), &DrawDamage_Patch, DRAWDAMAGE_PATCH_SIZE);
-
-	pLoc = reinterpret_cast<uint8_t*> (pDrawDamagePatch + DRAWDAMAGE_PATCH_CALL_ADDRESS_LOCATION);
-	WriteAddress(pLoc, reinterpret_cast<const void*> (&GetDamageNumberScale));
-
-	pLoc = reinterpret_cast<uint8_t*> (pDrawDamagePatch + DRAWDAMAGE_PATCH_COLOR_ADDRESS_LOCATION);
-	const uint8_t* pOldLoc = &Globals.DrawDamagePatchOrig[DRAWDAMAGE_PATCH_OLD_COLOR_ADDRESS_LOCATION];
-	pLoc[0] = pOldLoc[0];
-	pLoc[1] = pOldLoc[1];
-	pLoc[2] = pOldLoc[2];
-	pLoc[3] = pOldLoc[3];
-
-	// The popups are handed to the plugin only where the client's code around the patch is as expected
-	if (memcmp(reinterpret_cast<const void*> (pDrawDamagePatch - DRAWDAMAGE_POSITION_OFFSET), DrawDamage_Position, sizeof(DrawDamage_Position)) == 0
-			&& memcmp(reinterpret_cast<const void*> (pDrawDamagePatch + DRAWDAMAGE_END_OFFSET), DrawDamage_End, sizeof(DrawDamage_End)) == 0) {
-		WriteAddress(reinterpret_cast<uint8_t*> (pDrawDamagePatch + DRAWDAMAGE_PATCH_POPUP_ADDRESS_LOCATION), reinterpret_cast<const void*> (&OnDamagePopup));
-		Popups.Hooked = 1;
-	} else {
-		CopyMemory(reinterpret_cast<void*> (pDrawDamagePatch + DRAWDAMAGE_PATCH_POPUP_LOCATION), DrawDamage_PopupSkip, sizeof(DrawDamage_PopupSkip));
+	CopyMemory(bytes, &DrawName_Patch0[0], DRAWNAME_PATCH0_SIZE);
+	WriteAddress(bytes + DRAWNAME_PATCH0_ADDRESS_LOCATION, reinterpret_cast<const void*> (&GetNameplateScale));
+	if (Patches.Add(pDrawNamePatch0, bytes, DRAWNAME_PATCH0_SIZE) < 0) {
+		return -22;
 	}
 
-	Globals.pgGame = reinterpret_cast<CGame**> (ppObj);
-	Globals.pWindowWidth = reinterpret_cast<uint32_t*> (pWindowWidth);
-	Globals.pWindowHeight = reinterpret_cast<uint32_t*> (pWindowHeight);
-	Globals.pPlayerEntityIndex = reinterpret_cast<uint16_t*> (pPlayerEntityIndex);
-	Globals.pNamesOff = reinterpret_cast<bool*> (pNamesOff);
+	CopyMemory(bytes, &DrawName_Patch1[0], DRAWNAME_PATCH1_SIZE);
+	WriteAddress(bytes + DRAWNAME_PATCH1_ADDRESS_LOCATION, reinterpret_cast<const void*> (&GetNameplateScale));
+	if (Patches.Add(pDrawNamePatch1, bytes, DRAWNAME_PATCH1_SIZE) < 0) {
+		return -22;
+	}
 
-	Globals.DrawNamePatch0Addr = pDrawNamePatch0;
-	Globals.DrawNamePatch1Addr = pDrawNamePatch1;
-	Globals.DrawName2PatchAddr = pDrawName2Patch;
-	Globals.DrawName3V2PatchAddr = pDrawName3V2Patch;
-	Globals.DrawDamagePatchAddr = pDrawDamagePatch;
+	// DrawName2: its jnz made a jmp while the stars are hidden, and put back as it was when they are not
+	uint8_t stars[1];
+	if (!Patches.Code.Read(pDrawName2Patch + DRAWNAME2_PATCH_ADDRESS_LOCATION, stars, sizeof(stars))) {
+		return -22;
+	}
+	if (AsmSettings.HideStars != 0) {
+		stars[0] = 0xEB;
+	}
+	Globals.StarsSite = Patches.Add(pDrawName2Patch + DRAWNAME2_PATCH_ADDRESS_LOCATION, stars, sizeof(stars));
+	if (Globals.StarsSite < 0) {
+		return -22;
+	}
+
+	CopyMemory(bytes, &DrawName3_V2_Patch[0], DRAWNAME3_V2_PATCH_SIZE);
+	WriteAddress(bytes + DRAWNAME3_V2_PATCH_ADDRESS_LOCATION, reinterpret_cast<const void*> (&ShouldDrawNameplate));
+	if (Patches.Add(pDrawName3V2Patch, bytes, DRAWNAME3_V2_PATCH_SIZE) < 0) {
+		return -22;
+	}
+
+	// DrawDamage: the colour's address is the client's own, read from what the patch goes over
+	uint8_t damageWas[DRAWDAMAGE_PATCH_SIZE];
+	if (!Patches.Code.Read(pDrawDamagePatch, damageWas, DRAWDAMAGE_PATCH_SIZE)) {
+		return -22;
+	}
+	CopyMemory(bytes, &DrawDamage_Patch[0], DRAWDAMAGE_PATCH_SIZE);
+	WriteAddress(bytes + DRAWDAMAGE_PATCH_CALL_ADDRESS_LOCATION, reinterpret_cast<const void*> (&GetDamageNumberScale));
+	CopyMemory(bytes + DRAWDAMAGE_PATCH_COLOR_ADDRESS_LOCATION, &damageWas[DRAWDAMAGE_PATCH_OLD_COLOR_ADDRESS_LOCATION], 4);
+
+	// The popups are handed to the plugin only where the client's code around the patch is as expected
+	uint8_t position[sizeof(DrawDamage_Position)];
+	uint8_t end[sizeof(DrawDamage_End)];
+	const bool popups = Patches.Code.Read(pDrawDamagePatch - DRAWDAMAGE_POSITION_OFFSET, position, sizeof(position))
+		&& Patches.Code.Read(pDrawDamagePatch + DRAWDAMAGE_END_OFFSET, end, sizeof(end))
+		&& memcmp(position, DrawDamage_Position, sizeof(position)) == 0
+		&& memcmp(end, DrawDamage_End, sizeof(end)) == 0;
+	if (popups) {
+		WriteAddress(bytes + DRAWDAMAGE_PATCH_POPUP_ADDRESS_LOCATION, reinterpret_cast<const void*> (&OnDamagePopup));
+	} else {
+		CopyMemory(bytes + DRAWDAMAGE_PATCH_POPUP_LOCATION, DrawDamage_PopupSkip, sizeof(DrawDamage_PopupSkip));
+	}
+	if (Patches.Add(pDrawDamagePatch, bytes, DRAWDAMAGE_PATCH_SIZE) < 0) {
+		return -22;
+	}
 
 	// The calls that draw a name's two lines, where names are listed for addons: taken only if both go
 	// where they are expected to; without them names are shown and hidden all the same, and there is
-	// no list.
+	// no list. The client draws a name by these two functions from other places too: every call to
+	// either is found while they still go to the client, and is taken only with othercalls on.
+	bool lines = false;
 	{
 		uintptr_t pLineCall = pDrawName3V2Patch + DRAWNAME_LINE_CALL_OFFSET;
 		uintptr_t pLine2Call = pDrawName3V2Patch + DRAWNAME_LINE2_CALL_OFFSET;
@@ -2010,19 +2039,77 @@ int Nameplate::Init() {
 		uintptr_t pLine2 = CallTarget(pLine2Call);
 
 		if (IsDrawNameLine(pLine, DRAWNAME_LINE_RET_OFFSET, 0x14) && IsDrawNameLine(pLine2, DRAWNAME_LINE2_RET_OFFSET, 0x0C)) {
-			Globals.DrawNameLineOrig = reinterpret_cast<DrawNameLineFn> (pLine);
-			Globals.DrawNameLine2Orig = reinterpret_cast<DrawNameLine2Fn> (pLine2);
-			// The client draws a name by these two functions from other places too: every call to
-			// either is found while they still go to the client
-			Globals.DrawNameLineCallCount = FindCalls(pLine, pLineCall, Globals.DrawNameLineCalls, LINE_CALLS_MAX);
-			Globals.DrawNameLine2CallCount = FindCalls(pLine2, pLine2Call, Globals.DrawNameLine2Calls, LINE_CALLS_MAX);
+			const size_t before = Patches.Count;
+			uintptr_t lineCalls[LINE_CALLS_MAX], line2Calls[LINE_CALLS_MAX];
+			const size_t lineCount = FindCalls(pLine, pLineCall, lineCalls, LINE_CALLS_MAX);
+			const size_t line2Count = FindCalls(pLine2, pLine2Call, line2Calls, LINE_CALLS_MAX);
 
-			SetCallTarget(pLineCall, reinterpret_cast<uintptr_t> (&DrawNameLine));
-			SetCallTarget(pLine2Call, reinterpret_cast<uintptr_t> (&DrawNameLine2));
-			TakeOtherCalls(OtherCalls != 0);
+			// the first of each is the one in the function that draws every name: without it, none
+			uint8_t call[5];
+			CallBytes(call, pLineCall, reinterpret_cast<uintptr_t> (&DrawNameLine));
+			const int lineSite = Patches.Add(pLineCall, call, sizeof(call));
+			CallBytes(call, pLine2Call, reinterpret_cast<uintptr_t> (&DrawNameLine2));
+			const int line2Site = Patches.Add(pLine2Call, call, sizeof(call));
 
-			Shared.Hooked = 1;
+			if (lineSite >= 0 && line2Site >= 0) {
+				Globals.DrawNameLineOrig = reinterpret_cast<DrawNameLineFn> (pLine);
+				Globals.DrawNameLine2Orig = reinterpret_cast<DrawNameLine2Fn> (pLine2);
+				Globals.DrawNameLineCalls[0] = pLineCall;
+				Globals.DrawNameLineSites[0] = lineSite;
+				Globals.DrawNameLine2Calls[0] = pLine2Call;
+				Globals.DrawNameLine2Sites[0] = line2Site;
+				Globals.DrawNameLineCallCount = 1;
+				Globals.DrawNameLine2CallCount = 1;
+
+				// the rest, each where it does not meet another site: deferred, for TakeOtherCalls
+				for (size_t i = 1; i < lineCount; i++) {
+					CallBytes(call, lineCalls[i], reinterpret_cast<uintptr_t> (&DrawNameLine));
+					const int site = Patches.Add(lineCalls[i], call, sizeof(call), true);
+					if (site >= 0) {
+						Globals.DrawNameLineCalls[Globals.DrawNameLineCallCount] = lineCalls[i];
+						Globals.DrawNameLineSites[Globals.DrawNameLineCallCount++] = site;
+					}
+				}
+				for (size_t i = 1; i < line2Count; i++) {
+					CallBytes(call, line2Calls[i], reinterpret_cast<uintptr_t> (&DrawNameLine2));
+					const int site = Patches.Add(line2Calls[i], call, sizeof(call), true);
+					if (site >= 0) {
+						Globals.DrawNameLine2Calls[Globals.DrawNameLine2CallCount] = line2Calls[i];
+						Globals.DrawNameLine2Sites[Globals.DrawNameLine2CallCount++] = site;
+					}
+				}
+				lines = true;
+			} else {
+				Patches.Drop(before);
+			}
 		}
+	}
+
+	// What the patched code reads is ready before any of it can run
+	Globals.pgGame = reinterpret_cast<CGame**> (ppObj);
+	Globals.pWindowWidth = reinterpret_cast<uint32_t*> (pWindowWidth);
+	Globals.pWindowHeight = reinterpret_cast<uint32_t*> (pWindowHeight);
+	Globals.pPlayerEntityIndex = reinterpret_cast<uint16_t*> (pPlayerEntityIndex);
+	Globals.pNamesOff = reinterpret_cast<bool*> (pNamesOff);
+
+	if (!Patches.Commit()) {
+		// Commit has taken back what it wrote; a site it could not take back strands the plugin
+		for (size_t i = 0; i < Patches.Count; i++) {
+			if (Patches.Sites[i].Written || Patches.Sites[i].Abandoned) {
+				Strand();
+				return -23;
+			}
+		}
+		Patches.Drop(0);
+		ZeroMemory(&Globals, sizeof(Globals));
+		return -23;
+	}
+	Globals.Patched = true;
+	Popups.Hooked = popups ? 1 : 0;
+
+	if (lines) {
+		TakeOtherCalls(OtherCalls != 0);
+		Shared.Hooked = 1;
 	}
 
 	ZeroMemory(&Bubbles.Draw, sizeof(Bubbles.Draw));
@@ -2045,14 +2132,13 @@ int Nameplate::Init() {
 }
 
 int Nameplate::Update() {
-	if (Globals.DrawName2PatchAddr != 0) {
-		uint8_t* pLoc;
-
-		uintptr_t pDrawName2Patch = Globals.DrawName2PatchAddr;
-		pLoc = reinterpret_cast<uint8_t*> (pDrawName2Patch + DRAWNAME2_PATCH_ADDRESS_LOCATION);
-
-		// Stick a JMP there.
-		pLoc[0] = (AsmSettings.HideStars != 0) ? 0xEB : 0x75;
+	if (Globals.Patched) {
+		// a JMP there while the stars are hidden, the client's own jnz while they are not
+		const uint8_t jump[1] = { (AsmSettings.HideStars != 0) ? static_cast<uint8_t>(0xEB) : Patches.Sites[Globals.StarsSite].Original[0] };
+		if (!Patches.Rewrite(Globals.StarsSite, jump)) {
+			ShowMessage(MESSAGE::PATCH_ERROR);
+			return -25;
+		}
 	}
 
 	return 0;
@@ -2246,35 +2332,21 @@ int Nameplate::Deinit() {
 	Shared.Draw = 0;
 	Filling.Count = 0;
 
-	if (Globals.DrawNameLineCallCount != 0) {
-		TakeOtherCalls(false);
-		SetCallTarget(Globals.DrawNameLine2Calls[0], reinterpret_cast<uintptr_t> (Globals.DrawNameLine2Orig));
-		SetCallTarget(Globals.DrawNameLineCalls[0], reinterpret_cast<uintptr_t> (Globals.DrawNameLineOrig));
-	}
-
-	if (Globals.DrawDamagePatchAddr != 0) {
-		CopyMemory(reinterpret_cast<void*> (Globals.DrawDamagePatchAddr), &Globals.DrawDamagePatchOrig[0], DRAWDAMAGE_PATCH_SIZE);
-	}
 	Popups.Hooked = 0;
 	Popups.Count = 0;
 	Popups.Draw = 0;
 
-	if (Globals.DrawName3V2PatchAddr != 0) {
-		CopyMemory(reinterpret_cast<void*> (Globals.DrawName3V2PatchAddr), &Globals.DrawName3V2PatchOrig[0], DRAWNAME3_V2_PATCH_SIZE);
+	// Every site given back, last first. One something else has changed since is left as it is: the
+	// client may still call into this plugin from there, so its module is kept loaded, and what that
+	// code reads (Globals) is kept as it is.
+	const size_t abandoned = Patches.RestoreAll();
+	Globals.OtherCallsTaken = false;
+	if (abandoned != 0) {
+		Strand();
+		return -26;
 	}
 
-	if (Globals.DrawName2PatchAddr != 0) {
-		CopyMemory(reinterpret_cast<void*> (Globals.DrawName2PatchAddr), &Globals.DrawName2PatchOrig[0], DRAWNAME2_PATCH_SIZE);
-	}
-
-	if (Globals.DrawNamePatch1Addr != 0) {
-		CopyMemory(reinterpret_cast<void*> (Globals.DrawNamePatch1Addr), &Globals.DrawNamePatch1Orig[0], DRAWNAME_PATCH1_SIZE);
-	}
-
-	if (Globals.DrawNamePatch0Addr != 0) {
-		CopyMemory(reinterpret_cast<void*> (Globals.DrawNamePatch0Addr), &Globals.DrawNamePatch0Orig[0], DRAWNAME_PATCH0_SIZE);
-	}
-
+	Patches.Drop(0);
 	ZeroMemory(&Globals, sizeof(Globals));
 
     return 0;

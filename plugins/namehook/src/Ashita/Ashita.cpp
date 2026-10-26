@@ -935,10 +935,20 @@ void AshitaNameplate::ShowMessage(MESSAGE message, int param) {
             chat->Writef(0, false, CHAT_HEADER "\x1e\x44Plugin load failed with error code \x1e\x05%d\x1e\x44!", param);
             if (param == -9 || param == -10 || param == -11 || param == -14 || param == -18) {
                 chat->Write(0, false, CHAT_HEADER "Required client rendering code was not found. Another nameplate plugin or patch may already own it; unload nameplate/nameplatew/nameplatehook before loading namehook. An unsupported client version can also cause this error.");
+            } else if (param == -22 || param == -23) {
+                chat->Write(0, false, CHAT_HEADER "The client's code could not be read or written where namehook patches it. Nothing was changed.");
+            } else if (param == -24) {
+                chat->Write(0, false, CHAT_HEADER "An earlier unload of namehook had to leave some of its patches in place. Restart the game to load it again.");
             }
             break;
         case MESSAGE::PLUGIN_UNLOAD_ERROR:
             chat->Writef(0, false, CHAT_HEADER "\x1e\x44Plugin unload failed with error code \x1e\x05%d\x1e\x44!", param);
+            if (param == -26) {
+                chat->Write(0, false, CHAT_HEADER "Something else changed the client's code where namehook had patched it, so those patches were left in place and namehook stays in memory. Restart the game before loading namehook again.");
+            }
+            break;
+        case MESSAGE::PATCH_ERROR:
+            chat->Write(0, false, CHAT_HEADER "\x1e\x44The client's code is no longer as namehook left it, so the change was not made.");
             break;
         case MESSAGE::SHORT_HELP:
             chat->Write(0, false, CHAT_HEADER "\x1e\x44Unknown command, please consult \x1e\x6a/namehook help\x1e\x44 for more information.");
