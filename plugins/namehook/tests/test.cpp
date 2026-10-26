@@ -89,9 +89,12 @@ struct TestPlugin : public Nameplate {
 	uint32_t GetSpawnFlags(uint32_t entityIndex) override {
 		return (entityIndex == 300) ? 0x10 : 0x02;
 	}
-	uintptr_t actor = 0; // the one actor the host knows, entity 0x123's
+	// the actors the host knows: entity 0x123's and 0x456's
+	uintptr_t actors[2] = {};
+	int actorLooks = 0;
 	uint32_t GetActorEntity(uintptr_t pointer) override {
-		return (pointer != 0 && pointer == actor) ? 0x123 : HOOK_ENTITIES;
+		actorLooks++;
+		return (pointer == actors[0]) ? 0x123 : (pointer == actors[1]) ? 0x456 : HOOK_ENTITIES;
 	}
 };
 
@@ -1115,14 +1118,18 @@ int main() {
 		Globals.pWindowHeight = &height;
 		static const float identity[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
 
-		// the client's object: what +FC points to points to the actor
+		// the client's object: what +FC points to points to the effect's generator, which has the
+		// actors of who hit and who was hit
 		static uint8_t object[0x200] = {};
-		static uint8_t inner[4] = {};
-		uintptr_t innerAt = reinterpret_cast<uintptr_t> (inner);
-		memcpy(object + POPUP_OBJECT_OWNER, &innerAt, 4);
-		const uint32_t actor = 0x0BADF00D;
-		memcpy(inner, &actor, 4);
-		plugin.actor = actor;
+		static uint32_t inner[1] = {};
+		static uint32_t generator[0x44 / 4] = {};
+		const uint32_t innerAt = static_cast<uint32_t>(reinterpret_cast<uintptr_t> (inner));
+		memcpy(object + POPUP_OBJECT_EFFECT, &innerAt, 4);
+		inner[0] = static_cast<uint32_t>(reinterpret_cast<uintptr_t> (generator));
+		generator[POPUP_GENERATOR_TARGET / 4] = 0x0BADF00D;
+		generator[POPUP_GENERATOR_SOURCE / 4] = 0x0BADBEEF;
+		plugin.actors[0] = 0x0BADF00D;
+		plugin.actors[1] = 0x0BADBEEF;
 		strcpy(reinterpret_cast<char*> (object + POPUP_OBJECT_TEXT), "1234567890ABCDEFGHIJ"); // drawn to 16
 		const float at[3] = { 0.5f, -0.5f, 3.0f }, size[2] = { 2.0f, 3.0f }, scale = 0.75f;
 
@@ -1136,10 +1143,10 @@ int main() {
 		CHECK(Popups.Count == 1 && Popups.Frame == Shared.Frame);
 		const HookPopup first = Popups.Popups[0];
 		CHECK(first.Id != 0 && strcmp(first.Text, "1234567890ABCDEF") == 0);
-		CHECK(first.Flags == (POPUP_DRAWN | POPUP_ON_SCREEN | POPUP_OWNER) && first.EntityIndex == 0x123 && PopupOwnerBy[0] == 3);
+		CHECK(first.Flags == (POPUP_DRAWN | POPUP_ON_SCREEN | POPUP_TARGET | POPUP_SOURCE) && first.EntityIndex == 0x123 && first.SourceIndex == 0x456);
 		CHECK(first.Color == 0x80FFFFFF && first.Scale == 0.75f && first.Width == 2.0f && first.Height == 3.0f && first.Z == 3.0f);
 		CHECK(first.ScreenX == 750.0f && first.ScreenY == 375.0f && first.Depth == 1.0f);
-		CHECK(first.Object == static_cast<uint32_t>(reinterpret_cast<uintptr_t> (object)) && PopupOwner[0][0] == innerAt && PopupOwner[0][1] == actor);
+		CHECK(first.Object == static_cast<uint32_t>(reinterpret_cast<uintptr_t> (object)));
 		plugin.Publish(nullptr, nullptr, true);
 		CHECK(Popups.Count == 1); // made ready, and not taken away as the frame ended
 
@@ -1165,17 +1172,27 @@ int main() {
 		plugin.Publish(nullptr, nullptr, true);
 		CHECK(Popups.Popups[0].Id != second);
 
-		// whose: the object itself, or nobody's known
-		plugin.actor = static_cast<uint32_t>(reinterpret_cast<uintptr_t> (object));
+		// who: looked for once, as it first appears; an actor nobody is, none at all, or no generator
+		const int looks = plugin.actorLooks;
+		OnDamagePopup(object, 0x80FFFFFF, at, size, &scale);
+		plugin.Publish(nullptr, nullptr, true);
+		CHECK(plugin.actorLooks == looks);
+		generator[POPUP_GENERATOR_SOURCE / 4] = 0x0D15EA5E;
 		object[POPUP_OBJECT_TEXT] = '8';
 		OnDamagePopup(object, 0x80FFFFFF, at, size, &scale);
 		plugin.Publish(nullptr, nullptr, true);
-		CHECK(Popups.Popups[0].EntityIndex == 0x123 && PopupOwnerBy[0] == 1);
-		plugin.actor = 0;
+		CHECK(Popups.Popups[0].Flags == (POPUP_DRAWN | POPUP_TARGET) && Popups.Popups[0].EntityIndex == 0x123 && Popups.Popups[0].SourceIndex == HOOK_ENTITIES);
+		generator[POPUP_GENERATOR_SOURCE / 4] = 0;
+		object[POPUP_OBJECT_TEXT] = '4';
+		const int noSource = plugin.actorLooks;
+		OnDamagePopup(object, 0x80FFFFFF, at, size, &scale);
+		plugin.Publish(nullptr, nullptr, true);
+		CHECK(plugin.actorLooks == noSource + 1 && (Popups.Popups[0].Flags & POPUP_SOURCE) == 0); // no actor is never asked after
+		inner[0] = 0;
 		object[POPUP_OBJECT_TEXT] = '7';
 		OnDamagePopup(object, 0x80FFFFFF, at, size, &scale);
 		plugin.Publish(nullptr, nullptr, true);
-		CHECK((Popups.Popups[0].Flags & POPUP_OWNER) == 0 && Popups.Popups[0].EntityIndex == HOOK_ENTITIES && PopupOwnerBy[0] == 0);
+		CHECK(Popups.Popups[0].Flags == POPUP_DRAWN && Popups.Popups[0].EntityIndex == HOOK_ENTITIES && Popups.Popups[0].SourceIndex == HOOK_ENTITIES);
 
 		// claimed: listed, not drawn by the client; the claim lapses as a name claim does
 		Popups.Claimed = 1;
@@ -1206,15 +1223,17 @@ int main() {
 		plugin.Publish(nullptr, nullptr, true);
 		plugin.ParseCommand("/namehook popups", true);
 		CHECK(plugin.said.size() == 2 && plugin.said[0].find("1 damage popups last frame") == 0
-			&& plugin.said[1].find("\"7234567890ABCDEF\" whose not known") != std::string::npos);
+			&& plugin.said[1].find("\"7234567890ABCDEF\" on nobody known from nobody known") != std::string::npos);
 		plugin.said.clear();
 		plugin.ParseCommand("/namehook popups watch on", true);
 		CHECK(plugin.said.size() == 1 && PopupsWatched);
 		object[POPUP_OBJECT_TEXT] = '6';
+		inner[0] = static_cast<uint32_t>(reinterpret_cast<uintptr_t> (generator));
+		generator[POPUP_GENERATOR_SOURCE / 4] = 0x0BADBEEF;
 		OnDamagePopup(object, 0x80FFFFFF, at, size, &scale);
 		OnDamagePopup(object, 0x80FFFFFF, at, size, &scale);
 		plugin.Publish(nullptr, nullptr, true);
-		CHECK(plugin.said.size() == 2 && plugin.said[1].find("\"6234567890ABCDEF\"") != std::string::npos);
+		CHECK(plugin.said.size() == 2 && plugin.said[1].find("\"6234567890ABCDEF\" on 0x123 from 0x456") != std::string::npos);
 		OnDamagePopup(object, 0x80FFFFFF, at, size, &scale);
 		plugin.Publish(nullptr, nullptr, true);
 		CHECK(plugin.said.size() == 2); // said once

@@ -931,33 +931,28 @@ static void __fastcall GetDamageNumberScale(float* wh, const float* pS) {
 	}
 }
 
-// What the client's object for a damage popup holds, where the drawing function reads it
-#define POPUP_OBJECT_OWNER 0xFC  // a pointer to a pointer: the function reads both
-#define POPUP_OBJECT_TEXT 0x198  // the text, of which 16 characters are drawn
+// What the client's object for a damage popup holds, where the drawing function reads it, and what
+// the effect it belongs to holds (read from the running game: the actors of the one hit and the one
+// who hit them, in the effect's generator, for every popup)
+#define POPUP_OBJECT_EFFECT 0xFC     // a pointer to a pointer to the effect's generator
+#define POPUP_OBJECT_TEXT 0x198      // the text, of which 16 characters are drawn
+#define POPUP_GENERATOR_SOURCE 0x3C  // the actor of who hit
+#define POPUP_GENERATOR_TARGET 0x40  // and of who was hit
 
-// The popups gathered as the client draws them this frame, made ready by Publish; and how each new one
-// came to be known as whose (for /namehook popups)
+// The popups gathered as the client draws them this frame, made ready by Publish
 static struct {
 	uint32_t Count;
 	HookPopup Popups[HOOK_POPUPS_MAX];
-	uint32_t Owner[HOOK_POPUPS_MAX][2]; // the pointer at POPUP_OBJECT_OWNER, and the one it points to
-	uint32_t OwnerBy[HOOK_POPUPS_MAX];  // 0 unknown, 1 the object itself, 2 the first pointer, 3 the second
 	bool Changed;
 	bool Published;
 } PopupFilling;
-
-// Last frame's, as /namehook popups says them
-static uint32_t PopupOwner[HOOK_POPUPS_MAX][2];
-static uint32_t PopupOwnerBy[HOOK_POPUPS_MAX];
 
 // Each popup seen lately, so that one drawn frame after frame keeps its id: the same object with the
 // same text within HOOK_DRAW_FRAMES of the last frame it was drawn in
 static struct {
 	uint32_t Object;
 	uint32_t LastFrame;
-	HookPopup Popup;     // as first seen: its id, owner and first frame
-	uint32_t Owner[2];
-	uint32_t OwnerBy;
+	HookPopup Popup;     // as first seen: its id, who it is over and from, and first frame
 } RecentPopups[HOOK_POPUPS_MAX];
 static uint32_t NextPopupId = 1;
 
@@ -965,7 +960,6 @@ static uint32_t NextPopupId = 1;
 static bool PopupsWatched = false;
 static uint32_t PopupsToSay = 0;
 static HookPopup PopupSaying[HOOK_POPUPS_MAX];
-static uint32_t PopupSayingBy[HOOK_POPUPS_MAX];
 
 // The popup claim last seen made, and when; it lapses as a name claim does
 static uint32_t PopupClaimSeen = 0xFFFFFFFF;
@@ -985,6 +979,11 @@ static bool IsPopupClaimed() {
 
 static uint32_t ReadPointer(uintptr_t at) {
 	return (at != 0) ? ReadOperand(at) : 0;
+}
+
+// The entity an actor is, by the host; HOOK_ENTITIES for none
+static uint32_t ActorEntity(uint32_t actor) {
+	return (actor != 0 && Instance != nullptr) ? Instance->GetActorEntity(actor) : HOOK_ENTITIES;
 }
 
 // A damage popup the client is about to draw: at position (three floats), its letters size (two) and
@@ -1036,22 +1035,17 @@ static bool __fastcall OnDamagePopup(const uint8_t* object, uint32_t color, cons
 		}
 		seen.Popup.Object = address;
 		seen.Popup.FirstFrame = Shared.Frame;
-		seen.Popup.EntityIndex = HOOK_ENTITIES;
 		memcpy(seen.Popup.Text, text, sizeof(text));
-		seen.Owner[0] = ReadPointer(address + POPUP_OBJECT_OWNER);
-		seen.Owner[1] = ReadPointer(seen.Owner[0]);
-		seen.OwnerBy = 0;
-		const uint32_t candidates[3] = { address, seen.Owner[0], seen.Owner[1] };
-		for (uint32_t c = 0; c < 3 && Instance != nullptr && seen.OwnerBy == 0; c++) {
-			const uint32_t index = (candidates[c] != 0) ? Instance->GetActorEntity(candidates[c]) : HOOK_ENTITIES;
-			if (index < HOOK_ENTITIES) {
-				seen.Popup.EntityIndex = index;
-				seen.Popup.Flags |= POPUP_OWNER;
-				seen.OwnerBy = c + 1;
-			}
+		seen.Popup.EntityIndex = HOOK_ENTITIES;
+		seen.Popup.SourceIndex = HOOK_ENTITIES;
+		const uint32_t generator = ReadPointer(ReadPointer(address + POPUP_OBJECT_EFFECT));
+		if (generator != 0) {
+			seen.Popup.EntityIndex = ActorEntity(ReadPointer(generator + POPUP_GENERATOR_TARGET));
+			seen.Popup.SourceIndex = ActorEntity(ReadPointer(generator + POPUP_GENERATOR_SOURCE));
 		}
+		seen.Popup.Flags = (seen.Popup.EntityIndex < HOOK_ENTITIES ? POPUP_TARGET : 0)
+			| (seen.Popup.SourceIndex < HOOK_ENTITIES ? POPUP_SOURCE : 0);
 		if (PopupsWatched && PopupsToSay < HOOK_POPUPS_MAX) {
-			PopupSayingBy[PopupsToSay] = seen.OwnerBy;
 			PopupSaying[PopupsToSay++] = seen.Popup;
 		}
 	}
@@ -1059,7 +1053,7 @@ static bool __fastcall OnDamagePopup(const uint8_t* object, uint32_t color, cons
 
 	HookPopup& popup = PopupFilling.Popups[slot];
 	popup = RecentPopups[recent].Popup;
-	popup.Flags = (popup.Flags & POPUP_OWNER) | (drawn ? POPUP_DRAWN : 0);
+	popup.Flags = (popup.Flags & (POPUP_TARGET | POPUP_SOURCE)) | (drawn ? POPUP_DRAWN : 0);
 	popup.Color = color;
 	popup.X = position[0];
 	popup.Y = position[1];
@@ -1067,9 +1061,6 @@ static bool __fastcall OnDamagePopup(const uint8_t* object, uint32_t color, cons
 	popup.Scale = *scale;
 	popup.Width = size[0];
 	popup.Height = size[1];
-	PopupFilling.Owner[slot][0] = RecentPopups[recent].Owner[0];
-	PopupFilling.Owner[slot][1] = RecentPopups[recent].Owner[1];
-	PopupFilling.OwnerBy[slot] = RecentPopups[recent].OwnerBy;
 	PopupFilling.Changed = true;
 
 	if (PopupsWatched && popup.FirstFrame == Shared.Frame) {
@@ -1467,23 +1458,26 @@ void Nameplate::ParseCategoryCommand(const char* cmd, int show) {
 	}
 }
 
-// One popup in the chat log: by is how its owner was found, as PopupFilling::OwnerBy has it, and owner
-// the two pointers it was looked for in
-static void SayPopup(Nameplate* plugin, const HookPopup& popup, uint32_t by, const uint32_t owner[2]) {
-	char whose[96];
-	if ((popup.Flags & POPUP_OWNER) != 0) {
-		const char* name = "";
-		for (uint32_t i = 0; i < Shared.Count && i < HOOK_NAMES_MAX; i++) {
-			if (Shared.Names[i].EntityIndex == popup.EntityIndex) {
-				name = Shared.Names[i].Name;
-				break;
-			}
+// An entity's name, if its name was drawn last frame, and its index, for the chat log
+static void DescribeEntity(char* out, size_t size, uint32_t index) {
+	const char* name = "";
+	for (uint32_t i = 0; i < Shared.Count && i < HOOK_NAMES_MAX; i++) {
+		if (Shared.Names[i].EntityIndex == index) {
+			name = Shared.Names[i].Name;
+			break;
 		}
-		static const char* const ways[] = { "", "the object", "its +FC", "what its +FC points to" };
-		StringCbPrintfA(whose, sizeof(whose), "on %s%s0x%03X (by %s)", name, name[0] != '\0' ? " " : "",
-			static_cast<unsigned>(popup.EntityIndex), ways[by < 4 ? by : 0]);
-	} else {
-		StringCbCopyA(whose, sizeof(whose), "whose not known");
+	}
+	StringCbPrintfA(out, size, "%s%s0x%03X", name, name[0] != '\0' ? " " : "", static_cast<unsigned>(index));
+}
+
+// One popup in the chat log
+static void SayPopup(Nameplate* plugin, const HookPopup& popup) {
+	char target[48] = "nobody known", source[48] = "nobody known";
+	if ((popup.Flags & POPUP_TARGET) != 0) {
+		DescribeEntity(target, sizeof(target), popup.EntityIndex);
+	}
+	if ((popup.Flags & POPUP_SOURCE) != 0) {
+		DescribeEntity(source, sizeof(source), popup.SourceIndex);
 	}
 
 	char screen[48];
@@ -1495,24 +1489,15 @@ static void SayPopup(Nameplate* plugin, const HookPopup& popup, uint32_t by, con
 
 	char text[HOOK_POPUP_TEXT_SIZE + 1] = {};
 	memcpy(text, popup.Text, HOOK_POPUP_TEXT_SIZE);
-	Sayf(plugin, "#%u \"%s\" %s, colour %08X, size %.2f, at %.1f %.1f %.1f, %s, %s; object %08X, +FC %08X -> %08X",
-		static_cast<unsigned>(popup.Id), text, whose, static_cast<unsigned>(popup.Color), popup.Scale,
-		popup.X, popup.Y, popup.Z, screen, (popup.Flags & POPUP_DRAWN) != 0 ? "drawn by the client" : "claimed",
-		static_cast<unsigned>(popup.Object), static_cast<unsigned>(owner[0]), static_cast<unsigned>(owner[1]));
+	Sayf(plugin, "#%u \"%s\" on %s from %s, colour %08X, size %.2f, at %.1f %.1f %.1f, %s, %s",
+		static_cast<unsigned>(popup.Id), text, target, source, static_cast<unsigned>(popup.Color), popup.Scale,
+		popup.X, popup.Y, popup.Z, screen, (popup.Flags & POPUP_DRAWN) != 0 ? "drawn by the client" : "claimed");
 }
 
 // What /namehook popups watch has seen this frame, said as the frame ends
 static void SayNewPopups(Nameplate* plugin) {
 	for (uint32_t i = 0; i < PopupsToSay; i++) {
-		uint32_t owner[2] = {};
-		for (const auto& seen : RecentPopups) {
-			if (seen.Popup.Id == PopupSaying[i].Id) {
-				owner[0] = seen.Owner[0];
-				owner[1] = seen.Owner[1];
-				break;
-			}
-		}
-		SayPopup(plugin, PopupSaying[i], PopupSayingBy[i], owner);
+		SayPopup(plugin, PopupSaying[i]);
 	}
 	PopupsToSay = 0;
 }
@@ -1558,7 +1543,7 @@ void Nameplate::SayPopups() {
 		return;
 	}
 	for (uint32_t i = 0; i < Popups.Count && i < HOOK_POPUPS_MAX; i++) {
-		SayPopup(this, Popups.Popups[i], PopupOwnerBy[i], PopupOwner[i]);
+		SayPopup(this, Popups.Popups[i]);
 	}
 }
 
@@ -2073,8 +2058,6 @@ void Nameplate::Publish(const float* view, const float* projection, bool frameDo
 		// the popups are in place before the count says they are there to be read
 		Popups.Count = 0;
 		CopyMemory(&Popups.Popups[0], &PopupFilling.Popups[0], count * sizeof(HookPopup));
-		CopyMemory(&PopupOwner[0], &PopupFilling.Owner[0], count * sizeof(PopupOwner[0]));
-		CopyMemory(&PopupOwnerBy[0], &PopupFilling.OwnerBy[0], count * sizeof(PopupOwnerBy[0]));
 		Popups.Frame = Shared.Frame;
 		Popups.Count = count;
 		Popups.Sequence++;

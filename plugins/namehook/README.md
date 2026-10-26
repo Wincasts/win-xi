@@ -227,13 +227,16 @@ Each `HookPopup` has:
 
 - `Id`: the same for as long as the popup is drawn, a new one for each, never 0. One the client stops drawing for more than eight frames is a new popup if it comes back.
 - `Object`: the client's object that draws it.
-- `EntityIndex`: whose it is, with `POPUP_OWNER` (4) in `Flags`. The host looks for the object, and the two pointers the client's drawing reads from it at `+0xFC`, among the entities' actors.
-- `Flags`: `POPUP_DRAWN` (1) drawn by the client, `POPUP_ON_SCREEN` (2) the screen fields filled in, `POPUP_OWNER` (4).
+- `EntityIndex`: who it is over, who was hit, with `POPUP_TARGET` (4) in `Flags`.
+- `SourceIndex`: who hit them, with `POPUP_SOURCE` (8). Both are read from the effect the popup belongs to, which the client's drawing reaches through the popup's `+0xFC` (a pointer to a pointer to the effect's generator, whose `+0x3C` is the actor of who hit and `+0x40` of who was hit), and found among the entities' actors.
+- `Flags`: `POPUP_DRAWN` (1) drawn by the client, `POPUP_ON_SCREEN` (2) the screen fields filled in, `POPUP_TARGET` (4), `POPUP_SOURCE` (8).
 - `Color` as the client draws it, `0xAARRGGBB` with `0x80` for full: its alpha is the popup's fading.
 - `FirstFrame`, the `HookShared::Frame` it was first listed in.
 - `X`, `Y`, `Z`: where the client puts it in the world. `Scale` is the client's size for it; `Width` and `Height` are the size of a letter after the damage font size.
 - `ScreenX`, `ScreenY`, `Depth`: the same point on screen, as for a name.
-- `Text`: what it says, up to the client's 16 characters.
+- `Text`: what it says, up to the client's 16 characters: the number, or `:` for a miss, which the client's font draws as "Miss!".
+
+Each hit makes two popups, from two objects, with the same text, place and owners: the number (`FF3C3C` as first seen on a monster) and a darker copy (`962626`), a pixel or so apart. They fade in from a low alpha. An addon drawing its own wants one of them.
 
 An addon that draws the popups itself sets `Claimed` to anything but 0 and `ClaimFrame` to `HookShared::Frame`, every frame: the client then draws none, and they are still listed, without `POPUP_DRAWN`. The claim lapses as a name claim does, half a second after it was last made. The plugin does not yet draw anything for a claimed popup.
 

@@ -224,13 +224,15 @@ struct HookBubbles {
 enum : uint32_t {
     POPUP_DRAWN     = 1 << 0, // drawn by the client: not claimed
     POPUP_ON_SCREEN = 1 << 1, // ScreenX, ScreenY and Depth are filled in
-    POPUP_OWNER     = 1 << 2, // EntityIndex is whose it is
+    POPUP_TARGET    = 1 << 2, // EntityIndex is who was hit
+    POPUP_SOURCE    = 1 << 3, // SourceIndex is who hit them
 };
 
 struct HookPopup {
     uint32_t Id;          // the same for as long as the popup is drawn, a new one for each; never 0
     uint32_t Object;      // the client's object that draws it
-    uint32_t EntityIndex; // whose it is, with POPUP_OWNER
+    uint32_t EntityIndex; // who it is over, who was hit: with POPUP_TARGET
+    uint32_t SourceIndex; // who hit them: with POPUP_SOURCE
     uint32_t Flags;       // POPUP_*
     uint32_t Color;       // as the client draws it, 0xAARRGGBB with 0x80 for full: the alpha is its fading
     uint32_t FirstFrame;  // the HookShared::Frame it was first listed in
@@ -326,8 +328,8 @@ class Nameplate {
         virtual void DrawBubble([[maybe_unused]] uint32_t entityIndex, [[maybe_unused]] const HookDrawing& drawing,
             [[maybe_unused]] const HookQuad* quads, [[maybe_unused]] const float* position) {}
 
-        // The entity whose actor this is (the client's object for it), or HOOK_ENTITIES for none. Asked
-        // once for each new damage popup, of the popup's object and what it points to.
+        // The entity whose actor this is (the client's object for it, never 0), or HOOK_ENTITIES for
+        // none. Asked once for each new damage popup, of who was hit and who hit them.
         virtual uint32_t GetActorEntity([[maybe_unused]] uintptr_t actor) {
             return HOOK_ENTITIES;
         }
