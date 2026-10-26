@@ -4,6 +4,10 @@
 
 - A new **Visibility** tab, after Behavior, holds the hiding rules (Hide Windows, formerly Behavior → Visibility)
   and Fading, moved out of Behavior. The settings are the same and are kept.
+- Behavior → uihook: Hook Into uihook is **Use uihook**, no longer marked experimental. The title is followed in
+  green by the plugin found and its version, e.g. [uihook 1.60 found]. The explanations of Use uihook, Party,
+  Target and Follow Default UI Behavior are in a (?) after each, not the control's own tooltip. The native
+  rendering status line under them is gone; `/pt native status` still gives it, no longer called experimental.
 
 ## 0.3.1
 

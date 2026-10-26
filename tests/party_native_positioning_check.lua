@@ -73,6 +73,31 @@ behavior(options)
 assert(checks['##party.nativeHook'] and checks['##party.nativeParty'] and checks['##party.nativeTarget'] and checks['##party.nativeBehavior'],
     'hooking on: which windows it hooks')
 assert(headers[#headers]=='uihook','uihook is the last section of Behavior')
+-- Use uihook, untagged; every explanation behind a (?); the plugin and its version in green after the
+-- title; no status line
+local labels,marks,colored,wrapped={},0,{},0
+local label,disabled,textColored,textWrapped=widgets.Label,imgui.TextDisabled,imgui.TextColored,imgui.TextWrapped
+local getManager=AshitaCore.GetPluginManager
+widgets.Label=function(text,experimental) labels[text]=experimental or false end
+imgui.TextDisabled=function(text) if text=='(?)' then marks=marks+1 end end
+imgui.TextColored=function(color,text) colored[#colored+1]={color,text} end
+imgui.TextWrapped=function() wrapped=wrapped+1 end
+AshitaCore.GetPluginManager=function(self)
+    local manager=getManager(self)
+    manager.Get=function(_,name) return name=='uihook' and { GetVersion=function() return 1.6 end } or nil end
+    return manager
+end
+behavior(options)
+assert(labels['Use uihook']==false and labels['Hook Into uihook']==nil,'Use uihook, not experimental')
+assert(marks==4,'a (?) for each uihook setting: '..marks)
+local found=colored[#colored]
+assert(found and found[2]=='[uihook 1.60 found]' and found[1][2]>found[1][1] and found[1][2]>found[1][3],'the plugin found, in green')
+assert(wrapped==0,'no native rendering status line')
+AshitaCore.GetPluginManager=getManager
+colored={}
+behavior(options)
+assert(colored[#colored][2]=='[uihook found]','no version to be had: the plugin alone')
+widgets.Label,imgui.TextDisabled,imgui.TextColored,imgui.TextWrapped=label,disabled,textColored,textWrapped
 H.loaded('uihook',false)
 checks={}
 behavior(options)

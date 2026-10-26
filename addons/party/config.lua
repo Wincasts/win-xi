@@ -246,6 +246,31 @@ local function DrawEntries(tab, saved)
     end
 end
 
+-- A setting's explanation, as winxi gives one: a greyed (?) after its control, the text in its tooltip
+local function Help(text)
+    imgui.SameLine()
+    imgui.TextDisabled('(?)')
+    Tooltip(text)
+end
+
+-- [uihook 1.60 found], in green after the uihook section's title: the plugin's name and version,
+-- remade only when either changes
+local foundColor = { 0.4, 0.9, 0.4, 1.0 }
+local foundName, foundVersion, foundText = nil, nil, nil
+local function Found(manager, name)
+    local version = nil
+    local ok, plugin = pcall(manager.Get, manager, name)
+    if ok and plugin ~= nil then
+        local got, number = pcall(plugin.GetVersion, plugin)
+        version = got and tonumber(number) or nil
+    end
+    if name ~= foundName or version ~= foundVersion then
+        foundName, foundVersion = name, version
+        foundText = version and ('[%s %.2f found]'):format(name, version) or ('[%s found]'):format(name)
+    end
+    return foundText
+end
+
 -- Whether the mouse goes through the windows, where they are placed, and uihook
 local function DrawGlobal(saved)
     widgets.BeginLabels('xiframes.global')
@@ -266,21 +291,26 @@ local function DrawGlobal(saved)
     -- Only with uihook (or the older partyhook) loaded: the windows can be drawn in the game's own place
     -- among its menus. Its choices are kept while it is not loaded, and come back with it.
     local manager = AshitaCore:GetPluginManager()
-    if (manager:IsLoaded('uihook') or manager:IsLoaded('partyhook')) and widgets.Header('uihook') then
-        widgets.Label('Hook Into uihook', true)
-        if imgui.Checkbox('##party.nativeHook', saved.nativeHook) then Save() end
-        Tooltip('The chosen windows take the place of the game\'s own, drawn among its menus. Unload hideparty first. Organize mode uses ordinary windows. /pt native status shows diagnostics.')
-        if saved.nativeHook[1] then
-            widgets.Label('Party')
-            if imgui.Checkbox('##party.nativeParty', saved.nativeParty) then Save() end
-            Tooltip('The three Party lists replace the game\'s, keeping its selection. Pets are drawn in the Party windows and go with them.')
-            widgets.Label('Target')
-            if imgui.Checkbox('##party.nativeTarget', saved.nativeTarget) then Save() end
-            Tooltip('Main, sub-target and target-of-target windows replace the stock target box together. The client still draws its own overhead target/subtarget arrows, with native positions and range colours. /pt native target on|off.')
-            widgets.Label('Follow Default UI Behavior')
-            if imgui.Checkbox('##party.nativeBehavior', saved.nativeBehavior) then Save() end
-            Tooltip('For hooked windows only: follow whether the client draws the HUD instead of Party hide rules, use native party order, show the solo member when the client does, and skip addon idle/presence fading. Native menus still cover the frames and the original target arrows are preserved. Zoning, interface hiding and cutscenes are always guarded. Other windows keep their normal options. Styles, pet/buff choices and frame sizes are unchanged.')
-            if saved.nativeParty[1] or saved.nativeTarget[1] then imgui.TextWrapped(require('hook').Status()) end
+    local plugin = manager:IsLoaded('uihook') and 'uihook' or (manager:IsLoaded('partyhook') and 'partyhook')
+    if plugin then
+        local open = widgets.Header('uihook')
+        imgui.SameLine()
+        imgui.TextColored(foundColor, Found(manager, plugin))
+        if open then
+            widgets.Label('Use uihook')
+            if imgui.Checkbox('##party.nativeHook', saved.nativeHook) then Save() end
+            Help('The chosen windows take the place of the game\'s own, drawn among its menus. Unload hideparty first. Organize mode uses ordinary windows. /pt native status shows diagnostics.')
+            if saved.nativeHook[1] then
+                widgets.Label('Party')
+                if imgui.Checkbox('##party.nativeParty', saved.nativeParty) then Save() end
+                Help('The three Party lists replace the game\'s, keeping its selection. Pets are drawn in the Party windows and go with them.')
+                widgets.Label('Target')
+                if imgui.Checkbox('##party.nativeTarget', saved.nativeTarget) then Save() end
+                Help('Main, sub-target and target-of-target windows replace the stock target box together. The client still draws its own overhead target/subtarget arrows, with native positions and range colours. /pt native target on|off.')
+                widgets.Label('Follow Default UI Behavior')
+                if imgui.Checkbox('##party.nativeBehavior', saved.nativeBehavior) then Save() end
+                Help('For hooked windows only: follow whether the client draws the HUD instead of Party hide rules, use native party order, show the solo member when the client does, and skip addon idle/presence fading. Native menus still cover the frames and the original target arrows are preserved. Zoning, interface hiding and cutscenes are always guarded. Other windows keep their normal options. Styles, pet/buff choices and frame sizes are unchanged.')
+            end
         end
     end
 end
