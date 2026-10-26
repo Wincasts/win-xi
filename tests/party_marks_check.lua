@@ -32,8 +32,8 @@ assert(Marks({ isAllianceLeader = true }) == 'white,yellow', 'the alliance leade
 local seen = Marks({ isLevelSync = true })
 assert(seen == 'red', 'the level sync designee\'s dot is red')
 local _, leader = Marks({ isPartyLeader = true, isLevelSync = true })
-assert(leader[2].color == 'red' and leader[2].x > leader[1].x + 100 and leader[2].y <= leader[1].y,
-    'the red dot at the line\'s top right, the leader\'s at its left')
+assert(leader[2].color == 'red' and leader[2].x > leader[1].x + 100 and leader[2].y == leader[1].y,
+    'the red dot at the line\'s right, as high as the party leader\'s at its left')
 assert(Marks({ }) == '', 'no marks for anyone else')
 assert(colors.Alliance ~= colors.AllianceLeader, 'an alliance invitation keeps its own colour')
 

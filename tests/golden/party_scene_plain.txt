@@ -2705,8 +2705,8 @@ window AddText (9,51) #000000E6 Lastone
 window AddText (11,49) #000000E6 Lastone
 window AddText (11,51) #000000E6 Lastone
 window AddText (10,50) #FFFFFFFF Lastone
-window AddCircleFilled (136.06,84.94) 3.94 #000000E6 12
-window AddCircleFilled (136.06,84.94) 2.94 #F2332EFF 12
+window AddCircleFilled (136.06,89.04) 3.94 #000000E6 12
+window AddCircleFilled (136.06,89.04) 2.94 #F2332EFF 12
 window AddText (9,80) #000000E6 Sample 3
 window AddText (9,82) #000000E6 Sample 3
 window AddText (11,80) #000000E6 Sample 3
