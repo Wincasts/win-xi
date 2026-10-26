@@ -109,6 +109,7 @@
 --     quads the addon could not hand over
 -- 59: 32 texture slots with namehook 1.43 (nameplates.TextureSlots, Feature.Textures32): SetTexture and
 --     popups.SetTexture take 8 to 31 there, and write past the eighth only when the plugin has them
+-- 60: camera, namehook 1.44's camera: Get, and Project, a world point placed as a name is, under lens too
 return {
-    Number = 59,
+    Number = 60,
 };

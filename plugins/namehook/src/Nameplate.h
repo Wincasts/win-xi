@@ -303,6 +303,24 @@ struct HookPopupDraw {
     }
 };
 
+// The camera names are placed with, as the plugin readied it for this frame's names (1.44): found by magic,
+// for an addon to place anything over the world as names are placed. Readied as the client draws its first
+// name of a frame, so a frame without names leaves it as it was: Frame says which frame it is.
+struct HookCamera {
+    char Magic[16];         // "NAMEHOOKCAMERA"
+    uint32_t Version;       // 1
+    uint32_t Size;
+    uint32_t Frame;         // the HookShared::Frame it was readied in
+    uint32_t Valid;         // 1 once readied; 0 before, or when the device would not say
+    float View[16];         // as Direct3D has them, row by row
+    float Projection[16];
+    float ViewProjection[16]; // the two together: a point (x, y, z, 1) times this is in the picture
+    float ViewportX, ViewportY, ViewportWidth, ViewportHeight, ViewportMinZ, ViewportMaxZ; // the picture's
+    uint32_t Lens;          // 1 while lens warps the world: the point then shows where lens::ScreenOf puts it
+    uint32_t LensMode;      // lens::Mode
+    float LensStrength, LensTanH, LensTanV;
+};
+
 // What the plugin asks of its host once a frame, for sorting names into categories. An id or index of
 // 0 is none.
 struct FrameFacts {
@@ -422,6 +440,12 @@ class Nameplate {
         // Whether Publish has names to make ready, and so a use for the view and the projection: the
         // client ends a scene many times a frame, and the names are drawn in one of them
         bool WantsPublish(bool frameDone) const;
+
+        // The camera the host has readied for this frame's names, for addons (HookCamera): view, projection
+        // and the two together (16 floats each), the viewport (x, y, width, height, min z, max z), and lens's
+        // warp when it warps (null otherwise: mode, strength, tanH, tanV). Null view for none to be had.
+        void PublishCamera(const float* view, const float* projection, const float* viewProjection, const float* viewport,
+            const float* lens, uint32_t lensMode);
 
     private:
         int LoadWhitelist();

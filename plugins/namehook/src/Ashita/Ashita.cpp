@@ -575,6 +575,7 @@ void AshitaNameplate::BeginNames(const HookDraw& draw, bool fresh, float& target
 // viewport, the view and projection together, and lens's warp. False if the device will not say.
 bool AshitaNameplate::PrepareCamera(IDirect3DDevice8* device) {
     if (FAILED(device->GetViewport(&m_Viewport))) {
+        PublishCamera(nullptr, nullptr, nullptr, nullptr, nullptr, 0);
         return false;
     }
 
@@ -582,6 +583,7 @@ bool AshitaNameplate::PrepareCamera(IDirect3DDevice8* device) {
     D3DMATRIX view;
     D3DMATRIX projection;
     if (FAILED(device->GetTransform(D3DTS_VIEW, &view)) || FAILED(device->GetTransform(D3DTS_PROJECTION, &projection))) {
+        PublishCamera(nullptr, nullptr, nullptr, nullptr, nullptr, 0);
         return false;
     }
     for (int row = 0; row < 4; row++) {
@@ -604,6 +606,12 @@ bool AshitaNameplate::PrepareCamera(IDirect3DDevice8* device) {
         m_LensTanH = 1.0 / projection._11;
         m_LensTanV = 1.0 / projection._22;
     }
+
+    // and for addons, to place what they will over the world as names are placed (HookCamera)
+    const float viewport[6] = { static_cast<float>(m_Viewport.X), static_cast<float>(m_Viewport.Y), static_cast<float>(m_Viewport.Width),
+        static_cast<float>(m_Viewport.Height), m_Viewport.MinZ, m_Viewport.MaxZ };
+    const float lensWarp[3] = { static_cast<float>(m_LensStrength), static_cast<float>(m_LensTanH), static_cast<float>(m_LensTanV) };
+    PublishCamera(&view._11, &projection._11, m_ViewProjection, viewport, m_Lens ? lensWarp : nullptr, static_cast<uint32_t>(m_LensMode));
 
     m_Device = device;
     return true;

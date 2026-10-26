@@ -347,6 +347,23 @@ int main() {
 		CHECK(FindDrawing(5, draw) == nullptr && Shared.DrawingsRefused == before + 2);
 		CHECK(offsetof(HookShared, LoadId) == offsetof(HookShared, Names) + sizeof(Shared.Names));
 	}
+	{
+		// the camera addons place things with: what the host readied, this frame's, lens's warp with it or not
+		TestPlugin cameraHost;
+		float view[16] = {}, projection[16] = {}, both[16] = {};
+		for (int i = 0; i < 16; i++) { view[i] = static_cast<float>(i); projection[i] = static_cast<float>(i + 16); both[i] = static_cast<float>(i + 32); }
+		const float viewport[6] = { 0, 0, 6880, 2880, 0, 1 };
+		const float warp[3] = { 0.25f, 2.0f, 0.9f };
+		CHECK(memcmp(Camera.Magic, "NAMEHOOKCAMERA", 14) == 0 && Camera.Version == 1 && Camera.Size == sizeof(HookCamera));
+		cameraHost.PublishCamera(view, projection, both, viewport, warp, 1);
+		CHECK(Camera.Valid == 1 && Camera.Frame == Shared.Frame && Camera.View[5] == 5 && Camera.Projection[0] == 16 && Camera.ViewProjection[15] == 47);
+		CHECK(Camera.ViewportWidth == 6880 && Camera.ViewportHeight == 2880 && Camera.ViewportMaxZ == 1);
+		CHECK(Camera.Lens == 1 && Camera.LensMode == 1 && Camera.LensStrength == 0.25f && Camera.LensTanH == 2.0f && Camera.LensTanV == 0.9f);
+		cameraHost.PublishCamera(view, projection, both, viewport, nullptr, 1);
+		CHECK(Camera.Valid == 1 && Camera.Lens == 0 && Camera.LensMode == 0 && Camera.LensStrength == 0);
+		cameraHost.PublishCamera(nullptr, nullptr, nullptr, nullptr, nullptr, 0);
+		CHECK(Camera.Valid == 0 && Camera.Frame == Shared.Frame);
+	}
     {
         FakeStateDevice device;
         DWORD token = 0;
