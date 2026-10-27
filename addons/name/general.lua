@@ -9,10 +9,8 @@
 --
 -- A preset sets the formats and the switches below, and nothing else: font, sizes, colours,
 -- visibility and the statuses chosen are left as they are.
-local imgui = require('imgui');
 local widgets = require('winxi.widgets');
 local controls = require('controls');
-local tips = require('winxi.tips');
 
 local general = {};
 
@@ -34,16 +32,16 @@ end
 local PLAYER = '[party: space=2][icons: space=4][name]';
 local NPC = '[vendor: space=4][name]';
 general.Presets = {
-    { key = 'default', label = 'Default', help = tips.Get('name.presets.default'),
+    { key = 'default', label = 'Default',
         values = { nameFormat = PLAYER, monsterFormat = '[aggro] [name] [letters]', npcFormat = NPC,
             showHealthBar = false, healthBarsCombatOnly = false, showStatuses = true, showCheckDetails = true } },
-    { key = 'minimal', label = 'Minimal', help = tips.Get('name.presets.minimal'),
+    { key = 'minimal', label = 'Minimal',
         values = { nameFormat = '[name]', monsterFormat = '[name]', npcFormat = '[name]',
             showHealthBar = false, healthBarsCombatOnly = false, showStatuses = false, showCheckDetails = false } },
-    { key = 'robust', label = 'Robust', help = tips.Get('name.presets.robust'),
+    { key = 'robust', label = 'Robust',
         values = { nameFormat = PLAYER, monsterFormat = '[aggro: space=4]Lv [level]. [name] [letters] ([distance: decimals=1]y)', npcFormat = NPC,
             showHealthBar = true, healthBarsCombatOnly = false, showStatuses = true, showCheckDetails = true } },
-    { key = 'immersive', label = 'Immersive', help = tips.Get('name.presets.immersive'),
+    { key = 'immersive', label = 'Immersive',
         values = { nameFormat = PLAYER, monsterFormat = '[name]', npcFormat = NPC,
             showHealthBar = true, healthBarsCombatOnly = true, showStatuses = false, showCheckDetails = false } },
 };
@@ -77,37 +75,37 @@ function general.Apply(options, key)
     return false;
 end
 
-local presetIds = {};
+local presets = nil; -- the choices as the dropdown takes them, made once
+
+local function PresetChoices()
+    if (presets == nil) then
+        presets = {};
+        for index, preset in ipairs(general.Presets) do
+            presets[index] = { key = preset.key, label = preset.label };
+        end
+        presets[#presets + 1] = { key = 'custom', label = 'Custom' };
+    end
+    return presets;
+end
+
+local presetSpec = {};
 
 function general.DrawSettings(options, save)
     local changed = false;
-    controls.BeginLayout('general', 360, 'Enable Name');
-    if (controls.Section('General', '##name.generalOptions', true)) then
+    if (controls.Section('General', true)) then
         if (controls.Checkbox('Enable Name', '##name.drawNames', options.drawNames,
-                tips.Get('name.general.custom_names'))) then
+                'Draws the names over heads in this addon\'s style. Off, the game draws its own and the other tabs wait.')) then
             changed = true;
         end
-        imgui.BeginDisabled(not general.Drawing(options));
         local matching = general.Matching(options);
-        widgets.Label('Preset');
-        controls.Width();
-        if (imgui.BeginCombo('##name.preset', matching ~= nil and matching.label or 'Custom')) then
-            for index, preset in ipairs(general.Presets) do
-                presetIds[index] = presetIds[index] or (preset.label .. '##name.preset.' .. preset.key);
-                if (imgui.Selectable(presetIds[index], preset == matching) and preset ~= matching) then
-                    changed = general.Apply(options, preset.key) or changed;
-                end
-                if (imgui.IsItemHovered()) then
-                    imgui.SetTooltip(preset.help);
-                end
-            end
-            imgui.EndCombo();
+        presetSpec.parent = options.drawNames;
+        local chosen = widgets.Dropdown('Preset',
+            'A ready-made look for the formats, bars, statuses and check details, or Custom for none. Font, sizes and colours are kept.',
+            PresetChoices(), matching ~= nil and matching.key or 'custom', '##name.preset', presetSpec);
+        if (chosen ~= nil and chosen ~= 'custom') then
+            changed = general.Apply(options, chosen) or changed;
         end
-        controls.Mark(tips.Get('name.general.preset'));
-        imgui.EndDisabled();
     end
-    controls.EndSection();
-    controls.EndLayout();
     if (changed and save ~= nil) then
         save();
     end

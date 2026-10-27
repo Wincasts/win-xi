@@ -1,5 +1,5 @@
 -- The Names, Bars, Check Details and NM Tracking tabs of the settings: how the
--- names are drawn, as custom.lua draws them.
+-- names are drawn, as custom.lua draws them. Every setting is a described row (controls).
 --
 --   settings.DrawSettings(options, save)    the Names tab
 --   settings.DrawBars(options, save)        the Bars tab: health and cast bars
@@ -42,258 +42,269 @@ local function getFontFiles()
     return fontFiles;
 end
 
-local warning = { 1.0, 0.6, 0.4, 1.0 };
+-- The names' fonts as the dropdown takes them: Default, then the files; and the cast's, with Same as
+-- Names before. Each made once.
+local nameFonts, castFonts = nil, nil;
 
--- The cast's font: the names' own, the usual one, or a file
-local function DrawCastFont(options)
-    local value, usual = options.castFont, require('custom').CastDefaultFont;
-    local shown = value[1] == '' and 'Same as Names' or (value[1] == usual and DEFAULT_FONT or value[1]);
-    widgets.Label('Font');
-    controls.Width();
-    if (imgui.BeginCombo('##name.castFont', shown)) then
-        if (imgui.Selectable('Same as Names', value[1] == '')) then value[1] = ''; end
-        if (imgui.Selectable(DEFAULT_FONT, value[1] == usual)) then value[1] = usual; end
+local function NameFonts()
+    if (nameFonts == nil) then
+        nameFonts = { { key = '', label = DEFAULT_FONT } };
         for _, file in ipairs(getFontFiles()) do
-            if (imgui.Selectable(file, value[1] == file)) then value[1] = file; end
+            nameFonts[#nameFonts + 1] = file;
         end
-        imgui.EndCombo();
     end
-    controls.Mark(tips.Get('name.cast_text.font'));
+    return nameFonts;
 end
+
+local function CastFonts()
+    if (castFonts == nil) then
+        castFonts = { { key = '', label = 'Same as Names' }, { key = require('custom').CastDefaultFont, label = DEFAULT_FONT } };
+        for _, file in ipairs(getFontFiles()) do
+            castFonts[#castFonts + 1] = file;
+        end
+    end
+    return castFonts;
+end
+
+-- The rows' specs, made once; a parent is set on each as it is drawn
+local castSpec = {};        -- the cast text's rows: while cast bars are on
+local weaponskillSpec = {};
+local textOnlySpec = {};
+local castNameSpec = {};
+local castTimerSpec = {};
+local sharedSpec = {};      -- what the bars share: while either kind is on
+local healthSpec = {};
+local checkSpec = {};
+local trackedSpec = { experimental = true };
+local huntSpec = {};
+
+local checkStyles = { { key = false, label = 'Icons & Text' }, { key = true, label = 'Text Only' } };
 
 -- The notorious monster being hunted: a tab of its own
+local notorious = { { key = '', label = 'None' } }; -- the area's, found afresh as the list opens
+
+local function Notorious()
+    for index = #notorious, 2, -1 do
+        notorious[index] = nil;
+    end
+    for _, monster in ipairs(levels.Notorious()) do
+        notorious[#notorious + 1] = monster;
+    end
+    return notorious;
+end
+trackedSpec.onOpen = Notorious;
+
 function settings.DrawTracking(options, save)
-    imgui.TextWrapped('Disclaimer: NM tracking could be considered cheating. Enable at your own risk.');
-    widgets.Gap();
-    controls.BeginLayout('tracking', 360, 'Label Placeholders');
-    if (controls.Section('Tracked Monster', '##name.trackOptions', true)) then
+    controls.Note('NM tracking could be considered cheating. Enable at your own risk.');
+    if (controls.Section('Tracked Monster', true)) then
         -- the one notorious monster being hunted, of those the area has
         local tracked = options.trackedNm[1];
-        widgets.Label('Tracked NM', true);
-        controls.Width();
-        if (imgui.BeginCombo('##name.trackedNm', tracked ~= '' and tracked or 'None')) then
-            if (imgui.Selectable('None', tracked == '') and tracked ~= '') then
-                options.trackedNm[1] = '';
-                if (save ~= nil) then save(); end
-            end
-            for _, monster in ipairs(levels.Notorious()) do
-                if (imgui.Selectable(monster, tracked == monster) and tracked ~= monster) then
-                    options.trackedNm[1] = monster;
-                    if (save ~= nil) then save(); end
-                end
-            end
-            imgui.EndCombo();
+        local chosen = widgets.Dropdown('Tracked NM',
+            'Marks one notorious monster of this area, and what it can spawn from, with a hunt sign instead of the aggro icon. Enemy Format needs [aggro].',
+            notorious, tracked, '##name.trackedNm', trackedSpec);
+        if (chosen ~= nil) then
+            options.trackedNm[1] = chosen;
+            if (save ~= nil) then save(); end
         end
-        controls.Mark(tips.Get('name.tracking.monster'));
-        if (options.trackedNm[1] ~= '') then
-            controls.Slider('Target Size (%)', '##name.huntScale', options.huntScale, 100, 200, '%d%%',
-                tips.Get('name.tracking.size'));
-        end
-    end
-    controls.EndSection();
-    if (options.trackedNm[1] ~= '' and levels.Placeholders(options.trackedNm[1]) ~= nil
-            and controls.Section('Placeholder Options', '##name.placeholderOptions')) then
+        huntSpec.parent = options.trackedNm[1] ~= '';
+        controls.Slider('Target Size', '##name.huntScale', options.huntScale, 100, 200, '%d%%',
+            'How much larger the tracked monster\'s whole name is drawn. Its placeholders stay the usual size.', huntSpec);
+        if (options.trackedNm[1] ~= '' and levels.Placeholders(options.trackedNm[1]) ~= nil) then
             controls.Checkbox('Label Placeholders', '##name.labelPlaceholders', options.labelPlaceholders,
-                tips.Get('name.tracking.placeholders'));
+                'Writes Placeholder instead of each placeholder\'s name. The rest of its name is unchanged.', huntSpec);
+        end
     end
-    controls.EndSection();
-    controls.EndLayout();
 end
 
--- The bars under the names, health and cast, in one tab: what they share first (their size, Fit to Name and
+-- The bars under the names, health and cast, in one tab: what they share first (their size, Fit To Name and
 -- the preview of them all), then each kind's own
 function settings.DrawBars(options, save)
-    controls.BeginLayout('bars', 360, 'Text Only for Weaponskills');
     local either = options.showHealthBar[1] or options.showCastBar[1];
-    if controls.Section('Shared Bar Settings', '##name.barShared', true) then
+    if controls.Section('Shared Bar Settings', true) then
         nameTypes.DrawSize(options);
-        imgui.BeginDisabled(not either);
-        controls.Checkbox('Fit to Name', '##name.castBarAutoWidth', options.castBarAutoWidth,
-            tips.Get('name.cast_bars.auto_width'));
-        controls.Checkbox('Preview', '##name.barPreview', healthbar.Preview, tips.Get('name.health_bars.preview'));
-        imgui.EndDisabled();
+        sharedSpec.parent = either and true or false;
+        controls.Checkbox('Fit To Name', '##name.castBarAutoWidth', options.castBarAutoWidth,
+            'Bars grow to the width of the name and its spawn letter. Bar Width is the least they are.', sharedSpec);
+        controls.Checkbox('Preview', '##name.barPreview', healthbar.Preview,
+            'Shows a bar under every name that can have one, emptying and filling, and a sample cast. Not saved.', sharedSpec);
     end
-    controls.EndSection();
     -- one preview for both kinds, each shown while it is enabled, and only while this is drawn
     local casts = require('castbar');
     casts.Preview[1] = healthbar.Preview[1];
     if options.showHealthBar[1] then healthbar.PreviewVisible(os.clock()); end
     if options.showCastBar[1] then casts.PreviewVisible(os.clock()); end
 
-    if (controls.Section('Health Bars', '##name.healthBarOptions', true)) then
+    if (controls.Section('Health Bars')) then
         nameTypes.Draw(options);
-    end
-    controls.EndSection();
-    if (controls.Section('Health Bar Entity Types', '##name.healthBarTypes')) then
-        imgui.BeginDisabled(not options.showHealthBar[1]);
-        if (entityTypes.Draw('healthBarTypes', options.healthBarCategories, tips.Get('name.health_bars.entity_types')) and save ~= nil) then
-            save();
+        if (controls.Sub('Entity Types')) then
+            healthSpec.parent = options.showHealthBar;
+            if (entityTypes.Draw('healthBarTypes', options.healthBarCategories, 'A health bar', healthSpec) and save ~= nil) then
+                save();
+            end
         end
-        imgui.EndDisabled();
     end
-    controls.EndSection();
 
-    if controls.Section('Cast Bars', '##name.castBarOptions', true) then
-        controls.Checkbox('Enabled', '##name.showCastBar', options.showCastBar, tips.Get('name.cast_bars.enabled'));
-        if options.showCastBar[1] then
-            controls.Checkbox('Show Weaponskills', '##name.castBarWeaponskills', options.castBarWeaponskills,
-                tips.Get('name.cast_bars.weaponskills'));
-            imgui.BeginDisabled(not options.castBarWeaponskills[1]);
-            controls.Checkbox('Text Only for Weaponskills', '##name.castBarSkillTextOnly', options.castBarSkillTextOnly,
-                tips.Get('name.cast_bars.skill_text_only'));
-            imgui.EndDisabled();
-        end
+    if controls.Section('Cast Bars') then
+        controls.Checkbox('Enabled', '##name.showCastBar', options.showCastBar,
+            'A bar under a name while its owner casts, filling as the cast goes on, in the health bars\' size. A cast time not known is counted up instead.');
+        weaponskillSpec.parent = options.showCastBar;
+        controls.Checkbox('Show Weaponskills', '##name.castBarWeaponskills', options.castBarWeaponskills,
+            'Also shows readied weaponskills and monster moves, with their preparation times where known.', weaponskillSpec);
+        textOnlySpec.parent = (options.showCastBar[1] and options.castBarWeaponskills[1]) and true or false;
+        controls.Checkbox('Text Only For Weaponskills', '##name.castBarSkillTextOnly', options.castBarSkillTextOnly,
+            'Weaponskills and monster moves as name and timer alone, with no bar. Spells keep their bar.', textOnlySpec);
     end
-    controls.EndSection();
-    if options.showCastBar[1] and controls.Section('Cast Text', '##name.castTextOptions') then
-        DrawCastFont(options);
-        controls.Checkbox('Show Action Name', '##name.castShowName', options.castShowName, tips.Get('name.cast_text.show_name'));
-        controls.Checkbox('Show Timer', '##name.castShowTimer', options.castShowTimer, tips.Get('name.cast_text.show_timer'));
+    if controls.Section('Cast Text') then
+        castSpec.parent = options.showCastBar;
+        local castFont = widgets.Dropdown('Font',
+            'The font the cast\'s name and timer are written in. Same as Names is the names\' font, Default the font everything else is written in.',
+            CastFonts(), options.castFont[1], '##name.castFont', castSpec);
+        if (castFont ~= nil) then options.castFont[1] = castFont; end
+        controls.Checkbox('Show Action Name', '##name.castShowName', options.castShowName,
+            'Writes the spell, weaponskill or monster move\'s name under the cast bar.', castSpec);
+        controls.Checkbox('Show Timer', '##name.castShowTimer', options.castShowTimer,
+            'Writes the time left, or the time so far, under the action\'s name.', castSpec);
         controls.Choice('Text Colour', '##name.castTextColour', options.castTextColour, require('custom').CastTextColours,
-            tips.Get('name.cast_text.colour'));
+            'The colour of the action\'s name and timer: White, Name Colour or Custom.', castSpec);
         if options.castTextColour[1] == 'custom' then
-            widgets.Label('Custom Colour'); controls.Width();
-            imgui.ColorEdit4('##name.castTextColor', options.castTextColor, ImGuiColorEditFlags_NoAlpha or 0);
-            controls.Mark(tips.Get('name.cast_text.custom_colour'));
+            controls.Color('Custom Colour', '##name.castTextColor', options.castTextColor,
+                'The colour of the action\'s name and timer while Text Colour is Custom.', castSpec);
         end
-        imgui.BeginDisabled(not options.castShowName[1]);
-        controls.Slider('Cast Name Size (%)', '##name.castNameScale', options.castNameScale, 25, 200, '%d%%',
-            tips.Get('name.cast_bars.name_scale'));
-        imgui.EndDisabled();
-        imgui.BeginDisabled(not options.castShowTimer[1]);
-        controls.Slider('Timer Size (%)', '##name.castTimerScale', options.castTimerScale, 25, 200, '%d%%',
-            tips.Get('name.cast_bars.timer_scale'));
-        imgui.EndDisabled();
+        castNameSpec.parent = (options.showCastBar[1] and options.castShowName[1]) and true or false;
+        controls.Slider('Cast Name Size', '##name.castNameScale', options.castNameScale, 25, 200, '%d%%',
+            'How big the action\'s name is, compared with the name over the head.', castNameSpec);
+        castTimerSpec.parent = (options.showCastBar[1] and options.castShowTimer[1]) and true or false;
+        controls.Slider('Timer Size', '##name.castTimerScale', options.castTimerScale, 25, 200, '%d%%',
+            'How big the timer is, compared with the name over the head.', castTimerSpec);
     end
-    controls.EndSection();
-    controls.EndLayout();
 end
 
 -- What a check of a monster says, on a line under its name: a tab of its own
 function settings.DrawCheck(options, save)
-    controls.BeginLayout('check', 360, 'Abbreviate Difficulty');
-    if (controls.Section('Check Details', '##name.checkOptions', true)) then
+    if (controls.Section('Check Details', true)) then
         controls.Checkbox('Enabled', '##name.showCheckDetails', options.showCheckDetails,
-            tips.Get('name.enemies.check_enabled'));
-        imgui.BeginDisabled(not options.showCheckDetails[1]);
-        controls.Slider('Size (%)', '##name.checkSize', options.checkSize, 50, 125, '%d%%',
-            tips.Get('name.enemies.check_size'));
+            'After you check a monster, its difficulty, what it detects by and what it links with are written under its name for five seconds.');
+        checkSpec.parent = options.showCheckDetails;
+        controls.Slider('Size', '##name.checkSize', options.checkSize, 50, 125, '%d%%',
+            'How big the check text and icons are, compared with the name.', checkSpec);
         controls.Checkbox('Abbreviate Difficulty', '##name.abbreviateDifficulty', options.abbreviateDifficulty,
-            tips.Get('name.enemies.check_abbreviate'));
-        controls.Choice('Display Style', '##name.checkDetailsInWords', options.checkDetailsInWords,
-            { { key = false, label = 'Icons & Text' }, { key = true, label = 'Text Only' } },
-            tips.Get('name.enemies.check_style'));
-        imgui.EndDisabled();
+            'Short difficulty labels, such as EP or VT, when detection or link details are written beside them.', checkSpec);
+        controls.Choice('Display Style', '##name.checkDetailsInWords', options.checkDetailsInWords, checkStyles,
+            'Icons with the text, or the text alone: Icons & Text or Text Only.', checkSpec);
     end
-    controls.EndSection();
-    controls.EndLayout();
 end
 
--- The tokens each kind of name can have, with an example, on the editor's (?)
+-- The tokens each kind of name can have, with an example, under Format Tokens
 local formatHelp = {
     nameFormat = tips.Get('name.format.player'),
     monsterFormat = tips.Get('name.format.enemy'),
     npcFormat = tips.Get('name.format.npc'),
 };
-local resetHelp = tips.Get('name.format.reset');
 
--- The format and its Reset on one row, together as wide as any other control
-local function DrawFormat(label, key, options, save)
-    local enemy = key == 'monsterFormat';
-    local baseline = enemy and '[aggro] [name] [letters]'
-        or (key == 'nameFormat' and '[party: space=2][icons: space=4][name]' or '[vendor: space=4][name]');
-    widgets.Label(label);
-    controls.WidthBeside(imgui.CalcTextSize('Reset') + imgui.GetStyle().FramePadding.x * 2);
-    imgui.InputText('##name.' .. key, options[key], math.max(1024, #options[key][1]+256));
-    imgui.SameLine();
-    if (imgui.Button('Reset##name.' .. (enemy and 'resetFormat' or ('reset.' .. key)))) then
-        options[key][1] = baseline;
+-- Each format's row, its Reset after it, and its tokens in a sub-section collapsed to start
+local formats = {
+    nameFormat = { label = 'Player Format', id = '##name.nameFormat', reset = 'Reset##name.reset.nameFormat', resetLabel = 'Reset Player Format',
+        baseline = '[party: space=2][icons: space=4][name]',
+        sentence = 'How player names are written, from tokens such as [name], [party] and [icons]. Format Tokens below lists them all.' },
+    monsterFormat = { label = 'Enemy Format', id = '##name.monsterFormat', reset = 'Reset##name.resetFormat', resetLabel = 'Reset Enemy Format',
+        baseline = '[aggro] [name] [letters]',
+        sentence = 'How enemy names are written, from tokens such as [name], [level], [aggro] and [letters]. Format Tokens below lists them all.' },
+    npcFormat = { label = 'NPC Format', id = '##name.npcFormat', reset = 'Reset##name.reset.npcFormat', resetLabel = 'Reset NPC Format',
+        baseline = '[vendor: space=4][name]',
+        sentence = 'How NPC names are written, from tokens such as [name], [vendor] and [distance]. Format Tokens below lists them all.' },
+};
+
+local function DrawFormat(key, options, save)
+    local row = formats[key];
+    controls.Text(row.label, row.id, options[key], math.max(1024, #options[key][1] + 256), row.sentence);
+    if (widgets.Action(row.resetLabel, 'Puts back this format\'s default. Nothing else changes.', row.reset)) then
+        options[key][1] = row.baseline;
         if (save ~= nil) then save(); end
     end
-    if (imgui.IsItemHovered()) then
-        imgui.SetTooltip(resetHelp);
+end
+
+local function DrawTokens(key)
+    if (controls.Sub('Format Tokens', false, true)) then
+        controls.Note(formatHelp[key]);
     end
-    controls.Mark(formatHelp[key]);
 end
 
 function settings.DrawSettings(options, save)
     local problem = nameplates.Problem(nameplates.Feature.IconOutline);
     if (problem ~= nil) then
-        imgui.TextColored(warning, problem);
-        widgets.Gap();
+        controls.Note(problem);
     end
 
-    controls.BeginLayout('nameplates', 360, 'Icon Outline Opacity (%)');
-    if (controls.Section('General Name Appearance', '##name.appearanceOptions', true)) then
-        widgets.Label('Font');
-        controls.Width();
-        if (imgui.BeginCombo('##name.font', options.font ~= '' and options.font or DEFAULT_FONT)) then
-            if (imgui.Selectable(DEFAULT_FONT, options.font == '') and options.font ~= '') then
-                options.font = '';
+    if (controls.Section('Appearance', true)) then
+        if (controls.Sub('Font', true)) then
+            local font = widgets.Dropdown('Font',
+                'The font the names are written in. Default is the font everything else is written in.',
+                NameFonts(), options.font, '##name.font');
+            if (font ~= nil) then
+                options.font = font;
                 if (save ~= nil) then save(); end
             end
-            for _, file in ipairs(getFontFiles()) do
-                if (imgui.Selectable(file, options.font == file) and options.font ~= file) then
-                    options.font = file;
-                    if (save ~= nil) then save(); end
-                end
+            controls.Checkbox('Bold', '##name.fontBold', options.fontBold,
+                'Writes names and check details heavier. Icons and outlines are unchanged.');
+            controls.Checkbox('Smooth Font', '##name.fontSmooth', options.fontSmooth,
+                'Draws the letters from a finer copy of the font, so curves look smoother. Very small text may look softer.');
+        end
+        if (controls.Sub('Size')) then
+            if (controls.Input('Maximum Name Size', '##name.fontSize', options.fontSize, SMALLEST, LARGEST, '%d px',
+                    'How large a name is when close, for players, enemies and NPCs alike. Bars have a size of their own.')
+                    and options.minSize[1] > options.fontSize[1]) then
+                options.minSize[1] = options.fontSize[1];
             end
-            imgui.EndCombo();
+            if (controls.Input('Minimum Name Size', '##name.minSize', options.minSize, SMALLEST, LARGEST, '%d px',
+                    'The smallest a name shrinks to as it gets farther away.')
+                    and options.fontSize[1] < options.minSize[1]) then
+                options.fontSize[1] = options.minSize[1];
+            end
+            controls.Slider('Subtarget Size', '##name.subtargetScale', options.subtargetScale, 50, 200, '%d%%',
+                'How big the name under the subtarget cursor is while you choose a target.');
+            controls.Slider('Letter Spacing', '##name.letterSpacing', options.letterSpacing, 0, 10, '%d px',
+                'Extra room between the letters of every name, at its largest. 0 is the font\'s own spacing.');
         end
-        controls.Mark(tips.Get('name.appearance.font'));
-        controls.Checkbox('Bold', '##name.fontBold', options.fontBold);
-        imgui.SameLine();
-        imgui.Checkbox('Smooth Font##name.fontSmooth', options.fontSmooth);
-        controls.Mark(tips.Get('name.appearance.bold') .. '\n\n' .. tips.Get('name.appearance.smooth_font'));
-        if (controls.Input('Maximum Name Size (px)', '##name.fontSize', options.fontSize, SMALLEST, LARGEST,
-                tips.Get('name.appearance.maximum_size')) and options.minSize[1] > options.fontSize[1]) then
-            options.minSize[1] = options.fontSize[1];
+        if (controls.Sub('Outlines')) then
+            controls.Outline(options.outline, 'Text Outline', '##name.outline',
+                'How thick the dark edge round the text is. Icons have an edge of their own.');
+            controls.Slider('Text Outline Opacity', '##name.textOutlineOpacity', options.textOutlineOpacity, 0, 100, '%d%%',
+                'How solid the edge round the text is. 0 hides it.');
+            controls.Outline(options.iconOutline, 'Icon Outline', '##name.iconOutline',
+                'How thick the dark edge round the icons is. Mastery stars and letter badges have their own.');
+            controls.Slider('Icon Outline Opacity', '##name.iconOutlineOpacity', options.iconOutlineOpacity, 0, 100, '%d%%',
+                'How solid the edge round the icons is. 0 hides it.');
         end
-        if (controls.Input('Minimum Name Size (px)', '##name.minSize', options.minSize, SMALLEST, LARGEST,
-                tips.Get('name.appearance.minimum_size')) and options.fontSize[1] < options.minSize[1]) then
-            options.fontSize[1] = options.minSize[1];
-        end
-        controls.Slider('Subtarget Size (%)', '##name.subtargetScale', options.subtargetScale, 50, 200, '%d%%',
-            tips.Get('name.appearance.subtarget_size'));
-        controls.Slider('Letter Spacing (px)', '##name.letterSpacing', options.letterSpacing, 0, 10, '%d px',
-            tips.Get('name.appearance.letter_spacing'));
-        controls.Outline(options.outline, 'Text Outline (px)');
-        controls.Slider('Text Outline Opacity (%)', '##name.textOutlineOpacity', options.textOutlineOpacity, 0, 100, '%d%%',
-            tips.Get('name.appearance.text_outline_opacity'));
-        controls.Outline(options.iconOutline, 'Icon Outline (px)', 'iconOutline', tips.Get('name.appearance.icon_outline'));
-        controls.Slider('Icon Outline Opacity (%)', '##name.iconOutlineOpacity', options.iconOutlineOpacity, 0, 100, '%d%%',
-            tips.Get('name.appearance.icon_outline_opacity'));
     end
-    controls.EndSection();
 
-    if (controls.Section('Player Names', '##name.playerOptions')) then
-        DrawFormat('Player Format', 'nameFormat', options, save);
+    if (controls.Section('Player Names')) then
+        DrawFormat('nameFormat', options, save);
         controls.Choice('Player Icon Source', '##name.playerIconSource', options.playerIconSource, icons.Sources,
-            tips.Get('name.players.icon_source'));
+            'Where the player icons and mastery stars come from: Game DATs, Bundled or Custom. A source that cannot be loaded falls back to Bundled.');
         local iconProblem = icons.Problem(options.playerIconSource[1]);
         if iconProblem then
-            imgui.TextColored(warning, icons.Texture() and 'Player icons: bundled fallback.' or 'Player icons unavailable.');
-            controls.Mark(tips.Get('name.players.icon_source_fallback', { reason = iconProblem }));
+            controls.Note(icons.Texture() and ('The chosen icon source could not be loaded, so the bundled icons are used: ' .. iconProblem)
+                or ('Player icons unavailable: ' .. iconProblem));
         end
+        DrawTokens('nameFormat');
         nameColours.Draw(options, 'playerNames');
     end
-    controls.EndSection();
-    if (controls.Section('Enemy Names', '##name.mobOptions')) then
-        DrawFormat('Enemy Format', 'monsterFormat', options, save);
+    if (controls.Section('Enemy Names')) then
+        DrawFormat('monsterFormat', options, save);
+        DrawTokens('monsterFormat');
         nameColours.Draw(options, 'enemyNames');
         local rosterProblem = format.Compile(options.monsterFormat[1]).letter and levels.RosterProblem() or nil;
         if (rosterProblem ~= nil) then
-            imgui.TextColored(warning, rosterProblem);
+            controls.EndSub();
+            controls.Note(rosterProblem);
         end
     end
-    controls.EndSection();
-    if (controls.Section('NPC Names', '##name.npcOptions')) then
-        DrawFormat('NPC Format', 'npcFormat', options, save);
+    if (controls.Section('NPC Names')) then
+        DrawFormat('npcFormat', options, save);
+        DrawTokens('npcFormat');
         nameColours.Draw(options, 'npcNames');
     end
-    controls.EndSection();
     require('readability').DrawDistance(options);
-    controls.EndLayout();
 end
 
 return settings;

@@ -1,161 +1,93 @@
--- Settings controls in the same style as Trigger: consistent widths and a
--- visible help mark beside each control, with wrapped explanations.
+-- The settings as described rows (winxi 65): each a name, a sentence under it saying what it does,
+-- and its control at the right, drawn by winxi.widgets. This is the thin layer the tabs lay their
+-- settings out with, so that each keeps its own tables of what it has.
+--
+--   controls.Section(label, first, defaultCollapsed)   a section (widgets.Header); its rows only inside the if
+--   controls.Sub(label, first, defaultCollapsed)       a sub-section (widgets.SubHeader)
+--   controls.EndSub()                                   before a row that follows the last sub-section
+--   controls.Checkbox(label, id, value, sentence, spec)
+--   controls.Input(label, id, value, min, max, format, sentence, spec)    a whole number in a range, as a slider
+--   controls.Slider(label, id, value, min, max, format, sentence, spec)
+--   controls.Choice(label, id, value, choices, sentence, spec)   one of choices ({ key =, label = } each),
+--                                                       value[1] holding the chosen key; returns whether changed
+--   controls.Outline(value, label, id, sentence, spec)   an outline's thickness, None to 3 px
+--   controls.Color(label, id, color, sentence, spec)
+--   controls.Text(label, id, value, length, sentence, spec)   a line of text typed in
+--   controls.Note(text)                                 a dim line that is not a setting: a warning
+--
+-- spec is the row's, each optional (widgets' own): parent, the setting this one waits on; experimental.
+-- A spec is made once, at file scope, never a table a frame: a changing parent is set on it each draw.
+-- With none given a scratch one is used, so the unit of a slider never touches widgets' own
+-- (widgets.Pixels and the like are shared).
 local imgui = require('imgui');
 local widgets = require('winxi.widgets');
-local tips = require('winxi.tips');
 local controls = {};
-local helpWidth;
-local uniformWidth;
-local helpX;
-local layouts = {};
-local layout;
 
-function controls.Width(width)
-    -- Auto-sized windows must be measured from their contents, not their current
-    -- available width: feeding that width back into controls can grow indefinitely.
-    imgui.SetNextItemWidth(uniformWidth or width or 260);
-end
+local scratch = {};
 
--- The width left for a control with something of the given width beside it on its row
-function controls.WidthBeside(beside)
-    imgui.SetNextItemWidth((uniformWidth or 260) - beside - imgui.GetStyle().ItemSpacing.x);
-end
-
-function controls.BeginLayout(key, width, longestLabel)
-    local size = imgui.GetFontSize();
-    local known = layouts[key];
-    if (known == nil or known.fontSize ~= size) then
-        local labelWidth = imgui.CalcTextSize(longestLabel);
-        known = { key = key, fontSize = size, right = (labelWidth or 0) + (width or 24) + 32 };
-        layouts[key] = known;
+local function Spec(spec, format)
+    if (spec == nil) then
+        spec = scratch;
+        spec.parent, spec.experimental = nil, nil;
     end
-    local iconWidth = imgui.CalcTextSize('(?)');
-    known.iconWidth = math.max(20, type(iconWidth) == 'number' and iconWidth or 20);
-    known.measured = 0;
-    layout = known;
-    uniformWidth = width;
+    spec.format = format;
+    return spec;
 end
 
-function controls.EndLayout()
-    if (layout ~= nil and layout.measured > 0) then layout.right = layout.measured; end
-    layout, uniformWidth, helpX = nil, nil, nil;
+function controls.Section(label, first, defaultCollapsed)
+    return widgets.Header(label, first, defaultCollapsed);
 end
 
--- Returns whether the section is open (winxi's [-] / [+]): its settings are drawn only then.
--- controls.EndSection follows either way.
-local sectionOpen = false;
-
-function controls.Section(label, id, first, defaultCollapsed)
-    sectionOpen = widgets.Header(label, first, defaultCollapsed);
-    if (not sectionOpen) then return false; end
-    helpX = layout.right + 8;
-    imgui.BeginGroup();
-    widgets.BeginLabels(layout.key .. '.options');
-    return true;
+function controls.Sub(label, first, defaultCollapsed)
+    return widgets.SubHeader(label, first, defaultCollapsed);
 end
 
-function controls.EndSection()
-    if (sectionOpen) then imgui.EndGroup(); end
-    sectionOpen = false;
-    helpX = nil;
+function controls.EndSub()
+    widgets.EndSub();
 end
 
--- Compact expandable help/advanced content within the current section.
-function controls.More(label, id)
-    return imgui.TreeNode(label .. id);
+function controls.Checkbox(label, id, value, sentence, spec)
+    return widgets.Check(label, sentence, value, id, spec);
 end
 
-function controls.Input(label, id, value, minimum, maximum, help)
-    widgets.Label(label);
-    controls.Width();
-    local changed = imgui.InputInt(id, value);
+function controls.Input(label, id, value, minimum, maximum, format, sentence, spec)
+    local changed = widgets.Slider(label, sentence, value, minimum, maximum, id, Spec(spec, format));
     value[1] = math.max(minimum, math.min(maximum, value[1]));
-    controls.Mark(help);
     return changed;
 end
 
-function controls.Outline(value, label, id, help)
-    widgets.Label(label or 'Outline (px)');
-    id = id or 'outline';
-    for thickness = 0, 3 do
-        if thickness > 0 then imgui.SameLine(); end
-        if imgui.RadioButton(tostring(thickness) .. '##name.' .. id .. thickness, value[1] == thickness) then value[1] = thickness; end
-    end
-    controls.Mark(help or tips.Get('name.appearance.outline'));
+function controls.Slider(label, id, value, minimum, maximum, format, sentence, spec)
+    return widgets.Slider(label, sentence, value, minimum, maximum, id, Spec(spec, format));
 end
 
-function controls.Mark(text)
-    if (layout ~= nil) then
-        -- Measure only the option itself, before adding help. Never feed the
-        -- child/window width or last frame's tooltip position back into sizing.
-        local right = imgui.GetItemRectMax();
-        local windowX = imgui.GetWindowPos();
-        if (type(right) == 'number' and type(windowX) == 'number') then
-            layout.measured = math.max(layout.measured, right - windowX);
-        end
+function controls.Choice(label, id, value, choices, sentence, spec)
+    local chosen = widgets.Dropdown(label, sentence, choices, value[1], id, spec);
+    if (chosen ~= nil) then
+        value[1] = chosen;
+        return true;
     end
-    if helpX ~= nil then imgui.SameLine(helpX); else imgui.SameLine(); end
-    imgui.TextDisabled('(?)');
-    if (imgui.IsItemHovered()) then
-        helpWidth = helpWidth or imgui.CalcTextSize('A spell or weaponskill sounds as it begins, an ability as it is used.');
-        imgui.BeginTooltip();
-        imgui.PushTextWrapPos(helpWidth);
-        imgui.Text(text);
-        imgui.PopTextWrapPos();
-        imgui.EndTooltip();
-    end
+    return false;
 end
 
-function controls.Checkbox(label, id, value, help, experimental)
-    widgets.Label(label, experimental);
-    local changed = imgui.Checkbox(id, value);
-    if (help ~= nil) then controls.Mark(help); end
+local thicknesses = { { key = 0, label = 'None' }, { key = 1, label = '1 px' }, { key = 2, label = '2 px' }, { key = 3, label = '3 px' } };
+
+function controls.Outline(value, label, id, sentence, spec)
+    return controls.Choice(label or 'Outline', id or '##name.outline', value, thicknesses, sentence, spec);
+end
+
+function controls.Color(label, id, color, sentence, spec)
+    return widgets.Color(label, sentence, color, id, spec);
+end
+
+function controls.Text(label, id, value, length, sentence, spec)
+    widgets.BeginRow(label, sentence, spec);
+    local changed = imgui.InputText(id, value, length);
+    widgets.EndRow();
     return changed;
 end
 
--- One of choices ({ key =, label = } each) as a dropdown, value[1] holding the chosen key
-local choiceIds = {};
-
-function controls.Choice(label, id, value, choices, help)
-    widgets.Label(label);
-    controls.Width();
-    local chosen = choices[1];
-    for _, choice in ipairs(choices) do
-        if (choice.key == value[1]) then
-            chosen = choice;
-            break;
-        end
-    end
-    local changed = false;
-    if (imgui.BeginCombo(id, chosen.label)) then
-        local ids = choiceIds[id];
-        if (ids == nil) then
-            ids = {};
-            choiceIds[id] = ids;
-        end
-        for index, choice in ipairs(choices) do
-            ids[index] = ids[index] or (choice.label .. id .. '.' .. index);
-            local selected = choice.key == chosen.key;
-            if (imgui.Selectable(ids[index], selected) and not selected) then
-                value[1] = choice.key;
-                changed = true;
-            end
-            if (selected) then
-                imgui.SetItemDefaultFocus();
-            end
-        end
-        imgui.EndCombo();
-    end
-    if (help ~= nil) then controls.Mark(help); end
-    return changed;
-end
-
-function controls.Slider(label, id, value, minimum, maximum, format, help)
-    widgets.Label(label);
-    controls.Width();
-    local changed = imgui.SliderInt(id, value, minimum, maximum, format);
-    if (help ~= nil) then controls.Mark(help); end
-    return changed;
+function controls.Note(text)
+    widgets.Note(text);
 end
 
 return controls;

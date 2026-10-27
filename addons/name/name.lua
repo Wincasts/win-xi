@@ -1,6 +1,6 @@
 addon.name    = 'name';
 addon.author  = 'win';
-addon.version = '1.85';
+addon.version = '1.86';
 addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the namehook plugin.';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
@@ -27,7 +27,6 @@ local custom     = require('custom');
 local customSettings = require('custom_settings');
 local statuses   = require('statuses');
 local controls   = require('controls');
-local tips       = require('winxi.tips');
 local diag       = require('diag');
 local castbar    = require('castbar');
 local levels     = require('levels');
@@ -39,24 +38,24 @@ local invisible  = require('invisible');
 local Category = nameplates.Category;
 
 -- The categories as they are set out in the settings: the setting each is kept in, its name there,
--- and what it covers. Group headings match Trigger's menus.
+-- what it covers, and the group it is under.
 local rows = {
     { key = 'showSelf',     category = Category.Self,     label = 'Own Name',         group = 'Players',
-      tooltip = tips.Get('name.visibility.self') },
+      sentence = 'The name over your own head.' },
     { key = 'showParty',    category = Category.Party,    label = 'Party Members',
-      tooltip = tips.Get('name.visibility.party') },
+      sentence = 'The others of your party, trusts among them.' },
     { key = 'showAlliance', category = Category.Alliance, label = 'Alliance Members',
-      tooltip = tips.Get('name.visibility.alliance') },
+      sentence = 'The other parties of your alliance.' },
     { key = 'showPlayers',  category = Category.Player,   label = 'Other Players',
-      tooltip = tips.Get('name.visibility.players') },
+      sentence = 'Every player outside your party and alliance. A whitelisted player is shown all the same.' },
     { key = 'showMyPet',    category = Category.MyPet,    label = 'My Pet',           group = 'Pets',
-      tooltip = tips.Get('name.visibility.my_pet') },
+      sentence = 'Your own pet.' },
     { key = 'showPets',     category = Category.Pet,      label = 'Other Pets',
-      tooltip = tips.Get('name.visibility.pets') },
+      sentence = 'Anyone else\'s pet, trust or adventuring fellow.' },
     { key = 'showNpcs',     category = Category.Npc,      label = 'NPCs',             group = 'NPCs & Monsters',
-      tooltip = tips.Get('name.visibility.npcs') },
+      sentence = 'What cannot be fought: townspeople, doors, and the rest.' },
     { key = 'showMonsters', category = Category.Monster,  label = 'Monsters',
-      tooltip = tips.Get('name.visibility.monsters') },
+      sentence = 'What can be fought, charmed players among them.' },
 };
 
 local defaults = T{
@@ -136,39 +135,31 @@ end
 
 local app;
 
-local warning = { 1.0, 0.6, 0.4, 1.0 };
-
+-- The Visibility tab: which kinds of name are shown, the target whatever it is, and the crowd
 local function DrawSettings(options)
     local problem = nameplates.Problem();
     if (problem ~= nil) then
-        imgui.TextColored(warning, problem);
-        widgets.Gap();
+        controls.Note(problem);
     end
 
-    controls.BeginLayout('filters', nil, 'Crowd Threshold (names)');
-    local changed, first, open = false, true, true;
-    for _, row in ipairs(rows) do
-        if (row.group ~= nil) then
-            if (not first) then controls.EndSection(); end
-            open = controls.Section(row.group, '##name.filter.' .. row.group, first);
-            first = false;
-        end
-        if (open) then
-            widgets.Label(row.label);
-            if (imgui.Checkbox(row.id, options[row.key])) then
+    local changed = false;
+    if (controls.Section('Names Shown', true)) then
+        local first, open = true, true;
+        for _, row in ipairs(rows) do
+            if (row.group ~= nil) then
+                open = controls.Sub(row.group, first);
+                first = false;
+            end
+            if (open and controls.Checkbox(row.label, row.id, options[row.key], row.sentence)) then
                 changed = true;
             end
-            controls.Mark(row.tooltip);
         end
-    end
-
-    controls.EndSection();
-    if (controls.Section('Target', '##name.filter.target')) then
-        widgets.Label('Always Show Target');
-        if (imgui.Checkbox('##name.alwaysTarget', options.alwaysTarget)) then
+        controls.EndSub();
+        widgets.Gap();
+        if (controls.Checkbox('Always Show Target', '##name.alwaysTarget', options.alwaysTarget,
+                'Shows your target\'s name even when names of its kind are hidden. Your own stays hidden while Own Name is off.')) then
             changed = true;
         end
-        controls.Mark(tips.Get('name.visibility.target'));
     end
 
     if (changed) then
@@ -176,18 +167,15 @@ local function DrawSettings(options)
         app:Save();
     end
 
-    controls.EndSection();
     readability.DrawCrowd(options);
-    controls.EndLayout();
 end
 
 -- Troubleshooting is separate from visibility controls and collapsed until needed.
 local function DrawDiagnostics(options)
     local hooked = nameplates.Hook() ~= nil;
-    controls.BeginLayout('diagnostics', nil, 'Enable Diagnostics');
-    if (controls.Section('Diagnostics', '##name.diagnostics', true, true)) then
+    if (controls.Section('Diagnostics', false, true)) then
         if (controls.Checkbox('Enable Diagnostics', '##name.diagnosticsEnabled', options.diagnostics,
-                tips.Get('name.diagnostics.enabled'))) then
+                'Keeps a record of drawing problems, and writes a log when the names stop. /name diag switches it too.')) then
             diag.Enable(options.diagnostics[1]);
             app:Save();
         end
@@ -200,40 +188,36 @@ local function DrawDiagnostics(options)
                     hidden = hidden + 1;
                 end
             end
-            widgets.Label('Names In View');
+            widgets.BeginRow('Names In View', 'The names the game drew last frame: close enough, and on screen.');
             imgui.Text(('%d shown, %d hidden'):format(shown, hidden));
-            controls.Mark(tips.Get('name.diagnostics.in_view'));
+            widgets.EndRow();
         end
 
-        widgets.Label('Support Report');
-        if imgui.Button('Write Report##name.diag.report') then
+        if widgets.Action('Support Report', 'Writes a report for sharing to config\\addons\\name\\logs: versions, counts and what the plugin can do, with no names, chat or paths. /name report does the same.', 'Write Report##name.diag.report') then
             local path, problem = diag.Report();
             app:Say(path and ('Support report written to ' .. path) or ('Could not write support report: ' .. tostring(problem)));
         end
-        controls.Mark(tips.Get('name.diagnostics.report'));
         if diag.LastReportPath() then
-            widgets.Label('Last Report');
+            widgets.BeginRow('Last Report', 'The report written last.');
             imgui.Text(diag.LastReportPath():match('[^\\]+$'));
+            widgets.EndRow();
         end
         if (diag.Enabled()) then
-            widgets.Label('Custom Names');
+            widgets.BeginRow('Custom Names', 'Whether the names are being drawn now. When they stop, the reason is said once in the chat log and a log is written.');
             imgui.Text(diag.Status());
-            controls.Mark(tips.Get('name.diagnostics.custom_names'));
+            widgets.EndRow();
 
-            widgets.Label('Diagnostic Log');
-            if (imgui.Button('Write Log##name.diag.write')) then
+            if widgets.Action('Diagnostic Log', 'Writes what this addon and namehook are doing to config\\addons\\name\\logs. It can hold character names, paths and errors.', 'Write Log##name.diag.write') then
                 local path, problem = diag.Write('written from the settings');
                 app:Say(path and ('Log written to ' .. path) or ('The log could not be written: ' .. tostring(problem)));
             end
-            controls.Mark(tips.Get('name.diagnostics.log'));
             if (diag.LastPath() ~= nil) then
-                widgets.Label('Last Log');
+                widgets.BeginRow('Last Log', 'The log written last.');
                 imgui.Text(diag.LastPath():match('[^\\]+$'));
+                widgets.EndRow();
             end
         end
     end
-    controls.EndSection();
-    controls.EndLayout();
 end
 
 -- Leave tabs navigable while Name is off, but only Enable Name can be edited.
