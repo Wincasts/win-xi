@@ -31,6 +31,11 @@ core patch that names the constant, stops it too (phoenix.modules.guard, cpp_mod
                      HasPreventActionEffect, as the player's AI asks it, charm aside), by number
     skillchain       when a skillchain can be closed: from so long after the weapon skill, for how long,
                      and how much shorter each step of a chain makes it (battleutils.cpp)
+    magicCost        what changes a spell's MP: Light and Dark Arts' and the Addenda's fixed part of the white
+                     and black magic cost mods (their effects' scripts), Penury and Parsimony halving it,
+                     Manafont taking it (battleutils.cpp's CalculateSpellCost, magic_state.cpp); and the
+                     ninja tools a NIN may use in place of a spell's own, by tool (HasNinjaTool), whose own
+                     is its spell_list mpCost (winxi.spells)
     merits           the limit points a merit point is (merit.cpp's MAX_LIMIT_POINTS)
     weaponskillTp    the TP a weapon skill's extra hits return, each, before Store TP (scripts/globals/weaponskills.lua)
     automaton        what an automaton casts and uses: each spell's magic skill and the heads that cast it
@@ -405,6 +410,42 @@ def skillchain(server):
             'Pairs': pairs, 'Source': path}
 
 
+def magic_cost(server):
+    def handle(override):
+        return None if re.search(r'MAGIC_COST', override.body) else 'nothing of MP costs'
+    modules.guard(server, ('xi.effects.light_arts', 'xi.effects.dark_arts', 'xi.effects.addendum_'), handle, out=io.StringIO())
+    untouched(server, 'CalculateSpellCost', 'HasNinjaTool', 'BLACK_MAGIC_COST', 'WHITE_MAGIC_COST')
+    def squash(text):
+        return re.sub(r'[^a-z0-9]', '', text.lower())
+    statuses = {squash(key): entry['id'] for key, entry in modules.load_yaml(server, 'status_effects')['status_effects'].items()
+                if isinstance(entry, dict) and 'id' in entry}
+    arts = {}
+    for effect in ('light_arts', 'dark_arts', 'addendum_white', 'addendum_black'):
+        text = read(server, f'scripts/effects/{effect}.lua')
+        gain = modules.function_body(text, find(server, f'scripts/effects/{effect}.lua', r'onEffectGain\s*=\s*', 'onEffectGain').end())
+        fixed = {kind: int(value) for kind, value in re.findall(r'addMod\(xi\.mod\.(WHITE|BLACK)_MAGIC_COST,\s*(-?\d+)\)', gain)}
+        if set(fixed) != {'WHITE', 'BLACK'}:
+            sys.exit(f'scripts/effects/{effect}.lua: its white and black magic cost are not as they were')
+        arts[statuses[squash(effect)]] = {'White': fixed['WHITE'], 'Black': fixed['BLACK']}
+    path = 'src/map/utils/battleutils.cpp'
+    for halved in ('Parsimony', 'Penury'):
+        find(server, path, r'HasStatusEffect\(xi::StatusEffect::' + halved + r'\)\)\s*\{\s*cost /= 2;', f'{halved} halving the cost')
+    find(server, path, r'cost \+= \(int16\)\(base \* \(PEntity->getMod\(xi::Mod::BLACK_MAGIC_COST\) / 100\.0f\)\);', 'the black magic cost mod')
+    find(server, 'src/map/ai/states/magic_state.cpp', r'!m_PEntity->StatusEffectContainer->HasStatusEffect\(xi::StatusEffect::Manafont\)', 'Manafont')
+    items = {k: int(v) for k, v in re.findall(r'^\s*(\w+)\s*=\s*(\d+),', read(server, 'src/map/items.h'), re.M)}
+    switch = find(server, path, r'bool HasNinjaTool\(.*?switch \(toolID\)\s*\{(.*?)default:', 'the universal tools', re.S).group(1)
+    universal, cases = {}, []
+    for token in re.finditer(r'case ITEMID::(\w+):|toolID = ITEMID::(\w+);', switch):
+        if token.group(1):
+            cases.append(items[token.group(1)])
+        else:
+            for tool in cases:
+                universal[tool] = items[token.group(2)]
+            cases = []
+    return {'Arts': arts, 'HalvedWhite': statuses['penury'], 'HalvedBlack': statuses['parsimony'],
+            'Free': [statuses['manafont']], 'UniversalTools': universal, 'Source': path}
+
+
 def build(server, output, settings=()):
     server, output = Path(server), Path(output)
     from build_debuff_durations import enum_block
@@ -425,6 +466,7 @@ def build(server, output, settings=()):
         'merits': merits(server),
         'preventAction': prevent_action(server),
         'skillchain': skillchain(server),
+        'magicCost': magic_cost(server),
     }
     output.mkdir(parents=True, exist_ok=True)
     write_data(output / 'index.lua', {'Schema': 1, 'Source': provenance(server), 'Settings': list(settings),
