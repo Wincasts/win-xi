@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.83
+
+- Every tooltip in the settings reread for plain words: each says what its setting does and what it leaves alone, no longer how it is done, which plugin version it needs or what it costs. The format editors keep their token reference. Tracked NM no longer asks for a Show Aggro Icons setting that is gone. `tooltips/name.md` is the source, as before.
+
 ## 1.82
 
 - The diagnostics report says what did not make it: the names namehook's list had no room for last frame and the drawings it refused since loading (namehook 1.42), and the names and quads Name could not hand over since it was loaded, the buffer or a name being full. Requires winxi 58.

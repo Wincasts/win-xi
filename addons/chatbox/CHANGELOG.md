@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.16.1
+
+- The settings' tooltips and notes reread for plain words: each says what its setting does and what it leaves alone, no longer how. The greyed line under Font Size says what the game's keys still do; `/chatbox help` no longer ends in a sentence about native controls.
+
 ## 0.16.0
 
 - Auto-Translate's list puts the phrase in without sending the line (confirmed in game). Enter on a phrase sent the half-typed line: the game reads the Enter that sends from DirectInput's polled keyboard state, not from a key message (uihook's /uihook keys, read from the live game: key messages reach the game's input handler, none while the list held Enter, and the line was sent all the same), so blocking the key, key_data and text_out events never stopped it, and the earlier key_state masking never ran (it took e.data for a string). chatbox now clears the list's keys (both Enters, Escape, Tab, the arrows, Page Up and Down) from the polled state through `data_modified_raw`, while the list is open and while a key it acted on is still down, and nothing else; `/chatbox status` counts it. The phrase's token is written on the next frame and read back; text typed since is never overwritten. The other agent's outgoing-message guard, synthetic Space recovery and input tracing, which ate keyboard and controller input, are gone for good (`inputdiag` removed). uihook's key holding (1.61) took no part and chatbox does not use it. tests: chatbox_translate_check back in run.sh; chatbox_ui_check, the list's keys cleared from the polled state as it opens and until let go, others untouched, the phrase written the frame after, newer typing kept, nothing touched with chatbox or the setting off.

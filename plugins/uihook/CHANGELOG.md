@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.70
+
+- `/uihook` help and the lines said on load reread for plain words: each command's line says what it does; the party and HUD lines say what is ready to be drawn in the game's place and what to unload first, instead of naming hooks and signatures. The version resource says 1.70.
+
 ## 1.69
 
 - `/uihook skin` (nativeui's theme) no longer reaches the game's own names over heads. The skin knew a texture by its pixels alone, so any draw from the menu font was given the skin's font picture, edged, shadowed and smoothly filtered: the names the game draws from that font too. A font's texture (one the skin's fonts.txt lists) drawn in no game window is now left as the game's; inside a window, and every other texture anywhere, as before. Text the game draws outside its windows from the menu font, such as the chat input line, is left as the game's with them. Without Window::Render's detour, every draw as before.

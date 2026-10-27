@@ -1,6 +1,6 @@
 addon.name    = 'party'
 addon.author  = 'lin, win'
-addon.version = '0.3.3'
+addon.version = '0.3.4'
 addon.desc    = 'Party, target and pet frames in the style of XivParty'
 
 -- The addon in outline:

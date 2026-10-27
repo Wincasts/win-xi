@@ -1,6 +1,6 @@
 1 VERSIONINFO
- FILEVERSION 1,69,0,0
- PRODUCTVERSION 1,69,0,0
+ FILEVERSION 1,70,0,0
+ PRODUCTVERSION 1,70,0,0
  FILEFLAGSMASK 0x3fL
  FILEFLAGS 0
  FILEOS 4
@@ -13,12 +13,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "win"
             VALUE "FileDescription", "uihook - the game's own interface changed"
-            VALUE "FileVersion", "1.69.0.0\0"
+            VALUE "FileVersion", "1.70.0.0\0"
             VALUE "InternalName", "uihook"
             VALUE "LegalCopyright", "Copyright (c) 2026 win"
             VALUE "OriginalFilename", "uihook.dll"
             VALUE "ProductName", "uihook"
-            VALUE "ProductVersion", "1.69.0\0"
+            VALUE "ProductVersion", "1.70.0\0"
         END
     END
     BLOCK "VarFileInfo"

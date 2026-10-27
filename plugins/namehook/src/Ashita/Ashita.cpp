@@ -1020,9 +1020,9 @@ static void AshitaLongHelp(IChatManager* chat) {
     chat->Write(0, false, "\x1e\x6a/namehook target on\x1e\x01 |\x1e\x6a off");
     chat->Write(0, true , "Always show your target's name, whatever its category; your own stays hidden if own names are");
     chat->Write(0, false, "\x1e\x6a/namehook othercalls on\x1e\x01 |\x1e\x6a off");
-    chat->Write(0, true , "Take every place the client draws a name from, or only the one that draws all the names");
+    chat->Write(0, true , "Hook every place the game draws names (on), or only the main one (off)");
     chat->Write(0, false, "\x1e\x6a/namehook keepstates on\x1e\x01 |\x1e\x6a off");
-    chat->Write(0, true , "Capture the device's state once for a run of names an addon draws, or before each one");
+    chat->Write(0, true , "Save the drawing state once for a run of addon-drawn names (on, faster), or before each name (off, safer)");
     chat->Write(0, false, "\x1e\x6a/namehook popups\x1e\x01 [\x1e\x6awatch on\x1e\x01 |\x1e\x6a off\x1e\x01]");
     chat->Write(0, true , "List last frame's damage popups, or say each new one as it appears");
     chat->Write(0, false, "\x1e\x6a/namehook status");
@@ -1044,7 +1044,7 @@ static void AshitaLongHelp(IChatManager* chat) {
     chat->Write(0, false, "\x1e\x6a/namehook hidestars");
     chat->Write(0, true , "Hide all Job Mastery stars");
     chat->Write(0, false, "\x1e\x6a/namehook showstars");
-    chat->Write(0, true , "Re-enable displaying Job Mastery stars");
+    chat->Write(0, true , "Show Job Mastery stars again");
     chat->Write(0, false, "\x1e\x6a/namehook load");
     chat->Write(0, true , "Load configuration from\x1e\x6a config\\namehook\\defaults.ini");
     chat->Write(0, false, "\x1e\x6a/namehook save");
@@ -1058,7 +1058,7 @@ void AshitaNameplate::ShowMessage(MESSAGE message, int param) {
         case MESSAGE::PLUGIN_LOAD_ERROR:
             chat->Writef(0, false, CHAT_HEADER "\x1e\x44Plugin load failed with error code \x1e\x05%d\x1e\x44!", param);
             if (param == -9 || param == -10 || param == -11 || param == -14 || param == -18) {
-                chat->Write(0, false, CHAT_HEADER "Required client rendering code was not found. Another nameplate plugin or patch may already own it; unload nameplate/nameplatew/nameplatehook before loading namehook. An unsupported client version can also cause this error.");
+                chat->Write(0, false, CHAT_HEADER "The game's name-drawing code was not found. Another nameplate plugin or patch may have it: unload nameplate, nameplatew or nameplatehook before loading namehook. A client version namehook does not know gives this error too.");
             } else if (param == -22 || param == -23) {
                 chat->Write(0, false, CHAT_HEADER "The client's code could not be read or written where namehook patches it. Nothing was changed.");
             } else if (param == -24) {
@@ -1075,7 +1075,7 @@ void AshitaNameplate::ShowMessage(MESSAGE message, int param) {
             chat->Write(0, false, CHAT_HEADER "\x1e\x44The client's code is no longer as namehook left it, so the change was not made.");
             break;
         case MESSAGE::SHORT_HELP:
-            chat->Write(0, false, CHAT_HEADER "\x1e\x44Unknown command, please consult \x1e\x6a/namehook help\x1e\x44 for more information.");
+            chat->Write(0, false, CHAT_HEADER "\x1e\x44Unknown command. \x1e\x6a/namehook help\x1e\x44 lists them.");
             break;
         case MESSAGE::LONG_HELP:
             AshitaLongHelp(chat);
@@ -1093,7 +1093,7 @@ void AshitaNameplate::ShowMessage(MESSAGE message, int param) {
 }
 
 void AshitaNameplate::CommandError(const char* command) {
-    m_AshitaCore->GetChatManager()->Writef(0, false, CHAT_HEADER "\x1e\x6a/namehook %s\x1e\x44 command error, please consult \x1e\x6a/namehook help\x1e\x44 for correct usage.", command);
+    m_AshitaCore->GetChatManager()->Writef(0, false, CHAT_HEADER "\x1e\x6a/namehook %s\x1e\x44 was not understood. \x1e\x6a/namehook help\x1e\x44 shows how to use it.", command);
 }
 
 DllExport IPlugin* __stdcall expCreatePlugin([[maybe_unused]] const char* args) {
