@@ -1633,15 +1633,9 @@ local defaults = T{
 
 local windowName = 'winxi.mark';
 
-local compactSpec = { tooltip = '/mark compact switches this too.' };
-local mapSpec = { tooltip = 'The monster on show is red, its placeholders blue: the deeper the colour, the more can appear there. /mark map switches this too.' };
 local pinMapSpec = {};
-local mapSizeSpec = { format = '%d px', tooltip = 'Some maps are only 512 pixels across, and look soft when made bigger.' };
-local pinTimersSpec = { tooltip = 'Each mark\'s window, and the placeholders\' respawns in the zone you are in. /mark timers switches this too.' };
+local mapSizeSpec = { format = '%d px' };
 local lockTimersSpec = { label = 'Lock Timers', description = 'Keeps the pinned timers where they are, and lets clicks through them. Off, they can be dragged.' };
-local scriptedSpec = { tooltip = 'The server\'s data has their drops, but nothing of how they are brought.' };
-local thSpec = { tooltip = 'The server takes up to 4 from a job that is not a thief\'s, up to 8 from a thief, and more only as a thief\'s blows raise it during the fight.' };
-local soundSpec = { tooltip = 'open.wav in libs\\winxi\\sounds.' };
 
 local function DrawSettings(options)
     pinMapSpec.parent, mapSizeSpec.parent = options.showMap, options.showMap;
@@ -1652,31 +1646,31 @@ local function DrawSettings(options)
         if widgets.Numbers('Position', 'Where the window\'s corner is on the screen.', options.pos, '##mark.position') then
             imgui.SetWindowPos(windowName, options.pos);
         end
-        widgets.Check('Compact Window', 'Only the marks, with no header and no tabs: whether each is in range, and what is known of its return.', options.compact, '##mark.compact', compactSpec);
+        widgets.Check('Compact Window', 'Only the marks, with no header and no tabs. /mark compact switches it too.', options.compact, '##mark.compact');
     end
 
     if widgets.Header('Map') then
-        widgets.Check('Show Map', 'The zone\'s map in a window of its own, showing where the monster and its placeholders can appear.', options.showMap, '##mark.showMap', mapSpec);
+        widgets.Check('Show Map', 'The zone\'s map in a window of its own, showing where the monster and its placeholders can appear. /mark map switches it too.', options.showMap, '##mark.showMap');
         widgets.Check('Pin Map', 'Keeps the map open when the main window is closed.', options.pinMap, '##mark.pinMap', pinMapSpec);
         widgets.Slider('Map Size', 'How big the map window is.', options.mapSize, 256, 1024, '##mark.mapSize', mapSizeSpec);
     end
 
     if widgets.Header('Timers') then
-        if widgets.Check('Pin Timers', 'Shows the timers on the screen with nothing behind them, even when the window is closed.', options.pinTimers, '##mark.pinTimers', pinTimersSpec) then
+        if widgets.Check('Pin Timers', 'Shows the timers on the screen with nothing behind them, even when the window is closed. /mark timers switches it too.', options.pinTimers, '##mark.pinTimers') then
             app:Save();
         end
         widgets.Lock(options.lockTimers, '##mark.lockTimers', lockTimersSpec);
     end
 
     if widgets.Header('Database') then
-        widgets.Check('Show Scripted Spawns', 'Lists the notorious monsters brought by a quest, a battlefield or an event as well.', options.showScripted, '##mark.scripted', scriptedSpec);
-        widgets.Slider('Highest Treasure Hunter', 'The drops are worked out for every level of Treasure Hunter up to this one.', options.maxTh, 0, hunts.MaxTreasureHunter, '##mark.maxTh', thSpec);
+        widgets.Check('Show Scripted Spawns', 'Lists the notorious monsters brought by a quest, a battlefield or an event as well.', options.showScripted, '##mark.scripted');
+        widgets.Slider('Highest Treasure Hunter', 'The drops are worked out for every level of Treasure Hunter up to this one.', options.maxTh, 0, hunts.MaxTreasureHunter, '##mark.maxTh');
     end
 
     if widgets.Header('Announcements') then
         widgets.Check('Announce Mark', 'Says in the chat log when the mark comes into range, how far and which way, and when it is seen dead.', options.announce, '##mark.announce');
         widgets.Check('Announce Placeholders', 'Says in the chat log when a timed placeholder is due, and when it is seen up again.', options.announcePlaceholders, '##mark.announcePh');
-        widgets.Check('Sound When Up', 'Plays a sound as the mark comes into range.', options.sound, '##mark.sound', soundSpec);
+        widgets.Check('Sound When Up', 'Plays a sound as the mark comes into range.', options.sound, '##mark.sound');
     end
 end
 

@@ -79,8 +79,8 @@ assert(checks['##party.nativeHook'] and checks['##party.nativeParty'] and checks
     'hooking on: which windows it hooks')
 assert(headers[1]=='Positioning' and headers[2]=='uihook' and headers[3]=='Mouse Interaction',
     'Behavior: Positioning, uihook, Mouse Interaction')
--- Use uihook, untagged; every explanation behind a (?), and Clickthrough's note (widgets.Lock, a
--- described row) behind one as well; the plugin and its version in green after the title; no status line
+-- Use uihook, untagged; every explanation behind a (?); the plugin and its version in green after the
+-- title; no status line
 local labels,marks,colored,wrapped={},0,{},0
 local label,disabled,textColored,textWrapped=widgets.Label,imgui.TextDisabled,imgui.TextColored,imgui.TextWrapped
 local getManager=AshitaCore.GetPluginManager
@@ -95,7 +95,7 @@ AshitaCore.GetPluginManager=function(self)
 end
 behavior(options)
 assert(labels['Use uihook']==false and labels['Hook Into uihook']==nil,'Use uihook, not experimental')
-assert(marks==5,'a (?) for each uihook setting, and Clickthrough\'s: '..marks)
+assert(marks==4,'a (?) for each uihook setting: '..marks)
 local found=colored[#colored]
 assert(found and found[2]=='[uihook 1.60 found]' and found[1][2]>found[1][1] and found[1][2]>found[1][3],'the plugin found, in green')
 assert(wrapped==0,'no native rendering status line')

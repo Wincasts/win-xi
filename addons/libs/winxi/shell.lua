@@ -301,13 +301,14 @@ local function OnCommand(app, e)
     end
 end
 
--- The controller settings an addon's Settings tab has: the switch, with the addon's account of what
--- the buttons do as its tooltip, and under it, while it is on, the sounds and the kind of controller.
+-- The controller settings an addon's Settings tab has: the switch, and under it, while it is on, the
+-- sounds and the kind of controller. tooltip, the addon's account of what the buttons do, is kept for
+-- its README: a settings window has no notes.
 -- between, if given, draws the addon's own controller settings after the sounds. The settings are
 -- controller and controllerSounds (tables holding true or false) and controllerType (a layout's key).
 local controllerIds = nil; -- the hidden labels of the controls below: made once
-local controllerSoundsSpec = { parent = true, tooltip = 'The sounds are the wav files in libs\\winxi\\sounds: put others of the same names there to change them.' };
-local controllerTypeSpec = { parent = true, tooltip = 'On a DirectInput controller the buttons are read by position: the bottom face button is A, the right one B.' };
+local controllerSpec = { experimental = true };
+local controllerDependent = { parent = true };
 
 function shell.ControllerSettings(options, tooltip, between)
     local controller = require('winxi.controller');
@@ -328,22 +329,19 @@ function shell.ControllerSettings(options, tooltip, between)
         options.controllerSounds = T{ false };
     end
 
-    ids.spec = ids.spec or { experimental = true, tooltip = tooltip };
-    ids.spec.tooltip = tooltip;
-    widgets.Check('Controller Navigation', 'Use a controller to move about this window.', options.controller, ids.controller, ids.spec);
+    widgets.Check('Controller Navigation', 'Use a controller to move about this window.', options.controller, ids.controller, controllerSpec);
     if not options.controller[1] then
         return;
     end
 
-    widgets.Check('Controller Sounds', 'A sound as the highlight moves or a choice is made.', options.controllerSounds, ids.sounds,
-        controllerSoundsSpec);
+    widgets.Check('Controller Sounds', 'A sound as the highlight moves or a choice is made.', options.controllerSounds, ids.sounds, controllerDependent);
 
     if between ~= nil then
         between(options);
     end
 
-    local chosen = widgets.Dropdown('Controller Type', 'XInput is an Xbox controller, or one set up to act as one. DirectInput is any other: pick the make whose buttons match yours.',
-        controller.Layouts, controller.GetLayout(), ids.type, controllerTypeSpec);
+    local chosen = widgets.Dropdown('Controller Type', 'XInput is an Xbox controller, or one set up to act as one. DirectInput is any other.',
+        controller.Layouts, controller.GetLayout(), ids.type, controllerDependent);
     if chosen ~= nil then
         options.controllerType = chosen;
     end

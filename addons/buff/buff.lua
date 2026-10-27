@@ -853,19 +853,14 @@ end
 
 local controllerTip = 'In the game\'s buff selector, confirm (A, or the bottom face button) removes the status its cursor is on, as a click does. Needs the uihook plugin, which says which one that is.\nThe press still reaches the game: buff asks for the status to be removed only when the game has not, a moment later.\nAn XInput controller\'s A is always heard; Controller Type picks the DirectInput make (PlayStation with XInput chosen).';
 
-local anchorSpec = { tooltip = 'With the uihook plugin loaded, the game draws its menus over the bar as it does over its own icons, and the bar goes when they would. Without it the bar is drawn over everything.' };
-local lockSpec = { label = 'Lock Position', description = 'Keeps the bar where it is. Off, drag it with the mouse to move it.',
-    tooltip = 'Anchored, dragging sets the Anchor Adjustment. In the game\'s buff selector a click removes a status instead.' };
-local backdropSpec = { tooltip = 'The anchored bar never has one.' };
-local growSpec = { tooltip = 'Left keeps the icons at the left of the bar, as the game does; Right at its right; Middle in its middle. Anchored, the bar spans a full row of Icons Per Row from where it is placed.' };
+local lockSpec = { label = 'Lock Position', description = 'Keeps the bar where it is. Off, drag it with the mouse to move it.' };
 local fontSpec = { description = 'The font for the times and the status tooltips. Theme Font follows the Winxi Theme.' };
-local sizeSpec = { description = 'How big the times and tooltips are. Theme Size follows the Winxi Theme. The icons keep their own size.' };
-local hideGameSpec = { tooltip = 'They come back when this is switched off, or the addon is unloaded. Anchored with uihook, the bar takes the place of the game\'s row whatever this says.' };
+local sizeSpec = { description = 'How big the times and tooltips are. Theme Size follows the Winxi Theme.' };
 
 local function DrawSettings(options)
     if widgets.Header('Window', true) then
         widgets.Check('Visible', 'Shows the bar while you are under a status. /buff switches it too.', options.isVisible, '##buff.visible');
-        widgets.Check('Anchor To Default Location', 'Puts the bar where the game shows its own status icons.', options.anchorToDefault, '##buff.anchorToDefault', anchorSpec);
+        widgets.Check('Anchor To Default Location', 'Puts the bar where the game default status icons are.', options.anchorToDefault, '##buff.anchorToDefault');
         if options.anchorToDefault[1] then
             local problem = hook.Problem();
             if problem ~= nil then
@@ -880,14 +875,14 @@ local function DrawSettings(options)
             end
         end
         widgets.Lock(options.lockPosition, '##buff.lockPosition', lockSpec);
-        widgets.Check('Show Backdrop', 'A background and border behind the bar. Off, the icons sit straight over the game.', options.showBackdrop, '##buff.showBackdrop', backdropSpec);
+        widgets.Check('Show Backdrop', 'A background and border behind the bar. Off, the icons sit straight over the game.', options.showBackdrop, '##buff.showBackdrop');
     end
 
     if widgets.Header('Icons') then
         widgets.Slider('Icon Size', 'How tall each icon is. At 32 or 64 they are at their sharpest.', options.iconSize, 16, 96, '##buff.iconSize', widgets.Pixels);
         widgets.Slider('Cursor Size', 'How big the game\'s pointing hand is in the buff selector, as a share of an icon.', options.cursorSize, 25, 100, '##buff.cursorSize', widgets.Percent);
         widgets.Slider('Icons Per Row', 'How many icons sit in a row before a new row starts.', options.perRow, 1, 32, '##buff.perRow');
-        local chosen = widgets.Dropdown('Grow From', 'Which way a row fills as statuses come and go.', growModes, options.growFrom, '##buff.growFrom', growSpec);
+        local chosen = widgets.Dropdown('Grow From', 'Which way a row fills as statuses come and go.', growModes, options.growFrom, '##buff.growFrom');
         if chosen ~= nil then
             options.growFrom = chosen;
         end
@@ -897,7 +892,7 @@ local function DrawSettings(options)
     end
 
     if widgets.Header('Game') then
-        if widgets.Check('Hide Game\'s Icons', 'Stops the game drawing its own status icons, since this bar stands in for them.', options.hideGameIcons, '##buff.hideGameIcons', hideGameSpec) then
+        if widgets.Check('Hide Game Default Icons', 'Hides the game default status icons, since this bar stands in for them.', options.hideGameIcons, '##buff.hideGameIcons') then
             hideFailed = false;
             ApplyGameIcons(options);
         end

@@ -390,8 +390,7 @@ local function MarkerSettings(kind, label, showKey, styles)
     local specs = markerSpecs[kind];
     if specs == nil then
         specs = {
-            style = { tooltip = kind == 'player' and 'Every style shows which way you are facing.'
-                or 'Numbered dots carry the member\'s number. Directional triangles need a known facing; members far away are drawn as hollow dots.' },
+            style = {},
             size = { format = '%d px' },
             outline = {},
             names = { label .. ' Style', label .. ' Size', label .. ' Outline', '##atlas.' .. kind .. 'Style', '##atlas.' .. kind .. 'Size', '##atlas.' .. kind .. 'Outline' },
@@ -409,7 +408,6 @@ end
 
 local shapes = { { key = 'square', label = 'Square' }, { key = 'rounded', label = 'Rounded' }, { key = 'round', label = 'Round' } };
 local frameSentences = {}; -- mode -> the sentences of its rows, made once
-local heightSpec = { tooltip = 'At 1x the longer side shows the whole map across; pan for the rest.' };
 
 -- A mode's frame: its width, height and shape. when says when the mode is in use, for the sentences.
 local function Frame(mode, when)
@@ -421,21 +419,19 @@ local function Frame(mode, when)
         frameSentences[mode] = sentences;
     end
     widgets.Slider('Width', sentences[1], options[mode .. 'Width'], 128, 1024, sentences[3], widgets.Pixels);
-    widgets.Slider('Height', sentences[2], options[mode .. 'Height'], 128, 1024, sentences[4], heightSpec);
+    widgets.Slider('Height', sentences[2], options[mode .. 'Height'], 128, 1024, sentences[4], widgets.Pixels);
     local key = mode .. 'Shape';
     local chosen = widgets.Dropdown('Shape', 'Square, rounded corners, or round: a circle when width and height match, a pill when not.', shapes, options[key], sentences[5]);
     if chosen ~= nil then options[key] = chosen; end
 end
 
-local controllerTip = '/atlas browse (from a macro) gives the map the controller, as the game\'s own map has it:\n'
+local controllerTip = '/atlas browse (from a macro) gives the map the controller, as the game default map has it:\n'
     .. 'the left stick scrolls (or the d-pad with Analog Stick Control off), RB zooms in a step and LB out,\n'
     .. 'Y puts a waypoint under the cursor, A locks the map to you, X shows the next floor, and B gives it back.\n'
     .. 'The right stick and the unused scrolling control stay the game\'s.';
 
 local nameChoices = { { key = 'always', label = 'Always' }, { key = 'hover', label = 'On Hover' }, { key = 'hidden', label = 'Hidden' } };
 local lockSpec = { description = 'Keeps the window where it is. The map can still be panned and zoomed.' };
-local passthroughSpec = { format = '%d%%', tooltip = 'At 0% the map is gone until you stop. The mouse over the map shows it whole.' };
-local askSpec = { tooltip = 'As the game\'s own map does while it is open, every few seconds.' };
 local stickSpec = {};
 
 local function DrawSettings(options)
@@ -450,7 +446,7 @@ local function DrawSettings(options)
 
     if widgets.Header('Passthrough') then
         Frame('passthrough', 'in passthrough, the last step of /atlas cycle, when the controller is left to the game');
-        widgets.Slider('Passthrough Opacity', 'How much of the map shows while you move in passthrough. It comes back as you stop.', options.passthroughOpacity, 0, 100, '##atlas.passthroughOpacity', passthroughSpec);
+        widgets.Slider('Passthrough Opacity', 'How much of the map shows while you move in passthrough. It comes back as you stop.', options.passthroughOpacity, 0, 100, '##atlas.passthroughOpacity', widgets.Percent);
     end
 
     if widgets.Header('Markers') then
@@ -473,7 +469,7 @@ local function DrawSettings(options)
     end
 
     if widgets.Header('Party') then
-        widgets.Check('Party Across Zone', 'Asks the server where party members out of sight are.', options.askServer, '##atlas.askServer', askSpec);
+        widgets.Check('Party Across Zone', 'Asks the server where party members out of sight are, every few seconds.', options.askServer, '##atlas.askServer');
     end
 
     if widgets.Header('Controller') then
