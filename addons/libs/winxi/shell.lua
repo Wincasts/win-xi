@@ -211,7 +211,7 @@ local function DrawConfigContent(app)
             widgets.BeginLabels(app.ids.visibility);
             imgui.Dummy(tabAir);
             if widgets.Header('Window', true) then
-                widgets.Check('Fade In And Out', 'The window fades in as it appears and out as it goes, in place of popping.', options.fadeInOut, app.ids.fade);
+                widgets.Check('Fade In And Out', 'The window fades in and out instead of popping.', options.fadeInOut, app.ids.fade);
                 if spec.visibility ~= nil then
                     spec.visibility(options);
                 end
@@ -338,7 +338,7 @@ function shell.ControllerSettings(options, tooltip, between)
         return;
     end
 
-    widgets.Check('Controller Sounds', 'A sound as the highlight moves or a choice is made.', options.controllerSounds, ids.sounds, controllerDependent);
+    widgets.Check('Controller Sounds', 'Plays a sound as the highlight moves or you pick something.', options.controllerSounds, ids.sounds, controllerDependent);
 
     if between ~= nil then
         between(options);

@@ -1650,7 +1650,7 @@ local function DrawSettings(options)
     end
 
     if widgets.Header('Map') then
-        widgets.Check('Show Map', 'The zone\'s map in a window of its own, showing where the monster and its placeholders can appear. /mark map switches it too.', options.showMap, '##mark.showMap');
+        widgets.Check('Show Map', 'A separate window with the zone\'s map, showing where the monster and its placeholders can appear. /mark map switches it too.', options.showMap, '##mark.showMap');
         widgets.Check('Pin Map', 'Keeps the map open when the main window is closed.', options.pinMap, '##mark.pinMap', pinMapSpec);
         widgets.Slider('Map Size', 'How big the map window is.', options.mapSize, 256, 1024, '##mark.mapSize', mapSizeSpec);
     end
@@ -1663,8 +1663,8 @@ local function DrawSettings(options)
     end
 
     if widgets.Header('Database') then
-        widgets.Check('Show Scripted Spawns', 'Lists the notorious monsters brought by a quest, a battlefield or an event as well.', options.showScripted, '##mark.scripted');
-        widgets.Slider('Highest Treasure Hunter', 'The drops are worked out for every level of Treasure Hunter up to this one.', options.maxTh, 0, hunts.MaxTreasureHunter, '##mark.maxTh');
+        widgets.Check('Show Scripted Spawns', 'Also lists the notorious monsters a quest, battlefield or event brings.', options.showScripted, '##mark.scripted');
+        widgets.Slider('Highest Treasure Hunter', 'Shows drop rates for every level of Treasure Hunter up to this one.', options.maxTh, 0, hunts.MaxTreasureHunter, '##mark.maxTh');
     end
 
     if widgets.Header('Announcements') then

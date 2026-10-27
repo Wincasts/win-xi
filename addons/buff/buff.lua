@@ -880,7 +880,7 @@ local function DrawSettings(options)
 
     if widgets.Header('Icons') then
         widgets.Slider('Icon Size', 'How tall each icon is. At 32 or 64 they are at their sharpest.', options.iconSize, 16, 96, '##buff.iconSize', widgets.Pixels);
-        widgets.Slider('Cursor Size', 'How big the game\'s pointing hand is in the buff selector, as a share of an icon.', options.cursorSize, 25, 100, '##buff.cursorSize', widgets.Percent);
+        widgets.Slider('Cursor Size', 'How big the game default pointing hand is in the buff selector, compared with an icon.', options.cursorSize, 25, 100, '##buff.cursorSize', widgets.Percent);
         widgets.Slider('Icons Per Row', 'How many icons sit in a row before a new row starts.', options.perRow, 1, 32, '##buff.perRow');
         local chosen = widgets.Dropdown('Grow From', 'Which way a row fills as statuses come and go.', growModes, options.growFrom, '##buff.growFrom');
         if chosen ~= nil then

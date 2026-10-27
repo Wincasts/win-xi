@@ -421,7 +421,7 @@ local function Frame(mode, when)
     widgets.Slider('Width', sentences[1], options[mode .. 'Width'], 128, 1024, sentences[3], widgets.Pixels);
     widgets.Slider('Height', sentences[2], options[mode .. 'Height'], 128, 1024, sentences[4], widgets.Pixels);
     local key = mode .. 'Shape';
-    local chosen = widgets.Dropdown('Shape', 'Square, rounded corners, or round: a circle when width and height match, a pill when not.', shapes, options[key], sentences[5]);
+    local chosen = widgets.Dropdown('Shape', 'Square, rounded corners, or round. Round is a circle when width and height match, and a pill when not.', shapes, options[key], sentences[5]);
     if chosen ~= nil then options[key] = chosen; end
 end
 
@@ -450,7 +450,7 @@ local function DrawSettings(options)
     end
 
     if widgets.Header('Markers') then
-        widgets.Slider('Marker Size', 'How big the markers are, unless a kind below has its own size.', options.markerSize, 4, 24, '##atlas.markerSize', widgets.Pixels);
+        widgets.Slider('Marker Size', 'How big the markers are, unless a kind below sets a size.', options.markerSize, 4, 24, '##atlas.markerSize', widgets.Pixels);
         local names = not options.showNames[1] and 'hidden' or (options.namesOnHover[1] and 'hover' or 'always');
         local chosen = widgets.Dropdown('Names', 'When names are written beside party, alliance and target markers.', nameChoices, names, '##atlas.names');
         if chosen ~= nil then
