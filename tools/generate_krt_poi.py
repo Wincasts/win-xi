@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Generate a first-pass King Ranperre's Tomb sub-zone/POI table.
 
-This is intentionally data-mining oriented rather than hand-authored. It uses Phoenix's
+This is intentionally data-mining oriented rather than hand-authored. It uses the server's
 region polygons (which are derived from the map/navmesh walkable areas) and spawn regions
-to create named sector points suitable for an addon fallback.
+to create named sector points suitable for an addon fallback. The zone's regions.yaml and
+mobs.yaml are read as live loads them: fetched by tools/phoenix and patched by the modules
+(phoenix.modules.load_yaml).
 """
 from __future__ import annotations
 
@@ -11,10 +13,10 @@ import collections
 import math
 from pathlib import Path
 
-import yaml
+from phoenix import modules, source
 
-ROOT = Path('references/Phoenix/data/zones/king_ranperres_tomb')
-OUT = Path('addons/zone/data/king_ranperres_tomb_poi.lua')
+ZONE = 'king_ranperres_tomb'
+OUT = Path(__file__).resolve().parents[1] / 'addons/zone/data/king_ranperres_tomb_poi.lua'
 
 DIR_NAMES = {
     'n': 'North', 's': 'South', 'e': 'East', 'w': 'West', 'c': 'Central',
@@ -60,8 +62,13 @@ def clean_name(template):
 
 
 def main():
-    regions_doc = yaml.safe_load((ROOT / 'regions.yaml').read_text())
-    mobs_doc = yaml.safe_load((ROOT / 'mobs.yaml').read_text())
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    source.add_arguments(parser)
+    found = source.from_arguments(parser.parse_args())
+    print(f'Server: {found.describe()}')
+    regions_doc = modules.load_yaml(found.path, f'zones/{ZONE}/regions')
+    mobs_doc = modules.load_yaml(found.path, f'zones/{ZONE}/mobs')
 
     region_mobs = collections.defaultdict(collections.Counter)
     template_counts = collections.Counter()
@@ -147,7 +154,7 @@ def main():
     data = dict(
         zone_id=190,
         zone_name="King Ranperre's Tomb",
-        note='Generated from Phoenix regions.yaml/mobs.yaml plus zoneline data; intended as a first-pass sub-zone/POI table.',
+        note=f'Generated from {source.NAME} regions.yaml/mobs.yaml (as the modules patch them, {found.commit[:9]}) plus zoneline data; intended as a first-pass sub-zone/POI table.',
         subzones=subzones,
         pois=deduped,
     )

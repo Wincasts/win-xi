@@ -21,6 +21,9 @@ core patch that names the constant, stops it too (phoenix.modules.guard, cpp_mod
                      overload and the chance, how fast it falls, what Cooldown takes off
                      (scripts/globals/automaton.lua, pets/automaton.lua, automaton_entity.cpp,
                      job_utils/puppetmaster.lua)
+    era              the expansions in the order they came, and the latest whose content live has on
+                     (phoenix.modules.LATEST_ENABLED, inferred from what init.txt loads), with the
+                     server's name: for what an addon shows of later content
     weaponskillTp    the TP a weapon skill's extra hits return, each, before Store TP (scripts/globals/weaponskills.lua)
     automaton        what an automaton casts and uses: each spell's magic skill and the heads that cast it
                      (automaton_spells, module SQL over it), each frame's weapon skills with the skill
@@ -292,6 +295,12 @@ def weaponskill_tp(server):
     return {'ExtraHitTp': int(extra.group(1)), 'StoreTpScalesExtra': True, 'Source': path}
 
 
+def era(server):
+    from phoenix import source
+    return {'Server': source.NAME, 'Expansions': list(modules.EXPANSIONS), 'LatestEnabled': modules.LATEST_ENABLED,
+            'Inferred': True}
+
+
 def build(server, output, settings=()):
     server, output = Path(server), Path(output)
     from build_debuff_durations import enum_block
@@ -307,6 +316,7 @@ def build(server, output, settings=()):
         'burden': burden(server),
         'automaton': automaton(server),
         'weaponskillTp': weaponskill_tp(server),
+        'era': era(server),
     }
     output.mkdir(parents=True, exist_ok=True)
     write_data(output / 'index.lua', {'Schema': 1, 'Source': provenance(server), 'Settings': list(settings),

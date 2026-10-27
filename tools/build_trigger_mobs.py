@@ -19,10 +19,12 @@ them all and left out of each one's own, so that fifty goblins are not each list
 all throw. A notorious monster is one the server marks, or one with a name of its own; the mobs of
 Dynamis, which the server's Dynamis module marks one and all, are taken as they were before it.
 
-It is read from a checkout of the server (Phoenix, which keeps its mobs in data/zones/<zone>/mobs.yaml),
-by way of the reading MobDB's importer already does, so that addon's folder has to be beside this one:
+It is read from the server as live runs it: the live branch fetched by tools/phoenix (or --server's
+checkout), by way of the reading MobDB's importer already does (which patches the zones' mobs.yaml with
+the modules), the skills and skill lists with the module SQL replayed over them, and the moves a
+module's override of a mob's script names on live as well as its own script's (phoenix.modules.guard):
 
-    python3 generate_mobs.py --server /path/to/Phoenix
+    python3 tools/build_trigger_mobs.py
 
 A mob's weaponskills and abilities are those of its skill list, those its own script names, and, where
 its script takes the job special mixin and names none, the special of its main job. Only mobs that do
@@ -45,63 +47,50 @@ import os
 import re
 import sys
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-MOBDB = os.path.join(HERE, '..', 'mobdb', 'mobdb')
-sys.path.insert(0, MOBDB)
-import import_phoenix as mobdb  # noqa: E402
+import io
+import sqlite3
+from pathlib import Path
+
+from build_item_data import enabled_files, replay
+from phoenix import importer, modules, source
+
+ROOT = Path(__file__).resolve().parents[1]
+TARGET = ROOT / 'addons/trigger/mobs.lua'
+mobdb = importer.load('trigger_phoenix_import')
 
 
 SEVERAL = 3  # as many notorious monsters of a kind doing a thing as have it written once for them all
 
 
-def module_sql(server):
-    """The .sql files of the server's modules that are switched on, in the order they are applied."""
-    found = []
-    for entry in mobdb.read_init(server):
-        path = os.path.join(server, 'modules', entry)
-        if os.path.isdir(path):
-            found += sorted(glob.glob(os.path.join(path, '*.sql')))
-        elif path.endswith('.sql') and os.path.exists(path):
-            found.append(path)
-    return found
+def tables(server):
+    """mob_skill_lists and mob_skills as live has them: the server's SQL and the module SQL over it."""
+    db = sqlite3.connect(':memory:')
+    names = ('mob_skill_lists', 'mob_skills')
+    variables = {}
+    for name in names:
+        replay(db, Path(server) / f'sql/{name}.sql', variables, tables=names)
+    for path in enabled_files(server, '.sql'):
+        replay(db, path, variables, True, tables=names)
+    return db
+
+
+def skill_lists(db):
+    """skill list id -> the skills in it."""
+    lists = collections.defaultdict(list)
+    for list_id, skill in db.execute('SELECT skill_list_id, mob_skill_id FROM mob_skill_lists ORDER BY rowid'):
+        if skill not in lists[list_id]:
+            lists[list_id].append(skill)
+    return lists
+
+
+def skills(db):
+    """skill id -> (its name as the server has it, whether it is used at once: no time to ready it)."""
+    return {skill: (name, prepare == 0) for skill, name, prepare in db.execute('SELECT mob_skill_id, mob_skill_name, mob_prepare_time FROM mob_skills')}
 
 
 def read(path):
     with open(path, encoding='utf-8', errors='replace') as handle:
         return handle.read()
-
-
-def skill_lists(server):
-    """skill list id -> the skills in it. The modules' changes are applied over the server's own lists:
-    a list added to, or emptied by name."""
-    lists = collections.defaultdict(list)
-    ids = {}  # list name -> list id
-    for path in [os.path.join(server, 'sql', 'mob_skill_lists.sql')] + module_sql(server):
-        for line in read(path).splitlines():
-            if '`mob_skill_lists`' not in line:
-                continue
-            added = re.match(r"\s*INSERT INTO `mob_skill_lists` VALUES? \('((?:[^'\\]|\\.|'')*)',\s*(\d+),\s*(\d+)\)", line)
-            emptied = re.match(r"\s*DELETE FROM `mob_skill_lists` WHERE `skill_list_name` = '([^']*)'", line)
-            if added:
-                ids[added.group(1)] = int(added.group(2))
-                if int(added.group(3)) not in lists[int(added.group(2))]:
-                    lists[int(added.group(2))].append(int(added.group(3)))
-            elif emptied:
-                lists.pop(ids.get(emptied.group(1)), None)
-            elif line.lstrip().startswith(('INSERT', 'DELETE', 'UPDATE')):
-                print('not understood: %s' % line.strip())
-    return lists
-
-
-def skills(server):
-    """skill id -> (its name as the server has it, whether it is used at once: no time to ready it)."""
-    found = {}
-    row = re.compile(r"INSERT INTO `mob_skills` VALUES \((\d+),\s*\d+,\s*'([^']*)',\s*\d+,\s*[\d.]+,\s*[\d.]+,\s*\d+,\s*(\d+)")
-    for line in read(os.path.join(server, 'sql', 'mob_skills.sql')).splitlines():
-        match = row.match(line)
-        if match:
-            found[int(match.group(1))] = (match.group(2), int(match.group(3)) == 0)
-    return found
 
 
 def uncommented(lua):
@@ -125,19 +114,32 @@ def spoken(name):
 class Mobs(mobdb.Generator):
     def __init__(self, args):
         super().__init__(args)
-        self.skill_lists = skill_lists(self.server)
-        self.skills = skills(self.server)
+        db = tables(self.server)
+        self.skill_lists = skill_lists(db)
+        self.skills = skills(db)
+        db.close()
         enum = uncommented(read(os.path.join(self.server, 'scripts', 'enum', 'mob_skill.lua')))
         self.skill_ids = {name: int(number) for name, number in re.findall(r'^\s*(\w+)\s*=\s*(\d+)\s*,', enum, flags=re.M)}
         self.special_by_job, self.special_by_species = job_specials(self.server)
         self.script_folders = {mobdb.normalize(os.path.basename(path)): path
                                for path in glob.glob(os.path.join(self.server, 'scripts', 'zones', '*'))}
         self.scripts = {}  # path -> the skills a script names, and whether it takes the job special mixin
+        # (zone, mob script) -> the skills a module's overrides of the script on live name
+        self.overridden = collections.defaultdict(set)
+
+        def handle(override):
+            match = re.match(r'xi\.zones\.([^.]+)\.mobs\.([^.]+)\.', override.target)
+            named = {self.skill_ids[skill] for skill in re.findall(r'xi\.mobSkill\.(\w+)', override.body) if skill in self.skill_ids}
+            if match is None or '*' in override.target:
+                return None if named else 'names no mob skill'
+            self.overridden[(mobdb.normalize(match.group(1)), match.group(2))] |= named
+            return f'names {len(named)} mob skill(s)' if named else 'names no mob skill'
+        modules.guard(self.server, ('xi.zones.',), handle, out=io.StringIO())
         self.zones = {}    # area -> kind -> the names of its mobs there
         self.kinds = {}    # kind -> what its mobs do, wherever they are, and what only each notorious one does
         # species -> the family it is of, which is the kind of mob
         self.families = {}
-        ecosystems = mobdb.load_yaml(os.path.join(self.server, 'data', 'ecosystems.yaml'))['ecosystems']
+        ecosystems = modules.load_yaml(self.server, 'ecosystems')['ecosystems']
         for ecosystem in ecosystems.values():
             for family, found in (ecosystem.get('families') or {}).items():
                 for species in found.get('species') or {}:
@@ -152,6 +154,7 @@ class Mobs(mobdb.Generator):
                 text = uncommented(read(path))
                 named = {self.skill_ids[skill] for skill in re.findall(r'xi\.mobSkill\.(\w+)', text) if skill in self.skill_ids}
                 special = 'job_special' in text
+            named = named | self.overridden.get((mobdb.normalize(zone), name), set())
             self.scripts[path] = (named, special)
         return self.scripts[path]
 
@@ -231,7 +234,7 @@ class Mobs(mobdb.Generator):
 
         monsters = 0
         with open(self.args.target, 'w', encoding='utf-8', newline='\n') as out:
-            out.write('-- Made by generate_mobs.py, which says how this is laid out\nreturn {\n    kinds = {\n')
+            out.write('-- Made by tools/build_trigger_mobs.py, which says how this is laid out\nreturn {\n    kinds = {\n')
             for kind, known in sorted(self.kinds.items()):
                 # what several of its notorious monsters do, and its other mobs do not, is written once
                 # for them all: it need not be said again under each of them
@@ -282,12 +285,15 @@ class Mobs(mobdb.Generator):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--server', required=True, help='The server checkout: the folder holding data/, sql/ and modules/.')
+    source.add_arguments(parser)
     args = parser.parse_args()
-    args.target = os.path.join(HERE, 'mobs.lua')
+    found = source.from_arguments(args)
+    print(f'Server: {found.describe()}')
+    args.server, args.target = str(found.path), str(TARGET)
     # the rest is as MobDB's importer has it when asked for nothing in particular; it writes nothing itself
-    args.out, args.names, args.set, args.zone = HERE, os.path.join(MOBDB, 'client_names.json'), [], None
+    args.out, args.names, args.set, args.zone = str(TARGET.parent), str(importer.CLIENT_NAMES), [], None
     args.no_module_data, args.elements = False, 'rank'
+    args.build_dat_names, args.dat_overlay = None, []
     Mobs(args).run()
 
 

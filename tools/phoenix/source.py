@@ -12,6 +12,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+# the server the data is made for: its name as players know it, where its source is, and the branch
+# live runs
+NAME = 'Phoenix'
 REPOSITORY = 'https://github.com/phoenixffxi/Phoenix.git'
 BRANCH = 'live'
 # What the build scripts read of the server, and nothing else: the navmeshes alone are larger than all of it
