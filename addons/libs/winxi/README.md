@@ -621,9 +621,11 @@ widgets.Status(('%d icons shown.'):format(count));
 
 Rows are 30 text heights of name and sentence, a gap, and 13 of control (`widgets.DescriptionWidth`,
 `widgets.RowControlWidth`); a settings window fits itself to them, and one that has been resized keeps
-the control column and gives the sentence what is left. How tall a settings window opens is the theme's
-Starting Height (winxisettings' Settings Windows tab, with a button that takes the height of that window
-as it stands): Fit To Content, or a height in pixels that its content scrolls within.
+the control column and gives the sentence what is left. How a settings window opens is the theme's, on
+winxisettings' Settings Windows tab: Minimum Width (Fit To Content, or at least so many pixels wide),
+Starting Height (Fit To Content, or a height in pixels that its content scrolls within), and a button
+that takes both from that window as it stands. The section titles are written in the theme's Header
+Font at its Header Size there, or the window's own.
 
 On rows so far: the theme's own sections, the shell's Visibility and Controller rows, and the buff, sct,
 atlas, mark and winxisettings addons. The rest (party, name, chatbox, inventory, zone and the others)
