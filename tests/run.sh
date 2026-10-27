@@ -87,6 +87,7 @@ run sct        addons/sct/sct.lua       sct_check.lua
 luajit tests/sct_acquisitions_check.lua || exit 1
 run mobcast    addons/mobcast/mobcast.lua mobcast_check.lua
 run tempo      addons/tempo/tempo.lua   tempo_ui_check.lua
+run targetlines tests/targetlines_fixture.lua targetlines_check.lua
 luajit tests/tempo_check.lua || exit 1
 run vis        addons/vis/vis.lua       vis_check.lua
 run vis        addons/vis/vis.lua       vis_game_check.lua
