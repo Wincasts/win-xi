@@ -208,25 +208,25 @@ H.print('/trigger kept from the game', H.command('/trigger')); H.frames(2)
 H.print('settings drawn', (H.calls.Begin or 0) > begun, '| checkboxes', (H.calls.Checkbox or 0) > 8, '| sliders', H.calls.SliderInt, '| combos', (H.calls.BeginCombo or 0) > 0)
 local lines = H.calls.NewLine or 0; H.frames(1)
 H.print('a blank line over each group but the first, plus playback', (H.calls.NewLine or 0) - lines == 3)
+-- every setting is a described row, with its sentence under its name and no help mark
 do
-    local imgui = require('imgui')
-    local originalSameLine = imgui.SameLine
+    local imgui, widgets = require('imgui'), require('winxi.widgets')
+    local beginRow, rows, blank, marks = widgets.BeginRow, 0, 0, 0
+    widgets.BeginRow = function(name, sentence, spec)
+        rows = rows + 1
+        if type(sentence) ~= 'string' or sentence == '' then blank = blank + 1 end
+        return beginRow(name, sentence, spec)
+    end
     local originalTextDisabled = imgui.TextDisabled
-    local position, marks = nil, {}
-    rawset(imgui, 'SameLine', function(x, ...)
-        position = x
-        return originalSameLine(x, ...)
-    end)
     rawset(imgui, 'TextDisabled', function(text)
-        if text == '(?)' then marks[#marks + 1] = position end
+        if text == '(?)' then marks = marks + 1 end
         return originalTextDisabled(text)
     end)
     H.frames(1)
-    rawset(imgui, 'SameLine', nil)
+    widgets.BeginRow = beginRow
     rawset(imgui, 'TextDisabled', nil)
-    assert(#marks >= 3 and marks[#marks] > 0
-        and marks[#marks] == marks[#marks - 1]
-        and marks[#marks] == marks[1], 'playback help aligns with event help')
+    -- eleven events, each a switch and a sound; two thresholds and the items; the volume and overlap
+    H.print('every setting a described row:', rows == 11 * 2 + 2 + 1 + 2, '| rows', rows, '| each with its sentence', blank == 0, '| no help marks', marks == 0)
 end
 assert(o.overlapSounds[1] == false, 'overlap defaults off')
 do
@@ -246,19 +246,21 @@ H.print('the items named can be written', (H.calls.InputText or 0) > 0)
 do
     local imgui = require('imgui')
     local beforeSave = H.saves()
-    rawset(imgui, 'Selectable', function(label) return label == 'Low' end)
+    -- the dropdown's choices carry its id: 'Low##trigger.volume.Low'
+    rawset(imgui, 'Selectable', function(label) return label:match('^[^#]+') == 'Low' end)
     H.ret.BeginCombo = { true }; H.frames(1); H.ret.BeginCombo = { false }
     rawset(imgui, 'Selectable', nil)
     assert(o.volume == 'Low' and H.saves() > beforeSave, 'volume selector saves the global level')
     o.volume = 'Medium'
 end
-H.print('a mark for each event\'s description', (H.calls.TextDisabled or 0) > 0)
+H.print('a sentence under each event', (H.calls.TextDisabled or 0) > 0)
 H.ret.IsItemHovered = { true }; local tips = H.calls.BeginTooltip or 0; H.frames(1); H.ret.IsItemHovered = { false }
-H.print('hovered, a mark says its piece in a box no wider than a line', (H.calls.BeginTooltip or 0) > tips, H.calls.PushTextWrapPos == H.calls.PopTextWrapPos, H.calls.BeginTooltip == H.calls.EndTooltip)
-local sliders = H.calls.SliderInt
-o.events.lowhp.enabled[1] = false; H.frames(1); H.print('Low HP off: its threshold not drawn', H.calls.SliderInt - sliders == 1)
-sliders = H.calls.SliderInt
-o.events.lowhp.enabled[1] = true; H.frames(1); H.print('and on again: drawn', H.calls.SliderInt - sliders == 2)
+H.print('hovered, nothing says more than its row: no tooltip', (H.calls.BeginTooltip or 0) == tips, H.calls.PushTextWrapPos == H.calls.PopTextWrapPos)
+-- the rows under an event stay while it is off, greyed: its sound and its threshold
+local sliders, greyed = H.calls.SliderInt, H.calls.BeginDisabled or 0
+o.events.lowhp.enabled[1] = false; H.frames(1); H.print('Low HP off: its threshold still drawn', H.calls.SliderInt - sliders == 2, '| its sound and threshold greyed', (H.calls.BeginDisabled or 0) - greyed == 2)
+sliders, greyed = H.calls.SliderInt, H.calls.BeginDisabled or 0
+o.events.lowhp.enabled[1] = true; H.frames(1); H.print('and on again: drawn', H.calls.SliderInt - sliders == 2, '| nothing greyed', (H.calls.BeginDisabled or 0) - greyed == 0)
 H.ret.Button = { true }; H.frames(1); H.ret.Button = { false }; H.print('every Test button:', #H.sounds, 'sounds'); heard()
 
 -- the Triggers tab: the area's mobs to choose from, and what the chosen one does
@@ -266,19 +268,25 @@ H.tab(2); local combos, texts = H.calls.BeginCombo, H.calls.Text or 0; H.frames(
 H.print('Triggers drawn: combos', H.calls.BeginCombo - combos, '| a line for each trigger', (H.calls.Text or 0) - texts >= 3)
 -- what a kind does: what its mobs do first, then what only its notorious monsters do, each list under the monster's name
 -- and level: those of the area first, and a monster that is in two areas as two
+-- every list open: what each holds, its headings in brackets, its lines as |, and each list's id in braces.
+-- A row's sentence, dim too, ends in a full stop and is not a heading.
 local function beetle()
     local imgui, seen = require('imgui'), {}
     rawset(imgui, 'Selectable', function(label) seen[#seen + 1] = label:match('^[^#]+') return label == 'Beetle' end)
-    rawset(imgui, 'TextDisabled', function(text) seen[#seen + 1] = '[' .. text .. ']' end); rawset(imgui, 'Separator', function() seen[#seen + 1] = '|' end)
-    H.ret.BeginCombo = { true }; H.frames(1); seen = {}; H.frames(1); H.ret.BeginCombo = { false }
-    rawset(imgui, 'Selectable', nil); rawset(imgui, 'TextDisabled', nil); rawset(imgui, 'Separator', nil)
-    local text = table.concat(seen, ' '); local actions = text:sub((text:find('Elsewhere', 1, true)))
+    rawset(imgui, 'TextDisabled', function(text) if not text:find('%.$') then seen[#seen + 1] = '[' .. text .. ']' end end); rawset(imgui, 'Separator', function() seen[#seen + 1] = '|' end)
+    rawset(imgui, 'BeginCombo', function(id) seen[#seen + 1] = '{' .. id .. '}' return true end)
+    H.frames(1); seen = {}; H.frames(1)
+    rawset(imgui, 'Selectable', nil); rawset(imgui, 'TextDisabled', nil); rawset(imgui, 'Separator', nil); rawset(imgui, 'BeginCombo', nil)
+    local text = table.concat(seen, ' ')
+    local kinds = text:match('{##trigger%.making%.mob} (.-) {##trigger%.making%.action}')
+    local actions = text:match('{##trigger%.making%.action} (.-) {') or text:match('{##trigger%.making%.action} (.*)$')
     local headers = {} for header in actions:gmatch('| %[([^%]]-%(Lv [^%]]+)%]') do headers[#headers + 1] = header end
-    return actions, headers
+    return actions, headers, kinds
 end
 do
-    local actions, headers = beetle()
-    H.print('Beetle, what its mobs do:', actions:match('%(%?%)%] (.-) | %['))
+    local actions, headers, kinds = beetle()
+    H.print('the kinds, those of the area first:', kinds:find('%[Elsewhere%]') ~= nil and kinds:find('Beetle', 1, true) ~= nil)
+    H.print('Beetle, what its mobs do:', actions:match('^(.-) | %['))
     -- what three or more of its notorious monsters do is said once, under one heading, and not under each
     local several = actions:match('%[Notorious Monsters%] ([^|]*)')
     H.print('then what several of its notorious monsters do:', several, '| and none of it under a monster', actions:match('Lancing Lamorak[^|]*'):find(several:match('^(.-%))'), 1, true) == nil)
@@ -286,7 +294,7 @@ do
     -- every list in the same order: abilities, then weaponskills, then spells, each by name
     local lumber = actions:match('%[Lumber Jack %(Lv 55%)%] ([^|]*)')
     H.print('a list is abilities, weaponskills, spells:', lumber:find('%(Ability%)') < lumber:find('%(Spell%)'), '| Lumber Jack\'s begins', lumber:match('^.-%)'), '| and its spells are by name', lumber:match('%(Spell%) (.-) %(Spell%)') ~= nil)
-    H.print('Tornado (spell 208) is Lancing Lamorak\'s, not every beetle\'s', actions:match('Lancing Lamorak.*Spell 208') ~= nil, actions:match('%(%?%)%] (.-) | %['):find('Spell 208', 1, true) == nil)
+    H.print('Tornado (spell 208) is Lancing Lamorak\'s, not every beetle\'s', actions:match('Lancing Lamorak.*Spell 208') ~= nil, actions:match('^(.-) | %['):find('Spell 208', 1, true) == nil)
     -- West Ronfaure, where Lancing Lamorak is: its list is the first, and has all that is its own
     members[0].zone = 100; local there, first = beetle(); members[0].zone = 102
     H.print('in its own area a monster is first:', first[1], '| then', first[2], '| with all that is its own, there as anywhere', select(2, there:match('Lancing Lamorak[^|]*'):gsub('Spell', '')) == select(2, actions:match('Lancing Lamorak[^|]*'):gsub('Spell', '')))
@@ -295,10 +303,10 @@ do
 end
 -- every list open and everything in it chosen: the last kind of mob, of those not in the area, and the last thing it does are what is being made
 H.ret.BeginCombo = { true }; H.ret.Selectable = { true }; H.frames(2); H.ret.BeginCombo = { false }; H.ret.Selectable = { false }; heard()
--- every button pressed at once: Create Trigger makes one, and Remove, pressed on each, takes the last away again, which is that one
+-- every button pressed at once: Create makes one, and Remove, a small button in the list, pressed on each, takes the last away again, which is that one
 local before, gone, realRemove = #o.triggers, nil, table.remove
 table.remove = function(list, at) if list == o.triggers then gone = list[at] end return realRemove(list, at) end
-H.ret.Button = { true }; H.frames(1); H.ret.Button = { false }; heard(); table.remove = realRemove
+H.ret.Button = { true }; H.ret.SmallButton = { true }; H.frames(1); H.ret.Button = { false }; H.ret.SmallButton = { false }; heard(); table.remove = realRemove
 H.print('Create Trigger made one:', gone.mob, gone.kind, table.concat(gone.ids, ' '), gone.sound, gone.enabled[1], '| for no one area', gone.zone == nil, '| and Remove took it away', #o.triggers == before)
 -- what is known of the mobs is read for the tab and let go of with the settings: asked for again when they are next open
 reads = 0

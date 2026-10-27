@@ -1,8 +1,7 @@
--- What both of the settings' tabs are drawn with: the list of sounds to choose from, and the mark
--- at the end of a line that says what the line is for.
+-- What both of the settings' tabs are drawn with: the list of sounds to choose from, and the described
+-- row that holds it with a Test button beside it (winxi.widgets).
 local imgui = require('imgui')
 local widgets = require('winxi.widgets')
-local tooltip = require('winxi.tooltip')
 local shared = require('shared')
 local playing = require('playing')
 
@@ -65,8 +64,11 @@ local function SoundChoices(files, chosen)
     end
 end
 
-local function SoundCombo(id, chosen, key)
-    widgets.PushControlWidth()
+-- The list itself: width wide where one is given (a table's cell), else as wide as the row has set
+local function SoundCombo(id, chosen, key, width)
+    if width ~= nil then
+        imgui.SetNextItemWidth(width)
+    end
     if imgui.BeginCombo(id, chosen.sound) then
         local lists = Sorted(key)
         SoundChoices(lists.own, chosen)
@@ -76,37 +78,29 @@ local function SoundCombo(id, chosen, key)
         SoundChoices(lists.rest, chosen)
         imgui.EndCombo()
     end
-    widgets.PopControlWidth()
 end
 
--- A mark at the end of a line that tells, when hovered, what the line is for. Every line's is at the
--- same place: a little past where an event's own line ends, at its Test button, which is the longest.
-local lineEnd = 0  -- where the event's line ends, measured as it is drawn
-local markGap = 8  -- between that and the mark
+-- A described row holding a sound: the list takes the row's control column but for the Test button
+-- at its right end, which reads testId. Returns whether Test was pressed.
+local testWord = 'Test'
 
--- beside: true for a mark straight after what is before it, where the lines are not events'
-local function Mark(text, beside)
-    imgui.SameLine(beside and 0 or lineEnd + markGap)
-    imgui.TextDisabled('(?)')
-    tooltip.Hover(text)
+local function SoundRow(name, sentence, id, chosen, key, testId, spec)
+    widgets.BeginRow(name, sentence, spec)
+    local style = imgui.GetStyle()
+    local padding = (style and style.FramePadding and style.FramePadding.x) or 4
+    local spacing = (style and style.ItemSpacing and style.ItemSpacing.x) or 8
+    local button = (imgui.CalcTextSize(testWord) or 0) + 2 * padding
+    -- the column's width, as the row pushed it; where imgui does not say, the rows' own measure
+    local column = imgui.CalcItemWidth ~= nil and imgui.CalcItemWidth() or nil
+    if type(column) ~= 'number' then
+        local _, textHeight = imgui.CalcTextSize('A')
+        column = (textHeight or 14) * widgets.RowControlWidth
+    end
+    SoundCombo(id, chosen, key, math.max(column - button - spacing, button))
+    imgui.SameLine()
+    local pressed = imgui.Button(testId)
+    widgets.EndRow()
+    return pressed
 end
 
--- Help for a whole row, held at the content area's right edge. Never overlap its controls;
--- a narrow settings window can scroll horizontally instead.
-local function RightMark(text)
-    imgui.SameLine(0, markGap)
-    local x = imgui.GetCursorPosX()
-    local room = imgui.GetContentRegionAvail()
-    local width = imgui.CalcTextSize('(?)')
-    imgui.SetCursorPosX(math.max(x, x + room - width))
-    imgui.TextDisabled('(?)')
-    tooltip.Hover(text)
-end
-
--- An event's line ends here: where the marks go, and the controls under the line end
-local function EndLine()
-    imgui.SameLine(0, 0)
-    lineEnd = imgui.GetCursorPosX()
-end
-
-return { SoundCombo = SoundCombo, Mark = Mark, RightMark = RightMark, EndLine = EndLine }
+return { SoundCombo = SoundCombo, SoundRow = SoundRow }

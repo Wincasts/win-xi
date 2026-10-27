@@ -33,7 +33,16 @@ H.frames(1)
 widgets.BeginThemeTab = beginThemeTab
 assert(themeTabs == 0, 'Winxi Theme tab is not drawn')
 
--- Every settings tab's controls use the common width stack, without leaking it.
+-- The game: a character in an area, for the Triggers tab, which reads the server's triggermobs set
+-- (the repository's data) for what the area's mobs do
+require('winxi.gamedata').Root('addons/libs/winxi/data/')
+local core = AshitaCore
+local realMemory = core:GetMemoryManager()
+local party = { GetMemberTargetIndex = function() return 0 end, GetMemberName = function() return 'Tester' end, GetMemberZone = function() return 102 end }
+local memory = setmetatable({ GetParty = function() return party end }, { __index = realMemory })
+AshitaCore = setmetatable({ GetMemoryManager = function() return memory end }, { __index = core })
+
+-- Every tab is described rows, whose control widths come from the rows' own width stack, without leaking it.
 o.showIndicator[1] = true
 assert(app.spec.settingsLabel == 'Notifications')
 assert(app.spec.tabs[1].label == 'Triggers' and app.spec.tabs[2].label == 'Toast')
@@ -41,118 +50,95 @@ for tab = 1, 3 do
     H.tab(tab)
     local pushes, pops = H.calls.PushItemWidth or 0, H.calls.PopItemWidth or 0
     H.frames(1)
-    if tab ~= 2 then assert((H.calls.PushItemWidth or 0) > pushes, 'control widths in tab ' .. tab) end
+    assert((H.calls.PushItemWidth or 0) > pushes, 'control widths in tab ' .. tab)
     assert((H.calls.PushItemWidth or 0) - pushes == (H.calls.PopItemWidth or 0) - pops)
 end
-local labels, originalLabel = {}, widgets.Label
-widgets.Label = function(label, experimental)
-    labels[label] = experimental and 'experimental' or true
-    return originalLabel(label, experimental)
+
+-- The rows of each tab: their names, sentences, parents and experimental tags.
+local rows, beginRow = {}, widgets.BeginRow
+widgets.BeginRow = function(name, sentence, spec)
+    rows[name] = { sentence = sentence, experimental = spec ~= nil and spec.experimental or false, parent = spec ~= nil and spec.parent or nil }
+    return beginRow(name, sentence, spec)
 end
 H.tab(1); H.frames(1)
-assert(labels['Overlap Sounds'] == true, 'Overlap Sounds has no experimental tag')
-H.tab(2); H.frames(1)
-assert(not labels['Enable Toast'] and not labels['Grow From'], 'toast controls are separate from triggers')
-H.tab(3); H.frames(1)
-assert(labels['Enable Toast'] and labels['Grow From'] and labels['Fade In And Out'], 'toast controls in Toast tab')
-labels = {}
+assert(rows['Overlap Sounds'] and rows['Overlap Sounds'].experimental, 'Overlap Sounds is tagged experimental')
+assert(rows['Tell Received'] and rows['Sound'] and rows['HP Threshold'] and rows['Items'] and rows['Volume'], 'the notification rows')
+assert(rows['Sound'].parent == o.events.drop.enabled and rows['Items'].parent == o.events.drop.enabled, 'the rows under an event take its switch as parent')
+assert(rows['HP Threshold'].parent == o.events.lowhp.enabled, 'the threshold under its event')
+H.tab(2); rows = {}; H.frames(1)
+assert(not rows['Enable Toast'] and not rows['Grow From'], 'toast controls are separate from triggers')
+assert(rows['Mob Type'] and rows['Action'] and rows['Create Trigger'] and rows['Create Trigger'].experimental, 'the New Trigger rows, Create tagged experimental')
+H.tab(3); rows = {}; H.frames(1)
+assert(rows['Enable Toast'] and rows['Duration'] and rows['Fade In And Out'] and rows['Grow From'] and rows['Hide While Map Open'] and rows['Hide With Game Interface'], 'toast controls in Toast tab')
+assert(rows['Enable Toast'].parent == nil, 'the switch is under nothing')
+for _, name in ipairs({ 'Duration', 'Fade In And Out', 'Grow From', 'Hide While Map Open', 'Hide During Events' }) do
+    assert(rows[name].parent == o.showIndicator, name .. ' is under Enable Toast')
+end
+rows = {}
 o.showIndicator[1] = false
+local greyed = H.calls.BeginDisabled or 0
 H.frames(1)
-assert(labels['Enable Toast'] and not labels['Duration'] and not labels['Grow From'], 'disabled toast hides extra options')
+assert(rows['Enable Toast'] and rows['Duration'] and rows['Grow From'] and rows['Hide While Map Open'], 'disabled toast keeps its rows')
+assert((H.calls.BeginDisabled or 0) - greyed == 8, 'and greys the eight under the switch')
 o.showIndicator[1] = true
-widgets.Label = originalLabel
+widgets.BeginRow = beginRow
 
--- Threshold sliders start at the same horizontal position as their sound dropdowns.
-local combo, slider, cursor = imgui.BeginCombo, imgui.SliderInt, imgui.SetCursorPosX
-local input = imgui.InputText
-local dropdownX, extraAligned = nil, 0
-local soundPositions, aligned = {}, 0
-local lastCursor
-rawset(imgui, 'BeginCombo', function(id, ...)
-    if id == '##trigger.lowhp.sound' or id == '##trigger.lowmp.sound' then
-        soundPositions[id] = imgui.GetCursorPosX()
-    end
-    if id:match('^##trigger%..+%.sound$') then dropdownX = imgui.GetCursorPosX() end
-    if id == '##trigger.volume' then
-        assert(lastCursor == dropdownX, 'volume aligned with sound dropdowns')
-        extraAligned = extraAligned + 1
-    end
-    return combo(id, ...)
-end)
-rawset(imgui, 'InputText', function(id, ...)
-    if id == '##trigger.drop.items' then
-        assert(lastCursor == dropdownX, 'items aligned with sound dropdown')
-        extraAligned = extraAligned + 1
-    end
-    return input(id, ...)
-end)
-rawset(imgui, 'SetCursorPosX', function(x)
-    lastCursor = x
-    return cursor(x)
-end)
-rawset(imgui, 'SliderInt', function(id, ...)
-    local soundId = id:gsub('%.threshold$', '.sound')
-    if soundPositions[soundId] ~= nil then
-        assert(lastCursor == soundPositions[soundId], 'threshold aligned with ' .. soundId)
-        aligned = aligned + 1
-    end
-    return slider(id, ...)
-end)
-H.tab(1); H.frames(1)
-rawset(imgui, 'BeginCombo', combo)
-rawset(imgui, 'SliderInt', slider)
-rawset(imgui, 'SetCursorPosX', cursor)
-rawset(imgui, 'InputText', input)
-assert(extraAligned == 2, 'items and volume aligned')
-assert(aligned == 2, 'both HP and MP thresholds aligned')
-
--- Help marks on every tab delegate to WinXI, including beside/aligned variants.
-local tooltip = require('winxi.tooltip')
-local controls = require('controls')
-local hover, originalHover = {}, tooltip.Hover
-tooltip.Hover = function(words) hover[#hover + 1] = words end
-controls.Mark('Aligned help')
-controls.Mark('Beside help', true)
-local rightX
-rawset(imgui, 'SetCursorPosX', function(x) rightX = x end)
-local expectedRight = imgui.GetCursorPosX() + imgui.GetContentRegionAvail() - imgui.CalcTextSize('(?)')
-controls.RightMark('Right-edge help')
-rawset(imgui, 'SetCursorPosX', cursor)
-assert(rightX == expectedRight and hover[3] == 'Right-edge help', 'right-edge WinXI help mark')
-assert(hover[1] == 'Aligned help' and hover[2] == 'Beside help')
-for tab = 1, 3 do
-    local before = #hover
-    H.tab(tab); H.frames(1)
-    assert(#hover > before, 'WinXI help tooltips in tab ' .. tab)
-    if tab == 3 then
-        assert(#hover - before >= 8, 'help for toast, duration, hiding, fade and grow')
-    end
+-- Every control of the Notifications tab is drawn inside a described row: the rows line the controls up.
+local inRow, outside, controls = false, {}, 0
+local endRow = widgets.EndRow
+widgets.BeginRow = function(...) inRow = true; return beginRow(...) end
+widgets.EndRow = function(...) inRow = false; return endRow(...) end
+local function watch(name)
+    local original = imgui[name]
+    rawset(imgui, name, function(id, ...)
+        controls = controls + 1
+        if not inRow then outside[#outside + 1] = name .. ' ' .. tostring(id) end
+        return original(id, ...)
+    end)
 end
+watch('BeginCombo'); watch('SliderInt'); watch('InputText'); watch('Checkbox')
+H.tab(1); H.frames(1)
+for _, name in ipairs({ 'BeginCombo', 'SliderInt', 'InputText', 'Checkbox' }) do rawset(imgui, name, nil) end
+widgets.BeginRow, widgets.EndRow = beginRow, endRow
+assert(#outside == 0, 'controls outside rows: ' .. table.concat(outside, ', '))
+-- 11 switches and 11 sound lists, two thresholds, the items, the volume and overlap
+assert(controls == 11 * 2 + 2 + 1 + 2, 'every control in a row: ' .. controls)
+
+-- There is no other help: no (?) marks and no tooltips on any tab; every row says its piece under its name.
+local tooltip = require('winxi.tooltip')
+local hover, originalHover = 0, tooltip.Hover
+tooltip.Hover = function() hover = hover + 1 end
+local marks, sentences = 0, 0
+local disabledText = imgui.TextDisabled
+rawset(imgui, 'TextDisabled', function(words) if words == '(?)' then marks = marks + 1 end return disabledText(words) end)
+widgets.BeginRow = function(name, sentence, spec)
+    assert(type(sentence) == 'string' and sentence ~= '', name .. ' has its sentence')
+    sentences = sentences + 1
+    return beginRow(name, sentence, spec)
+end
+local tips = H.calls.BeginTooltip or 0
+H.ret.IsItemHovered = { true }
+for tab = 1, 3 do H.tab(tab); H.frames(1) end
+H.ret.IsItemHovered = { false }
+widgets.BeginRow = beginRow
+rawset(imgui, 'TextDisabled', nil)
 tooltip.Hover = originalHover
+assert(hover == 0 and marks == 0 and (H.calls.BeginTooltip or 0) == tips, 'no help marks or tooltips, hovered or not')
+assert(sentences >= 27 + 3 + 9, 'rows with sentences on every tab: ' .. sentences)
 
--- Disabled shared tooltips must suppress help.
-local sharedTheme = theme.Shared()
-local enabled, isHovered = sharedTheme.TooltipsEnabled, imgui.IsItemHovered
-sharedTheme.TooltipsEnabled = false
-rawset(imgui, 'IsItemHovered', function() return true end)
-local before = H.calls.BeginTooltip or 0
-controls.Mark('Hidden help', true)
-assert((H.calls.BeginTooltip or 0) == before, 'shared tooltip visibility respected')
-sharedTheme.TooltipsEnabled = enabled
-rawset(imgui, 'IsItemHovered', isHovered)
-
--- Controls shrink in a resized window; do not use fixed pixel widths.
+-- The rows set every control's width, in a resized window as in one fitted: the addon pushes none of its own.
 local resized, available = window.IsResized, imgui.GetContentRegionAvail
 window.IsResized = function() return true end
 rawset(imgui, 'GetContentRegionAvail', function() return 180, 100 end)
-local widths = {}
-rawset(imgui, 'PushItemWidth', function(width) widths[#widths + 1] = width end)
+local pushes, begun = 0, 0
+rawset(imgui, 'PushItemWidth', function(width) assert(type(width) == 'number' and width > 0); pushes = pushes + 1 end)
+widgets.BeginRow = function(...) begun = begun + 1; return beginRow(...) end
 H.tab(1); H.frames(1)
 window.IsResized = resized
 rawset(imgui, 'GetContentRegionAvail', available)
 rawset(imgui, 'PushItemWidth', nil)
-assert(#widths > 0)
-for _, width in ipairs(widths) do assert(width >= 70 and width <= 180) end
+widgets.BeginRow = beginRow
+assert(begun > 0 and pushes == begun, 'the rows push every width, the addon none')
 
 -- Indicator is a game window with a theme title, outlined text and configurable hiding/fade.
 local plain, outlined, hidden = window.Plain, text.Outlined, game.IsHidden
@@ -177,4 +163,4 @@ hide = false
 indicator.Frame(os.clock())
 assert(drawn == 1, 'disabled fade leaves no lingering window')
 window.Plain, text.Outlined, game.IsHidden = plain, outlined, hidden
-H.print('trigger WinXI: shared theme, no appearance tab, indicator controls, tooltips, widths, indicator text/title/hide/fade', true)
+H.print('trigger WinXI: shared theme, no appearance tab, described rows on every tab, no help marks, row widths, indicator text/title/hide/fade', true)

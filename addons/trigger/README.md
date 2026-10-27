@@ -20,14 +20,16 @@ The optional "Twister" voice clips keep their original filenames and spoken word
 Appearance is controlled globally through the **winxisettings** addon. Trigger always follows
 the shared theme and has no Winxi Theme tab or addon-specific theme override.
 Settings have three tabs: **Notifications** for standard events and playback, **Triggers** for custom
-mob-action triggers, and **Toast** for the on-screen notification window. Toast controls **Fade In And
-Out** and **Grow From**; its extra options are hidden while **Enable Toast** is off.
+mob-action triggers, and **Toast** for the on-screen notification window. Every setting is a described
+row, as winxi lays them out: its name, a sentence under the name saying what it does, and its control
+at the right; there are no help marks or tooltips. An event's row is its switch, with its sound and
+Test button in the row under it, and a threshold or the items named under that; those rows are greyed
+while the event is off. Toast holds **Enable Toast**, then **Duration**, **Fade In And Out**, **Grow
+From** and the hiding rules under it, greyed while it is off.
 Settings windows use WinXI's separate settings appearance and can be resized;
-controls narrow to fit, with scrolling for rows that still need more room. The indicator uses the
+the sentences wrap to fit, with scrolling for rows that still need more room. The indicator uses the
 game-window theme, border, background, frame title and font, with outlined text for readability.
 The Toast tab's hiding rules apply to the toast only; notifications continue to sound.
-All help tooltips, including the `(?)` marks, use WinXI's shared tooltip settings from
-**winxisettings → Tooltips**.
 
 | Event | Sounds when |
 |---|---|
@@ -105,8 +107,8 @@ its mobs do, made with Create Trigger, and then a sound, chosen in the list of t
   Strikes, among them), and sounds as it is used.
 
 A trigger is for every mob of the kind, in any area. The kinds are listed with those of the area you are
-in first, under its name, and the rest under Elsewhere; the `(?)` beside a kind once chosen names its
-mobs in the area. What a kind can do is everything its mobs do between them, wherever they are, which
+in first, under its name, and the rest under Elsewhere; once a kind is chosen, the line at the foot of
+the tab names its mobs in the area. What a kind can do is everything its mobs do between them, wherever they are, which
 is more than any one of them does. What only a kind's notorious monsters do comes after that, in lists
 of its own, each under the monster's name and level, so that a beetle is not said to cast what one
 notorious beetle casts. The monsters of the area you are in come first, then the rest from the lowest
