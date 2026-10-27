@@ -7,8 +7,9 @@ Read only: /proc/<pid>/maps and /proc/<pid>/mem of phoenix-loader.exe. One line 
 
 arena: the committed part of the wine heap arena the records accumulate in (reserved at
 0x4b2a0000 in every session seen so far; --arena to change). orphans: 272-byte heap blocks
-holding a wined3d_light_info for light index 2, glIndex -1, direction (0,1,0) stored negated,
-which is the record that leaked ~800 times a second on 2026-10-26/27. The rate is per minute
+holding a wined3d_light_info for light index 2 with glIndex -1 (never given a GL light), the
+record that leaked ~800 times a second on 2026-10-26/27 as a black directional light and ~550
+a second on 2026-10-27 10:47 as a warm point light; the light's contents vary, the index does not. The rate is per minute
 since the previous sample.
 
     python3 tools/leakwatch.py                # every 60 s until the game exits or Ctrl-C
@@ -25,7 +26,7 @@ import subprocess
 import sys
 import time
 
-SIGNATURE = re.compile(rb'\x22\x00\x08\x00..\x75\x80\x03\x00\x00\x00', re.S)
+SIGNATURE = re.compile(rb'\x22\x00\x08\x00..\x75\x80', re.S)
 
 
 def find_pid():
@@ -57,8 +58,7 @@ def sample(pid, lo, hi):
                 if off + 272 > len(data):
                     continue
                 index, gl_index = struct.unpack_from('<Ii', data, off + 8 + 0x68)
-                direction_y = struct.unpack_from('<f', data, off + 8 + 0xb8)[0]
-                if index == 2 and gl_index == -1 and direction_y == -1.0:
+                if index == 2 and gl_index == -1:
                     orphans += 1
     return committed, orphans
 

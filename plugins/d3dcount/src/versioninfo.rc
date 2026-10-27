@@ -1,0 +1,28 @@
+1 VERSIONINFO
+ FILEVERSION 0,1,0,0
+ PRODUCTVERSION 0,1,0,0
+ FILEFLAGSMASK 0x3fL
+ FILEFLAGS 0
+ FILEOS 4
+ FILETYPE 2
+ FILESUBTYPE 0
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904E4"
+        BEGIN
+            VALUE "CompanyName", "win"
+            VALUE "FileDescription", "d3dcount - counts the d3d8 device's light and state block calls a frame"
+            VALUE "FileVersion", "0.1.0.0\0"
+            VALUE "InternalName", "d3dcount"
+            VALUE "LegalCopyright", "Copyright (c) 2026 win"
+            VALUE "OriginalFilename", "d3dcount.dll"
+            VALUE "ProductName", "d3dcount"
+            VALUE "ProductVersion", "0.1.0\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1252
+    END
+END
