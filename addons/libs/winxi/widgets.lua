@@ -784,8 +784,8 @@ function widgets.IconAppearance(appearanceHooks)
     end
 
     ResetRow('Reset Icons', resetPopups.icons, theme.IconKeys,
-        'Puts the icons back as they started, for every addon that shares the theme.',
-        'Puts this addon\'s icons back as they started.');
+        'Resets the icons for every addon that shares the theme.',
+        'Resets this addon\'s icons.');
 
     SaveIfChanged();
 end
@@ -807,7 +807,7 @@ function widgets.Appearance(appearanceHooks, parts)
     local offersChoice = hooks ~= nil and hooks.onUseShared ~= nil;
     if offersChoice and widgets.Header('Theme', true) then
         box[1] = theme.IsShared();
-        if widgets.Check('Use Shared Theme', 'Look like every other winxi addon, and change them all from here. Off, this addon keeps its own colours.', box, '##winxi.UseSharedTheme') then
+        if widgets.Check('Use Shared Theme', 'Uses the Winxi Theme, shared with every winxi addon and changed from here. Off, this addon keeps separate colours.', box, '##winxi.UseSharedTheme') then
             hooks.onUseShared(box[1] and true or false);
         end
     end
@@ -837,7 +837,7 @@ function widgets.Appearance(appearanceHooks, parts)
     -- edge round text written over a bar or the game
     if widgets.Header('Font') then
         FontChoice('FontFile', 'FontSize',
-            'The font every window is written in. Default is the built-in one; the rest are the fonts Windows has.',
+            'The font every window uses. Default is the built-in font, and the rest come from Windows.',
             'How big the words are. Default keeps the usual size.');
         widgets.Gap();
         ThemeSlider('Text Outline', 'TextOutline', 0, theme.MaxTextOutline, 'A dark edge round words written over a bar or the game, so they stay easy to read. 0 is none.', pixels);
@@ -848,8 +848,8 @@ function widgets.Appearance(appearanceHooks, parts)
     -- draws them with
     if widgets.Header('Styles') then
         if widgets.SubHeader('Border And Background', true) then
-            ThemeChoice('Window Border', 'BorderStyle', theme.BorderStyles, 'A decorative border in place of the plain line.');
-            ThemeChoice('Window Background', 'BackgroundStyle', theme.BackgroundStyles, 'A texture behind each window in place of the flat colour.');
+            ThemeChoice('Window Border', 'BorderStyle', theme.BorderStyles, 'A decorative border instead of the plain line.');
+            ThemeChoice('Window Background', 'BackgroundStyle', theme.BackgroundStyles, 'A texture behind each window instead of the flat colour.');
             ThemeChoice('Tab Style', 'TabStyle', theme.TabStyles, 'A finish over the tabs.');
             ThemeSlider('Border Opacity', 'BorderOpacity', 0, 100, 'How solid the border is. 0 is no border.', percent);
         end
@@ -858,7 +858,7 @@ function widgets.Appearance(appearanceHooks, parts)
         if current.FrameTitles then
             ThemeChoice('Title Style', 'TitleStyle', theme.TitleStyles, 'How the name sits on the edge.');
             ThemeColor('Title Color', 'TitleColor', 'The colour of the name.');
-            ThemeCheck('Title All Caps', 'TitleAllCaps', 'PARTY in place of Party.');
+            ThemeCheck('Title All Caps', 'TitleAllCaps', 'Writes the name in capitals, PARTY instead of Party.');
             FontChoice('TitleFontFile', 'TitleSize',
                 'The font the names are written in. Window Font uses the window\'s font.',
                 'How big the names are. Default matches the window\'s text.', titleFontNames);
@@ -876,9 +876,9 @@ function widgets.Appearance(appearanceHooks, parts)
         ThemeChoice('Bar Frame', 'BarFrame', theme.BarFrames, 'The frame round each bar.');
         ThemeSlider('Bar Frame Opacity', 'BarFrameOpacity', 0, 100, 'How solid the frame is. 0 is none.', percent);
         ThemeSlider('Fill End Glow', 'BarGlow', 0, 100, 'A soft light where the bar\'s fill ends. 0 is none.', percent);
-        ThemeCheck('Custom Bar Backdrop', 'BarBackdrop', 'Pick the colour of the empty part of each bar. Off, it is a darker shade of the bar.');
+        ThemeCheck('Custom Bar Backdrop', 'BarBackdrop', 'Lets you choose the colour of the empty part of each bar. Off, it is a darker shade of the bar.');
         if current.BarBackdrop then
-            ThemeColor('Bar Backdrop Color', 'BarBackdropColor', 'The colour of the empty part. Its alpha lets the dark trough show through.', dependent);
+            ThemeColor('Bar Backdrop Color', 'BarBackdropColor', 'The colour of the empty part. The more see-through it is, the more the dark behind it shows.', dependent);
         end
         ThemeCheck('Bar Bookends', 'Bookends', 'A small cap at each end of the bars.');
         if current.Bookends then
@@ -905,8 +905,8 @@ function widgets.Appearance(appearanceHooks, parts)
         resetKeys = gameKeysWithoutIcons;
     end
     ResetRow('Reset Appearance', resetPopups.game, resetKeys,
-        'Puts every setting above back as it started, for every addon that shares the theme.',
-        'Puts this addon\'s look back as it started.');
+        'Resets every setting above, for every addon that shares the theme.',
+        'Resets this addon\'s look.');
 
     SaveIfChanged();
 end
@@ -933,9 +933,9 @@ function widgets.SettingsAppearance(appearanceHooks)
         widgets.Gap();
         local current = theme.Get();
         heightSpec.format = (tonumber(current.SettingsWindowHeight) or 0) > 0 and '%d px' or 'Fit To Content';
-        ThemeSlider('Starting Height', 'SettingsWindowHeight', 0, theme.MaxSettingsWindowHeight, 'How tall a settings window is when it opens; what does not fit scrolls. Fit To Content makes it as tall as what is in it.', heightSpec);
+        ThemeSlider('Starting Height', 'SettingsWindowHeight', 0, theme.MaxSettingsWindowHeight, 'How tall a settings window is when it opens. What does not fit scrolls, and Fit To Content makes it as tall as its contents.', heightSpec);
         local _, drawnHeight = window.DrawnSize();
-        if drawnHeight ~= nil and widgets.Action('Use This Window\'s Height', 'Makes the height this window has now the starting height of every settings window.', 'Use##winxi.useHeight') then
+        if drawnHeight ~= nil and widgets.Action('Use This Window\'s Height', 'Makes every settings window open at this window\'s current height.', 'Use##winxi.useHeight') then
             current.SettingsWindowHeight = math.max(0, math.min(theme.MaxSettingsWindowHeight, math.floor(drawnHeight)));
             AfterControl(true);
         end
@@ -943,13 +943,13 @@ function widgets.SettingsAppearance(appearanceHooks)
 
     if widgets.Header('Font') then
         FontChoice('SettingsFontFile', 'SettingsFontSize',
-            'The font every settings window is written in. Default is the built-in one; the rest are the fonts Windows has.',
+            'The font every settings window uses. Default is the built-in font, and the rest come from Windows.',
             'How big the words are. Default keeps the usual size.');
     end
 
     ResetRow('Reset Settings Windows', resetPopups.settings, theme.SettingsWindowKeys,
-        'Puts every setting above back as it started, for every addon that shares the theme.',
-        'Puts this addon\'s settings windows back as they started.');
+        'Resets every setting above, for every addon that shares the theme.',
+        'Resets this addon\'s settings windows.');
 
     SaveIfChanged();
 end
@@ -994,8 +994,8 @@ function widgets.TooltipAppearance()
     end
 
     ResetRow('Reset Tooltips', resetPopups.tooltips, theme.TooltipKeys,
-        'Puts every setting above back as it started, for every winxi addon.',
-        'Puts every setting above back as it started.');
+        'Resets every setting above, for every winxi addon.',
+        'Resets every setting above.');
 
     SaveIfChanged();
 end
@@ -1106,7 +1106,7 @@ function widgets.FontFile(options, key, id, spec)
         return changed;
     end
     local chosen = widgets.Dropdown(spec.label or 'Font',
-        spec.description or ('The font for this addon\'s text. %s follows the Winxi Theme; the rest are the fonts Windows has.'):format(themeLabel),
+        spec.description or ('The font for this addon\'s text. %s follows the Winxi Theme, and the rest come from Windows.'):format(themeLabel),
         choices, file, id, spec);
     if chosen ~= nil then
         options[key] = chosen;
@@ -1177,13 +1177,13 @@ local fadeDependent = { parent = true };
 -- is called when a change is final (the mouse is up), for the addon to save its settings.
 -- grouped optionally splits the detailed controls into sub-sections (widgets.SubHeader).
 function widgets.Fade(settings, onChanged, grouped)
-    FadeCheck(settings, 'Fade When Idle', 'Enabled', 'The windows fade out after you have stood still for a while, and come back as soon as you move.');
+    FadeCheck(settings, 'Fade When Idle', 'Enabled', 'Fades the windows out after you stand still for a while. They come back as soon as you move.');
 
     if settings.Enabled then
         if not grouped or widgets.SubHeader('Timing And Opacity', true) then
             FadeNumber(settings, 'Idle Time', 'Delay', 1, 120, fadeDelay, 'How long you stand still before they start to fade.');
             FadeNumber(settings, 'Idle Fade Time', 'Duration', 0, 5, fadeDuration, 'How long the fading out takes.');
-            FadeNumber(settings, 'Fade In/Out Time', 'Transition', 0, 1, fadeTransition, 'How long a window takes to appear, to go, and to come back when you move. At 0 it is at once.');
+            FadeNumber(settings, 'Fade In/Out Time', 'Transition', 0, 1, fadeTransition, 'How long a window takes to appear, go, or come back. At 0 it is instant.');
             FadeNumber(settings, 'Faded Opacity', 'Opacity', 0, 100, fadeOpacity, 'How much of a faded window still shows. At 0 it disappears.');
         end
         if not grouped or widgets.SubHeader('Keep Frames Visible') then
@@ -1219,7 +1219,7 @@ end
 -- describes). onChanged, if given, is called when a change is final, for the addon to save its settings.
 function widgets.Hide(settings, onChanged)
     HideCheck(settings, 'Hide While Map Open', 'UnderMap', 'The windows go while the map is open.');
-    HideCheck(settings, 'Hide While Chat Open', 'UnderChat', 'The windows go while the chat log is opened right out.');
+    HideCheck(settings, 'Hide While Chat Open', 'UnderChat', 'The windows go while the chat log is fully open.');
     HideCheck(settings, 'Hide While Loading', 'WhileLoading', 'The windows go while you change area.');
     HideCheck(settings, 'Hide During Events', 'DuringEvent', 'The windows go during cutscenes and while you talk to someone.');
     HideCheck(settings, 'Hide With Game Interface', 'WithInterface', 'The windows go when you hide the game interface.');

@@ -52,19 +52,19 @@ local function DrawLayouts()
     widgets.BeginLabels('winxisettings.layouts')
 
     if widgets.Header('Layouts', true) then
-        widgets.BeginRow('Resolution', 'The size of the game\'s window now. A layout is kept under the resolution it is for.')
+        widgets.BeginRow('Resolution', 'The size of the game window now. Each layout is kept for one resolution.')
         imgui.AlignTextToFramePadding()
         imgui.Text(resolution)
         widgets.EndRow()
 
         automatic[1] = layouts.IsAutomatic()
-        if widgets.Check('Switch With Resolution', 'Starting the game at another resolution puts in the layout kept for it, if there is one.', automatic, '##winxisettings.automatic') then
+        if widgets.Check('Switch With Resolution', 'Starting the game at another resolution loads the layout kept for it, if there is one.', automatic, '##winxisettings.automatic') then
             layouts.SetAutomatic(automatic[1])
         end
 
         local pending = layouts.Pending()
         if pending ~= nil then
-            widgets.BeginRow('Next Start', 'This layout is used the next time the game starts, before a character logs in.')
+            widgets.BeginRow('Next Start', 'Uses this layout the next time the game starts, before a character logs in.')
             imgui.AlignTextToFramePadding()
             imgui.Text(pending)
             imgui.SameLine()
@@ -77,7 +77,7 @@ local function DrawLayouts()
         widgets.Gap()
         local sentence = saveSentences[resolution]
         if sentence == nil then
-            sentence = ('Keeps every addon\'s settings and the Winxi Theme as they are now, as the layout for %s.'):format(resolution)
+            sentence = ('Saves every addon\'s settings and the Winxi Theme as they are now, as the layout for %s.'):format(resolution)
             saveSentences[resolution] = sentence
         end
         if widgets.Action('Save Layout', sentence, 'Save Layout##winxisettings.save') and resolution ~= '?' then

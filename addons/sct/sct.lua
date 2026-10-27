@@ -370,7 +370,7 @@ end
 -- Settings
 
 local speedSpec = { format = '%d px/s' };
-local lockSpec = { description = 'Keeps the box where it is, and lets clicks through it. Off, it can be dragged, and its edge is drawn so you can see it.' };
+local lockSpec = { description = 'Keeps the box where it is, and lets clicks through it. Off, you can drag it and its edge shows.' };
 local dropsLockSpec = { label = 'Lock Drops', description = 'Keeps the item box where it is, and lets clicks through it. Locked, it hides while empty.' };
 local dropsDependent, dropsLockDependent, dropsPositionDependent = {}, {}, {};
 
@@ -398,7 +398,7 @@ local function DrawSettings(options)
     end
 
     if widgets.Header('Received Items') then
-        widgets.Check('Show Received Items', 'A line with its picture as you get an item or a key item.', options.showDrops, '##sct.showDrops');
+        widgets.Check('Show Received Items', 'Shows a line with its picture when you get an item or key item.', options.showDrops, '##sct.showDrops');
         if widgets.Check('Separate Popup', 'Items get their own box instead of scrolling with the statuses.', options.dropsSeparate, '##sct.dropsSeparate', dropsDependent) then place = true; end
         if options.dropsSeparate[1] then
             widgets.Lock(options.dropsLocked, '##sct.dropsLocked', dropsLockSpec);
@@ -409,8 +409,8 @@ local function DrawSettings(options)
     end
 
     if widgets.Header('Lines') then
-        widgets.Check('Show Gained', 'A line as you gain a status.', options.showGained, '##sct.showGained');
-        widgets.Check('Show Lost', 'A line as you lose one.', options.showLost, '##sct.showLost');
+        widgets.Check('Show Gained', 'Shows a line as you gain a status.', options.showGained, '##sct.showGained');
+        widgets.Check('Show Lost', 'Shows a line as you lose one.', options.showLost, '##sct.showLost');
         widgets.Color('Buff Color', 'The colour of a helpful status gained.', options.buffColor, '##sct.buffColor');
         widgets.Color('Enfeeble Color', 'The colour of a harmful status gained.', options.enfeebleColor, '##sct.enfeebleColor');
         widgets.Color('Lost Color', 'The colour of a status lost.', options.lostColor, '##sct.lostColor');
