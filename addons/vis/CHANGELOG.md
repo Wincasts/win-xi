@@ -3,6 +3,7 @@
 ## 2.2
 
 - `/vis terrain` is off by default: drawing the terrain the zone would hide costs frames in big zones, and with the fog at stock most of it is fogged out. A terrain on saved before 2.2 (when on was the default) is turned off once, and vis says so at load; `/vis terrain on` brings it back.
+- The kind of each zone (city, outdoors, dungeon), for the presets, is read from the server's data as winxi keeps it, so the release carries its own copy of the parts of winxi it uses (addons/vis/winxi). It still needs nothing else.
 
 ## 2.1 — first release
 

@@ -309,7 +309,7 @@ new.kind = nil;
 drawn = {};
 p.draw(new, nil, 742);
 check('no known kind: open country, over a horizon line', count('AddRect') == 0 and count('AddRectFilledMultiColor') == 4 and texts()['Davoi'] ~= nil);
-local kinds = dofile('addons/libs/winxi/data/phoenix/zonekinds/index.lua');
+local kinds = require('winxi.gamedata').Read('zonekinds', 'index');
 check('the kinds are vis\'s', kinds[230] == 'city' and kinds[100] == 'outdoors' and kinds[149] == 'dungeon');
 drawn = {};
 H.command('/zone test kind');

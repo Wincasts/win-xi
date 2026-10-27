@@ -221,9 +221,9 @@ H = {
 
 -- The checks were written against winxi's plain look, from before the shipped theme took on borders,
 -- backgrounds and titles of its own: they get that look, so that what they measure does not move
--- whenever the shipped defaults do.
-do
-    local theme = require('winxi.theme')
+-- whenever the shipped defaults do. An addon released with its own winxi may carry no theme.
+local hasTheme, theme = pcall(require, 'winxi.theme')
+if hasTheme then
     local plain = {
         BackgroundColor = { 0.08, 0.08, 0.08, 0.8 }, BorderColor = { 0.69, 0.68, 0.78, 1.0 },
         ThemeTabColor = { 0.20, 0.54, 0.58, 1.0 }, HighlightColor = { 0.69, 0.68, 0.78, 0.4 },
