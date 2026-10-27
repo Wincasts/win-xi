@@ -49,31 +49,20 @@ ashita.events.register('command', 'command_cb', function (e)
         elseif (string.lower(args[2]) == 'test') then
             local successCount = 0;
             local totalCount = 0;
+            -- every area winxi's mobs set has, read as the addon reads it
+            local mobs = require('winxi.mobs');
             for index = 1,300 do
-                local path = string.format('%saddons/mobdb/data/%u.lua', AshitaCore:GetInstallPath(), index);
-                if ashita.fs.exists(path) then
+                local output = mobs.Zone(index);
+                if output ~= nil then
                     totalCount = totalCount + 1;
-                    local success, loadError = loadfile(path);
-                    if not success then
-                        print(chat.header('MobDB') .. chat.error(string.format('Failed to load resource file: %s', path)));
-                        print(chat.header('MobDB') .. chat.error(loadError));
-                        return nil;
-                    end
-
-                    local result, output = pcall(success);
-                    if not result then
-                        print(chat.header('MobDB') .. chat.error(string.format('Failed to call resource file: %s', path)));
-                        print(chat.header('MobDB') .. chat.error(loadError));
-                        return nil;
-                    end
-
-                    if type(output) ~= 'table' then
-                        print(chat.header('MobDB') .. chat.error(string.format('Resource file did not return a table: %s', path)));
+                    if type(output.Names) ~= 'table' or type(output.Indices) ~= 'table' then
+                        print(chat.header('MobDB') .. chat.error(string.format('winxi\'s mobs for area %u have no Names or Indices', index)));
                     else
                         successCount = successCount + 1;
                     end
                 end
             end
+            print(chat.header('MobDB') .. chat.message(string.format('%u of %u areas read.', successCount, totalCount)));
 
         elseif (string.lower(args[2]) == 'import') then
             if (#args > 2) then

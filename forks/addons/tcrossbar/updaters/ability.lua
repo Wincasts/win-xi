@@ -104,20 +104,60 @@ local function GetAbilityTimerData(id)
     };
 end
 
-local function GetMaxStratagems()
-    -- Determine the players SCH level..
-    local player = AshitaCore:GetMemoryManager():GetPlayer();
-    local lvl = player:GetMainJobLevel();
-    if (player:GetMainJob() ~= 20) then
-        if (player:GetSubJob() == 20) then
-            lvl = player:GetSubJobLevel();
-        else
-            return 0;
+-- fork: a charged ability's charges and the seconds each takes to come back, as the server has them
+-- (winxi.abilities' Charges, made from its abilities_charges table) for a job at a level, or nil
+-- where winxi's data is not installed or has none
+local chargesByRecast = nil;
+local function ServerCharges(recastId, job, level)
+    if (chargesByRecast == nil) then
+        chargesByRecast = {};
+        local ok, abilities = pcall(require, 'winxi.abilities');
+        if ok then
+            for _, id in ipairs(abilities.Ids()) do
+                local record = abilities.Get(id);
+                for _, row in ipairs(record and record.Charges or {}) do
+                    local list = chargesByRecast[row.recastId] or {};
+                    chargesByRecast[row.recastId] = list;
+                    list[#list + 1] = row;
+                end
+            end
         end
     end
+    local best = nil;
+    for _, row in ipairs(chargesByRecast[recastId] or {}) do
+        if (row.job == job) and (row.level <= level) and ((best == nil) or (row.level > best.level)) then
+            best = row;
+        end
+    end
+    return best;
+end
 
-    -- Calculate max number of stratagems..
-    return math.floor((lvl - 10) / 20) + 1;
+-- fork: the level the player has a job at, main or sub, or nil
+local function JobLevel(job)
+    local player = AshitaCore:GetMemoryManager():GetPlayer();
+    if (player:GetMainJob() == job) then
+        return player:GetMainJobLevel();
+    elseif (player:GetSubJob() == job) then
+        return player:GetSubJobLevel();
+    end
+    return nil;
+end
+
+-- The most of a charged ability and the seconds of the whole recast, the server's where it has them
+local function Charges(recastId, job, fallbackCount, fallbackSeconds)
+    local level = JobLevel(job);
+    if (level == nil) then
+        return 0, 0;
+    end
+    local row = ServerCharges(recastId, job, level);
+    if row then
+        return row.maxCharges, row.maxCharges * row.chargeTime;
+    end
+    return fallbackCount(level), fallbackSeconds;
+end
+
+local function GetMaxStratagems()
+    return (Charges(231, 20, function (lvl) return math.floor((lvl - 10) / 20) + 1; end, 240));
 end
 
 local function GetRecastTimer(timerId)
@@ -186,7 +226,8 @@ local function GetStratagemData()
         return maxCount, '', 0;
     end
     
-    local baseRecast = 60 * (240 + data.Modifier);
+    local _, seconds = Charges(231, 20, function (lvl) return maxCount; end, 240);
+    local baseRecast = 60 * (seconds + data.Modifier);
     local chargeValue = baseRecast / maxCount;
     local remainingCharges = math.floor((baseRecast - data.Recast) / chargeValue);
     local timeUntilNextCharge = math.fmod(data.Recast, chargeValue);
@@ -194,26 +235,30 @@ local function GetStratagemData()
 end
 
 local function GetQuickDrawData()
+    local count, seconds = Charges(195, 17, function () return 2; end, 120);
+    if (count == 0) then count, seconds = 2, 120; end -- a Quick Draw on the bar of a job that has none
     local data = GetAbilityTimerData(195);
     if (data.Recast == 0) then
-        return 2, '', 0;
+        return count, '', 0;
     end
     
-    local baseRecast = 60 * (120 + data.Modifier);
-    local chargeValue = baseRecast / 2;
+    local baseRecast = 60 * (seconds + data.Modifier);
+    local chargeValue = baseRecast / count;
     local remainingCharges = math.floor((baseRecast - data.Recast) / chargeValue);
     local timeUntilNextCharge = math.fmod(data.Recast, chargeValue);
     return remainingCharges, RecastToString(timeUntilNextCharge), timeUntilNextCharge, chargeValue;
 end
 
 local function GetReadyData()
+    local count, seconds = Charges(102, 9, function () return 3; end, 90);
+    if (count == 0) then count, seconds = 3, 90; end -- a Ready on the bar of a job that has none
     local data = GetAbilityTimerData(102);
     if (data.Recast == 0) then
-        return 3, '', 0;
+        return count, '', 0;
     end
 
-    local baseRecast = 60 * (90 + data.Modifier);
-    local chargeValue = baseRecast / 3;
+    local baseRecast = 60 * (seconds + data.Modifier);
+    local chargeValue = baseRecast / count;
     local remainingCharges = math.floor((baseRecast - data.Recast) / chargeValue);
     local timeUntilNextCharge = math.fmod(data.Recast, chargeValue);
     return remainingCharges, RecastToString(timeUntilNextCharge), timeUntilNextCharge, chargeValue;

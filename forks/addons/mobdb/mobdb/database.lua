@@ -1,3 +1,6 @@
+-- An area's monsters are winxi's (winxi.mobs: winxi's mobs set, made from the server by
+-- tools/build_winxi_data.py), not a folder of mobdb's own.
+local mobs = require('winxi.mobs');
 local database = {};
 
 database.Load = function(self, zone, subZone)
@@ -19,30 +22,10 @@ database.Load = function(self, zone, subZone)
         return;
     end
 
-    local path = string.format('%saddons/mobdb/data/%u.lua', AshitaCore:GetInstallPath(), zone);
-    if (self.SubZone ~= nil) then
-        local subPath = string.format('%saddons/mobdb/data/%u.lua', AshitaCore:GetInstallPath(), self.SubZone);
-        if ashita.fs.exists(subPath) then
-            path = subPath;
-        end
-    end
-    if (ashita.fs.exists(path)) then
-        local success, loadError = loadfile(path);
-        if not success then
-            print(chat.header('MobDB') .. chat.error(string.format('Failed to load resource file: %s', path)));
-            print(chat.header('MobDB') .. chat.error(loadError));
-            return nil;
-        end
-
-        local result, output = pcall(success);
-        if not result then
-            print(chat.header('MobDB') .. chat.error(string.format('Failed to call resource file: %s', path)));
-            print(chat.header('MobDB') .. chat.error(tostring(output)));
-            return nil;
-        end
-    
-        self.Indices = output.Indices;
-        self.Names = output.Names;
+    local output = mobs.Zone(zone, self.SubZone);
+    if (output ~= nil) then
+        self.Indices = output.Indices or T{};
+        self.Names = output.Names or T{};
     end
 end
 

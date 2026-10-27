@@ -447,6 +447,49 @@ local weaponskillResonationMap = T{
     [239] = T{ Resonation.Light, Resonation.Fusion } --Glory Slash
 };
 
+-- fork: on the server tcrossbar is loaded for, which weapon skill and which Chain Affinity spell opens
+-- what is the server's (winxi.weaponskills, winxi.spells' blue magic rows, made from it), where its
+-- data is installed; the tables above, the original addon's, where it is not
+local function ServerResonations()
+    local okSkills, weaponskills = pcall(require, 'winxi.weaponskills');
+    local okSpells, spells = pcall(require, 'winxi.spells');
+    if not okSkills or not okSpells or #weaponskills.Ids() == 0 then
+        return nil, nil;
+    end
+    -- the server's name for a property (IMPACTION, LIGHT_II) to tcrossbar's
+    local function Of(catalog, value)
+        local name = (value or 0) > 0 and catalog.EnumName('skillchain', value) or nil;
+        if type(name) ~= 'string' then return nil; end
+        name = name:lower():gsub('^%l', string.upper):gsub('_ii$', '2');
+        return Resonation[name];
+    end
+    local function Properties(catalog, row)
+        local found = T{};
+        for _, field in ipairs({ 'primary_sc', 'secondary_sc', 'tertiary_sc' }) do
+            local property = Of(catalog, row[field]);
+            if property then found:append(property); end
+        end
+        return #found > 0 and found or nil;
+    end
+    local skills, affinity = T{}, T{};
+    for _, id in ipairs(weaponskills.Ids()) do
+        local record = weaponskills.Get(id);
+        skills[id] = record and record.Data and Properties(weaponskills, record.Data) or nil;
+    end
+    for _, id in ipairs(spells.Ids()) do
+        local record = spells.Get(id);
+        local blue = record and record.Blue and record.Blue[1];
+        affinity[id] = blue and Properties(spells, blue) or nil;
+    end
+    return skills, affinity;
+end
+do
+    local ok, skills, affinity = pcall(ServerResonations);
+    if ok and skills then
+        weaponskillResonationMap, chainAffinityResonationMap = skills, affinity;
+    end
+end
+
 local resonationMap = T{};
 
 local lastIndex = {}; -- fork: server id -> the index it was last found at

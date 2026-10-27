@@ -27,6 +27,9 @@ This process is only intended for advanced users, and will allow you to generate
 4. Type the command "/mobdb import wings" or "/mobdb import lsb" or "/mobdb import custom" ingame.  This may take several minutes depending on your system.
 5. Copy the files generated from Ashita/config/addons/mobdb/output/ to Ashita/addons/mobdb/data.
 
+## This Fork's Data ##
+This fork reads each area's monsters from winxi's mobs set (`winxi.mobs`, in `addons/libs/winxi/data/mobs`), which `tools/build_winxi_data.py` makes from the server with `import_phoenix.py`; it has no `data` folder of its own. The importers below still write files in MobDB's format, which the data pack for MobDB as its author releases it is made of.
+
 ## Generating Data For A YAML-Based Server (Phoenix) ##
 Newer LandSandBoat forks keep mobs in `data/zones/<zone>/mobs.yaml` and `data/ecosystems.yaml` rather than the mob SQL files, so the importers above cannot read them.  `import_phoenix.py` reads the server checkout directly and runs outside the game.  It needs Python 3 and PyYAML.
 1. Run `python import_phoenix.py --server <path to server checkout> --out <Ashita/config/addons/mobdb/output>`.
