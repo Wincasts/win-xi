@@ -72,6 +72,27 @@ local possibleSkillchains = T{
     { Resonation.Compression, Resonation.Induration, Resonation.Compression }   
 }
 
+-- fork: which opening and closing properties make which skillchain: the server's (winxi.rules' skillchain
+-- pairs, from its skillchain_map), the table above where winxi's data is not installed. The server's
+-- Light II and Darkness II of a Light or Darkness closed again are Light and Darkness here, as above:
+-- the handler below makes them the second level.
+do
+    local ok, rules = pcall(require, 'winxi.rules');
+    local window = ok and rules.Get('skillchain') or nil;
+    if window and window.Pairs and #window.Pairs > 0 then
+        local function Of(name)
+            name = name:gsub('_II$', ''):lower():gsub('^%l', string.upper);
+            return Resonation[name];
+        end
+        local found = T{};
+        for _, pair in ipairs(window.Pairs) do
+            local made, opening, closing = Of(pair.Makes), Of(pair.Open), Of(pair.Close);
+            if made and opening and closing then found:append(T{ made, opening, closing }); end
+        end
+        if #found == #window.Pairs then possibleSkillchains = found; end
+    end
+end
+
 local skillchainMessageIds = T{
     [288] = Resonation.Light,
     [289] = Resonation.Darkness,
@@ -490,6 +511,19 @@ do
     end
 end
 
+-- fork: when a skillchain can be closed: opening this long after the weapon skill, closing this long
+-- after it, less a step for each step the chain has gone: the server's (winxi.rules' skillchain:
+-- 3 s, 10 s, 1 s), with half a second added to the opening and a fifth taken off the closing for the
+-- time the packets take; these where winxi's data is not installed
+local windowOpens, windowLasts, windowShorter = 3.5, 9.8, 1;
+do
+    local ok, rules = pcall(require, 'winxi.rules');
+    local window = ok and rules.Get('skillchain') or nil;
+    if window and window.OpenAfter then
+        windowOpens, windowLasts, windowShorter = window.OpenAfter + 0.5, window.Lasts - 0.2, window.ShorterPerStep;
+    end
+end
+
 local resonationMap = T{};
 
 local lastIndex = {}; -- fork: server id -> the index it was last found at
@@ -600,14 +634,14 @@ local function HandleActionPacket(actionPacket)
                             else
                                 resonation.Attributes = T{ skillchain };
                             end
-                            resonation.WindowOpen = os.clock() + 3.5;
-                            resonation.WindowClose = os.clock() + (9.8 - resonation.Depth);
+                            resonation.WindowOpen = os.clock() + windowOpens;
+                            resonation.WindowClose = os.clock() + (windowLasts - windowShorter * resonation.Depth);
                         else
                             resonation = T{};
                             resonation.Depth = 1;
                             resonation.Attributes = T{ skillchain };
-                            resonation.WindowOpen = os.clock() + 3.5;
-                            resonation.WindowClose = os.clock() + (9.8 - resonation.Depth);
+                            resonation.WindowOpen = os.clock() + windowOpens;
+                            resonation.WindowClose = os.clock() + (windowLasts - windowShorter * resonation.Depth);
                             resonationMap[targetIndex] = resonation;
                         end
                     
@@ -617,8 +651,8 @@ local function HandleActionPacket(actionPacket)
                             local resonation = T{};
                             resonation.Depth = 0;
                             resonation.Attributes = attributes;
-                            resonation.WindowOpen = os.clock() + 3.5;
-                            resonation.WindowClose = os.clock() + (9.8 - resonation.Depth);
+                            resonation.WindowOpen = os.clock() + windowOpens;
+                            resonation.WindowClose = os.clock() + (windowLasts - windowShorter * resonation.Depth);
                             resonationMap[targetIndex] = resonation;
                         end
                     end
@@ -649,14 +683,14 @@ local function HandleActionPacket(actionPacket)
                             else
                                 resonation.Attributes = T{ skillchain };
                             end
-                            resonation.WindowOpen = os.clock() + 3.5;
-                            resonation.WindowClose = os.clock() + (9.8 - resonation.Depth);
+                            resonation.WindowOpen = os.clock() + windowOpens;
+                            resonation.WindowClose = os.clock() + (windowLasts - windowShorter * resonation.Depth);
                         else
                             resonation = T{};
                             resonation.Depth = 1;
                             resonation.Attributes = T{ skillchain };
-                            resonation.WindowOpen = os.clock() + 3.5;
-                            resonation.WindowClose = os.clock() + (9.8 - resonation.Depth);
+                            resonation.WindowOpen = os.clock() + windowOpens;
+                            resonation.WindowClose = os.clock() + (windowLasts - windowShorter * resonation.Depth);
                             resonationMap[targetIndex] = resonation;
                         end
                     else
@@ -665,8 +699,8 @@ local function HandleActionPacket(actionPacket)
                             local resonation = T{};
                             resonation.Depth = 1;
                             resonation.Attributes = elements;
-                            resonation.WindowOpen = os.clock() + 3.5;
-                            resonation.WindowClose = os.clock() + (9.8 - resonation.Depth);
+                            resonation.WindowOpen = os.clock() + windowOpens;
+                            resonation.WindowClose = os.clock() + (windowLasts - windowShorter * resonation.Depth);
                             resonationMap[targetIndex] = resonation;
                         end
                     end
