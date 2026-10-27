@@ -443,7 +443,7 @@ for _, kind in ipairs(textKinds) do
     kind.sizeSpec = { description = ('How big the %s is. Theme Size follows the Winxi Theme.'):format(lower) }
     kind.alignSentence = ('Which part of the bar the %s goes to, before its offset.'):format(lower)
     kind.xSentence = ('How far right the %s is moved from there, or left below 0.'):format(lower)
-    kind.ySentence = ('How far down the %s is moved from the bar\'s middle, or up below 0. Moved off the bar, the window grows to hold it.'):format(lower)
+    kind.ySentence = ('How far down the %s is moved from the bar\'s middle, or up below 0.'):format(lower)
 end
 
 local function DrawText(options, kind)
