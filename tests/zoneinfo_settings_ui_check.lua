@@ -11,7 +11,9 @@ local headers, labels, disabled, presses = {}, {}, 0, {};
 local real = { TextColored = imgui.TextColored, Button = imgui.Button, BeginDisabled = imgui.BeginDisabled,
     EndDisabled = imgui.EndDisabled, SliderFloat = imgui.SliderFloat };
 imgui.TextColored = function(color, words)
-    headers[#headers + 1] = (words:gsub('^%[[-+]%] ', '')); return real.TextColored(color, words);
+    -- a title, then its [-] or [+] marker in a text of its own (winxi 65)
+    if words ~= '[-]' and words ~= '[+]' then headers[#headers + 1] = words; end
+    return real.TextColored(color, words);
 end;
 imgui.Button = function(label) labels[#labels + 1] = label; return presses[label] == true; end;
 local greyed = {};
