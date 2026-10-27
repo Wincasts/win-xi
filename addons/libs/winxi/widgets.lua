@@ -28,6 +28,10 @@
 --                                    it, and it returns whether it is open, for the section to be
 --                                    drawn only then. It sets itself apart from the section above; no
 --                                    Gap before it
+--   widgets.SubHeader(text, first)   a sub-section inside a section, for a section with many families:
+--                                    its title indented a step, its rows a step more, collapsible as a
+--                                    section is. The next SubHeader or Header ends it; a row after the
+--                                    last sub-section calls widgets.EndSub() first
 --   widgets.Gap()                    between one family of settings and the next, within a section: a faint
 --                                    rule across the window, with a little air either side. Never before a
 --                                    header, which sets itself apart
@@ -570,12 +574,13 @@ widgets.HeaderColor = { 1.0, 0.75, 0.55, 1.0 };
 
 local collapsed = {};   -- group -> { title -> true while that section is collapsed }
 local headerTexts = {}; -- title -> { as shown open, as shown collapsed }, made once
+local currentHeader = ''; -- the section being drawn, which its sub-sections are kept under
+local subIndent = 0;      -- the steps the sub-section being drawn has indented by: its title's, and its rows'
+local subGap = { 0, 3 };  -- before a sub-section's title
 
--- defaultCollapsed is optional; it affects only the first visit to this section.
-function widgets.Header(text, first, defaultCollapsed)
-    if not first then
-        imgui.NewLine();
-    end
+-- Draws a title, [-] or [+] before it, and returns whether its section is open. key is what the
+-- collapsed state is kept under.
+local function Title(text, key, defaultCollapsed)
     local shown = headerTexts[text];
     if shown == nil then
         shown = { '[-] ' .. text, '[+] ' .. text };
@@ -587,17 +592,52 @@ function widgets.Header(text, first, defaultCollapsed)
         collapsed[labelGroup] = group;
     end
 
-    if group[text] == nil and defaultCollapsed then group[text] = true; end
-    local isCollapsed = group[text] == true;
+    if group[key] == nil and defaultCollapsed then group[key] = true; end
+    local isCollapsed = group[key] == true;
     imgui.TextColored(theme.Get().SettingsHeaderColor or widgets.HeaderColor, isCollapsed and shown[2] or shown[1]);
     if imgui.IsItemHovered() and ImGuiMouseCursor_Hand ~= nil then
         imgui.SetMouseCursor(ImGuiMouseCursor_Hand);
     end
     if imgui.IsItemClicked() then
         isCollapsed = not isCollapsed;
-        group[text] = isCollapsed;
+        group[key] = isCollapsed;
     end
     return not isCollapsed;
+end
+
+-- Ends the sub-section being drawn: the rows after it are back under the section
+function widgets.EndSub()
+    for _ = 1, subIndent do
+        imgui.Unindent();
+    end
+    subIndent = 0;
+end
+
+-- defaultCollapsed is optional; it affects only the first visit to this section.
+function widgets.Header(text, first, defaultCollapsed)
+    widgets.EndSub();
+    currentHeader = text;
+    if not first then
+        imgui.NewLine();
+    end
+    return Title(text, text, defaultCollapsed);
+end
+
+-- A sub-section of the section being drawn: its title a step in, its rows a step more. It ends at the
+-- next SubHeader or Header, or at widgets.EndSub. first: the first in its section, with no gap before it.
+function widgets.SubHeader(text, first, defaultCollapsed)
+    widgets.EndSub();
+    if not first then
+        imgui.Dummy(subGap);
+    end
+    imgui.Indent();
+    subIndent = 1;
+    local open = Title(text, currentHeader .. '/' .. text, defaultCollapsed);
+    if open then
+        imgui.Indent();
+        subIndent = 2;
+    end
+    return open;
 end
 
 local resetPopups = {
@@ -647,6 +687,7 @@ end
 -- own theme is reset at once. The shared one is everyone's, so that is confirmed first.
 local function ResetRow(label, popup, keys, sentenceShared, sentenceOwn)
     local shared = theme.IsShared();
+    widgets.EndSub();
     widgets.Gap();
     if widgets.Action(label, shared and sentenceShared or sentenceOwn, popup.button) then
         if shared then
@@ -806,11 +847,13 @@ function widgets.Appearance(appearanceHooks, parts)
     -- The styles: the window border for every window, and what an addon that draws bars or statuses
     -- draws them with
     if widgets.Header('Styles') then
-        ThemeChoice('Window Border', 'BorderStyle', theme.BorderStyles, 'A decorative border in place of the plain line.');
-        ThemeChoice('Window Background', 'BackgroundStyle', theme.BackgroundStyles, 'A texture behind each window in place of the flat colour.');
-        ThemeChoice('Tab Style', 'TabStyle', theme.TabStyles, 'A finish over the tabs.');
-        ThemeSlider('Border Opacity', 'BorderOpacity', 0, 100, 'How solid the border is. 0 is no border.', percent);
-        widgets.Gap();
+        if widgets.SubHeader('Border And Background', true) then
+            ThemeChoice('Window Border', 'BorderStyle', theme.BorderStyles, 'A decorative border in place of the plain line.');
+            ThemeChoice('Window Background', 'BackgroundStyle', theme.BackgroundStyles, 'A texture behind each window in place of the flat colour.');
+            ThemeChoice('Tab Style', 'TabStyle', theme.TabStyles, 'A finish over the tabs.');
+            ThemeSlider('Border Opacity', 'BorderOpacity', 0, 100, 'How solid the border is. 0 is no border.', percent);
+        end
+        if widgets.SubHeader('Titles') then
         ThemeCheck('Frame Titles', 'FrameTitles', 'Writes each window\'s name along its top edge.');
         if current.FrameTitles then
             ThemeChoice('Title Style', 'TitleStyle', theme.TitleStyles, 'How the name sits on the edge.');
@@ -827,7 +870,8 @@ function widgets.Appearance(appearanceHooks, parts)
                 ThemeSlider('Title Shadow Opacity', 'TitleShadowOpacity', 0, 100, 'How dark the copy is.', percent);
             end
         end
-        widgets.Gap();
+        end
+        if widgets.SubHeader('Bars') then
         ThemeChoice('Bar Texture', 'BarTexture', theme.BarTextures, 'The look of the HP and MP bars.');
         ThemeChoice('Bar Frame', 'BarFrame', theme.BarFrames, 'The frame round each bar.');
         ThemeSlider('Bar Frame Opacity', 'BarFrameOpacity', 0, 100, 'How solid the frame is. 0 is none.', percent);
@@ -841,10 +885,11 @@ function widgets.Appearance(appearanceHooks, parts)
             ThemeChoice('Bookend Style', 'BookendStyle', theme.BookendStyles, 'The look of the caps.', dependent);
             ThemeSlider('Bookend Opacity', 'BookendOpacity', 0, 100, 'How solid the caps are. 0 is none.', dependentPercent);
         end
-        if withIcons then
-            widgets.Gap();
+        end
+        if withIcons and widgets.SubHeader('Icons') then
             StatusIcons();
         end
+        widgets.EndSub();
     end
 
     local resetKeys = theme.GameWindowKeys;
@@ -1130,18 +1175,18 @@ local fadeDependent = { parent = true };
 
 -- The controls for an addon's idle-fade settings (a table as winxi.fade describes). onChanged, if given,
 -- is called when a change is final (the mouse is up), for the addon to save its settings.
--- grouped optionally splits the detailed controls into collapsible sections.
+-- grouped optionally splits the detailed controls into sub-sections (widgets.SubHeader).
 function widgets.Fade(settings, onChanged, grouped)
     FadeCheck(settings, 'Fade When Idle', 'Enabled', 'The windows fade out after you have stood still for a while, and come back as soon as you move.');
 
     if settings.Enabled then
-        if not grouped or widgets.Header('Timing And Opacity') then
+        if not grouped or widgets.SubHeader('Timing And Opacity', true) then
             FadeNumber(settings, 'Idle Time', 'Delay', 1, 120, fadeDelay, 'How long you stand still before they start to fade.');
             FadeNumber(settings, 'Idle Fade Time', 'Duration', 0, 5, fadeDuration, 'How long the fading out takes.');
             FadeNumber(settings, 'Fade In/Out Time', 'Transition', 0, 1, fadeTransition, 'How long a window takes to appear, to go, and to come back when you move. At 0 it is at once.');
             FadeNumber(settings, 'Faded Opacity', 'Opacity', 0, 100, fadeOpacity, 'How much of a faded window still shows. At 0 it disappears.');
         end
-        if not grouped or widgets.Header('Keep Frames Visible') then
+        if not grouped or widgets.SubHeader('Keep Frames Visible') then
             FadeCheck(settings, 'Stay Visible While Moving', 'Moving', 'Walking about keeps the windows shown. Off, they fade on the move too.', fadeDependent);
             FadeCheck(settings, 'Show On Party Changes', 'Party', 'Someone joining, leaving or changing area brings them back.', fadeDependent);
             FadeCheck(settings, 'Stay Visible While Engaged', 'Combat', 'Having your weapon drawn keeps them shown.', fadeDependent);
@@ -1149,6 +1194,7 @@ function widgets.Fade(settings, onChanged, grouped)
             FadeCheck(settings, 'Stay Visible While Missing HP', 'MissingHp', 'Being below full HP keeps them shown.', fadeDependent);
             FadeCheck(settings, 'Stay Visible While Healing', 'Resting', 'Resting to recover HP and MP keeps them shown.', fadeDependent);
         end
+        if grouped then widgets.EndSub(); end
     end
 
     if fadeDirty and MouseIsUp() then
