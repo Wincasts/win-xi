@@ -14,11 +14,9 @@ TOOLS = Path(__file__).resolve().parent
 # overrides and taken off this list; a new build script is never put on it.
 NOT_YET_CHECKED = {
     'build_action_data.py': 'reads action overrides its own way',
-    'build_item_data.py': 'reads item overrides and module SQL its own way',
     'build_mark_data.py': 'module SQL and YAML through mobdb\'s importer',
     'build_name_vendors.py': 'reads NPC overrides its own way',
     'build_name_placeholders.py': 'mobdb\'s importer',
-    'build_name_cast_times.py': 'spell and mob skill cast times',
     'build_winxi_data.py': 'mobdb\'s importer',
     'build_puppet_attachments.py': 'automaton attachments',
     'build_transports.py': 'transport schedules',

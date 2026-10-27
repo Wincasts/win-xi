@@ -14,7 +14,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import yaml
-from phoenix import source
+from phoenix import modules, source
 
 TABLES = {
     'item_basic': 'Basic', 'item_equipment': 'Equipment', 'item_weapon': 'Weapon',
@@ -206,20 +206,22 @@ def build(server, output, settings=()):
                 record['Script'] = key
                 if mods and duration:
                     record['Food'] = {'Duration': int(duration[1]), 'Mods': mods, 'Source': key}
+    # Every module override of an item's script, as live has it (phoenix.modules): its gate
+    # evaluated, one made in a loop found by its row; those off on live are left out.
     declarations = []
-    for path in enabled_files(server, '.lua'):
-        text = path.read_text(encoding='utf-8-sig')
-        # Only literal item targets: dynamic/non-item behavior is explicitly outside this index.
-        targets = re.findall(r"\baddOverride(?:ByEra)?\s*\(\s*['\"]xi\.items\.([^'\"]+)['\"]", text)
-        if targets:
-            key, _ = evidence(path)
-            for target in targets:
-                name, _, callback = target.rpartition('.')
-                declarations.append({'Path': key, 'Target': target})
-                for record in by_name.get(name, []):
-                    record.setdefault('Overrides', []).append({'Path': key, 'Callback': callback, 'Status': 'declared; runtime gate not evaluated'})
-                    # An override may replace either the food use duration or effect modifiers.
-                    record.pop('Food', None)
+
+    def handle(override):
+        name, _, callback = override.target.removeprefix('xi.items.').rpartition('.')
+        key, _ = evidence(server / 'modules' / override.path)
+        status = 'on live' if override.applies else f'gate not understood, taken as on: {override.condition}'
+        declarations.append({'Path': key, 'Target': override.target, 'Status': status})
+        for record in by_name.get(name, []):
+            record.setdefault('Overrides', []).append({'Path': key, 'Callback': callback, 'Status': status})
+            # An override may replace either the food use duration or effect modifiers.
+            record.pop('Food', None)
+        return f'{callback} replaced on {len(by_name.get(name, []))} item(s)' if name in by_name else 'no item of that name'
+
+    modules.guard(server, ('xi.items.',), handle)
     pages = defaultdict(dict)
     for ident, record in records.items():
         pages[ident // PAGE_SIZE][ident] = record
@@ -253,7 +255,7 @@ def build(server, output, settings=()):
         'Limitations': [
             'All item_basic IDs, including later-era and unavailable items; presence is not obtainability.',
             'SQL replay models a clean import, not private live database edits.',
-            'Lua overrides are declarations only: runtime gates, super chains and dynamic targets are not evaluated.',
+            'Lua overrides are listed with their module gates evaluated for live (expansions from WotG on taken as off); what they do is not, nor their super chains.',
             'Script text is evidence, not a complete tooltip or unconditional stat list.',
             'Display descriptions/icons/localized names come from client resources; may differ from server behavior.',
             'Modifiers retain server units; latents and pet modifiers are conditional, never summed into base stats.',
