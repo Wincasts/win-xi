@@ -83,6 +83,7 @@ local fonts = require('winxi.fonts');
 local window = require('winxi.window');
 local tooltip = require('winxi.tooltip');
 local statusicons = require('winxi.statusicons');
+local clip = require('winxi.clip');
 
 -- Every option's name has each word capitalised: "Shadow Opacity", not "Shadow opacity".
 local widgets = {};
@@ -609,26 +610,32 @@ local function Title(text, key, defaultCollapsed, sub)
     local clicked = false;
 
     -- a band behind the row, across the whole window for a section and from the indent for a
-    -- sub-section, with a line along its foot; the window clips its content short of its edges, so
-    -- the band is let through to them
+    -- sub-section, with a line along its foot. The window clips its content short of its edges, so the
+    -- band goes through winxi.clip to reach them: a clip of its own that left the screen would be
+    -- stretched over all of it (Direct3D 8 has no scissor), so the clip is the whole screen, and the
+    -- band is cut to the window's own area below its title bar, so that one scrolled out of view
+    -- draws nothing
     local list = imgui.GetWindowDrawList();
     local x, y = imgui.GetCursorScreenPos();
-    local windowX = imgui.GetWindowPos();
-    local windowWidth = imgui.GetWindowSize();
+    local windowX, windowY = imgui.GetWindowPos();
+    local windowWidth, windowHeight = imgui.GetWindowSize();
     local textHeight = TextHeight();
-    if list ~= nil and list.AddRectFilled ~= nil and list.PushClipRect ~= nil and x ~= nil and y ~= nil and windowX ~= nil and windowWidth ~= nil then
+    if list ~= nil and list.AddRectFilled ~= nil and list.PushClipRect ~= nil and x ~= nil and y ~= nil
+        and windowX ~= nil and windowY ~= nil and windowWidth ~= nil and windowHeight ~= nil then
         local highlight = look.SettingsHighlightColor or look.HighlightColor or color;
         local opacity = highlight[4] or 1;
         bandColor[1], bandColor[2], bandColor[3], bandColor[4] = highlight[1], highlight[2], highlight[3], opacity * (sub and bandOpacity[2] or bandOpacity[1]);
         lineColor[1], lineColor[2], lineColor[3], lineColor[4] = highlight[1], highlight[2], highlight[3], opacity;
         local line = sub and lineHeight[2] or lineHeight[1];
-        barFrom[1], barFrom[2] = sub and x or windowX, y - bandPad;
-        barTo[1], barTo[2] = windowX + windowWidth, y + textHeight + bandPad + line;
-        list:PushClipRect(barFrom, barTo, false);
-        list:AddRectFilled(barFrom, barTo, imgui.GetColorU32(bandColor));
-        barFrom[2] = barTo[2] - line;
-        list:AddRectFilled(barFrom, barTo, imgui.GetColorU32(lineColor));
-        list:PopClipRect();
+        local top, bottom = windowY + FrameHeight(), windowY + windowHeight;
+        barFrom[1], barFrom[2] = sub and x or windowX, math.max(y - bandPad, top);
+        barTo[1], barTo[2] = windowX + windowWidth, math.min(y + textHeight + bandPad + line, bottom);
+        if barTo[2] > barFrom[2] and clip.Screen(list, barFrom, barTo) then
+            list:AddRectFilled(barFrom, barTo, imgui.GetColorU32(bandColor));
+            barFrom[2] = math.max(barTo[2] - line, barFrom[2]);
+            list:AddRectFilled(barFrom, barTo, imgui.GetColorU32(lineColor));
+            list:PopClipRect();
+        end
     end
 
     -- the title at the left, the marker against the right edge, both clickable
