@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.69
+
+- `/uihook skin` (nativeui's theme) no longer reaches the game's own names over heads. The skin knew a texture by its pixels alone, so any draw from the menu font was given the skin's font picture, edged, shadowed and smoothly filtered: the names the game draws from that font too. A font's texture (one the skin's fonts.txt lists) drawn in no game window is now left as the game's; inside a window, and every other texture anywhere, as before. Text the game draws outside its windows from the menu font, such as the chat input line, is left as the game's with them. Without Window::Render's detour, every draw as before.
+- `/uihook skin` says how many font draws in no window were left.
+- The DLL's version resource says 1.69 (it had said 1.59 since 1.59).
+- Tests: a font in no window left; in a window, or nested, skinned; another texture in no window skinned; the windows not heard, every font skinned.
+
 ## 1.68
 
 - Every write to the game's code goes through `CodeSite` (`plugins/common/CodePatch.h`, namehook's since 1.40, now shared): the detours' jumps (party and buffs), the target arrows, the clock's text and icons, the chat log's art and text, and the window content call. A site is written over what is there, and given back on unload only while it holds what uihook wrote: one something else has written over since is left as it is. Grouped calls go in together or not at all (both arrows, the three clock icons, every chat art call): where one will not, those written are given back. Where a site has to be left, uihook stays in memory (its DLL pinned) and keeps that detour's trampoline, as the game may still go through them into it, says so as it unloads, and refuses to load again until the game is restarted. A write is checked: before, a failed one was taken as done.

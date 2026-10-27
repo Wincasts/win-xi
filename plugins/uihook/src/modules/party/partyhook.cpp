@@ -493,6 +493,7 @@ public:
         GroupMirror.Publish(Shared.Frame);
         Diag.Present();
         ++Shared.Frame;
+        Skins.windowsHeard=WindowDetour.trampoline!=nullptr;
         Diag.Counted(); MirrorBlock.Frame=KeysBlock.Frame=Shared.Frame;
         Native.look.mirrorOn=GroupMirror.Wanted();
         Hud.Frame=Chat.Frame=Menus.Frame=Shared.Frame;
@@ -1198,6 +1199,7 @@ public:
         GroupMirror.Hold(mirrorScope.saved);
         struct SettleScope { void* was; ~SettleScope() { Settling=was; } } settleScope{Settling};
         Settling=window;
+        struct SkinScope { SkinScope() { Skins.windowDepth++; } ~SkinScope() { Skins.windowDepth--; } } skinScope;
         DiagnosticsModule::Window diagnosed(Diag,window);
         int index=-1;
         for (int i=0;i<4;i++) {

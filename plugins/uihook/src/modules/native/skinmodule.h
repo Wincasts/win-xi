@@ -35,6 +35,11 @@ public:
     // drawn shrinks smoothly and one drawn larger is not blocky
     static constexpr D3DTEXTURESTAGESTATETYPE SkinFilters[3]={D3DTSS_MAGFILTER,D3DTSS_MINFILTER,D3DTSS_MIPFILTER};
     int32_t skinActive=-1;   // the skin's picture in stage 0 for the draw under way, for RecolourActive, or -1
+    // The game's windows as the party module hears them (Window::Render): windowsHeard while its detour is in, and
+    // windowDepth the windows being drawn now; a font's texture drawn in none left as the game's (SkinLeftOutside)
+    bool windowsHeard=false;
+    unsigned windowDepth=0;
+    uint32_t fontsLeft=0;    // font draws left as the game's, outside any window, for the status
     // data, count, stride: the draw's vertices (from memory), to tell how large its texels are drawn; none from a
     // vertex buffer, drawn with the size suiting the window's scale
     SkinSwap Begin(const void* data=nullptr,unsigned count=0,unsigned stride=0) {
@@ -50,6 +55,7 @@ public:
             if (!LabelCut(game,whole,pixels,desc,texels,why)) return false;
             hash=TextureHash(pixels,desc.Width,desc.Height); return true;
         });
+        if (swap.index>=0 && SkinLeftOutside(windowsHeard,windowDepth,skinFonts.Has(look.textures[size_t(swap.index)].hash))) { fontsLeft++; swap.index=-1; }
         if (swap.index<0) { swap.was->Release(); swap.was=nullptr; return swap; }
         const SkinTexture& t=look.textures[size_t(swap.index)];
         bool exact=false,levels=false;
@@ -300,8 +306,8 @@ public:
         else {
             unsigned matched=0; uint32_t drawn=0,recoloured=0;
             for (auto& t:look.textures) { if (t.matched) matched++; drawn+=t.drawn; recoloured+=t.recoloured; }
-            snprintf(line,sizeof(line),"[uihook:skin] %s: %zu pictures, %u found in the game's textures (%u read), %u draws made with them, %u of them recoloured.",
-                look.name,look.textures.size(),matched,look.read,drawn,recoloured);
+            snprintf(line,sizeof(line),"[uihook:skin] %s: %zu pictures, %u found in the game's textures (%u read), %u draws made with them, %u of them recoloured; %u font draws in no window (the names) left as the game's%s.",
+                look.name,look.textures.size(),matched,look.read,drawn,recoloured,fontsLeft,windowsHeard ? "" : " (the windows are not heard: every font draw skinned)");
             ctx->core->GetChatManager()->Write(0,false,line);
             std::string unseen;
             for (auto& t:look.textures) if (!t.matched) { char h[12]; snprintf(h,sizeof(h)," %08X",t.hash); unseen+=h; }
