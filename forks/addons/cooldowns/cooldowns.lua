@@ -430,6 +430,31 @@ local function DrawConfig()
     Window.Full('Cooldowns Settings', ShowConfig, ConfigFlags, DrawConfigContent, ConfigStyle)
 end
 
+-- fork: the Stratagems a SCH of a level has and the seconds each takes to come back, as the server has
+-- them (winxi.abilities' Charges, from its abilities_charges table), or nil where winxi's data is not
+-- installed or has none for that level
+local stratagemRows = nil
+local function ServerStratagems(level)
+    if stratagemRows == nil then
+        stratagemRows = {}
+        local ok, abilities = pcall(require, 'winxi.abilities')
+        if ok then
+            for _, id in ipairs(abilities.Ids()) do
+                local record = abilities.Get(id)
+                for _, row in ipairs(record and record.Charges or {}) do
+                    if row.recastId == 231 and row.job == 20 then stratagemRows[#stratagemRows + 1] = row end
+                end
+                if #stratagemRows > 0 then break end -- every stratagem shares the one timer's rows
+            end
+        end
+    end
+    local best = nil
+    for _, row in ipairs(stratagemRows) do
+        if row.level <= level and (best == nil or row.level > best.level) then best = row end
+    end
+    return best
+end
+
 local function CollectPlayerTimers(mmPlayer, mmRecast, resMgr, playerJob)
     local timers = {}
     -- Obtain the players ability recasts..
@@ -463,7 +488,11 @@ local function CollectPlayerTimers(mmPlayer, mmRecast, resMgr, playerJob)
 
                 -- Calculate the stratagems amount..
                 local stratagems = 0
-                if (lvl == 99 and SchJp >= 550) then
+                local row = ServerStratagems(lvl)
+                if row then
+                    val = row.chargeTime
+                    stratagems = math.floor((row.maxCharges * row.chargeTime - (timer / 60)) / val)
+                elseif (lvl == 99 and SchJp >= 550) then
                     val = 33
                     stratagems = math.floor((165 - (timer / 60)) / val)
                 else
