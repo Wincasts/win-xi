@@ -620,8 +620,10 @@ widgets.Status(('%d icons shown.'):format(count));
 ```
 
 Rows are 30 text heights of name and sentence, a gap, and 13 of control (`widgets.DescriptionWidth`,
-`widgets.RowControlWidth`); a settings window fits itself to them, and one that has been resized keeps
-the control column and gives the sentence what is left. How a settings window opens is the theme's, on
+`widgets.RowControlWidth`), measured from the window's content edge, so every control and every [-] or
+[+] is at the same x whatever a row's indentation; an indented sentence wraps that much sooner. A
+settings window fits itself to them, and one that has been resized keeps the control column and gives
+the sentence what is left. How a settings window opens is the theme's, on
 winxisettings' Settings Windows tab: Minimum Width (Fit To Content, or at least so many pixels wide),
 Starting Height (Fit To Content, or a height in pixels that its content scrolls within), and a button
 that takes both from that window as it stands. The section titles are written in the theme's Header
