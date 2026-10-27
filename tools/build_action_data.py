@@ -86,7 +86,7 @@ def clean(value):
 
 def provenance(server):
     found = source.read(server)
-    return {'Repository': found.repository, 'Branch': found.branch, 'Commit': found.commit, 'Committed': found.committed}
+    return {'Name': source.NAME, 'Repository': found.repository, 'Branch': found.branch, 'Commit': found.commit, 'Committed': found.committed}
 
 
 def enum(server, name):

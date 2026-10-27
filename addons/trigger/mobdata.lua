@@ -1,4 +1,4 @@
--- What is known of the game's mobs is in mobs.lua, which generate_mobs.py makes and says the layout
+-- What is known of the game's mobs is in mobs.lua, which tools/build_trigger_mobs.py makes and says the layout
 -- of: the kinds of mob there are (sheep, crabs, quadav) with what each kind's mobs can do, and for
 -- every area the names of its mobs of each kind.
 --

@@ -1,7 +1,7 @@
 return {
     zone_id = 190,
     zone_name = "King Ranperre's Tomb",
-    note = 'Generated from Phoenix regions.yaml/mobs.yaml plus zoneline data; intended as a first-pass sub-zone/POI table.',
+    note = 'Generated from Phoenix regions.yaml/mobs.yaml (as the modules patch them, 9a4494d50) plus zoneline data; intended as a first-pass sub-zone/POI table.',
     subzones = {
         {
             id = 'c_102',
@@ -573,7 +573,7 @@ return {
         },
         {
             id = 'region_104',
-            name = 'Deep Tomb sector 104 - Locus Spartoi Warrior, Locus Spartoi Sorcerer',
+            name = 'Deep Tomb sector 104 - Spartoi Warrior',
             direction = 'Deep Tomb',
             x = -238.69,
             y = 7.48,
@@ -587,22 +587,14 @@ return {
             area = 169.3,
             mobs = {
                 {
-                    name = 'Locus Spartoi Warrior',
-                    count = 2
-                },
-                {
-                    name = 'Locus Spartoi Sorcerer',
-                    count = 2
-                },
-                {
-                    name = 'Locus Hati',
+                    name = 'Spartoi Warrior',
                     count = 1
                 }
             }
         },
         {
             id = 'region_105',
-            name = 'Deep Tomb sector 105 - Locus Dire Bat',
+            name = 'Deep Tomb sector 105 - Hati, Spartoi Warrior',
             direction = 'Deep Tomb',
             x = -182.65,
             y = 7.4,
@@ -616,14 +608,18 @@ return {
             area = 71.6,
             mobs = {
                 {
-                    name = 'Locus Dire Bat',
-                    count = 4
+                    name = 'Hati',
+                    count = 1
+                },
+                {
+                    name = 'Spartoi Warrior',
+                    count = 1
                 }
             }
         },
         {
             id = 'region_106',
-            name = 'Deep Tomb sector 106 - Locus Dire Bat',
+            name = 'Deep Tomb sector 106 - Tomb Worm, Dire Bat',
             direction = 'Deep Tomb',
             x = 58.49,
             y = 7.27,
@@ -637,14 +633,22 @@ return {
             area = 115.7,
             mobs = {
                 {
-                    name = 'Locus Dire Bat',
-                    count = 4
+                    name = 'Tomb Worm',
+                    count = 3
+                },
+                {
+                    name = 'Dire Bat',
+                    count = 1
+                },
+                {
+                    name = 'Cutlass Scorpion',
+                    count = 1
                 }
             }
         },
         {
             id = 'region_107',
-            name = 'Deep Tomb sector 107 - Locus Dire Bat',
+            name = 'Deep Tomb sector 107 - Locus Dire Bat, Spartoi Sorcerer',
             direction = 'Deep Tomb',
             x = 30.73,
             y = 7.49,
@@ -660,12 +664,16 @@ return {
                 {
                     name = 'Locus Dire Bat',
                     count = 4
+                },
+                {
+                    name = 'Spartoi Sorcerer',
+                    count = 2
                 }
             }
         },
         {
             id = 'region_108',
-            name = 'Deep Tomb sector 108 - Locus Spartoi Warrior, Locus Spartoi Sorcerer',
+            name = 'Deep Tomb sector 108 - Lemures',
             direction = 'Deep Tomb',
             x = 55.94,
             y = 7.31,
@@ -679,18 +687,14 @@ return {
             area = 42.2,
             mobs = {
                 {
-                    name = 'Locus Spartoi Warrior',
-                    count = 1
-                },
-                {
-                    name = 'Locus Spartoi Sorcerer',
+                    name = 'Lemures',
                     count = 1
                 }
             }
         },
         {
             id = 'region_109',
-            name = 'Deep Tomb sector 109 - Locus Dire Bat',
+            name = 'Deep Tomb sector 109 - Locus Dire Bat, Spartoi Warrior',
             direction = 'Deep Tomb',
             x = 52.06,
             y = 7.46,
@@ -706,12 +710,20 @@ return {
                 {
                     name = 'Locus Dire Bat',
                     count = 4
+                },
+                {
+                    name = 'Spartoi Warrior',
+                    count = 1
+                },
+                {
+                    name = 'Spartoi Sorcerer',
+                    count = 1
                 }
             }
         },
         {
             id = 'region_110',
-            name = 'Deep Tomb sector 110 - Locus Dire Bat',
+            name = 'Deep Tomb sector 110 - Locus Dire Bat, Hati',
             direction = 'Deep Tomb',
             x = 125.33,
             y = 7.42,
@@ -727,6 +739,10 @@ return {
                 {
                     name = 'Locus Dire Bat',
                     count = 4
+                },
+                {
+                    name = 'Hati',
+                    count = 1
                 }
             }
         },
@@ -1567,6 +1583,10 @@ return {
                 {
                     name = 'Cherry Sapling',
                     count = 3
+                },
+                {
+                    name = 'Tomb Worm',
+                    count = 2
                 }
             }
         },
@@ -1592,12 +1612,16 @@ return {
                 {
                     name = 'Cherry Sapling',
                     count = 3
+                },
+                {
+                    name = 'Tomb Worm',
+                    count = 1
                 }
             }
         },
         {
             id = 's_299',
-            name = 'South sector 299 - Cherry Sapling',
+            name = 'South sector 299 - Cherry Sapling, Tomb Worm',
             direction = 'South',
             x = 14.29,
             y = -0.02,
@@ -1613,12 +1637,20 @@ return {
                 {
                     name = 'Cherry Sapling',
                     count = 2
+                },
+                {
+                    name = 'Tomb Worm',
+                    count = 2
+                },
+                {
+                    name = 'Armet Beetle',
+                    count = 2
                 }
             }
         },
         {
             id = 's_329',
-            name = 'South sector 329 - Locus Dire Bat, Locus Cutlass Scorpion',
+            name = 'South sector 329 - Tomb Worm, Dire Bat',
             direction = 'South',
             x = -72.75,
             y = 7.66,
@@ -1632,18 +1664,18 @@ return {
             area = 277.4,
             mobs = {
                 {
-                    name = 'Locus Dire Bat',
+                    name = 'Tomb Worm',
                     count = 3
                 },
                 {
-                    name = 'Locus Cutlass Scorpion',
-                    count = 2
+                    name = 'Dire Bat',
+                    count = 1
                 }
             }
         },
         {
             id = 's_334',
-            name = 'South sector 334 - Locus Dire Bat, Locus Cutlass Scorpion',
+            name = 'South sector 334 - Tomb Worm, Dire Bat',
             direction = 'South',
             x = -60.47,
             y = 8.2,
@@ -1657,18 +1689,22 @@ return {
             area = 200.9,
             mobs = {
                 {
-                    name = 'Locus Dire Bat',
+                    name = 'Tomb Worm',
                     count = 3
                 },
                 {
-                    name = 'Locus Cutlass Scorpion',
+                    name = 'Dire Bat',
                     count = 2
+                },
+                {
+                    name = 'Cutlass Scorpion',
+                    count = 1
                 }
             }
         },
         {
             id = 's_339',
-            name = 'South sector 339 - Locus Dire Bat',
+            name = 'South sector 339 - Dire Bat',
             direction = 'South',
             x = -65.01,
             y = 7.43,
@@ -1682,14 +1718,14 @@ return {
             area = 104.9,
             mobs = {
                 {
-                    name = 'Locus Dire Bat',
-                    count = 4
+                    name = 'Dire Bat',
+                    count = 1
                 }
             }
         },
         {
             id = 's_343',
-            name = 'South sector 343 - Locus Thousand Eyes',
+            name = 'South sector 343 - Thousand Eyes',
             direction = 'South',
             x = -78.73,
             y = 7.99,
@@ -1703,14 +1739,14 @@ return {
             area = 135.9,
             mobs = {
                 {
-                    name = 'Locus Thousand Eyes',
-                    count = 6
+                    name = 'Thousand Eyes',
+                    count = 5
                 }
             }
         },
         {
             id = 's_402',
-            name = 'South sector 402 - Locus Dire Bat',
+            name = 'South sector 402 - Tomb Worm, Dire Bat',
             direction = 'South',
             x = -32.06,
             y = 7.21,
@@ -1724,14 +1760,22 @@ return {
             area = 149.1,
             mobs = {
                 {
-                    name = 'Locus Dire Bat',
+                    name = 'Tomb Worm',
                     count = 4
+                },
+                {
+                    name = 'Dire Bat',
+                    count = 1
+                },
+                {
+                    name = 'Cutlass Scorpion',
+                    count = 1
                 }
             }
         },
         {
             id = 's_406',
-            name = 'South sector 406 - Locus Dire Bat',
+            name = 'South sector 406 - Tomb Worm, Dire Bat',
             direction = 'South',
             x = -7.87,
             y = 7.3,
@@ -1745,14 +1789,18 @@ return {
             area = 142.1,
             mobs = {
                 {
-                    name = 'Locus Dire Bat',
-                    count = 4
+                    name = 'Tomb Worm',
+                    count = 1
+                },
+                {
+                    name = 'Dire Bat',
+                    count = 1
                 }
             }
         },
         {
             id = 's_410',
-            name = 'South sector 410 - Locus Cutlass Scorpion',
+            name = 'South sector 410 - Tomb Worm',
             direction = 'South',
             x = 19.1,
             y = 7.03,
@@ -1766,14 +1814,14 @@ return {
             area = 168.0,
             mobs = {
                 {
-                    name = 'Locus Cutlass Scorpion',
-                    count = 4
+                    name = 'Tomb Worm',
+                    count = 1
                 }
             }
         },
         {
             id = 's_414',
-            name = 'South sector 414 - Locus Dire Bat',
+            name = 'South sector 414 - Tomb Worm',
             direction = 'South',
             x = 54.23,
             y = 7.29,
@@ -1787,14 +1835,14 @@ return {
             area = 97.6,
             mobs = {
                 {
-                    name = 'Locus Dire Bat',
-                    count = 4
+                    name = 'Tomb Worm',
+                    count = 2
                 }
             }
         },
         {
             id = 's_422',
-            name = 'South sector 422 - Locus Spartoi Warrior, Locus Spartoi Sorcerer',
+            name = 'South sector 422 - Hati, Spartoi Warrior',
             direction = 'South',
             x = 59.86,
             y = 8.01,
@@ -1808,22 +1856,22 @@ return {
             area = 164.0,
             mobs = {
                 {
-                    name = 'Locus Spartoi Warrior',
-                    count = 2
+                    name = 'Hati',
+                    count = 1
                 },
                 {
-                    name = 'Locus Spartoi Sorcerer',
-                    count = 2
+                    name = 'Spartoi Warrior',
+                    count = 1
                 },
                 {
-                    name = 'Locus Hati',
+                    name = 'Spartoi Sorcerer',
                     count = 1
                 }
             }
         },
         {
             id = 's_427',
-            name = 'South sector 427 - Locus Spartoi Warrior, Locus Spartoi Sorcerer',
+            name = 'South sector 427 - Hati, Spartoi Warrior',
             direction = 'South',
             x = 43.53,
             y = 8.34,
@@ -1837,22 +1885,22 @@ return {
             area = 197.7,
             mobs = {
                 {
-                    name = 'Locus Spartoi Warrior',
-                    count = 2
+                    name = 'Hati',
+                    count = 1
                 },
                 {
-                    name = 'Locus Spartoi Sorcerer',
-                    count = 2
+                    name = 'Spartoi Warrior',
+                    count = 1
                 },
                 {
-                    name = 'Locus Hati',
+                    name = 'Spartoi Sorcerer',
                     count = 1
                 }
             }
         },
         {
             id = 's_434',
-            name = 'South sector 434 - Locus Thousand Eyes',
+            name = 'South sector 434 - Hati',
             direction = 'South',
             x = -21.36,
             y = 6.87,
@@ -1866,14 +1914,14 @@ return {
             area = 175.8,
             mobs = {
                 {
-                    name = 'Locus Thousand Eyes',
-                    count = 4
+                    name = 'Hati',
+                    count = 1
                 }
             }
         },
         {
             id = 's_438',
-            name = 'South sector 438 - Locus Dire Bat',
+            name = 'South sector 438 - Locus Dire Bat, Spartoi Warrior',
             direction = 'South',
             x = -63.45,
             y = 7.13,
@@ -1888,13 +1936,21 @@ return {
             mobs = {
                 {
                     name = 'Locus Dire Bat',
-                    count = 4
+                    count = 3
+                },
+                {
+                    name = 'Spartoi Warrior',
+                    count = 2
+                },
+                {
+                    name = 'Spartoi Sorcerer',
+                    count = 2
                 }
             }
         },
         {
             id = 's_442',
-            name = 'South sector 442 - Locus Dire Bat',
+            name = 'South sector 442 - Locus Dire Bat, Spartoi Warrior',
             direction = 'South',
             x = -15.51,
             y = 7.18,
@@ -1910,12 +1966,20 @@ return {
                 {
                     name = 'Locus Dire Bat',
                     count = 4
+                },
+                {
+                    name = 'Spartoi Warrior',
+                    count = 2
+                },
+                {
+                    name = 'Spartoi Sorcerer',
+                    count = 2
                 }
             }
         },
         {
             id = 's_478',
-            name = 'South sector 478 - Locus Dire Bat',
+            name = 'South sector 478 - Locus Dire Bat, Tomb Worm',
             direction = 'South',
             x = 19.89,
             y = 7.24,
@@ -1931,12 +1995,20 @@ return {
                 {
                     name = 'Locus Dire Bat',
                     count = 4
+                },
+                {
+                    name = 'Tomb Worm',
+                    count = 1
+                },
+                {
+                    name = 'Dire Bat',
+                    count = 1
                 }
             }
         },
         {
             id = 's_482',
-            name = 'South sector 482 - Locus Tomb Worm',
+            name = 'South sector 482 - Locus Tomb Worm, Tomb Worm',
             direction = 'South',
             x = 20.23,
             y = -0.03,
@@ -1952,6 +2024,14 @@ return {
                 {
                     name = 'Locus Tomb Worm',
                     count = 10
+                },
+                {
+                    name = 'Tomb Worm',
+                    count = 4
+                },
+                {
+                    name = 'Armet Beetle',
+                    count = 3
                 }
             }
         },
@@ -2097,6 +2177,10 @@ return {
                 {
                     name = 'Spartoi Sorcerer',
                     count = 1
+                },
+                {
+                    name = 'Lemures',
+                    count = 1
                 }
             }
         },
@@ -2123,7 +2207,7 @@ return {
         },
         {
             id = 'se_458',
-            name = 'Southeast sector 458 - Locus Dire Bat',
+            name = 'Southeast sector 458 - Locus Dire Bat, Hati',
             direction = 'Southeast',
             x = 100.83,
             y = 7.36,
@@ -2139,12 +2223,16 @@ return {
                 {
                     name = 'Locus Dire Bat',
                     count = 4
+                },
+                {
+                    name = 'Hati',
+                    count = 1
                 }
             }
         },
         {
             id = 'se_466',
-            name = 'Southeast sector 466 - Locus Dire Bat',
+            name = 'Southeast sector 466 - Locus Dire Bat, Spartoi Warrior',
             direction = 'Southeast',
             x = 140.67,
             y = 7.28,
@@ -2160,12 +2248,16 @@ return {
                 {
                     name = 'Locus Dire Bat',
                     count = 4
+                },
+                {
+                    name = 'Spartoi Warrior',
+                    count = 1
                 }
             }
         },
         {
             id = 'se_470',
-            name = 'Southeast sector 470 - Locus Hati, Locus Spartoi Warrior',
+            name = 'Southeast sector 470 - Spartoi Warrior, Lemures',
             direction = 'Southeast',
             x = 140.98,
             y = 8.17,
@@ -2179,26 +2271,26 @@ return {
             area = 134.2,
             mobs = {
                 {
+                    name = 'Spartoi Warrior',
+                    count = 1
+                },
+                {
+                    name = 'Lemures',
+                    count = 1
+                },
+                {
+                    name = 'Spartoi Sorcerer',
+                    count = 1
+                },
+                {
                     name = 'Locus Hati',
-                    count = 1
-                },
-                {
-                    name = 'Locus Spartoi Warrior',
-                    count = 1
-                },
-                {
-                    name = 'Locus Spartoi Sorcerer',
-                    count = 1
-                },
-                {
-                    name = 'Locus Lemures',
                     count = 1
                 }
             }
         },
         {
             id = 'se_474',
-            name = 'Southeast sector 474 - Locus Hati, Locus Spartoi Warrior',
+            name = 'Southeast sector 474 - Spartoi Sorcerer, Spartoi Warrior',
             direction = 'Southeast',
             x = 141.74,
             y = 8.4,
@@ -2212,26 +2304,26 @@ return {
             area = 115.9,
             mobs = {
                 {
+                    name = 'Spartoi Sorcerer',
+                    count = 4
+                },
+                {
+                    name = 'Spartoi Warrior',
+                    count = 2
+                },
+                {
+                    name = 'Lemures',
+                    count = 1
+                },
+                {
                     name = 'Locus Hati',
-                    count = 1
-                },
-                {
-                    name = 'Locus Spartoi Warrior',
-                    count = 1
-                },
-                {
-                    name = 'Locus Spartoi Sorcerer',
-                    count = 1
-                },
-                {
-                    name = 'Locus Lemures',
                     count = 1
                 }
             }
         },
         {
             id = 'sw_322',
-            name = 'Southwest sector 322 - Locus Dire Bat',
+            name = 'Southwest sector 322 - Dire Bat, Tomb Worm',
             direction = 'Southwest',
             x = -131.89,
             y = 7.28,
@@ -2245,14 +2337,18 @@ return {
             area = 142.9,
             mobs = {
                 {
-                    name = 'Locus Dire Bat',
-                    count = 4
+                    name = 'Dire Bat',
+                    count = 3
+                },
+                {
+                    name = 'Tomb Worm',
+                    count = 1
                 }
             }
         },
         {
             id = 'sw_325',
-            name = 'Southwest sector 325 - Locus Dire Bat',
+            name = 'Southwest sector 325 - Tomb Worm, Dire Bat',
             direction = 'Southwest',
             x = -127.63,
             y = 7.18,
@@ -2266,14 +2362,18 @@ return {
             area = 147.8,
             mobs = {
                 {
-                    name = 'Locus Dire Bat',
-                    count = 4
+                    name = 'Tomb Worm',
+                    count = 1
+                },
+                {
+                    name = 'Dire Bat',
+                    count = 1
                 }
             }
         },
         {
             id = 'sw_349',
-            name = 'Southwest sector 349 - Locus Dire Bat',
+            name = 'Southwest sector 349 - Spartoi Warrior',
             direction = 'Southwest',
             x = -119.61,
             y = 7.11,
@@ -2287,14 +2387,14 @@ return {
             area = 160.1,
             mobs = {
                 {
-                    name = 'Locus Dire Bat',
-                    count = 4
+                    name = 'Spartoi Warrior',
+                    count = 1
                 }
             }
         },
         {
             id = 'sw_353',
-            name = 'Southwest sector 353 - Locus Dire Bat',
+            name = 'Southwest sector 353 - Hati',
             direction = 'Southwest',
             x = -146.76,
             y = 7.07,
@@ -2308,14 +2408,14 @@ return {
             area = 136.0,
             mobs = {
                 {
-                    name = 'Locus Dire Bat',
-                    count = 4
+                    name = 'Hati',
+                    count = 1
                 }
             }
         },
         {
             id = 'sw_357',
-            name = 'Southwest sector 357 - Locus Hati',
+            name = 'Southwest sector 357 - Hati',
             direction = 'Southwest',
             x = -176.47,
             y = 6.98,
@@ -2329,14 +2429,14 @@ return {
             area = 172.0,
             mobs = {
                 {
-                    name = 'Locus Hati',
-                    count = 4
+                    name = 'Hati',
+                    count = 1
                 }
             }
         },
         {
             id = 'sw_361',
-            name = 'Southwest sector 361 - Locus Dire Bat',
+            name = 'Southwest sector 361 - Hati, Spartoi Warrior',
             direction = 'Southwest',
             x = -196.84,
             y = 7.24,
@@ -2350,14 +2450,18 @@ return {
             area = 124.0,
             mobs = {
                 {
-                    name = 'Locus Dire Bat',
-                    count = 4
+                    name = 'Hati',
+                    count = 1
+                },
+                {
+                    name = 'Spartoi Warrior',
+                    count = 1
                 }
             }
         },
         {
             id = 'sw_372',
-            name = 'Southwest sector 372 - Locus Spartoi Warrior, Locus Spartoi Sorcerer',
+            name = 'Southwest sector 372 - Spartoi Sorcerer',
             direction = 'Southwest',
             x = -254.73,
             y = 8.04,
@@ -2371,22 +2475,14 @@ return {
             area = 154.5,
             mobs = {
                 {
-                    name = 'Locus Spartoi Warrior',
-                    count = 2
-                },
-                {
-                    name = 'Locus Spartoi Sorcerer',
-                    count = 2
-                },
-                {
-                    name = 'Locus Hati',
+                    name = 'Spartoi Sorcerer',
                     count = 1
                 }
             }
         },
         {
             id = 'sw_375',
-            name = 'Southwest sector 375 - Locus Spartoi Warrior, Locus Spartoi Sorcerer',
+            name = 'Southwest sector 375 - Spartoi Sorcerer, Lemures',
             direction = 'Southwest',
             x = -259.02,
             y = 7.77,
@@ -2400,22 +2496,18 @@ return {
             area = 214.8,
             mobs = {
                 {
-                    name = 'Locus Spartoi Warrior',
-                    count = 2
+                    name = 'Spartoi Sorcerer',
+                    count = 3
                 },
                 {
-                    name = 'Locus Spartoi Sorcerer',
-                    count = 2
-                },
-                {
-                    name = 'Locus Hati',
+                    name = 'Lemures',
                     count = 1
                 }
             }
         },
         {
             id = 'sw_380',
-            name = 'Southwest sector 380 - Locus Spartoi Warrior, Locus Spartoi Sorcerer',
+            name = 'Southwest sector 380 - Spartoi Warrior',
             direction = 'Southwest',
             x = -256.52,
             y = 6.47,
@@ -2429,22 +2521,14 @@ return {
             area = 203.8,
             mobs = {
                 {
-                    name = 'Locus Spartoi Warrior',
-                    count = 2
-                },
-                {
-                    name = 'Locus Spartoi Sorcerer',
-                    count = 2
-                },
-                {
-                    name = 'Locus Hati',
+                    name = 'Spartoi Warrior',
                     count = 1
                 }
             }
         },
         {
             id = 'sw_385',
-            name = 'Southwest sector 385 - Locus Spartoi Warrior, Locus Spartoi Sorcerer',
+            name = 'Southwest sector 385 - Spartoi Sorcerer, Spartoi Warrior',
             direction = 'Southwest',
             x = -258.79,
             y = 7.95,
@@ -2458,22 +2542,22 @@ return {
             area = 152.0,
             mobs = {
                 {
-                    name = 'Locus Spartoi Warrior',
-                    count = 2
+                    name = 'Spartoi Sorcerer',
+                    count = 3
                 },
                 {
-                    name = 'Locus Spartoi Sorcerer',
-                    count = 2
+                    name = 'Spartoi Warrior',
+                    count = 1
                 },
                 {
-                    name = 'Locus Hati',
+                    name = 'Lemures',
                     count = 1
                 }
             }
         },
         {
             id = 'sw_390',
-            name = 'Southwest sector 390 - Locus Dire Bat',
+            name = 'Southwest sector 390 - Spartoi Warrior, Spartoi Sorcerer',
             direction = 'Southwest',
             x = -211.65,
             y = 7.3,
@@ -2487,14 +2571,18 @@ return {
             area = 158.1,
             mobs = {
                 {
-                    name = 'Locus Dire Bat',
-                    count = 4
+                    name = 'Spartoi Warrior',
+                    count = 3
+                },
+                {
+                    name = 'Spartoi Sorcerer',
+                    count = 1
                 }
             }
         },
         {
             id = 'sw_398',
-            name = 'Southwest sector 398 - Locus Cutlass Scorpion',
+            name = 'Southwest sector 398 - Hati',
             direction = 'Southwest',
             x = -96.47,
             y = 6.94,
@@ -2508,8 +2596,8 @@ return {
             area = 152.0,
             mobs = {
                 {
-                    name = 'Locus Cutlass Scorpion',
-                    count = 4
+                    name = 'Hati',
+                    count = 2
                 }
             }
         },
@@ -2827,6 +2915,33 @@ return {
             region = 'w_209'
         },
         {
+            id = 'mob_17555792',
+            kind = 'named_mob',
+            name = 'Cutlass Scorpion',
+            x = -60.47,
+            y = 8.2,
+            z = -197.69,
+            region = 's_334'
+        },
+        {
+            id = 'mob_17555800',
+            kind = 'named_mob',
+            name = 'Cutlass Scorpion',
+            x = -32.06,
+            y = 7.21,
+            z = -214.44,
+            region = 's_402'
+        },
+        {
+            id = 'mob_17555810',
+            kind = 'named_mob',
+            name = 'Cutlass Scorpion',
+            x = 58.49,
+            y = 7.27,
+            z = -229.93,
+            region = 'region_106'
+        },
+        {
             id = 'mob_17555649',
             kind = 'named_mob',
             name = 'Goblin Gruel',
@@ -2845,22 +2960,22 @@ return {
             region = 'c_203'
         },
         {
-            id = 'mob_17555757',
+            id = 'mob_17555926',
             kind = 'named_mob',
-            name = 'Hati',
-            x = 201.78,
-            y = 7.47,
-            z = -298.78,
-            region = 'se_301'
+            name = 'Locus Hati',
+            x = 140.98,
+            y = 8.17,
+            z = -280.16,
+            region = 'se_470'
         },
         {
-            id = 'mob_17555760',
+            id = 'mob_17555930',
             kind = 'named_mob',
-            name = 'Hati',
-            x = 233.82,
-            y = 7.88,
-            z = -300.36,
-            region = 'se_304'
+            name = 'Locus Hati',
+            x = 141.74,
+            y = 8.4,
+            z = -295.11,
+            region = 'se_474'
         },
         {
             id = 'mob_17555929',
@@ -2881,40 +2996,40 @@ return {
             region = 'se_474'
         },
         {
-            id = 'mob_17555759',
+            id = 'mob_17555928',
             kind = 'named_mob',
-            name = 'Spartoi Sorcerer',
-            x = 201.78,
-            y = 7.47,
-            z = -298.78,
-            region = 'se_301'
+            name = 'Locus Spartoi Sorcerer',
+            x = 140.98,
+            y = 8.17,
+            z = -280.16,
+            region = 'se_470'
         },
         {
-            id = 'mob_17555762',
+            id = 'mob_17555932',
             kind = 'named_mob',
-            name = 'Spartoi Sorcerer',
-            x = 233.82,
-            y = 7.88,
-            z = -300.36,
-            region = 'se_304'
+            name = 'Locus Spartoi Sorcerer',
+            x = 141.74,
+            y = 8.4,
+            z = -295.11,
+            region = 'se_474'
         },
         {
-            id = 'mob_17555758',
+            id = 'mob_17555927',
             kind = 'named_mob',
-            name = 'Spartoi Warrior',
-            x = 201.78,
-            y = 7.47,
-            z = -298.78,
-            region = 'se_301'
+            name = 'Locus Spartoi Warrior',
+            x = 140.98,
+            y = 8.17,
+            z = -280.16,
+            region = 'se_470'
         },
         {
-            id = 'mob_17555761',
+            id = 'mob_17555931',
             kind = 'named_mob',
-            name = 'Spartoi Warrior',
-            x = 233.82,
-            y = 7.88,
-            z = -300.36,
-            region = 'se_304'
+            name = 'Locus Spartoi Warrior',
+            x = 141.74,
+            y = 8.4,
+            z = -295.11,
+            region = 'se_474'
         },
         {
             id = 'mob_17555598',

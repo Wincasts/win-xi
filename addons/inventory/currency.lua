@@ -6,11 +6,12 @@
 -- again every minute while it stays; and reads the answer whenever it comes, the game's own as well.
 --
 -- Which can be chosen: a server does not say which currencies it has, and its answers carry every one
--- the game knows, so the player picks a list (currency.filters). Retail has every one. Phoenix has
--- those of its era, and any other the server has said the player has some of: Treasures of Aht
--- Urhgan, its modules/init.txt (references/Phoenix) loading era/sql/wotg, which takes back Wings of
--- the Goddess' changes. Gil is in every list. As the choices are opened both menus are asked about, so
--- that what the player has is known.
+-- the game knows, so the player picks a list (currency.filters). Retail has every one. The server's
+-- list (named for the server the data was made for) has those of its era, and any other the server
+-- has said the player has some of: the era is winxi.rules' (the latest expansion whose content the
+-- server has on, as the build tools take it), Treasures of Aht Urhgan where winxi's data is not
+-- installed. Gil is in every list. As the choices are opened both menus are asked about, so that
+-- what the player has is known.
 --
 --   currency.list                    every currency the game knows, gil first: { key, name, short, ... }
 --   currency.filters                 the lists to choose from: { key, label, tip }
@@ -25,8 +26,9 @@
 --   currency.Reset()                 another character: nothing is known
 --
 -- Where each is in its answer, from the server's packets (references/Phoenix, s2c 0x113 and 0x118):
--- the byte after the packet's 4-byte header, and its size: 'i' 4 bytes, 'H' 2, 'B' 1. era: true for
--- those of the server's era.
+-- the byte after the packet's 4-byte header, and its size: 'i' 4 bytes, 'H' 2, 'B' 1. expansion: the
+-- one that brought it (the game's history), for those up to Treasures of Aht Urhgan; nil for those
+-- after, which no era up to then has.
 
 local currency = {}
 
@@ -36,33 +38,33 @@ local refresh = 60   -- seconds between questions while the window stays shown
 local settle = 5     -- seconds after a new area before asking, while the area's own packets come
 local header = 4
 
---               key, name, short (as shown), menu, where, size, era
+--               key, name, short (as shown), menu, where, size, expansion
 currency.list = {
-    { 'gil', 'Gil', 'G', 0, 0, nil, true },
+    { 'gil', 'Gil', 'G', 0, 0, nil, 'ROTZ' },
     -- the first menu (0x113)
-    { 'conquestSandoria', "Conquest Points (San d'Oria)", 'CP', 1, 0, 'i', true },
-    { 'conquestBastok', 'Conquest Points (Bastok)', 'CP', 1, 4, 'i', true },
-    { 'conquestWindurst', 'Conquest Points (Windurst)', 'CP', 1, 8, 'i', true },
-    { 'beastmenSeals', "Beastmen's Seals", "Beastmen's Seals", 1, 12, 'H', true },
-    { 'kindredSeals', "Kindred's Seals", "Kindred's Seals", 1, 14, 'H', true },
+    { 'conquestSandoria', "Conquest Points (San d'Oria)", 'CP', 1, 0, 'i', 'ROTZ' },
+    { 'conquestBastok', 'Conquest Points (Bastok)', 'CP', 1, 4, 'i', 'ROTZ' },
+    { 'conquestWindurst', 'Conquest Points (Windurst)', 'CP', 1, 8, 'i', 'ROTZ' },
+    { 'beastmenSeals', "Beastmen's Seals", "Beastmen's Seals", 1, 12, 'H', 'ROTZ' },
+    { 'kindredSeals', "Kindred's Seals", "Kindred's Seals", 1, 14, 'H', 'ROTZ' },
     { 'kindredCrests', "Kindred's Crests", "Kindred's Crests", 1, 16, 'H' },
     { 'highKindredCrests', "High Kindred's Crests", "High Kindred's Crests", 1, 18, 'H' },
     { 'sacredKindredCrests', "Sacred Kindred's Crests", "Sacred Kindred's Crests", 1, 20, 'H' },
-    { 'ancientBeastcoins', 'Ancient Beastcoins', 'Beastcoins', 1, 22, 'H', true },
+    { 'ancientBeastcoins', 'Ancient Beastcoins', 'Beastcoins', 1, 22, 'H', 'COP' },
     { 'valorPoints', 'Valor Points', 'Valor', 1, 24, 'H' },
     { 'scyldes', 'Scyldes', 'Scyldes', 1, 26, 'H' },
-    { 'guildFishing', 'Guild Points (Fishing)', 'GP', 1, 28, 'i', true },
-    { 'guildWoodworking', 'Guild Points (Woodworking)', 'GP', 1, 32, 'i', true },
-    { 'guildSmithing', 'Guild Points (Smithing)', 'GP', 1, 36, 'i', true },
-    { 'guildGoldsmithing', 'Guild Points (Goldsmithing)', 'GP', 1, 40, 'i', true },
-    { 'guildClothcraft', 'Guild Points (Clothcraft)', 'GP', 1, 44, 'i', true },
-    { 'guildLeathercraft', 'Guild Points (Leathercraft)', 'GP', 1, 48, 'i', true },
-    { 'guildBonecraft', 'Guild Points (Bonecraft)', 'GP', 1, 52, 'i', true },
-    { 'guildAlchemy', 'Guild Points (Alchemy)', 'GP', 1, 56, 'i', true },
-    { 'guildCooking', 'Guild Points (Cooking)', 'GP', 1, 60, 'i', true },
+    { 'guildFishing', 'Guild Points (Fishing)', 'GP', 1, 28, 'i', 'TOAU' },
+    { 'guildWoodworking', 'Guild Points (Woodworking)', 'GP', 1, 32, 'i', 'TOAU' },
+    { 'guildSmithing', 'Guild Points (Smithing)', 'GP', 1, 36, 'i', 'TOAU' },
+    { 'guildGoldsmithing', 'Guild Points (Goldsmithing)', 'GP', 1, 40, 'i', 'TOAU' },
+    { 'guildClothcraft', 'Guild Points (Clothcraft)', 'GP', 1, 44, 'i', 'TOAU' },
+    { 'guildLeathercraft', 'Guild Points (Leathercraft)', 'GP', 1, 48, 'i', 'TOAU' },
+    { 'guildBonecraft', 'Guild Points (Bonecraft)', 'GP', 1, 52, 'i', 'TOAU' },
+    { 'guildAlchemy', 'Guild Points (Alchemy)', 'GP', 1, 56, 'i', 'TOAU' },
+    { 'guildCooking', 'Guild Points (Cooking)', 'GP', 1, 60, 'i', 'TOAU' },
     { 'cinders', 'Cinders', 'Cinders', 1, 64, 'i' },
-    { 'ballistaPoints', 'Ballista Points', 'Ballista', 1, 76, 'i', true },
-    { 'fellowPoints', 'Fellow Points', 'Fellow', 1, 80, 'i', true },
+    { 'ballistaPoints', 'Ballista Points', 'Ballista', 1, 76, 'i', 'COP' },
+    { 'fellowPoints', 'Fellow Points', 'Fellow', 1, 80, 'i', 'TOAU' },
     { 'dailyTally', 'Daily Tally', 'Tally', 1, 90, 'H' },
     { 'researchMarks', 'Research Marks', 'Marks', 1, 92, 'i' },
     { 'moblinMarbles', 'Moblin Marbles', 'Marbles', 1, 100, 'i' },
@@ -71,13 +73,13 @@ currency.list = {
     { 'legionPoints', 'Legion Points', 'Legion', 1, 108, 'i' },
     { 'sparks', 'Sparks of Eminence', 'Sparks', 1, 112, 'i' },
     { 'shiningStars', 'Shining Stars', 'Stars', 1, 116, 'i' },
-    { 'imperialStanding', 'Imperial Standing', 'IS', 1, 120, 'i', true },
-    { 'assaultLeujaoam', 'Assault Points (Leujaoam)', 'AP', 1, 124, 'i', true },
-    { 'assaultMamool', 'Assault Points (Mamool Ja)', 'AP', 1, 128, 'i', true },
-    { 'assaultLebros', 'Assault Points (Lebros)', 'AP', 1, 132, 'i', true },
-    { 'assaultPeriqia', 'Assault Points (Periqia)', 'AP', 1, 136, 'i', true },
-    { 'assaultIlrusi', 'Assault Points (Ilrusi)', 'AP', 1, 140, 'i', true },
-    { 'nyzulTokens', 'Nyzul Isle Tokens', 'Tokens', 1, 144, 'i', true },
+    { 'imperialStanding', 'Imperial Standing', 'IS', 1, 120, 'i', 'TOAU' },
+    { 'assaultLeujaoam', 'Assault Points (Leujaoam)', 'AP', 1, 124, 'i', 'TOAU' },
+    { 'assaultMamool', 'Assault Points (Mamool Ja)', 'AP', 1, 128, 'i', 'TOAU' },
+    { 'assaultLebros', 'Assault Points (Lebros)', 'AP', 1, 132, 'i', 'TOAU' },
+    { 'assaultPeriqia', 'Assault Points (Periqia)', 'AP', 1, 136, 'i', 'TOAU' },
+    { 'assaultIlrusi', 'Assault Points (Ilrusi)', 'AP', 1, 140, 'i', 'TOAU' },
+    { 'nyzulTokens', 'Nyzul Isle Tokens', 'Tokens', 1, 144, 'i', 'TOAU' },
     { 'zeni', 'Zeni', 'Zeni', 1, 148, 'i' },
     { 'jettons', 'Jettons', 'Jettons', 1, 152, 'i' },
     { 'therionIchor', 'Therion Ichor', 'Ichor', 1, 156, 'i' },
@@ -87,7 +89,7 @@ currency.list = {
     { 'cruor', 'Cruor', 'Cruor', 1, 168, 'i' },
     { 'resistanceCredits', 'Resistance Credits', 'Credits', 1, 172, 'i' },
     { 'dominionNotes', 'Dominion Notes', 'Dominion', 1, 176, 'i' },
-    { 'idTags', 'Imperial Army ID Tags', 'ID Tags', 1, 186, 'B', true },
+    { 'idTags', 'Imperial Army ID Tags', 'ID Tags', 1, 186, 'B', 'TOAU' },
     { 'traverserStones', 'Traverser Stones', 'Stones', 1, 188, 'i' },
     { 'voidstones', 'Voidstones', 'Voidstones', 1, 192, 'i' },
     { 'corundums', "Kupofried's Corundums", 'Corundums', 1, 196, 'i' },
@@ -113,16 +115,31 @@ currency.list = {
     { 'apollyonUnits', 'Apollyon Units', 'Apollyon', 2, 152, 'i' },
 }
 
+-- the era of the server the data was made for: the expansions in order, and the latest it has on
+local expansions = { 'ROTZ', 'COP', 'TOAU', 'WOTG', 'ACP', 'AMK', 'ASA', 'ABYSSEA', 'VOIDWATCH', 'SOA', 'ROV', 'TVR' }
+local latestEnabled, serverName = 'TOAU', 'Phoenix'
+do
+    local ok, rules = pcall(require, 'winxi.rules')
+    local era = ok and rules.Get('era') or nil
+    if era then
+        expansions, latestEnabled, serverName = era.Expansions or expansions, era.LatestEnabled or latestEnabled, era.Server or serverName
+    end
+end
+local order = {}
+for index, name in ipairs(expansions) do order[name] = index end
+
 local byKey = {}
 for _, entry in ipairs(currency.list) do
-    entry.key, entry.name, entry.short, entry.menu, entry.at, entry.size, entry.era =
-        entry[1], entry[2], entry[3], entry[4], entry[5], entry[6], entry[7] or false
+    entry.key, entry.name, entry.short, entry.menu, entry.at, entry.size, entry.expansion =
+        entry[1], entry[2], entry[3], entry[4], entry[5], entry[6], entry[7]
+    entry.era = entry.expansion ~= nil and (order[entry.expansion] or 99) <= (order[latestEnabled] or 0)
     byKey[entry.key] = entry
 end
 
 currency.filters = {
-    { key = 'phoenix', label = 'Phoenix',
-        tip = 'Phoenix\'s era, Treasures of Aht Urhgan, and any other currency you have some of.' },
+    -- the server's: its key stays 'phoenix', which saved settings name it by
+    { key = 'phoenix', label = serverName,
+        tip = ('%s\'s era, and any other currency you have some of.'):format(serverName) },
     { key = 'retail', label = 'Retail', tip = 'Every currency the game knows.' },
 }
 local filterKeys = {}

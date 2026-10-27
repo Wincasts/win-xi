@@ -17,7 +17,7 @@ NOT_YET_CHECKED = {}
 # What a build script reads of the server, and what it must read it through to have it as live does
 READS = (
     ('server Lua', r"scripts/|'scripts'|/ 'scripts", r'modules\.(guard|files_on_live)\('),
-    ('data YAML', r"data/zones|data/[\w{}/]+\.yaml|'data' /|/ 'data'", r'modules\.load_yaml\(|importer\.generator\(|generator\.load_zone\('),
+    ('data YAML', r"data/zones|data/[\w{}/]+\.yaml|'data' /|/ 'data'|'data',", r'modules\.load_yaml\(|importer\.generator\(|generator\.load_zone\('),
     ('server SQL', r"sql/|'sql'", r'enabled_files\(|zone_rows\(|zone_ids\(|importer\.generator\('),
 )
 
@@ -102,7 +102,8 @@ class EveryBuildScriptTest(unittest.TestCase):
         modules.load_yaml (or the mobdb importer, which patches zones the same way), its SQL with the
         module SQL replayed over it; or it is one of those from before phoenix.modules."""
         missing = []
-        for path in sorted(TOOLS.glob('build_*.py')):
+        # every tool that reads the server, whatever it is called (build_, generate_ ...)
+        for path in sorted(p for p in TOOLS.glob('*.py') if not p.name.startswith('test_')):
             text = path.read_text()
             if not re.search(r'^\s*from phoenix import|^\s*import phoenix', text, re.M):
                 continue
