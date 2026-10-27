@@ -562,9 +562,10 @@ someone who has set one addon up knows every other. The rules, in the order a wi
    with `visibility`, then a rule and the rules for hiding), then Winxi Theme last, in its own colour. `winxi.shell`
    draws the tabs; an addon without the shell draws the same ones.
 2. **Sections.** Every tab is sections under `widgets.Header`, each collapsible, its body inside the `if`.
-   A section's title sits on a band in the settings windows' Highlight Color that runs from one edge of
-   the window to the other, with a solid line along its foot and the [-] or [+] at the right end of the
-   row; a sub-section's band starts at its indent, fainter. A settings window fitted to its content is
+   A section's title sits on a band in the settings windows' Highlight Color across the window's
+   content, from the padding on the left to the padding or the scrollbar on the right, with a solid
+   line along its foot and the [-] or [+] at the right end of the row, both a little in from the band's
+   ends; a sub-section has only a fainter line, from its indent. A settings window fitted to its content is
    never taller than three quarters of the screen; the rest scrolls.
    The first section of a tab is `Header(name, true)`, flush with the tab bar. A header sets itself apart
    from the section above: never a `Gap` before one. `Gap` goes only between families of settings inside
