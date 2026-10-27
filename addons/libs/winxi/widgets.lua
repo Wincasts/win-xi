@@ -24,8 +24,8 @@
 --                                    between them, drawn at the cursor, widgets.RowControlWidth wide
 --   widgets.Note(text)               a dim sentence on its own, for what is not a setting (a warning)
 --   widgets.Status(text)             the addon's state, one dim line at the foot of a tab, over a rule
---   widgets.Header(text, first)      a section title over a bar across the window, [-] or [+] at the
---                                    right; a click collapses or opens it, and it returns whether it is
+--   widgets.Header(text, first)      a section title on a band across the window's content, [-] or
+--                                    [+] at the right; a click collapses or opens it, and it returns whether it is
 --                                    open, for the section to be drawn only then. It sets itself apart
 --                                    from the section above; no Gap before it
 --   widgets.SubHeader(text, first)   a sub-section inside a section, for a section with many families:
@@ -83,7 +83,6 @@ local fonts = require('winxi.fonts');
 local window = require('winxi.window');
 local tooltip = require('winxi.tooltip');
 local statusicons = require('winxi.statusicons');
-local clip = require('winxi.clip');
 
 -- Every option's name has each word capitalised: "Shadow Opacity", not "Shadow opacity".
 local widgets = {};
@@ -568,10 +567,11 @@ local heightSpec = { format = '%d px' };
 -- Theme, Window, Font and Styles, which widgets.Appearance draws, and Addon, the addon's own, for whatever
 -- else it has to set.
 --
--- Every section can be collapsed: its title has [-] at the right edge of the window while open and
--- [+] while collapsed, and a click on either changes which. A band in the settings windows' Highlight
--- Color lies behind the title row from one edge of the window to the other, with a solid line along
--- its foot, so a section is found at a glance; a sub-section's starts at its indent, fainter. widgets.Header returns whether it is open,
+-- Every section can be collapsed: its title has [-] at the right of its row while open and [+] while
+-- collapsed, and a click on either changes which. A band in the settings windows' Highlight Color lies
+-- behind the title row, across the window's content between its padding and short of its scrollbar,
+-- with a solid line along its foot, so a section is found at a glance; a sub-section has only a
+-- fainter line, from its indent. widgets.Header returns whether it is open,
 -- and the section's settings are drawn only then:
 --     if widgets.Header('Window') then
 --         ...
@@ -587,8 +587,10 @@ local subIndent = 0;      -- the steps the sub-section being drawn has indented 
 local subGap = { 0, 3 };  -- before a sub-section's title
 local markers = { '[-]', '[+]' };
 local bandPad = 3;               -- the band reaches this far above and below the title row
-local lineHeight = { 2, 1 };     -- the line along the band's foot: a section's, a sub-section's
-local bandOpacity = { 0.55, 0.35 }; -- of the Highlight Color's own: the band of a section, of a sub-section
+local bandInset = 6;             -- the title and the marker stand this far in from the band's ends
+local lineHeight = { 2, 1 };     -- the line along the foot: a section's, under its band; a sub-section's alone
+local bandOpacity = 0.55;        -- of the Highlight Color's own
+local lineOpacity = { 1, 0.6 };  -- a section's line, a sub-section's
 local barAfter = { 0, 5 };       -- the room left under the band
 local bandColor, lineColor = { 0, 0, 0, 0 }, { 0, 0, 0, 0 };
 local barFrom, barTo = { 0, 0 }, { 0, 0 };
@@ -609,44 +611,40 @@ local function Title(text, key, defaultCollapsed, sub)
     local marker = isCollapsed and markers[2] or markers[1];
     local clicked = false;
 
-    -- a band behind the row, across the whole window for a section and from the indent for a
-    -- sub-section, with a line along its foot. The window clips its content short of its edges, so the
-    -- band goes through winxi.clip to reach them: a clip of its own that left the screen would be
-    -- stretched over all of it (Direct3D 8 has no scissor), so the clip is the whole screen, and the
-    -- band is cut to the window's own area below its title bar, so that one scrolled out of view
-    -- draws nothing
+    -- a section's title row sits on a band, across the window's content from the padding on the left to
+    -- the padding or the scrollbar on the right, with a line along its foot; a sub-section has the line
+    -- alone, from its indent. Both keep to the window's own clip, so a header scrolled out of view
+    -- draws nothing, and the text is drawn after the band, so it is over it.
     local list = imgui.GetWindowDrawList();
     local x, y = imgui.GetCursorScreenPos();
-    local windowX, windowY = imgui.GetWindowPos();
-    local windowWidth, windowHeight = imgui.GetWindowSize();
+    local width = imgui.GetContentRegionAvail();
     local textHeight = TextHeight();
-    if list ~= nil and list.AddRectFilled ~= nil and list.PushClipRect ~= nil and x ~= nil and y ~= nil
-        and windowX ~= nil and windowY ~= nil and windowWidth ~= nil and windowHeight ~= nil then
+    local inset = sub and 0 or bandInset;
+    if list ~= nil and list.AddRectFilled ~= nil and x ~= nil and y ~= nil and type(width) == 'number' then
         local highlight = look.SettingsHighlightColor or look.HighlightColor or color;
         local opacity = highlight[4] or 1;
-        bandColor[1], bandColor[2], bandColor[3], bandColor[4] = highlight[1], highlight[2], highlight[3], opacity * (sub and bandOpacity[2] or bandOpacity[1]);
-        lineColor[1], lineColor[2], lineColor[3], lineColor[4] = highlight[1], highlight[2], highlight[3], opacity;
         local line = sub and lineHeight[2] or lineHeight[1];
-        local top, bottom = windowY + FrameHeight(), windowY + windowHeight;
-        barFrom[1], barFrom[2] = sub and x or windowX, math.max(y - bandPad, top);
-        barTo[1], barTo[2] = windowX + windowWidth, math.min(y + textHeight + bandPad + line, bottom);
-        if barTo[2] > barFrom[2] and clip.Screen(list, barFrom, barTo) then
+        barFrom[1], barTo[1] = x, x + width;
+        if not sub then
+            bandColor[1], bandColor[2], bandColor[3], bandColor[4] = highlight[1], highlight[2], highlight[3], opacity * bandOpacity;
+            barFrom[2], barTo[2] = y - bandPad, y + textHeight + bandPad + line;
             list:AddRectFilled(barFrom, barTo, imgui.GetColorU32(bandColor));
-            barFrom[2] = math.max(barTo[2] - line, barFrom[2]);
-            list:AddRectFilled(barFrom, barTo, imgui.GetColorU32(lineColor));
-            list:PopClipRect();
         end
+        lineColor[1], lineColor[2], lineColor[3], lineColor[4] = highlight[1], highlight[2], highlight[3], opacity * (sub and lineOpacity[2] or lineOpacity[1]);
+        barFrom[2], barTo[2] = y + textHeight + bandPad, y + textHeight + bandPad + line;
+        list:AddRectFilled(barFrom, barTo, imgui.GetColorU32(lineColor));
     end
 
-    -- the title at the left, the marker against the right edge, both clickable
+    -- the title at the left and the marker at the right, in from the band's ends, both clickable
+    if inset > 0 then imgui.SetCursorPosX((imgui.GetCursorPosX() or 0) + inset); end
     imgui.TextColored(color, text);
     if imgui.IsItemHovered() and ImGuiMouseCursor_Hand ~= nil then imgui.SetMouseCursor(ImGuiMouseCursor_Hand); end
     if imgui.IsItemClicked() then clicked = true; end
     imgui.SameLine(0, 0);
     local room = imgui.GetContentRegionAvail();
     local markerWidth = imgui.CalcTextSize(marker) or 0;
-    if type(room) == 'number' and room > markerWidth then
-        imgui.SetCursorPosX((imgui.GetCursorPosX() or 0) + room - markerWidth);
+    if type(room) == 'number' and room > markerWidth + inset then
+        imgui.SetCursorPosX((imgui.GetCursorPosX() or 0) + room - markerWidth - inset);
     end
     imgui.TextColored(color, marker);
     if imgui.IsItemHovered() and ImGuiMouseCursor_Hand ~= nil then imgui.SetMouseCursor(ImGuiMouseCursor_Hand); end
