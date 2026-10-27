@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.84
+
+- The player's and the party's statuses over names are read by winxi 64's `winxi.partystatus`, which party reads them through too, so the two show the same. Nothing drawn changes. Requires winxi 64.
+
 ## 1.83
 
 - Every tooltip in the settings reread for plain words: each says what its setting does and what it leaves alone, no longer how it is done, which plugin version it needs or what it costs. The format editors keep their token reference. Tracked NM no longer asks for a Show Aggro Icons setting that is gone. `tooltips/name.md` is the source, as before.

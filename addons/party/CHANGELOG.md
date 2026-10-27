@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.5
+
+- The player's and the party's buffs are read by winxi 64's `winxi.partystatus`, which name reads them through too, so the two show the same. The player's own are now the game's status icons (as buff and name show them) rather than its list of buffs, and none are read while changing areas. Requires winxi 64.
+
 ## 0.3.4
 
 - The settings' tooltips reread for plain words: each says what its setting does, in a line or two. Far Range has one now. Priority Effects and Hidden Effects describe the picker, not a list of numbers; Near Range says what it dims; Automatic Positioning says where the windows go, not the pixel counts; the uihook section's say what the windows do in the game's place.

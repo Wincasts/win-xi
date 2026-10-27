@@ -12,10 +12,11 @@
 --   statuses.DrawSettings(options, save)         the settings tab
 --
 -- What is known of who is under what is not the same for everyone. The game keeps the player's own
--- statuses and those of the five others of the player's own party, and they are read as they are. Of
--- anyone else it is told nothing: winxi.debuffs keeps count of every status the server is seen to say
--- took hold on them, by spell, ability, weapon skill, monster's move or additional effect, for as long
--- as the server's scripts say it usually lasts, or until the server says it wore off.
+-- statuses and those of the five others of the player's own party, and they are read as they are
+-- (winxi.partystatus). Of anyone else it is told nothing: winxi.debuffs keeps count of every status
+-- the server is seen to say took hold on them, by spell, ability, weapon skill, monster's move or
+-- additional effect, for as long as the server's scripts say it usually lasts, or until the server
+-- says it wore off.
 --
 -- The icons are as party and buff draw them (winxi.statusicons): with Custom Icons on in winxisettings,
 -- the chosen set's where it has one and the game's where it has not; off, the game's. All are from
@@ -26,6 +27,7 @@ local widgets     = require('winxi.widgets');
 local nameplates  = require('winxi.nameplates');
 local statusicons = require('winxi.statusicons');
 local debuffs     = require('winxi.debuffs');
+local partystatus = require('winxi.partystatus');
 local theme       = require('winxi.theme');
 local controls    = require('controls');
 local tips        = require('winxi.tips');
@@ -40,8 +42,6 @@ local MOST         = 12;   -- icons over one name
 local GAP          = 1;    -- pixels between one icon and the next
 local RISE         = 3;    -- pixels between the row and what is under it
 local PARTY_OTHERS = 5;    -- the others of the player's party, whose statuses the game keeps
-local SLOTS        = 32;   -- statuses the game keeps for each
-local MEMBER_SIZE  = 0x30; -- one member of the party's statuses, as the game keeps them
 local LAST_STATUS  = 635;  -- the highest number the server has a status for
 local LIST_ROWS    = 14;   -- rows of the settings' list to be seen at once
 local PREVIEW_MOST = 4;    -- icons over each name while previewing
@@ -149,76 +149,6 @@ local own = { count = 0 };
 local party = {};
 for member = 1, PARTY_OTHERS do
     party[member] = { id = 0, count = 0 };
-end
-local partyPointer = nil;
-
-local function ReadOwn(memory)
-    own.count = 0;
-    local player = memory:GetPlayer();
-    if (player == nil or player:GetIsZoning() ~= 0) then
-        return;
-    end
-    local ids = player:GetStatusIcons();
-    local count = 0;
-    for slot = 1, SLOTS do
-        local id = ids[slot];
-        if (id ~= nil and id > 0 and id ~= 255 and id < 0x400) then
-            count = count + 1;
-            own[count] = id;
-        end
-    end
-    own.count = count;
-end
-
--- A member's entry, MEMBER_SIZE bytes, read in one as a table of them from 1 where Ashita can
--- (ashita.memory.read_array), or nil, to be read a byte at a time instead
-local function ReadEntry(at)
-    local read = ashita.memory.read_array;
-    if (read == nil) then
-        return nil;
-    end
-    local ok, bytes = pcall(read, at, MEMBER_SIZE);
-    if (not ok or type(bytes) ~= 'table' or #bytes < MEMBER_SIZE or type(bytes[1]) ~= 'number') then
-        return nil;
-    end
-    return bytes;
-end
-
--- As the game keeps them: who, then two bits of each status's number four to a byte, then the rest
--- of each number a byte each
-local function ReadParty()
-    for member = 1, PARTY_OTHERS do
-        party[member].id, party[member].count = 0, 0;
-    end
-    if (partyPointer == nil or partyPointer == 0) then
-        partyPointer = AshitaCore:GetPointerManager():Get('party.statusicons');
-    end
-    local base = (partyPointer ~= nil and partyPointer ~= 0) and ashita.memory.read_uint32(partyPointer) or 0;
-    if (base == 0) then
-        return;
-    end
-    for member = 1, PARTY_OTHERS do
-        local at = base + MEMBER_SIZE * (member - 1);
-        local bytes = ReadEntry(at);
-        local id = bytes ~= nil and (bytes[1] + bytes[2] * 0x100 + bytes[3] * 0x10000 + bytes[4] * 0x1000000) or ashita.memory.read_uint32(at);
-        if (id ~= 0) then
-            local list = party[member];
-            local count, high = 0, 0;
-            for slot = 0, SLOTS - 1 do
-                local pair = slot % 4;
-                if (pair == 0) then
-                    high = bytes ~= nil and bytes[9 + slot / 4] or ashita.memory.read_uint8(at + 8 + slot / 4);
-                end
-                local low = bytes ~= nil and bytes[17 + slot] or ashita.memory.read_uint8(at + 16 + slot);
-                local status = bit.band(bit.rshift(high, pair * 2), 0x03) * 256 + low;
-                if (status > 0 and status ~= 255) then
-                    count = count + 1;
-                    list[count] = status;
-                end
-            end
-            list.id, list.count = id, count;
-        end
-    end
 end
 
 -- Whether the custom set's icons are drawn: as Icons says, or as the winxi theme's Custom Icons does
@@ -339,14 +269,14 @@ local function Gather(name, options)
     if (name.Category == SELF) then
         if (not ownRead) then
             ownRead = true;
-            ReadOwn(AshitaCore:GetMemoryManager());
+            partystatus.Own(own);
         end
         TakeAll(own);
         return;
     end
     if (not partyRead) then
         partyRead = true;
-        ReadParty();
+        partystatus.Party(party);
     end
     local serverId = name.ServerId;
     for member = 1, PARTY_OTHERS do
