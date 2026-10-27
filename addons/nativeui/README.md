@@ -9,8 +9,8 @@ game starts.
 ## Skin
 
 A folder of `config\uihook\skins\`, as `tools/uihook_skin.py` makes them (`--style winxi` for the winxi theme's
-look), loaded with `/uihook skin`. None draws the game's own. Reload reads the skin's pictures again after they
-are changed.
+look), loaded with `/uihook skin`. None draws the game's own. Reload Skin reads the skin's pictures again after
+they are changed.
 
 ## Menus Over The Chat Log
 
@@ -18,7 +18,7 @@ The game stacks a family of windows in the bottom left with their bottom on the 
 menu, a shop's buy and sell, yes-or-no questions, an item's description, and some fifty more. Move Right and
 Move Down draw them all that many pixels from where the game puts them, together, kept on the screen
 (`/uihook native group`). Only their drawing moves: the controller works them as ever, but the mouse clicks
-where the game put them.
+where the game put them. Reset Position puts them back where the game does.
 
 [Experimental] Drawn As (The Game to begin with), needing uihook 1.59:
 

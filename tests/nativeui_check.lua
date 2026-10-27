@@ -52,7 +52,7 @@ H.loaded('uihook', false); H.wait(0.6); H.frames(1); H.loaded('uihook', true); H
 check('uihook loaded again: given it all again', Sent('/uihook skin off') and Sent('/uihook native inset 100 quiet'))
 check('the command opens the settings', H.command('/nativeui'))
 H.frames(2)
-check('the settings drawn', (H.calls['BeginCombo'] or 0) > 0 and (H.calls['DragInt'] or 0) > 0 and (H.calls['SliderInt'] or 0) > 0 and (H.calls['SliderFloat'] or 0) > 0 and (H.calls['Checkbox'] or 0) > 0)
+check('the settings drawn as rows: the dropdowns, the drags, the sliders, the checkbox and the Reload and Reset buttons', (H.calls['BeginCombo'] or 0) > 0 and (H.calls['DragInt'] or 0) > 0 and (H.calls['SliderInt'] or 0) > 0 and (H.calls['SliderFloat'] or 0) > 0 and (H.calls['Checkbox'] or 0) > 0 and (H.calls['Button'] or 0) >= 2)
 queued = {}
 H.unload()
 check('unloaded: the menus given back', Sent('/uihook native group off quiet') and Sent('/uihook native inset 0 quiet') and Sent('/uihook native size 1 quiet'))

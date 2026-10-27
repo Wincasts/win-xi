@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10
+
+- The settings are described rows (winxi 65): each a name, a sentence under it saying what it does, and its control at
+  the right, with no tooltips or notes between them. Skin's list is looked for again as it opens; Reload is the Reload
+  Skin row, greyed while the skin is None. Each font's weight sits under its font, greyed while the font is Skin's Own.
+  The offset's Reset is the Reset Position row, last in the tab; the status of Drawn As Winxi is one line at the foot.
+
 ## 0.9.1
 
 - uihook's mirror block is read as plugins/ABI.md promises (winxi 57's `winxi.abi`): the same Version and at least the size this knows, so a newer uihook that adds to the block is still read. Requires winxi 57.

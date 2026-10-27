@@ -1,6 +1,6 @@
 addon.name    = 'nativeui'
 addon.author  = 'win'
-addon.version = '0.9.1'
+addon.version = '0.10'
 addon.desc    = 'The game\'s own interface in a uihook skin, and the menus it stacks over the chat log moved where you want them.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -45,7 +45,6 @@ end
 require('common')
 local imgui = require('imgui')
 local widgets = require('winxi.widgets')
-local tooltip = require('winxi.tooltip')
 local shell = require('winxi.shell')
 local fonts = require('winxi.fonts')
 local theme = require('winxi.theme')
@@ -53,10 +52,16 @@ local groupdraw = require('groupdraw')
 
 local THEME_FONT, SKIN_FONT = 'Follow Winxi Theme', 'Skin\'s Own'
 local WEIGHTS = { 'As The Font', 'Regular', 'Bold' }   -- the file's own weight, or one drawn so
--- each kind of the skin's fonts: its setting, its label, and the theme's font it follows
+-- each kind of the skin's fonts: its setting, its label, the theme's font it follows, and the sentences of its rows
 local FONT_KINDS = {
-    { kind = 'menu', key = 'menuFont', weightKey = 'menuWeight', weightLabel = 'Menu Weight', label = 'Menu Font', themeKey = 'FontFile', tip = 'The menus\' words: their commands, lists and buttons.' },
-    { kind = 'title', key = 'titleFont', weightKey = 'titleWeight', weightLabel = 'Title Weight', label = 'Title Font', themeKey = 'TitleFontFile', tip = 'The windows\' titles on their top edges, and the jobs\' and races\' names.' },
+    { kind = 'menu', key = 'menuFont', id = '##nativeui.menuFont', weightKey = 'menuWeight', weightId = '##nativeui.menuWeight', weightSpec = {},
+      label = 'Menu Font', weightLabel = 'Menu Weight', themeKey = 'FontFile',
+      sentence = 'The font the menus are written in. Follow Winxi Theme uses the Winxi Theme\'s font.',
+      weightSentence = 'How heavy its letters are drawn. Bold reads best at a menu\'s size.' },
+    { kind = 'title', key = 'titleFont', id = '##nativeui.titleFont', weightKey = 'titleWeight', weightId = '##nativeui.titleWeight', weightSpec = {},
+      label = 'Title Font', weightLabel = 'Title Weight', themeKey = 'TitleFontFile',
+      sentence = 'The font of the window titles and the job and race names. Follow Winxi Theme uses the Winxi Theme\'s Title Font.',
+      weightSentence = 'How heavy its letters are drawn. As The Font keeps the file\'s own weight.' },
 }
 
 local NONE = 'None'
@@ -196,125 +201,105 @@ local function Apply(force)
 end
 
 ---------------------------------------------------------------------------------------------------
--- Settings
+-- Settings: described rows (winxi 65), the sentences on each row all the help there is
 ---------------------------------------------------------------------------------------------------
 
-local skinList, skinListAt = nil, -10
+-- The skins: None and the folders, looked for again as the list opens (skins are copied in while the game runs)
+local function SkinChoices()
+    local choices = { NONE }
+    for _, name in ipairs(Skins()) do choices[#choices + 1] = name end
+    return choices
+end
+local skinChoices = nil
+local skinSpec = { onOpen = function() skinChoices = SkinChoices(); return skinChoices end }
+local reloadSpec = {}   -- under Skin, greyed while it is None
+-- A font's choices: the theme's, the skin's own, then the files of C:\Windows\Fonts, read as the list opens; a file
+-- chosen is shown by its name until then
+local function FontChoices()
+    local choices = { THEME_FONT, SKIN_FONT }
+    for _, file in ipairs(fonts.Files()) do choices[#choices + 1] = file end
+    return choices
+end
+local fontChoices = { THEME_FONT, SKIN_FONT }
+local fontSpec = { onOpen = FontChoices }
+local scaleSpec = { float = true, format = '%.2fx' }
+local mouseSpec = { experimental = true }
+local mouseBox = { false }   -- options.mouse is a plain boolean; the checkbox takes a box
+local offsetY = { 0 }        -- the second of options.offset, on its way through its own control
+local lookSpec = { experimental = true }
+
 local function DrawSettings(options)
     if widgets.Header('Skin', true) then
-        -- the folders looked for again now and then, as skins are copied in while the game runs
-        if os.clock() - skinListAt > 5 then skinList, skinListAt = Skins(), os.clock() end
-        widgets.Label('Skin')
-        widgets.PushControlWidth()
-        if imgui.BeginCombo('##nativeui.skin', options.skin) then
-            for _, name in ipairs({ NONE, unpack(skinList) }) do
-                if imgui.Selectable(name .. '##nativeui.skin.' .. name, options.skin == name) then
-                    options.skin = name
-                    app:Save()
-                    Apply()
-                end
-            end
-            imgui.EndCombo()
-        end
-        widgets.PopControlWidth()
-        tooltip.Hover('The pictures the game\'s menus are drawn with in place of its own: a folder of config\\uihook\\skins, as tools/uihook_skin.py makes them. None: the game\'s own.')
-        widgets.Label('Reload Skin')
-        if imgui.Button('Reload##nativeui.reload') and options.skin ~= NONE and Uihook() then Send('/uihook skin reload') end
-        tooltip.Hover('The skin\'s pictures read again, after they have been changed.')
-    end
-    if widgets.Header('Fonts') then
-        widgets.PushControlWidth()
-        for _, f in ipairs(FONT_KINDS) do
-            widgets.Label(f.label)
-            if imgui.BeginCombo('##nativeui.' .. f.key, options[f.key]) then
-                local choices = { THEME_FONT, SKIN_FONT }
-                for _, file in ipairs(fonts.Files()) do choices[#choices + 1] = file end
-                for _, choice in ipairs(choices) do
-                    if imgui.Selectable(choice .. '##nativeui.' .. f.key .. '.' .. choice, options[f.key] == choice) then
-                        options[f.key] = choice
-                        app:Save()
-                        Apply()
-                    end
-                end
-                imgui.EndCombo()
-            end
-            tooltip.Hover(f.tip .. ' Follow Winxi Theme: the theme\'s ' .. (f.kind == 'menu' and 'Font' or 'Title Font') .. ', changing with it. Skin\'s Own: as the skin was made. Any other: that font of C:\\Windows\\Fonts, drawn by uihook as the skin loads.')
-            widgets.Label(f.weightLabel)
-            if imgui.BeginCombo('##nativeui.' .. f.weightKey, options[f.weightKey]) then
-                for _, w in ipairs(WEIGHTS) do
-                    if imgui.Selectable(w .. '##nativeui.' .. f.weightKey .. '.' .. w, options[f.weightKey] == w) then
-                        options[f.weightKey] = w
-                        app:Save()
-                        Apply()
-                    end
-                end
-                imgui.EndCombo()
-            end
-            tooltip.Hover('How heavy its letters are drawn. At a menu\'s size a regular font\'s strokes are a pixel wide and faint: Bold reads more like the game\'s own. As The Font: the file\'s own weight. A font chosen is drawn smoothed, with the winxi theme\'s Text Outline about its letters.')
-        end
-        widgets.PopControlWidth()
-    end
-    if widgets.Header('Screen') then
-        widgets.PushControlWidth()
-        widgets.Label('Menu Scale')
-        if imgui.SliderFloat('##nativeui.scale', options.scale, SCALE_LOW, SCALE_HIGH, '%.2fx') then Apply() end
-        if imgui.IsItemDeactivatedAfterEdit() then app:Save() end
-        tooltip.Hover('Every window of the game\'s with a frame drawn this much larger, each from its corner of the screen so they keep their places to each other: the bar across the top from its ends, the menus over the chat log from its top left. The chat log stays as chatbox places it. Only the drawing grows: the mouse clicks where the game put them, unless Mouse Follows Menus is on.')
-        widgets.Label('Bring Sides In')
-        if imgui.SliderInt('##nativeui.inset', options.inset, 0, INSET_LIMIT, '%d px') then Apply() end
-        if imgui.IsItemDeactivatedAfterEdit() then app:Save() end
-        widgets.PopControlWidth()
-        tooltip.Hover('The bar across the top this many pixels shorter at each end, staying centred, and every window on either half of the screen moved in as far, keeping its size and its place next to the others. The chat log and the menus stacked on it stay where they are. 0: where the game puts them.')
-        widgets.Label('Mouse Follows Menus', true)
-        local mouse = { options.mouse == true }
-        if imgui.Checkbox('##nativeui.mouse', mouse) then
-            options.mouse = mouse[1]
+        if skinChoices == nil then skinChoices = SkinChoices() end
+        local chosen = widgets.Dropdown('Skin', 'The pictures the game menus are drawn with. None keeps the game default.', skinChoices, options.skin, '##nativeui.skin', skinSpec)
+        if chosen ~= nil then
+            options.skin = chosen
             app:Save()
             Apply()
         end
-        tooltip.Hover('The mouse works each window where it is drawn, moved or larger: pointing and clicking are given to the game at the same place on its own window. Where the game puts a window that is drawn elsewhere, with nothing drawn there, the game is given no mouse. Off: the mouse clicks where the game put them, as Menu Scale, Bring Sides In and Menus Over The Chat Log leave it.')
+        reloadSpec.parent = options.skin ~= NONE
+        if widgets.Action('Reload Skin', 'Reads the skin\'s pictures again after they have been changed.', 'Reload##nativeui.reload', reloadSpec) and options.skin ~= NONE and Uihook() then Send('/uihook skin reload') end
+    end
+    if widgets.Header('Fonts') then
+        for i, f in ipairs(FONT_KINDS) do
+            if i > 1 then widgets.Gap() end
+            local chosen = widgets.Dropdown(f.label, f.sentence, fontChoices, options[f.key], f.id, fontSpec)
+            if chosen ~= nil then
+                options[f.key] = chosen
+                app:Save()
+                Apply()
+            end
+            -- a weight is drawn only where uihook draws the font: not for the skin's own pictures
+            f.weightSpec.parent = options[f.key] ~= SKIN_FONT
+            chosen = widgets.Dropdown(f.weightLabel, f.weightSentence, WEIGHTS, options[f.weightKey], f.weightId, f.weightSpec)
+            if chosen ~= nil then
+                options[f.weightKey] = chosen
+                app:Save()
+                Apply()
+            end
+        end
+    end
+    if widgets.Header('Screen') then
+        local changed, done = widgets.Slider('Menu Scale', 'Makes every framed game window this much larger.', options.scale, SCALE_LOW, SCALE_HIGH, '##nativeui.scale', scaleSpec)
+        if changed then Apply() end
+        if done then app:Save() end
+        changed, done = widgets.Slider('Bring Sides In', 'Shortens the bar across the top and moves the side windows in with it.', options.inset, 0, INSET_LIMIT, '##nativeui.inset', widgets.Pixels)
+        if changed then Apply() end
+        if done then app:Save() end
+        mouseBox[1] = options.mouse == true
+        if widgets.Check('Mouse Follows Menus', 'The mouse clicks each menu where it is drawn. Off, it clicks where the game puts them.', mouseBox, '##nativeui.mouse', mouseSpec) then
+            options.mouse = mouseBox[1]
+            app:Save()
+            Apply()
+        end
     end
     if widgets.Header('Menus Over The Chat Log') then
         local changed = false
-        widgets.PushControlWidth()
-        widgets.Label('Move Right')
+        widgets.BeginRow('Move Right', 'How far right of where the game puts them. Less than 0 moves them left.')
         if imgui.DragInt('##nativeui.x', options.offset, 1, -OFFSET_LIMIT, OFFSET_LIMIT, '%d px') then changed = true end
         if imgui.IsItemDeactivatedAfterEdit() then app:Save() end
-        tooltip.Hover('Pixels right of where the game puts them (less than 0: left). Drag, or double-click to type.')
-        local y = { options.offset[2] }
-        widgets.Label('Move Down')
-        if imgui.DragInt('##nativeui.y', y, 1, -OFFSET_LIMIT, OFFSET_LIMIT, '%d px') then options.offset[2] = y[1]; changed = true end
+        widgets.EndRow()
+        offsetY[1] = options.offset[2]
+        widgets.BeginRow('Move Down', 'How far below where the game puts them. Less than 0 moves them up.')
+        if imgui.DragInt('##nativeui.y', offsetY, 1, -OFFSET_LIMIT, OFFSET_LIMIT, '%d px') then options.offset[2] = offsetY[1]; changed = true end
         if imgui.IsItemDeactivatedAfterEdit() then app:Save() end
-        tooltip.Hover('Pixels below where the game puts them (less than 0: up). They are kept on the screen.')
-        widgets.PopControlWidth()
+        widgets.EndRow()
         if changed then Apply() end
-        widgets.Label('Position')
-        if imgui.Button('Reset##nativeui.reset') then
+        local chosen = widgets.Dropdown('Drawn As', 'Winxi Frames puts a Winxi Theme panel behind the game\'s words. Winxi redraws them whole in the Winxi Theme look.', LOOKS, options.look, '##nativeui.look', lookSpec)
+        if chosen ~= nil then
+            options.look = chosen
+            app:Save()
+            Apply()
+        end
+        widgets.Gap()
+        if widgets.Action('Reset Position', 'Puts them back where the game does.', 'Reset##nativeui.reset') then
             options.offset[1], options.offset[2] = 0, 0
             app:Save()
             Apply()
         end
-        tooltip.Hover('Back where the game puts them.')
-        widgets.Label('Drawn As', true)
-        widgets.PushControlWidth()
-        if imgui.BeginCombo('##nativeui.look', options.look) then
-            for _, look in ipairs(LOOKS) do
-                if imgui.Selectable(look .. '##nativeui.look.' .. look, options.look == look) then
-                    options.look = look
-                    app:Save()
-                    Apply()
-                end
-            end
-            imgui.EndCombo()
-        end
-        widgets.PopControlWidth()
-        tooltip.Hover('The Game: as the game draws them. Winxi Frames: their frames (the game\'s corners, edges and striped background) drawn as a panel in the theme\'s Background Color and border, their words, pictures and hand the game\'s over it. Winxi: each drawn again whole in the winxi look, its words in the theme\'s font, the row the cursor is on lit, the game\'s hand; the game\'s own stays open unseen underneath, so the controller and the mouse work it as ever. One that cannot be measured whole is left to the game for a moment. Needs uihook 1.59.')
-        if options.look == LOOK_WINXI then
-            widgets.Label('Status')
-            imgui.TextWrapped(groupdraw.Status())
-        end
-        imgui.TextWrapped('The command menu, a shop\'s buy and sell, a yes or no and an item\'s description, and every other window the game stacks there, move together. Only their drawing moves: the controller works them as ever, but the mouse clicks where the game put them, unless Mouse Follows Menus (Screen) is on.')
     end
+    -- what the drawing in winxi is doing, at the foot of the tab
+    if options.look == LOOK_WINXI then widgets.Status(groupdraw.Status()) end
 end
 
 local function Complete(options)
