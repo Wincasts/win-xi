@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.85
+
+- The statuses over enemies: Sleep, bind, paralysis, blindness, silence, poison, gravity and flash wear off when the server says so: their message is 204, which only Dia, Bio and Slow's 206 was listened for. Bind ends with a blow, weapon skill, spell or additional effect that does damage, as sleep does, unless you cast it: the server tells the caster when it breaks, and one hit in twenty does not. Damage over time no longer wakes a sleeper.
+
 ## 1.84
 
 - The player's and the party's statuses over names are read by winxi 64's `winxi.partystatus`, which party reads them through too, so the two show the same. Nothing drawn changes. Requires winxi 64.

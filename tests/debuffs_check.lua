@@ -98,12 +98,29 @@ cast(1, 253, { [900] = 236 }); act(5, 1, 0, 901, 1, 48); H.print('another is hit
 act(1, 11, 999, 902, 242, 19); H.print('Sleep II by number from a move:', statuses(902))
 act(5, 11, 998, 902, 185, 30, 160, 4); H.print('a move that hurts and paralyses: awake, paralysed', statuses(902))
 act(1, 11, 999, 903, 185, 30, 160, 2); H.print('a move that hurts and then sleeps: asleep', statuses(903))
--- something eating its HP: the next tick wakes it, three seconds away at most
+-- something eating its HP wakes nothing, as is seen in the game
 debuffs.Clear()
 cast(1, 253, { [900] = 236 }); cast(2, 23, { [900] = 2 })
-H.print('Dia on a sleeper: sleep has', debuffs.Remaining(900, 'sleep'), '| by number', debuffs.StatusRemaining(900, 2), '| Dia its own', debuffs.StatusRemaining(900, 134))
-now = now + 3; H.print('three seconds on: awake', names(900) == 'Dia 57', statuses(900) == '134:57')
+now = now + 9; H.print('Dia on a sleeper, nine seconds on: still asleep', debuffs.Remaining(900, 'sleep'), '| by number', debuffs.StatusRemaining(900, 2))
 cast(2, 220, { [901] = 236 }); cast(1, 253, { [901] = 236 })
-H.print('Sleep on one poisoned: sleep has', debuffs.Remaining(901, 'sleep'), '| Poison its own', debuffs.StatusRemaining(901, 3) > 3)
-cast(1, 253, { [902] = 236 }); cast(2, 56, { [902] = 236 })
-H.print('Slow on a sleeper, which does not bleed: sleep has', debuffs.Remaining(902, 'sleep'))
+now = now + 9; H.print('Sleep on one poisoned, nine seconds on: still asleep', debuffs.Remaining(901, 'sleep'))
+-- the fade messages: sleep, bind and the other ailments say 204, Dia, Bio and Slow 206
+debuffs.Clear()
+cast(1, 253, { [900] = 236 }); cast(1, 258, { [900] = 236 })
+debuffs.Message({ target = 900, message = 204, param = 2 }); H.print('sleep fades (204): gone, by kind and number', debuffs.Get(900, 'sleep') == nil, debuffs.StatusRemaining(900, 2) == nil)
+debuffs.Message({ target = 900, message = 204, param = 11 }); H.print('bind fades (204): gone, by kind and number', debuffs.Get(900, 'bind') == nil, debuffs.StatusRemaining(900, 11) == nil)
+-- bind: a damaging blow breaks it, unless the player cast it, who is told when it breaks
+local core = AshitaCore
+local myId = 1
+AshitaCore = setmetatable({ GetMemoryManager = function() return { GetParty = function() return { GetMemberServerId = function() return myId end } end } end }, { __index = core })
+debuffs.Clear()
+cast(2, 258, { [900] = 236 }); cast(1, 258, { [901] = 236 })
+act(5, 1, 0, 900, 1, 0); H.print('bound by another, hit for nothing: still bound', debuffs.Get(900, 'bind') ~= nil)
+act(5, 1, 0, 900, 1, 48); H.print('bound by another, hit for 48: free, by kind and number', debuffs.Get(900, 'bind') == nil, debuffs.StatusRemaining(900, 11) == nil)
+act(5, 1, 0, 901, 1, 48); H.print('bound by the player, hit for 48: bound until the server says', debuffs.Get(901, 'bind') ~= nil, debuffs.StatusRemaining(901, 11) ~= nil)
+debuffs.Message({ target = 901, message = 204, param = 11 }); H.print('and then it does: free', debuffs.Get(901, 'bind') == nil)
+cast(2, 258, { [902] = 236 }); act(5, 4, 1, 902, 7, 60); H.print('bound and cured: still bound', debuffs.Get(902, 'bind') ~= nil)
+cast(2, 258, { [903] = 236 }); cast(2, 23, { [903] = 2 }); now = now + 9; H.print('bound under Dia: still bound', debuffs.Get(903, 'bind') ~= nil)
+myId = 0
+cast(1, 258, { [904] = 236 }); act(5, 1, 0, 904, 1, 48); H.print('no player to be told: free on the hit', debuffs.Get(904, 'bind') == nil)
+AshitaCore = core
