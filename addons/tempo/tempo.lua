@@ -1,6 +1,6 @@
 addon.name    = 'tempo'
 addon.author  = 'win'
-addon.version = '0.2.1'
+addon.version = '0.3.0'
 addon.desc    = 'Bars for when your next auto attack comes and when your next resting tick lands.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -27,7 +27,6 @@ require('common')
 local bit = require('bit')
 local imgui = require('imgui')
 local widgets = require('winxi.widgets')
-local tooltip = require('winxi.tooltip')
 local shell = require('winxi.shell')
 local text = require('winxi.text')
 local theme = require('winxi.theme')
@@ -418,90 +417,79 @@ local function Save()
     app:Save()
 end
 
-local function Check(label, id, setting, tip)
-    widgets.Label(label)
-    if imgui.Checkbox(id, setting) then Save() end
-    tooltip.Hover(tip)
+-- A colour is saved once the picker is let go, not as it is dragged
+local colorDirty = false
+local function Color(name, sentence, setting, id)
+    if widgets.Color(name, sentence, setting, id) then colorDirty = true end
 end
 
-local function Slider(label, id, setting, low, high, format, tip)
-    widgets.Label(label)
-    imgui.SliderInt(id, setting, low, high, format)
-    if imgui.IsItemDeactivatedAfterEdit() then Save() end
-    tooltip.Hover(tip)
+local function Slider(name, sentence, setting, id, low, high, spec)
+    local _, done = widgets.Slider(name, sentence, setting, low, high, id, spec)
+    if done then Save() end
 end
 
-local function Color(label, id, setting, tip)
-    widgets.Label(label)
-    imgui.ColorEdit4(id, setting, ImGuiColorEditFlags_NoInputs)
-    if imgui.IsItemDeactivatedAfterEdit() then Save() end
-    tooltip.Hover(tip)
-end
+local lockSpec = { onChanged = Save }
+local fullSpec = { }
+local place = false -- the window is put where Position says, next frame
 
--- The label's or the timer's font, size, side and offset
-local alignIds = { } -- kind -> side -> its button's label
+-- The label's or the timer's font, size, side and offset: each kind's ids, names and specs, made once
 for _, kind in ipairs(textKinds) do
-    alignIds[kind.key] = { }
-    for _, align in ipairs(aligns) do
-        alignIds[kind.key][align] = ('%s##tempo.%sAlign'):format(align, kind.key)
+    local lower = kind.name:lower()
+    kind.ids = { }
+    for _, part in ipairs({ 'Font', 'Size', 'Align', 'X', 'Y' }) do
+        kind.ids[part] = ('##tempo.%s%s'):format(kind.key, part)
     end
+    kind.fontSpec = { description = ('The font the %s is written in. Theme Font follows the Winxi Theme.'):format(lower) }
+    kind.sizeSpec = { description = ('How big the %s is. Theme Size follows the Winxi Theme.'):format(lower) }
+    kind.alignSentence = ('Which part of the bar the %s goes to, before its offset.'):format(lower)
+    kind.xSentence = ('How far right the %s is moved from there, or left below 0.'):format(lower)
+    kind.ySentence = ('How far down the %s is moved from the bar\'s middle, or up below 0. Moved off the bar, the window grows to hold it.'):format(lower)
 end
 
 local function DrawText(options, kind)
-    local key, lower = kind.key, kind.name:lower()
-    widgets.PushControlWidth()
-    if widgets.FontFile(options, key .. 'Font', '##tempo.' .. key .. 'Font',
-        { tooltip = ('The font the %s is written in; Theme Font follows Winxi Theme.'):format(lower) }) then
+    local key, ids = kind.key, kind.ids
+    if widgets.FontFile(options, key .. 'Font', ids.Font, kind.fontSpec) then Save() end
+    local _, done = widgets.FontSize(options, key .. 'Size', ids.Size, kind.sizeSpec)
+    if done then Save() end
+    local chosen = widgets.Dropdown('Align', kind.alignSentence, aligns, options[key .. 'Align'], ids.Align)
+    if chosen ~= nil then
+        options[key .. 'Align'] = chosen
         Save()
     end
-    local _, done = widgets.FontSize(options, key .. 'Size', '##tempo.' .. key .. 'Size',
-        { tooltip = ('How large the %s is, in pixels; Theme Size (0) follows Winxi Theme.'):format(lower) })
-    if done then Save() end
-    widgets.PopControlWidth()
-
-    widgets.Label('Align')
-    for index, align in ipairs(aligns) do
-        if index > 1 then imgui.SameLine() end
-        if imgui.RadioButton(alignIds[key][align], options[key .. 'Align'] == align) and options[key .. 'Align'] ~= align then
-            options[key .. 'Align'] = align
-            Save()
-        end
-    end
-    tooltip.Hover(('Which part of the bar the %s goes to, before its offset.'):format(lower))
-
-    widgets.PushControlWidth()
-    Slider('Offset X', '##tempo.' .. key .. 'X', options[key .. 'X'], -offsetMost, offsetMost, '%d px',
-        ('How far the %s is moved right of where its side puts it; less than 0 moves it left.'):format(lower))
-    Slider('Offset Y', '##tempo.' .. key .. 'Y', options[key .. 'Y'], -offsetMost, offsetMost, '%d px',
-        ('How far the %s is moved down from the middle of the bar; less than 0 moves it up. Moved off the bar, the window grows to hold it.'):format(lower))
-    widgets.PopControlWidth()
+    Slider('Offset X', kind.xSentence, options[key .. 'X'], ids.X, -offsetMost, offsetMost, widgets.Pixels)
+    Slider('Offset Y', kind.ySentence, options[key .. 'Y'], ids.Y, -offsetMost, offsetMost, widgets.Pixels)
 end
 
 local function DrawSettings(options)
-    if widgets.Header('Timers', true) then
-        Check('Show Attack Timer', '##tempo.showAttack', options.showAttack,
-            'While you fight, a bar that fills to your next auto attack. The delay is worked out from your weapons, job traits and haste, marked ~ until three of your own rounds have shown the real one.')
-        Check('Show Resting Ticks', '##tempo.showRest', options.showRest,
-            'While you /heal, a bar that fills to your next resting tick, with about what it restores. Ticks land every 9, 9 and 12 seconds; the first restores nothing.')
-        Check('Show Time To Full', '##tempo.showFull', options.showFull,
-            'Under the resting bar, about how long until your HP and MP are full.')
+    fullSpec.parent = options.showRest
+    if widgets.Header('Window', true) then
+        if widgets.Check('Visible', 'Shows the bars while you fight or rest. /tempo toggle switches it too.', options.isVisible, '##tempo.visible') then Save() end
+        widgets.Lock(options.locked, '##tempo.locked', lockSpec)
+        if widgets.Numbers('Position', 'Where the window\'s corner is on the screen.', options.pos, '##tempo.position') then
+            place = true
+            Save()
+        end
+        if widgets.Check('Show Background', 'A background and border behind the bars. Off, the bars sit straight over the game.', options.showBackground, '##tempo.showBackground') then Save() end
+    end
+    if widgets.Header('Timers') then
+        if widgets.Check('Show Attack Timer', 'Shows a bar filling to your next attack while you fight.', options.showAttack, '##tempo.showAttack') then Save() end
+        if widgets.Check('Show Resting Ticks', 'Shows a bar filling to your next resting tick while you rest, and about what it restores.', options.showRest, '##tempo.showRest') then Save() end
+        if widgets.Check('Show Time To Full', 'Writes under the resting bar about how long until your HP and MP are full.', options.showFull, '##tempo.showFull', fullSpec) then Save() end
     end
     if widgets.Header('Bars') then
-        widgets.PushControlWidth()
-        Slider('Bar Width', '##tempo.barWidth', options.barWidth, 120, 400, '%d px', 'How wide the bars are, in pixels.')
-        Slider('Bar Height', '##tempo.barHeight', options.barHeight, 8, 48, '%d px',
-            'How tall the bars are, in pixels. The ends of the Bar Texture keep their shape at any width.')
-        widgets.PopControlWidth()
-        Color('Attack Color', '##tempo.attackColor', options.attackColor, 'The colour the attack bar is tinted.')
-        Color('Rest Color', '##tempo.restColor', options.restColor, 'The colour the resting bar is tinted.')
-        Check('Show Background', '##tempo.showBackground', options.showBackground,
-            'The window\'s background, border and shadow, as Winxi Theme has them. Off, the bars stand over the game by themselves.')
-        widgets.Lock(options.locked, '##tempo.locked', { onChanged = Save })
+        Slider('Bar Width', 'How wide the bars are.', options.barWidth, '##tempo.barWidth', 120, 400, widgets.Pixels)
+        Slider('Bar Height', 'How tall the bars are.', options.barHeight, '##tempo.barHeight', 8, 48, widgets.Pixels)
+        Color('Attack Color', 'The colour the attack bar is tinted.', options.attackColor, '##tempo.attackColor')
+        Color('Rest Color', 'The colour the resting bar is tinted.', options.restColor, '##tempo.restColor')
     end
     for _, kind in ipairs(textKinds) do
         if widgets.Header(kind.name .. ' Text') then
             DrawText(options, kind)
         end
+    end
+    if colorDirty and not imgui.IsMouseDown(0) then
+        colorDirty = false
+        Save()
     end
 end
 
@@ -573,6 +561,7 @@ ashita.events.register('d3d_present', 'tempo_present', function()
     wanted[1] = options.isVisible[1] and (active or app.showConfig[1]) and true or false
     windowExtra.locked = options.locked[1] or nil
     windowExtra.clickThrough = windowExtra.locked
+    windowExtra.pos = place and options.pos or nil
     -- the background off: no background, border or shadow, as inventory's equipment window does it
     local plain = not options.showBackground[1]
     local look = app.windowStyle
@@ -582,5 +571,5 @@ ashita.events.register('d3d_present', 'tempo_present', function()
     -- the fonts are loaded before the window opens: adding one changes the shared atlas
     fonts.Get(options.labelFont)
     fonts.Get(options.timerFont)
-    app:Window(wanted, Draw, windowExtra)
+    if app:Window(wanted, Draw, windowExtra) then place = false end
 end)

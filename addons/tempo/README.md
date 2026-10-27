@@ -48,7 +48,16 @@ estimate a little; the next real tick puts it right.
 
 ## Settings
 
-Every section collapses with its [-]/[+].
+Every setting is a described row, its sentence under its name (winxi 65), and every section
+collapses with its [-]/[+].
+
+**Window**
+
+- **Visible** shows the bars while you fight or rest; `/tempo toggle` switches it too.
+- **Lock Window** keeps the window where it is, and lets clicks through. Off, it is dragged.
+- **Position** is where the window's corner is on the screen.
+- **Show Background** is the window's background, border and shadow, as Winxi Theme has them. Off, the
+  bars stand over the game by themselves.
 
 **Timers**
 
@@ -58,11 +67,8 @@ Every section collapses with its [-]/[+].
 **Bars**
 
 - **Bar Width** (120 to 400) and **Bar Height** (8 to 48) are the bars' size in pixels. The ends of the
-  Bar Texture keep their shape at any width.
+  Bar Texture keep their shape at any size.
 - **Attack Color** and **Rest Color** are what each bar is tinted.
-- **Show Background** is the window's background, border and shadow, as Winxi Theme has them. Off, the
-  bars stand over the game by themselves.
-- **Lock Window** keeps it where it is, and lets the mouse through. Off, it is dragged.
 
 **Label Text** and **Timer Text**
 
@@ -74,5 +80,5 @@ it); the timer is the seconds left. Each has:
 - **Offset X** and **Offset Y**: moved from there, up to 100 pixels either way. Words moved off the bar
   make room for themselves, so the window grows to hold them.
 
-Below them are the rules for hiding the window (the map, an event, the chat log opened out) and
-whether it fades in and out.
+The Visibility tab has whether the window fades in and out, and the rules for hiding it (the map, an
+event, the chat log opened out).
