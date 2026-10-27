@@ -29,6 +29,8 @@ core patch that names the constant, stops it too (phoenix.modules.guard, cpp_mod
                      live put over it in the order they apply
     preventAction    the statuses that stop a player acting, auto-attacks among it (status_effect_container.cpp's
                      HasPreventActionEffect, as the player's AI asks it, charm aside), by number
+    skillchain       when a skillchain can be closed: from so long after the weapon skill, for how long,
+                     and how much shorter each step of a chain makes it (battleutils.cpp)
     merits           the limit points a merit point is (merit.cpp's MAX_LIMIT_POINTS)
     weaponskillTp    the TP a weapon skill's extra hits return, each, before Store TP (scripts/globals/weaponskills.lua)
     automaton        what an automaton casts and uses: each spell's magic skill and the heads that cast it
@@ -385,6 +387,24 @@ def prevent_action(server):
     return {'Statuses': statuses, 'Source': path}
 
 
+def skillchain(server):
+    untouched(server, 'StatusEffect::Skillchain', 'FormSkillchain')
+    path = 'src/map/utils/battleutils.cpp'
+    opens = find(server, path, r'PSCEffect && PSCEffect->GetStartTime\(\) \+ (\d+)s < timer::now\(\)', 'when the window opens')
+    lasts = find(server, path, r'AddStatusEffect\(xi::StatusEffect::Skillchain, 0, combined_properties, 0s, (\d+)s', 'how long the resonance lasts')
+    shorter = find(server, path, r'if \(skillchain != SC_NONE\)\s*\{\s*PSCEffect->SetStartTime\(timer::now\(\)\);\s*PSCEffect->SetDuration\(PSCEffect->GetDuration\(\) - (\d+)s\);',
+                   'each step of a chain shortening it')
+    # what a closing property on an opening one makes: skillchain_map, { closing, opening } -> made
+    table = find(server, path, r'skillchain_map = \{(.*?)\n\};', 'skillchain_map', re.S).group(1)
+    find(server, path, r'skillchain_map\.find\(\{ skill_element, resonance_element \}\)', 'the map asked closing first')
+    pairs = [{'Close': close, 'Open': opening, 'Makes': made} for close, opening, made in
+             re.findall(r'\{\s*\{\s*SC_(\w+),\s*SC_(\w+)\s*\},\s*SC_(\w+)\s*\}', table)]
+    if len(pairs) < 20:
+        sys.exit(f'{path}: skillchain_map has only {len(pairs)} pairs: read it again')
+    return {'OpenAfter': int(opens.group(1)), 'Lasts': int(lasts.group(1)), 'ShorterPerStep': int(shorter.group(1)),
+            'Pairs': pairs, 'Source': path}
+
+
 def build(server, output, settings=()):
     server, output = Path(server), Path(output)
     from build_debuff_durations import enum_block
@@ -404,6 +424,7 @@ def build(server, output, settings=()):
         'corsairRolls': corsair_rolls(server),
         'merits': merits(server),
         'preventAction': prevent_action(server),
+        'skillchain': skillchain(server),
     }
     output.mkdir(parents=True, exist_ok=True)
     write_data(output / 'index.lua', {'Schema': 1, 'Source': provenance(server), 'Settings': list(settings),
