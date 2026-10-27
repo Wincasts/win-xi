@@ -15,6 +15,8 @@
 --     gamedata.UseDataset(key)  choose a server's data, for every addon: kept, and each addon's readers
 --                               told within a few seconds
 --     gamedata.OnChange(fn)     fn() is called when the choice changes, for a reader to forget what it has
+--     gamedata.Lookup(set, key) a table that reads as the set's key (index) does, read when first looked
+--                               in and again after the choice changes
 --     gamedata.Root(path)       the data folder, ending in a separator; a path given reads from there
 --                               instead (nil goes back to libs\winxi\data)
 --
@@ -168,6 +170,17 @@ function gamedata.Read(set, key)
     local dataset = gamedata.Dataset();
     local found = dataset and Load(('%s%s/%s/%s.lua'):format(base, dataset, set, tostring(key))) or nil; -- Windows takes / as well as \
     return found or Load(('%s%s/%s.lua'):format(base, set, tostring(key)));
+end
+
+-- A table that reads as the set's key (index by default) does, read the first time it is looked in and
+-- again after another server's data is chosen: for an addon that looks things up by zone and the like
+function gamedata.Lookup(set, key)
+    local data = nil;
+    gamedata.OnChange(function () data = nil; end);
+    return setmetatable({}, { __index = function (_, k)
+        data = data or gamedata.Read(set, key or 'index') or {};
+        return data[k];
+    end });
 end
 
 function gamedata.Manifest()

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Build the zone addon's region of each zone (addons/zone/data/regionZones.lua) from the server.
+"""Build the region of each zone, winxi's regions set (addons/libs/winxi/data/<server>/regions; a set of
+build_winxi_data), for the zone addon, from the server.
 
 The server says which region a zone is in (src/map/utils/zoneutils.cpp, GetCurrentRegion: a case for
 each zone, by the ZoneId enum's names, data/enums/zone.yaml's), in its own numbering (zone.h's
@@ -22,7 +23,7 @@ from phoenix import modules, source
 ROOT = Path(__file__).resolve().parents[1]
 CLIENT_GROUPING = ROOT / 'references/boussole/data/regionZones.lua'
 REGIONS = ROOT / 'addons/zone/data/regions.lua'
-OUTPUT = ROOT / 'addons/zone/data/regionZones.lua'
+OUTPUT = None  # the regions set's index.lua: data/<server>/regions
 
 # server regions whose client name is not theirs: REGION_TYPE -> the client's region number
 CLIENT_NAMED = {
@@ -36,7 +37,7 @@ def squash(text):
     return re.sub(r'[^a-z0-9]', '', text.lower())
 
 
-def build(server, output=OUTPUT):
+def build(server, output):
     server = Path(server)
     found = modules.cpp_modules_mentioning(server, 'GetCurrentRegion', 'REGION_TYPE')
     if found:
@@ -102,5 +103,7 @@ if __name__ == '__main__':
     source.add_arguments(parser)
     found = source.from_arguments(parser.parse_args())
     print(f'Server: {found.describe()}')
-    zones, regions = build(found.path)
-    print(f'Wrote {OUTPUT}: {zones} zones in {regions} regions')
+    output = ROOT / 'addons/libs/winxi/data' / source.KEY / 'regions' / 'index.lua'
+    output.parent.mkdir(parents=True, exist_ok=True)
+    zones, regions = build(found.path, output)
+    print(f'Wrote {output}: {zones} zones in {regions} regions')

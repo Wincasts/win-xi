@@ -342,7 +342,7 @@ are drawn with ImGui under every winxi window, whichever Text Renderer is chosen
 - **Kind Frames**: a look for each kind of zone. A city's name on a framed
   plaque, open country's over a horizon line, a dungeon's carved in stone in
   capitals, lit as by a torch and flickering in. The kinds are vis's
-  (`data/zone_kinds.lua`, made with vis's by `tools/build_zone_kinds.py`
+  (winxi's `zonekinds` set, which vis reads too, made by `tools/build_zone_kinds.py`
   from the Phoenix server's zone data); a zone of no known kind is open country.
   The stone's colour is its own whatever the text colour.
 - **Nation Seal**: the nation's flag as a round wax seal that stamps down beside
@@ -693,8 +693,9 @@ they are in the repository, for making the data again.
 - `data/zone_names_ja.lua`: each zone's Japanese name, made by
   `tools/build_zone_ja.py` from `references/boussole/data/zones.lua`.
 - `banner_styles.lua`: every style but Classic Text.
-- `data/zone_kinds.lua`: each zone's kind (city, outdoors or dungeon) for Kind Frames, the
-  same table as vis's, made by `tools/build_zone_kinds.py`.
+- winxi's `zonekinds`, `entrances` and `regions` sets (the chosen server's data): each zone's kind
+  for Kind Frames (vis reads it too), its entrances, and each region's zones, made by
+  `tools/build_zone_kinds.py`, `build_zone_entrances.py` and `build_zone_regions.py`.
 - `research/building_seeds.json`: where each city building is, for the tracer.
 - `presentation.lua`, `banner_layout.lua`: winxi display settings, text layout
   and timed fades, independent of geometry/editor persistence.

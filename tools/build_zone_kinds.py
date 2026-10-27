@@ -8,8 +8,8 @@ sql/zone_settings.sql. Instanced, dynamis and untyped zones are enclosed places,
 dungeons here. A zone the server has an id for but no data folder is left out: vis treats
 it as of no known kind and draws it with the general values.
 
-Writes addons/vis/zones.lua and addons/zone/data/zone_kinds.lua, the same table in each, for
-each addon is deployed without the other. Reads the live branch of phoenixffxi/Phoenix, fetched from
+Writes winxi's zonekinds set (addons/libs/winxi/data/<server>/zonekinds; a set of build_winxi_data),
+which vis and zone both read. Reads the live branch of phoenixffxi/Phoenix, fetched from
 GitHub (tools/phoenix), as live loads it: module SQL over zone_settings and each zone.yaml
 patched by the modules (phoenix.modules.load_yaml).
 """
@@ -95,7 +95,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     found = source.from_arguments(args)
     print(f'Server: {found.describe()}')
-    outputs = args.output or [ROOT / 'addons/vis/zones.lua', ROOT / 'addons/zone/data/zone_kinds.lua']
+    target = ROOT / 'addons/libs/winxi/data' / source.KEY / 'zonekinds'
+    target.mkdir(parents=True, exist_ok=True)
+    outputs = args.output or [target / 'index.lua']
     counts, skipped = build(found.path, outputs)
     print(f'Wrote {", ".join(map(str, outputs))}: ' + ', '.join(f'{n} {k}' for k, n in sorted(counts.items())))
     if skipped:

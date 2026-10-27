@@ -47,7 +47,7 @@ set in it, and every value in force comes from the most particular layer that ha
 
 - A preset for each kind of zone. Every zone the server has is a city, outdoors or a dungeon
   (its dungeons, instanced areas, Dynamis and battlefields), by `zones.lua`, built from the
-  Phoenix server's zone data with `tools/build_zone_kinds.py`. `/vis dungeon world 2` sets
+  server's zone data (winxi's `zonekinds` set) with `tools/build_zone_kinds.py`. `/vis dungeon world 2` sets
   the world for every dungeon; `/vis city terrain off`, `/vis outdoors fog 1.5` and the
   rest likewise. `/vis dungeon` alone shows the preset, `/vis dungeon world clear`
   takes one value out of it, and `/vis dungeon clear` empties it. To begin with, cities and

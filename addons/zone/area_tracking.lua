@@ -1,8 +1,9 @@
 -- Throttled polling is owned by zone.lua; this controller tracks one valid sample at a time.
 local geometry = require('area_geometry');
 local definitions = require('map_catalog');
-local kinds = require('data.zone_kinds');
-local entrances = require('data.entrances');
+local gamedata = require('winxi.gamedata');
+local kinds = gamedata.Lookup('zonekinds');      -- the chosen server's: each zone's kind
+local entrances = gamedata.Lookup('entrances');  -- and its dungeon and town entrances
 local M = {};
 local EXACT_DELAY = 0.3;
 -- An area come back to within this many seconds of leaving it is not announced again: out of a shop
