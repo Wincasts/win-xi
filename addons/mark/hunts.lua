@@ -214,11 +214,21 @@ function hunts.Compass(east, north)
     return compass[math.floor((angle + 22.5) / 45) % 8 + 1];
 end
 
+-- The hours are the server's (winxi.rules' spawnWindows, from its spawn_handler.cpp and zone.cpp's
+-- fog), these where winxi's data is not installed
+local windows = { AtNight = { 20, 4 }, AtEvening = { 18, 6 }, Fog = { 2, 7 } };
+do
+    local ok, rules = pcall(require, 'winxi.rules');
+    windows = (ok and rules.Get('spawnWindows')) or windows;
+end
+local function Hours(window)
+    return ('%d:00 to %d:00'):format(window[1], window[2]);
+end
 local conditions = {
-    at_night = 'Only at night (20:00 to 4:00).',
-    at_evening = 'Only from evening to morning (18:00 to 6:00).',
+    at_night = ('Only at night (%s).'):format(Hours(windows.AtNight)),
+    at_evening = ('Only from evening to morning (%s).'):format(Hours(windows.AtEvening)),
     weather = 'Only in certain weather.',
-    fog = 'Only in fog (2:00 to 7:00).',
+    fog = ('Only in fog (%s).'):format(Hours(windows.Fog)),
     moonphase = 'Only at certain phases of the moon.',
 };
 

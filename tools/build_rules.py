@@ -36,6 +36,10 @@ core patch that names the constant, stops it too (phoenix.modules.guard, cpp_mod
                      Manafont taking it (battleutils.cpp's CalculateSpellCost, magic_state.cpp); and the
                      ninja tools a NIN may use in place of a spell's own, by tool (HasNinjaTool), whose own
                      is its spell_list mpCost (winxi.spells)
+    spawnWindows     the Vana'diel hours a night or evening monster spawns in (spawn_handler.cpp), and the
+                     hours the weather turns to fog outside cities (zone.cpp), which fog monsters wait on
+    jobs             the jobs that have MP: those data/grades.yaml grades for MP (not 'none'), by number
+    entities         how far from the player the server sends entities (zone_entities.cpp's ENTITY_RENDER_DISTANCE)
     merits           the limit points a merit point is (merit.cpp's MAX_LIMIT_POINTS)
     weaponskillTp    the TP a weapon skill's extra hits return, each, before Store TP (scripts/globals/weaponskills.lua)
     automaton        what an automaton casts and uses: each spell's magic skill and the heads that cast it
@@ -446,6 +450,34 @@ def magic_cost(server):
             'Free': [statuses['manafont']], 'UniversalTools': universal, 'Source': path}
 
 
+def spawn_windows(server):
+    untouched(server, 'spawnWindowOf', 'StartFogVanaDate')
+    path = 'src/map/spawn_handler.cpp'
+    windows = {}
+    for kind in ('AtNight', 'AtEvening'):
+        m = find(server, path, r'xi::SpawnType::' + kind + r'\) != xi::SpawnType::Normal\)\s*\{\s*return SpawnWindow\{ (\d+), (\d+) \};', f'{kind}\'s window')
+        windows[kind] = [int(m.group(1)), int(m.group(2))]
+    start = find(server, 'src/map/zone.cpp', r'StartFogVanaDate\s*=\s*nextVanaMidnight - xi::vanadiel_clock::days\(1\) \+ xi::vanadiel_clock::hours\((\d+)\);', 'when fog begins')
+    length = find(server, 'src/map/zone.cpp', r'EndFogVanaDate\s*=\s*StartFogVanaDate \+ xi::vanadiel_clock::hours\((\d+)\);', 'how long fog lasts')
+    windows['Fog'] = [int(start.group(1)), int(start.group(1)) + int(length.group(1))]
+    return windows
+
+
+def jobs(server):
+    grades = modules.load_yaml(server, 'grades')['grades']['jobs']
+    numbers = modules.load_yaml(server, 'enums/job')['values']
+    mp = sorted(numbers[job] for job, grade in grades.items() if job in numbers and grade.get('mp') not in (None, 'none'))
+    if not mp:
+        sys.exit('data/grades.yaml grades no job for MP: read it again')
+    return {'MpJobs': mp, 'Source': 'data/grades.yaml'}
+
+
+def entities(server):
+    untouched(server, 'ENTITY_RENDER_DISTANCE')
+    m = find(server, 'src/map/zone_entities.cpp', r'constexpr auto ENTITY_RENDER_DISTANCE\s*=\s*([\d.]+)f;', 'ENTITY_RENDER_DISTANCE')
+    return {'SendDistance': float(m.group(1)), 'Source': 'src/map/zone_entities.cpp'}
+
+
 def build(server, output, settings=()):
     server, output = Path(server), Path(output)
     from build_debuff_durations import enum_block
@@ -467,6 +499,9 @@ def build(server, output, settings=()):
         'preventAction': prevent_action(server),
         'skillchain': skillchain(server),
         'magicCost': magic_cost(server),
+        'spawnWindows': spawn_windows(server),
+        'jobs': jobs(server),
+        'entities': entities(server),
     }
     output.mkdir(parents=True, exist_ok=True)
     write_data(output / 'index.lua', {'Schema': 1, 'Source': provenance(server), 'Settings': list(settings),

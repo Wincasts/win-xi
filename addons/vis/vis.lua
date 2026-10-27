@@ -106,6 +106,13 @@ local mem = {
     alloc = function (n) return ashita.memory.alloc(n) or 0; end,
 };
 
+-- How far from you the server sends entities: its own (winxi.rules, from its zone_entities.cpp), or 50
+local function SendDistance()
+    local ok, rules = pcall(require, 'winxi.rules');
+    local found = ok and rules.Get('entities') or nil;
+    return math.floor((found and found.SendDistance) or 50);
+end
+
 local function say(s)
     if (chat) then print(chat.header(addon.name):append(chat.message(s))); else print('[vis] ' .. s); end
 end
@@ -510,7 +517,7 @@ end
 local function help()
     say('/vis - the values in force, and where each comes from.');
     say('/vis world <n> - terrain, objects and far clip: n times stock (1 = stock).');
-    say('/vis entity <n> - players, NPCs and mobs: n times stock. The server sends entities within about 50 yalms.');
+    say(('/vis entity <n> - players, NPCs and mobs: n times stock. The server sends entities within about %d yalms.'):format(SendDistance()));
     say('/vis fog <n> - the fog: n times stock, whatever world is. 1 keeps the stock fog.');
     say('/vis objects <n> - buildings, trees and props: n times stock. 0 = the same as world.');
     say('/vis detail <n> - how much further objects keep their detailed mesh. 0 = the same as world.');

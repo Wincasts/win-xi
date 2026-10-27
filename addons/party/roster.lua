@@ -120,6 +120,14 @@ end
 -- anyone seen with MP has MP for as long as they keep their jobs, and of those never seen with any,
 -- those whose job or sub job is one that has MP are taken to have run out, and the rest to have none.
 local mpJobs = { [3] = true, [4] = true, [5] = true, [7] = true, [8] = true, [15] = true, [16] = true, [20] = true, [21] = true, [22] = true } -- WHM BLM RDM PLD DRK SMN BLU SCH GEO RUN
+do -- the server's (winxi.rules' jobs, from its data/grades.yaml); the list above where winxi's data is not installed
+    local ok, rules = pcall(require, 'winxi.rules')
+    local jobs = ok and rules.Get('jobs') or nil
+    if jobs and jobs.MpJobs then
+        mpJobs = {}
+        for _, job in ipairs(jobs.MpJobs) do mpJobs[job] = true end
+    end
+end
 local seenWithMp = { } -- server id -> the jobs they had when last seen with MP: main * 100 + sub
 
 local function HasNoMp(place, party, serverId, mp, mpp, main)
