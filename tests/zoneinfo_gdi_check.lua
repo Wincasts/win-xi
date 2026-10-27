@@ -47,7 +47,8 @@ imgui.BeginCombo = function(id)
     return false;
 end;
 imgui.Selectable = function(label)
-    if active_combo == '##zone.zoneTitleGdiFamily' and label == 'Calibri' then selections = selections + 1; return true; end
+    -- a described row's dropdown writes each choice with the row's id after it (winxi 65)
+    if active_combo == '##zone.zoneTitleGdiFamily' and label:match('^[^#]+') == 'Calibri' then selections = selections + 1; return true; end
     return false;
 end;
 d.renderer = 'gdi';

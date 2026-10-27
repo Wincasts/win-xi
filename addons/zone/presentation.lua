@@ -4,7 +4,6 @@ local bit = require('bit');
 local settings = require('settings');
 local shell = require('winxi.shell');
 local widgets = require('winxi.widgets');
-local tips = require('winxi.tooltip');
 local window = require('winxi.window');
 local style = require('winxi.style');
 local theme = require('winxi.theme');
@@ -96,8 +95,8 @@ function M.complete(options)
         elseif type(d[key]) ~= type(value) then d[key] = value; end
     end
     for key, range in pairs(ranges) do d[key][1] = math.max(range[1], math.min(range[2], d[key][1])); end
-    -- SliderFloat's %.0f label does not round its value. Fractional sizes otherwise
-    -- create new baked fonts continuously while dragging, churning the shared atlas.
+    -- The sizes are whole numbers: one saved as a fraction (an earlier version's slider) is rounded,
+    -- or fractional sizes would bake new fonts continuously while dragging, churning the shared atlas.
     for _, key in ipairs({ 'zoneTitleSize', 'zoneDetailSize', 'areaTitleSize', 'areaDetailSize',
         'locationSize', 'fieldApproach', 'townApproach', 'dungeonApproach', 'entranceYalms', 'townEntranceYalms', 'reannounceSeconds', 'styleTitleSize', 'styleDetailSize', 'pennantWidth', 'pennantLength',
         'pennantLetterSize', 'kanjiSize', 'backdropSoftness' }) do
@@ -137,29 +136,57 @@ function M.complete(options)
     end
 end
 
--- Settings controls and font selection.
+-- Settings: described rows (winxi 65), each a name, a sentence and its control. Every id is
+-- '##zone.<key>'; the spec tables are made once, their parents set as they are drawn.
 local function changed(value) dirty = dirty or value or false; end
-local function checkbox(d, label, key)
-    widgets.Label(label); changed(imgui.Checkbox('##zone.' .. key, d[key]));
+local ids = setmetatable({}, { __index = function(t, key) local id = '##zone.' .. key; t[key] = id; return id; end });
+local function slider(d, name, sentence, key, spec)
+    local range = ranges[key];
+    changed(widgets.Slider(name, sentence, d[key], range[1], range[2], ids[key], spec));
 end
-local function slider(d, label, key, format)
-    widgets.Label(label);
-    local range = ranges[key]; changed(imgui.SliderFloat('##zone.' .. key, d[key], range[1], range[2], format or '%.1f'));
+local function check(d, name, sentence, key, spec)
+    changed(widgets.Check(name, sentence, d[key], ids[key], spec));
 end
-local function choice(d, label, key, values)
-    widgets.Label(label);
-    local labels = { floating = 'Floating Text', panel = 'Themed Panel', left = 'Left', center = 'Center', right = 'Right',
-        imgui = 'ImGui (Default)', gdi = 'GDI Fonts (Experimental)', plain = 'Plain', breadcrumb = 'Breadcrumb' };
-    for id, name in pairs(styles.labels) do labels[id] = name; end
-    if imgui.BeginCombo('##zone.' .. key, labels[d[key]] or d[key]) then
-        for _, value in ipairs(values) do
-            if imgui.Selectable(labels[value] or value, d[key] == value) then d[key] = value; changed(true); end
-        end
-        imgui.EndCombo();
-    end
+-- A choice kept as a string (d.zoneStyle), not in a box
+local function dropdown(d, name, sentence, key, choices, spec)
+    local chosen = widgets.Dropdown(name, sentence, choices, d[key], ids[key], spec);
+    if chosen ~= nil then d[key] = chosen; changed(true); end
 end
+local yalms = { format = '%d yalms' };
+local seconds = { float = true, format = '%.1f s' };
+local fraction = { float = true, format = '%.2f' };
+local entranceYalms, townEntranceYalms = { format = '%d yalms' }, { format = '%d yalms' };
+local lineSeconds = { float = true, format = '%.1f s' }; -- the per-line timing, under Use Per-Line Timing
+local forgetSpec = { indent = false };                   -- greyed, not indented, while there is nothing to forget
+local forgetWords = { count = -1, words = '' };
+local locationLock = { label = 'Lock Position', description = 'Keeps the line where it is, and lets clicks through it to the game. Off, it can be dragged.' };
+local locationDependent, locationPixels = {}, { format = '%d px' };
+local rendererSpec = {};
+local colorSpec = {};
+local backdropOpacity, backdropSoftness = { float = true, format = '%.2f' }, { format = '%d px' };
+local imageDependent, imageOpacity = {}, { float = true, format = '%.2f' };
+local kanjiFontSpec = { label = 'Japanese Font', theme = 'Automatic',
+    description = 'The font the name is written in. Automatic picks a Mincho font Windows has.' };
+local fontSpecs = {
+    { 'zoneTitleFont', { label = 'Zone Title Font', description = 'The font of the zone\'s name. Theme Font follows the Winxi Theme.' } },
+    { 'zoneDetailFont', { label = 'Zone Detail Font', description = 'The font of the zone popup\'s other lines.' } },
+    { 'areaTitleFont', { label = 'Sub-zone Title Font', description = 'The font of a sub-zone\'s name.' } },
+    { 'areaDetailFont', { label = 'Sub-zone Detail Font', description = 'The font of a sub-zone popup\'s other lines.' } },
+};
+local gdiFields = {
+    { 'zoneTitleGdiFamily', 'Zone Title Family', 'The Windows font family of the zone\'s name, in GDI Fonts.' },
+    { 'zoneDetailGdiFamily', 'Zone Detail Family', 'The family of the zone popup\'s other lines.' },
+    { 'areaTitleGdiFamily', 'Sub-zone Title Family', 'The family of a sub-zone\'s name.' },
+    { 'areaDetailGdiFamily', 'Sub-zone Detail Family', 'The family of a sub-zone popup\'s other lines.' },
+};
+local style_choices = {};
+for _, id in ipairs(styles.ids) do style_choices[#style_choices + 1] = { key = id, label = styles.labels[id] or id }; end
+local renderers = { { key = 'imgui', label = 'ImGui (Default)' }, { key = 'gdi', label = 'GDI Fonts' } };
+local modes = { { key = 'floating', label = 'Floating Text' }, { key = 'panel', label = 'Themed Panel' } };
+local alignments = { { key = 'left', label = 'Left' }, { key = 'center', label = 'Center' }, { key = 'right', label = 'Right' } };
+local location_styles = { { key = 'plain', label = 'Plain' }, { key = 'breadcrumb', label = 'Breadcrumb' } };
 local location_place = true; -- The location line is put where the settings say on its next frame.
-local fonts, font_files = {}, nil;
+local fonts = {};
 local function get_font(file)
     if file == '' then return nil; end
     if fonts[file] == nil then
@@ -167,35 +194,6 @@ local function get_font(file)
         fonts[file] = (ok and font) or false;
     end
     return fonts[file] or nil;
-end
-local function font_choice(d, label, key, default_label)
-    if not font_files then
-        font_files = { '' };
-        local ok, files = pcall(function() return ashita.fs.get_directory('C:\\Windows\\Fonts\\', '.*\\.ttf'); end);
-        if ok and type(files) == 'table' then
-            for _, file in pairs(files) do font_files[#font_files + 1] = file; end
-            table.sort(font_files);
-        end
-    end
-    widgets.Label(label);
-    default_label = default_label or 'Default';
-    if imgui.BeginCombo('##zone.' .. key, d[key] == '' and default_label or d[key]) then
-        for _, file in ipairs(font_files) do
-            if imgui.Selectable(file == '' and default_label or file, d[key] == file) then d[key] = file; changed(true); end
-        end
-        imgui.EndCombo();
-    end
-end
-local function gdi_family_choice(d, label, key)
-    local families, problem = require('gdi_families').List();
-    widgets.Label(label);
-    if imgui.BeginCombo('##zone.' .. key, d[key][1]) then
-        for _, family in ipairs(families) do
-            if imgui.Selectable(family, d[key][1] == family) then d[key][1] = family; changed(true); end
-        end
-        imgui.EndCombo();
-    end
-    if problem then tips.Hover('Font family enumeration failed: ' .. problem); end
 end
 -- The Japanese font for the Kanji Watermark: the one chosen, or the first of these in C:\Windows\Fonts.
 -- IPA Mincho comes with Wine's Japanese fonts, Yu Mincho and MS Mincho with Windows. Every Japanese
@@ -217,263 +215,193 @@ local function commit(options)
     if dirty then M.complete(options); end
     if dirty and not imgui.IsMouseDown(0) then dirty = false; M.app:Save(); end
 end
--- A control that does nothing while its switch is off is greyed, kept where it is.
-local function greyed(off, draw)
-    if off then imgui.BeginDisabled(true); end
-    draw();
-    if off then imgui.EndDisabled(); end
-end
 local function uses(d, id) return d.zoneStyle == id or d.areaStyle == id; end
+-- Behaviour: what the banners say and when, the location line, and how long a banner stays up.
 local function draw_settings(options)
     local d = options.display;
     if widgets.Header('Announcements', true) then
-        checkbox(d, 'Show Banner', 'enabled');
-        tips.Hover('Off, no banner is drawn: not for zones, sub-zones or weather.');
-        checkbox(d, 'Show Sub-zone Popups', 'areaEnabled');
-        tips.Hover('A smaller banner as you come to a named part of a zone: a square, a shop, an entrance.');
-        checkbox(d, 'Show Weather Popups', 'weatherEnabled');
-        tips.Hover('A popup when the weather changes. It looks like a sub-zone popup and has its Zone Name and Day And Time.');
-        checkbox(d, 'Chat Announcements', 'chat');
-        tips.Hover('Each banner is written to the chat log too.');
+        check(d, 'Show Banner', 'Shows a banner as you enter a zone. Off, no banners at all.', 'enabled');
+        check(d, 'Show Sub-zone Popups', 'A smaller banner as you reach a named part of a zone. /zone subzones switches it too.', 'areaEnabled');
+        check(d, 'Show Weather Popups', 'A popup when the weather changes, in the sub-zone style.', 'weatherEnabled');
+        check(d, 'Chat Announcements', 'Writes each banner to the chat log too.', 'chat');
     end
-    widgets.Gap();
     if widgets.Header('Zone Entry Popup') then
-        checkbox(d, 'Show Region', 'zoneRegion'); checkbox(d, 'Show Weather', 'zoneWeather');
-        checkbox(d, 'Show Day And Time', 'zoneDayTime');
-        tips.Hover('The Vana\'diel day and time you arrived, such as Firesday 14:20.');
+        check(d, 'Show Region', 'Writes the zone\'s region over its name.', 'zoneRegion');
+        check(d, 'Show Weather', 'Writes the weather under the name.', 'zoneWeather');
+        check(d, 'Show Day And Time', 'Writes the Vana\'diel day and time you arrived, such as Firesday 14:20.', 'zoneDayTime');
     end
-    widgets.Gap();
     if widgets.Header('Sub-zone Popup') then
-        checkbox(d, 'Show Zone Name', 'areaZoneContext');
-        tips.Hover('The zone under the sub-zone\'s name.');
-        checkbox(d, 'Show Weather', 'areaWeather');
-        checkbox(d, 'Show Day And Time', 'areaDayTime');
-        tips.Hover('The Vana\'diel day and time you came to it, such as Firesday 14:20.');
-        checkbox(d, 'Celebrate New Areas', 'areaDiscovery');
-        tips.Hover('The first time you come to an area it gets a bigger moment, whatever the style: New Area Discovered, and how many of the zone\'s areas you have found.');
+        check(d, 'Show Zone Name', 'Writes the zone under the sub-zone\'s name.', 'areaZoneContext');
+        check(d, 'Show Weather', 'Writes the weather under the name.', 'areaWeather');
+        check(d, 'Show Day And Time', 'Writes the Vana\'diel day and time you came to it, such as Firesday 14:20.', 'areaDayTime');
+        check(d, 'Celebrate New Areas', 'The first visit to an area gets a bigger moment, with how many you have found.', 'areaDiscovery');
+        slider(d, 'Re-announce After', 'How long you must be away before an area is announced again. 0 announces every return.', 'reannounceSeconds', widgets.Seconds);
         local found = 0;
         for _ in pairs(d.discovered) do found = found + 1; end
-        imgui.TextDisabled(('%d area%s discovered on this character.'):format(found, found == 1 and '' or 's'));
-        if found > 0 and imgui.Button('Forget Discovered Areas') then
-            for key in pairs(d.discovered) do d.discovered[key] = nil; end
-            changed(true);
+        if forgetWords.count ~= found then
+            forgetWords.count = found;
+            forgetWords.words = ('%d area%s discovered on this character. Forgetting them makes every area new again.'):format(found, found == 1 and '' or 's');
         end
-        tips.Hover('Every area is new again.');
-        widgets.PushControlWidth();
-        slider(d, 'Re-announce After', 'reannounceSeconds', '%.0f seconds');
-        tips.Hover('An area you come back to is announced again only if you were away this long: out of a shop into its square, say. 0 announces every return.');
-        widgets.PopControlWidth();
+        forgetSpec.parent = found > 0;
+        if widgets.Action('Forget Discovered Areas', forgetWords.words, 'Forget##zone.forgetDiscovered', forgetSpec) then
+            imgui.OpenPopup('Forget Discovered Areas?##zone.forget');
+        end
+        if imgui.BeginPopup('Forget Discovered Areas?##zone.forget') then
+            imgui.Text('Every area is new again on this character.');
+            imgui.Separator();
+            if imgui.Button('Forget##zone.forget.confirm') then
+                for key in pairs(d.discovered) do d.discovered[key] = nil; end
+                changed(true);
+                imgui.CloseCurrentPopup();
+            end
+            imgui.SameLine();
+            if imgui.Button('Cancel##zone.forget.cancel') then imgui.CloseCurrentPopup(); end
+            imgui.EndPopup();
+        end
     end
-    widgets.Gap();
-    if widgets.Header('Detection') then
-        widgets.PushControlWidth();
-        slider(d, 'Field Approach Distance', 'fieldApproach', '%.0f yalms');
-        tips.Hover('How near a feature in open country is announced, measured from its outline. 0 announces only inside it.');
-        slider(d, 'Town Approach Distance', 'townApproach', '%.0f yalms');
-        tips.Hover('The same in a city, where squares and streets lie close together. Shops and guilds are announced only inside.');
-        slider(d, 'Dungeon Approach Distance', 'dungeonApproach', '%.0f yalms');
-        tips.Hover('The same in a dungeon or a beastmen stronghold.');
-        widgets.PopControlWidth();
-    end
-    widgets.Gap();
-    if widgets.Header('Entrances') then
-        checkbox(d, 'Announce Dungeon Entrances', 'entrancesEnabled');
-        tips.Hover('Names a dungeon\'s entrance as you come to it, with the number the map gives it: Quicksand Caves Entrance 7.');
-        widgets.PushControlWidth();
-        greyed(not d.entrancesEnabled[1], function() slider(d, 'Dungeon Entrance Distance', 'entranceYalms', '%.0f yalms'); end);
-        widgets.PopControlWidth();
-        tips.Hover('How near a dungeon\'s entrance is announced, from where it leads into the dungeon.');
-        checkbox(d, 'Announce Town Entrances', 'townEntrancesEnabled');
-        tips.Hover('Names a town as you come up to its gates from the field or a dungeon: Southern San d\'Oria Entrance. Jeuno\'s bridges are named already.');
-        widgets.PushControlWidth();
-        greyed(not d.townEntrancesEnabled[1], function() slider(d, 'Town Entrance Distance', 'townEntranceYalms', '%.0f yalms'); end);
-        widgets.PopControlWidth();
-        tips.Hover('How near a town\'s entrance is announced, from where it leads into the town.');
-    end
-    widgets.Gap();
-    if widgets.Header('Location Line') then
-        checkbox(d, 'Show Location Line', 'locationEnabled');
-        tips.Hover('The zone and sub-zone you are in, always shown. Drag it while unlocked.');
-        changed(widgets.Lock(d.locationLocked, '##zone.locationLocked', { label = 'Lock Position',
-            tooltip = 'Keeps the line where it is, and lets the mouse through it to the game. Off, it can be dragged.' }));
-        widgets.Label('Position (X, Y)');
-        if imgui.InputInt2('##zone.locationPosition', d.locationPosition) then changed(true); location_place = true; end
-        widgets.PushControlWidth();
-        choice(d, 'Line Style', 'locationStyle', { 'plain', 'breadcrumb' });
-        tips.Hover('Breadcrumb: region › zone › sub-zone on a dark chip, a picture of the kind of zone before them, and under them the weather, the moon and the time.');
-        slider(d, 'Text Size', 'locationSize', '%.0f px');
-        widgets.PopControlWidth();
-    end
-    commit(options);
-end
--- Visibility: how long a banner is up and how it fades, and when it is hidden.
-local function draw_visibility(options)
-    local d = options.display;
-    if widgets.Header('Timing', true) then
-        widgets.PushControlWidth();
-        slider(d, 'Hold Seconds', 'hold'); slider(d, 'Fade In Seconds', 'fadeIn'); slider(d, 'Fade Out Seconds', 'fadeOut');
-        -- Each line its own timing is Classic Text's alone.
+    if widgets.Header('Timing') then
+        slider(d, 'Hold', 'How long a banner stays up.', 'hold', seconds);
+        slider(d, 'Fade In', 'How long it takes to appear.', 'fadeIn', seconds);
+        slider(d, 'Fade Out', 'How long it takes to go, after the hold.', 'fadeOut', seconds);
+        -- Each line its own timing is Classic Text's alone: with no Classic Text in use the rows are left out.
         if uses(d, 'classic') then
-            checkbox(d, 'Use Per-Line Timing', 'perLineTiming');
-            tips.Hover('Classic Text only: each line its own delay, hold and fades. The other styles use the timing above.');
-            if d.perLineTiming[1] then
-                for _, line in ipairs(lines) do
-                    widgets.Gap();
-                    if widgets.Header(line[2]) then
-                        slider(d, 'Start Delay', line[1] .. 'Delay');
-                        slider(d, 'Hold Seconds', line[1] .. 'Hold');
-                        slider(d, 'Fade In Seconds', line[1] .. 'FadeIn');
-                        slider(d, 'Fade Out Seconds', line[1] .. 'FadeOut');
-                    end
+            check(d, 'Use Per-Line Timing', 'Each line of Classic Text gets its own timing, set below.', 'perLineTiming');
+            lineSeconds.parent = d.perLineTiming;
+            -- the eight lines' sub-sections only while they are in use: 32 idle rows otherwise
+            for _, line in ipairs(d.perLineTiming[1] and lines or {}) do
+                if widgets.SubHeader(line[2]) then
+                    slider(d, 'Start Delay', 'How long after the popup starts the line appears.', line[1] .. 'Delay', lineSeconds);
+                    slider(d, 'Hold', 'How long the line stays up.', line[1] .. 'Hold', lineSeconds);
+                    slider(d, 'Fade In', 'How long it takes to appear.', line[1] .. 'FadeIn', lineSeconds);
+                    slider(d, 'Fade Out', 'How long it takes to go, after the hold.', line[1] .. 'FadeOut', lineSeconds);
                 end
             end
         end
-        widgets.PopControlWidth();
     end
-    widgets.Gap();
-    if widgets.Header('Hide Banner') then widgets.Hide(options.hide, M.app.save); end
+    if widgets.Header('Detection') then
+        slider(d, 'Field Approach Distance', 'How near a feature in open country is announced. 0 announces only inside it. /zone approach sets it too.', 'fieldApproach', yalms);
+        slider(d, 'Town Approach Distance', 'The same in a city. Shops and guilds are announced only inside.', 'townApproach', yalms);
+        slider(d, 'Dungeon Approach Distance', 'The same in a dungeon or a beastmen stronghold.', 'dungeonApproach', yalms);
+    end
+    if widgets.Header('Entrances') then
+        check(d, 'Announce Dungeon Entrances', 'Names a dungeon\'s entrance as you come to it, such as Quicksand Caves Entrance 7.', 'entrancesEnabled');
+        entranceYalms.parent = d.entrancesEnabled;
+        slider(d, 'Dungeon Entrance Distance', 'How near the entrance is announced, from where it leads into the dungeon.', 'entranceYalms', entranceYalms);
+        check(d, 'Announce Town Entrances', 'Names a town as you come up to its gates, such as Southern San d\'Oria Entrance.', 'townEntrancesEnabled');
+        townEntranceYalms.parent = d.townEntrancesEnabled;
+        slider(d, 'Town Entrance Distance', 'How near the gates are announced, from where they lead into the town.', 'townEntranceYalms', townEntranceYalms);
+    end
+    if widgets.Header('Location Line') then
+        check(d, 'Show Location Line', 'Writes the zone and sub-zone you are in on the screen, all the time.', 'locationEnabled');
+        locationLock.parent, locationDependent.parent, locationPixels.parent = d.locationEnabled, d.locationEnabled, d.locationEnabled;
+        changed(widgets.Lock(d.locationLocked, '##zone.locationLocked', locationLock));
+        if widgets.Numbers('Position', 'Where the line\'s top left corner is on the screen. Dragging it sets it too.', d.locationPosition, '##zone.locationPosition', locationDependent) then
+            changed(true); location_place = true;
+        end
+        dropdown(d, 'Line Style', 'Breadcrumb shows region, zone and sub-zone on a dark chip, with the weather, moon and time.', 'locationStyle', location_styles, locationDependent);
+        slider(d, 'Text Size', 'How tall the line\'s text is.', 'locationSize', locationPixels);
+    end
     commit(options);
 end
+-- Appearance: how the banner looks. A style's own rows are there only while it is in use.
 local function draw_appearance(options)
     local d = options.display;
     local styled = d.zoneStyle ~= 'classic' or d.areaStyle ~= 'classic';
     local classic = uses(d, 'classic');
     if widgets.Header('Preview', true) then
-        checkbox({ preview = M.preview }, 'Preview While Configuring', 'preview');
-        tips.Hover('Keeps a banner up while these settings are open, to see each change.');
-        if imgui.Button('Preview Zone Once') and M.on_preview then M.on_preview(); end
-        if imgui.Button('Preview Sub-zone Once') and M.on_area_preview then M.on_area_preview(); end
-        if imgui.Button('Preview Weather Once') and M.on_weather_preview then M.on_weather_preview(); end
+        widgets.Check('Preview While Configuring', 'Keeps a banner up while these settings are open, to see each change.', M.preview, '##zone.preview');
+        if widgets.Action('Preview Zone Once', 'Shows the zone entry banner once. /zone test does the same.', 'Preview##zone.previewZoneOnce') and M.on_preview then M.on_preview(); end
+        if widgets.Action('Preview Sub-zone Once', 'Shows a sub-zone popup once.', 'Preview##zone.previewSubzoneOnce') and M.on_area_preview then M.on_area_preview(); end
+        if widgets.Action('Preview Weather Once', 'Shows a weather popup once.', 'Preview##zone.previewWeatherOnce') and M.on_weather_preview then M.on_weather_preview(); end
     end
-    widgets.Gap();
-    widgets.PushControlWidth();
     if widgets.Header('Banner Style') then
-        choice(d, 'Zone Entry Style', 'zoneStyle', styles.ids);
-        tips.Hover('/zone test and a style (' .. table.concat(styles.ids, ', ') .. ') shows the zone once in that style.');
-        choice(d, 'Sub-zone Style', 'areaStyle', styles.ids);
-        tips.Hover('Weather popups use this style too.');
-        slider(d, 'Opacity', 'opacity', '%.2f');
-        tips.Hover('The whole banner, text and all.');
+        dropdown(d, 'Zone Entry Style', 'How the banner looks as you enter a zone.', 'zoneStyle', style_choices);
+        dropdown(d, 'Sub-zone Style', 'How a sub-zone popup looks. Weather popups use it too.', 'areaStyle', style_choices);
+        slider(d, 'Opacity', 'How solid the whole banner is, text and all.', 'opacity', fraction);
     end
-    if uses(d, 'pennant') then
-        widgets.Gap();
-        if widgets.Header('Pennant') then
-            slider(d, 'Pennant Width', 'pennantWidth', '%.0f px');
-            slider(d, 'Pennant Length', 'pennantLength', '%.0f px');
-            tips.Hover('It hangs from the top of the screen; the words beside it are at the banner position.');
-            slider(d, 'Largest Letter Size', 'pennantLetterSize', '%.0f px');
-            tips.Hover('Long names are written smaller, to fit.');
+    if uses(d, 'pennant') and widgets.Header('Pennant') then
+        slider(d, 'Pennant Width', 'How wide the pennant is.', 'pennantWidth', widgets.Pixels);
+        slider(d, 'Pennant Length', 'How far it hangs down from the top of the screen.', 'pennantLength', widgets.Pixels);
+        slider(d, 'Largest Letter Size', 'How big the letters down it are at most. Long names are written smaller.', 'pennantLetterSize', widgets.Pixels);
+    end
+    if uses(d, 'kanji') and widgets.Header('Kanji Watermark') then
+        changed(widgets.FontFile(d, 'kanjiFont', '##zone.kanjiFont', kanjiFontSpec));
+        if not kanji_file(d) then widgets.Note('No Japanese font was found: the watermark is left out.'); end
+        slider(d, 'Watermark Size', 'How tall the characters are.', 'kanjiSize', widgets.Pixels);
+        slider(d, 'Watermark Opacity', 'How solid the watermark is behind the name.', 'kanjiOpacity', fraction);
+        check(d, 'Vertical Text', 'Writes the name down the screen. Names with Latin letters are written across.', 'kanjiVertical');
+    end
+    if classic and widgets.Header('Classic Text') then
+        rendererSpec.experimental = d.renderer == 'gdi';
+        dropdown(d, 'Text Renderer', 'GDI Fonts draws the text with Windows instead of ImGui. A failure in it can crash the game.', 'renderer', renderers, rendererSpec);
+        -- GDI Fonts has no panel: the row means nothing there
+        if d.renderer ~= 'gdi' then
+            dropdown(d, 'Display Style', 'Themed Panel puts a Winxi Theme panel behind the text. Floating Text is the words alone.', 'mode', modes);
         end
     end
-    if uses(d, 'kanji') then
-        widgets.Gap();
-        if widgets.Header('Kanji Watermark') then
-            font_choice(d, 'Japanese Font', 'kanjiFont', 'Automatic');
-            local file = kanji_file(d);
-            tips.Hover(file and ('Writing Japanese in ' .. file .. '.')
-                or 'No Japanese font was found (IPA Mincho, Yu Mincho, MS Mincho): the watermark is left out.');
-            if not file then imgui.TextDisabled('No Japanese font found: the watermark is left out.'); end
-            slider(d, 'Watermark Size', 'kanjiSize', '%.0f px'); slider(d, 'Watermark Opacity', 'kanjiOpacity', '%.2f');
-            checkbox(d, 'Vertical Text', 'kanjiVertical');
-            tips.Hover('Names with Latin letters, digits or brackets, such as the [S] zones, are written across.');
-        end
-    end
-    if classic then
-        widgets.Gap();
-        if widgets.Header('Classic Text') then
-            widgets.Label('Text Renderer', d.renderer == 'gdi');
-            if imgui.BeginCombo('##zone.renderer', d.renderer == 'gdi' and 'GDI Fonts' or 'ImGui (Default)') then
-                if imgui.Selectable('ImGui (Default)', d.renderer == 'imgui') then d.renderer = 'imgui'; changed(true); end
-                if imgui.Selectable('GDI Fonts', d.renderer == 'gdi') then d.renderer = 'gdi'; changed(true); end
-                imgui.EndCombo();
-            end
-            tips.Hover('GDI draws the text with a native DLL, outside the ImGui font atlas. A failure in it can crash the client.');
-            if d.renderer == 'gdi' then
-                imgui.TextDisabled('GDI Fonts is experimental: a failure in its DLL can crash the client.');
-            else
-                choice(d, 'Display Style', 'mode', { 'floating', 'panel' });
-                tips.Hover('Themed Panel puts the theme\'s background, border and shadow behind the text.');
-            end
-        end
-    end
-    widgets.Gap();
     if widgets.Header('Text') then
         if styled then
-            slider(d, 'Style Title Size', 'styleTitleSize', '%.0f px');
-            slider(d, 'Style Detail Size', 'styleDetailSize', '%.0f px');
-            tips.Hover('Sizes for every style but Classic Text, which has its own below.');
+            slider(d, 'Style Title Size', 'How tall the name is, in every style but Classic Text.', 'styleTitleSize', widgets.Pixels);
+            slider(d, 'Style Detail Size', 'How tall the other lines are in those styles.', 'styleDetailSize', widgets.Pixels);
         end
         if classic then
-            slider(d, 'Zone Title Size', 'zoneTitleSize', '%.0f px'); slider(d, 'Zone Detail Size', 'zoneDetailSize', '%.0f px');
-            slider(d, 'Sub-zone Title Size', 'areaTitleSize', '%.0f px'); slider(d, 'Sub-zone Detail Size', 'areaDetailSize', '%.0f px');
-            tips.Hover('Classic Text\'s sizes.');
-            slider(d, 'Line Spacing', 'spacing', '%.0f px');
+            slider(d, 'Zone Title Size', 'How tall the zone\'s name is in Classic Text.', 'zoneTitleSize', widgets.Pixels);
+            slider(d, 'Zone Detail Size', 'How tall its other lines are.', 'zoneDetailSize', widgets.Pixels);
+            slider(d, 'Sub-zone Title Size', 'How tall a sub-zone\'s name is in Classic Text.', 'areaTitleSize', widgets.Pixels);
+            slider(d, 'Sub-zone Detail Size', 'How tall its other lines are.', 'areaDetailSize', widgets.Pixels);
+            slider(d, 'Line Spacing', 'The gap between one line and the next.', 'spacing', widgets.Pixels);
         end
         if classic and d.renderer == 'gdi' then
-            for _, field in ipairs({ { 'zoneTitleGdiFamily', 'Zone Title Family' }, { 'zoneDetailGdiFamily', 'Zone Detail Family' },
-                { 'areaTitleGdiFamily', 'Sub-zone Title Family' }, { 'areaDetailGdiFamily', 'Sub-zone Detail Family' } }) do
-                gdi_family_choice(d, field[2], field[1]);
-            end
             local families, problem = require('gdi_families').List();
-            if #families == 0 then imgui.Text('Windows font families could not be listed; saved selections are kept.'); end
-            if problem then imgui.Text('Font enumeration error: ' .. problem); end
-            checkbox(d, 'Bold Titles', 'gdiTitleBold'); checkbox(d, 'Bold Details', 'gdiDetailBold');
+            for _, field in ipairs(gdiFields) do
+                local chosen = widgets.Dropdown(field[2], field[3], families, d[field[1]][1], ids[field[1]]);
+                if chosen ~= nil then d[field[1]][1] = chosen; changed(true); end
+            end
+            if #families == 0 then widgets.Note('Windows font families could not be listed. The families saved are kept.'); end
+            if problem then widgets.Note('Font families: ' .. problem); end
+            check(d, 'Bold Titles', 'Writes the names in bold.', 'gdiTitleBold');
+            check(d, 'Bold Details', 'Writes the other lines in bold.', 'gdiDetailBold');
         end
         if styled or d.renderer == 'imgui' then
-            font_choice(d, 'Zone Title Font', 'zoneTitleFont'); font_choice(d, 'Zone Detail Font', 'zoneDetailFont');
-            font_choice(d, 'Sub-zone Title Font', 'areaTitleFont'); font_choice(d, 'Sub-zone Detail Font', 'areaDetailFont');
-            tips.Hover('From C:\\Windows\\Fonts. Default is the theme\'s font.');
+            for _, font in ipairs(fontSpecs) do changed(widgets.FontFile(d, font[1], ids[font[1]], font[2])); end
         end
-        checkbox(d, 'Use Theme Text Color', 'themeText');
-        tips.Hover('The dark edge round the text is Winxi Theme\'s Text Outline and Outline Color, in winxisettings.');
-        if not d.themeText[1] then
-            widgets.Label('Title Color'); changed(imgui.ColorEdit4('##zone.titleColor', d.titleColor));
-            widgets.Label('Detail Color'); changed(imgui.ColorEdit4('##zone.detailColor', d.detailColor));
-        end
+        check(d, 'Use Theme Text Color', 'Writes the text in the Winxi Theme text colour. Off, the colours below.', 'themeText');
+        colorSpec.parent = not d.themeText[1];
+        changed(widgets.Color('Title Color', 'The colour of the names.', d.titleColor, '##zone.titleColor', colorSpec));
+        changed(widgets.Color('Detail Color', 'The colour of the other lines.', d.detailColor, '##zone.detailColor', colorSpec));
     end
-    widgets.Gap();
     if widgets.Header('Position') then
-        checkbox(d, 'Centered On Screen', 'centered');
-        widgets.Label('Position / Offset (X, Y)'); changed(imgui.InputInt2('##zone.position', d.position));
-        tips.Hover('Centered: X is an offset from the middle of the screen and Y is from the top. Otherwise both are screen pixels.');
-        choice(d, 'Text Alignment', 'alignment', { 'left', 'center', 'right' });
+        check(d, 'Centered On Screen', 'Puts the banner in the middle of the screen, left to right.', 'centered');
+        changed(widgets.Numbers('Position', 'Where the banner is. Centered, X is measured from the middle of the screen.', d.position, '##zone.position'));
+        dropdown(d, 'Text Alignment', 'How the lines line up when they differ in length.', 'alignment', alignments);
     end
-    widgets.Gap();
     if widgets.Header('Backdrop') then
-        checkbox(d, 'Show Backdrop', 'backdrop');
-        tips.Hover('A soft shadow behind the banner, so it stands out from a bright scene. Every style, and Classic Text\'s Floating Text.');
-        greyed(not d.backdrop[1], function()
-            slider(d, 'Backdrop Opacity', 'backdropOpacity', '%.2f');
-            slider(d, 'Backdrop Softness', 'backdropSoftness', '%.0f px');
-        end);
-        tips.Hover('How far it fades out round the words.');
+        check(d, 'Show Backdrop', 'A soft shadow behind the banner, so it stands out from a bright scene.', 'backdrop');
+        backdropOpacity.parent, backdropSoftness.parent = d.backdrop, d.backdrop;
+        slider(d, 'Backdrop Opacity', 'How dark the shadow is.', 'backdropOpacity', backdropOpacity);
+        slider(d, 'Backdrop Softness', 'How far it fades out round the words.', 'backdropSoftness', backdropSoftness);
     end
-    if classic then
-        widgets.Gap();
-        if widgets.Header('Flag And Background Image', false, true) then
-            checkbox(d, 'Use Region Flags', 'backgroundFlags');
-            tips.Hover('A nation\'s own regions show its flag, fitted inside Image Size, in place of the image.');
-            checkbox(d, 'Show Background Image', 'backgroundEnabled');
-            widgets.Label('Image Filename');
-            changed(imgui.InputText('##zone.backgroundFile', d.backgroundFile, 256));
-            tips.Hover('A PNG, JPG or BMP in zone/assets/backgrounds/.');
-            widgets.Label('Image Size (Width, Height)');
-            changed(imgui.InputInt2('##zone.backgroundSize', d.backgroundSize));
-            widgets.Label('Image Offset (X, Y)');
-            changed(imgui.InputInt2('##zone.backgroundOffset', d.backgroundOffset));
-            widgets.Label('Image Opacity');
-            changed(imgui.SliderFloat('##zone.backgroundOpacity', d.backgroundOpacity, 0, 1, '%.2f'));
-            if background_cache.error then imgui.Text(background_cache.error); end
-            if imgui.Button('Reload Background Image') then background_cache:clear(); end
-        end
+    if classic and widgets.Header('Flag And Background Image', false, true) then
+        check(d, 'Use Region Flags', 'Shows a nation\'s flag behind the banner in its regions, instead of the picture.', 'backgroundFlags');
+        check(d, 'Show Background Image', 'Shows a picture of your own behind the banner.', 'backgroundEnabled');
+        imageDependent.parent, imageOpacity.parent = d.backgroundEnabled, d.backgroundEnabled;
+        widgets.BeginRow('Image Filename', 'A PNG, JPG or BMP file in the addon\'s assets\\backgrounds folder.', imageDependent);
+        changed(imgui.InputText('##zone.backgroundFile', d.backgroundFile, 256));
+        widgets.EndRow();
+        changed(widgets.Numbers('Image Size', 'How wide and how tall the picture is drawn.', d.backgroundSize, '##zone.backgroundSize', imageDependent));
+        changed(widgets.Numbers('Image Offset', 'How far the picture is moved from the banner, across and down.', d.backgroundOffset, '##zone.backgroundOffset', imageDependent));
+        changed(widgets.Slider('Image Opacity', 'How solid the picture is.', d.backgroundOpacity, 0, 1, '##zone.backgroundOpacity', imageOpacity));
+        if background_cache.error then widgets.Note(background_cache.error); end
+        if widgets.Action('Reload Background Image', 'Reads the picture from its file again, after it has been changed.', 'Reload##zone.reloadBackground', imageDependent) then background_cache:clear(); end
     end
-    widgets.PopControlWidth();
     commit(options);
 end
 M.app = shell.New({
     defaults = defaults(), configTitle = 'Zone Settings', drawSettings = draw_settings, settingsLabel = 'Behaviour',
     leadingTabs = { { label = 'Appearance', draw = draw_appearance } }, hideAppearance = true,
-    tabs = { { label = 'Visibility', draw = draw_visibility } },
+    -- The shell's Visibility tab (Fade In And Out and the rules for hiding) comes with a window named; the
+    -- banner is drawn by M.draw, never through app:Window, and the command is zone.lua's.
+    window = 'winxi.zone',
     onSettings = function(options)
         M.complete(options); dirty = false; M.preview[1] = false;
         background_cache:clear();
@@ -482,13 +410,15 @@ M.app = shell.New({
     end,
 }); -- Commands are handled by zone.lua: /zone toggles settings; /zone test previews the banner.
 
--- Capture timing at popup creation; appearance and opacity remain live.
-local function row_timing(d, key)
+-- Capture timing at popup creation; appearance and opacity remain live. With the shell's Fade In And
+-- Out off (the Visibility tab), a banner pops: its fades take no time.
+local function fades() return M.app.options.fadeInOut[1] and true or false; end
+local function row_timing(d, key, fading)
     return { delay = d[key .. 'Delay'][1], hold = { d[key .. 'Hold'][1] },
-        fadeIn = { d[key .. 'FadeIn'][1] }, fadeOut = { d[key .. 'FadeOut'][1] }, opacity = d.opacity };
+        fadeIn = { fading and d[key .. 'FadeIn'][1] or 0 }, fadeOut = { fading and d[key .. 'FadeOut'][1] or 0 }, opacity = d.opacity };
 end
 function M.total()
-    local d = M.app.options.display; return d.hold[1] + d.fadeOut[1];
+    local d = M.app.options.display; return d.hold[1] + (fades() and d.fadeOut[1] or 0);
 end
 -- The Vana'diel day and time a popup starts at, for the styles' last line: 'Firesday 14:20'.
 local days = { 'Firesday', 'Earthsday', 'Watersday', 'Windsday', 'Iceday', 'Lightningday', 'Lightsday', 'Darksday' };
@@ -505,13 +435,14 @@ function M.start(state, now)
     local d = M.app.options.display;
     state.vana = vana_words();
     state.started_at, state.visible_until = now, now + M.total();
-    state.banner_timing = { hold = { d.hold[1] }, fadeIn = { d.fadeIn[1] }, fadeOut = { d.fadeOut[1] }, opacity = d.opacity };
+    local fading = fades();
+    state.banner_timing = { hold = { d.hold[1] }, fadeIn = { fading and d.fadeIn[1] or 0 }, fadeOut = { fading and d.fadeOut[1] or 0 }, opacity = d.opacity };
     state.line_timing = nil;
     if d.perLineTiming[1] then
         state.line_timing = {};
         state.visible_until = now;
         for _, row in ipairs(layout.rows(state, nil, d)) do
-            local timing = row_timing(d, row.key);
+            local timing = row_timing(d, row.key, fading);
             state.line_timing[row.key] = timing;
             state.visible_until = math.max(state.visible_until, now + timing.delay + timing.hold[1] + timing.fadeOut[1]);
         end
