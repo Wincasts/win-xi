@@ -561,6 +561,7 @@ local backdropDependent = { parent = true };
 local bookendDependent, bookendPercent = { parent = true }, { parent = true, format = '%d%%' };
 local titleShadowPixels = { parent = true, format = '%d px' };
 local heightSpec = { format = '%d px' };
+local widthSpec = { format = '%d px' };
 
 -- The title of a section of a settings window, with a blank line before it to set it apart from the
 -- section above (pass first for the section that heads the tab). An addon's Winxi Theme tab has five:
@@ -611,6 +612,14 @@ local function Title(text, key, defaultCollapsed, sub)
     local marker = isCollapsed and markers[2] or markers[1];
     local clicked = false;
 
+    -- in the theme's Header Font at its Header Size, where either is set
+    local face = fonts.Get(look.SettingsHeaderFontFile);
+    local size = tonumber(look.SettingsHeaderFontSize) or 0;
+    local pushedFont = face ~= nil or size > 0;
+    if pushedFont then
+        imgui.PushFont(face, size > 0 and size or imgui.GetFontSize());
+    end
+
     -- a section's title row sits on a band, across the window's content from the padding on the left to
     -- the padding or the scrollbar on the right, with a line along its foot; a sub-section has the line
     -- alone, from its indent. Both keep to the window's own clip, so a header scrolled out of view
@@ -649,6 +658,9 @@ local function Title(text, key, defaultCollapsed, sub)
     imgui.TextColored(color, marker);
     if imgui.IsItemHovered() and ImGuiMouseCursor_Hand ~= nil then imgui.SetMouseCursor(ImGuiMouseCursor_Hand); end
     if imgui.IsItemClicked() then clicked = true; end
+    if pushedFont then
+        imgui.PopFont();
+    end
 
     -- room under the row for the band's foot and its line
     barAfter[2] = bandPad + (sub and lineHeight[2] or lineHeight[1]) + 2;
@@ -764,8 +776,10 @@ end
 
 -- A font of C:\Windows\Fonts, by its file, and its size: FontFile and FontSize, the settings windows'
 -- own, or the titles'. names, if given: { the font's label, the size's label, what '' is called }.
-local fontNames = { 'Font', 'Font Size', 'Default' };
-local titleFontNames = { 'Title Font', 'Title Size', 'Window Font' };
+-- names: { the font's label, the size's label, what '' is called, what a size of 0 is called }
+local fontNames = { 'Font', 'Font Size', 'Default', 'Default' };
+local titleFontNames = { 'Title Font', 'Title Size', 'Window Font', 'Window Size' };
+local headerFontNames = { 'Header Font', 'Header Size', 'Window Font', 'Window Size' };
 local fontChoices = {};   -- what '' is called -> the list of choices, that first then every font file
 
 local function FontList(themeLabel)
@@ -791,7 +805,7 @@ local function FontChoice(fileKey, sizeKey, fileSentence, sizeSentence, names, s
         AfterControl(true);
     end
     box[1] = current[sizeKey];
-    fontSizeSpec.format = current[sizeKey] > 0 and '%d px' or names[3];
+    fontSizeSpec.format = current[sizeKey] > 0 and '%d px' or names[4];
     fontSizeSpec.parent = spec and spec.parent or nil;
     local resized = widgets.Slider(names[2], sizeSentence, box, 0, theme.MaxFontSize, controlIds[sizeKey], fontSizeSpec);
     if resized then
@@ -920,7 +934,7 @@ function widgets.Appearance(appearanceHooks, parts)
         ThemeCheck('Title All Caps', 'TitleAllCaps', 'Writes the name in capitals, PARTY instead of Party.', titleDependent);
         FontChoice('TitleFontFile', 'TitleSize',
             'The font the names are written in. Window Font uses the window\'s font.',
-            'How big the names are. Default matches the window\'s text.', titleFontNames, titleDependent);
+            'How big the names are. Window Size matches the window\'s text.', titleFontNames, titleDependent);
         ThemeSlider('Title Position X', 'TitleOffsetX', -50, theme.MaxTitleOffsetX, 'How far in from the right edge the name ends. Below 0 it runs past the edge.', titlePixels);
         ThemeSlider('Title Position Y', 'TitleOffsetY', -theme.MaxTitleOffsetY, theme.MaxTitleOffsetY, 'Moves the name down, or up when below 0.', titlePixels);
         ThemeCheck('Title Shadow', 'TitleShadow', 'A soft dark copy of the name, down and to the right of it.', titleDependent);
@@ -988,10 +1002,13 @@ function widgets.SettingsAppearance(appearanceHooks)
 
         widgets.Gap();
         local current = theme.Get();
+        widthSpec.format = (tonumber(current.SettingsMinWidth) or 0) > 0 and '%d px' or 'Fit To Content';
+        ThemeSlider('Minimum Width', 'SettingsMinWidth', 0, theme.MaxSettingsMinWidth, 'How wide a settings window is at least. Fit To Content makes it as wide as its contents.', widthSpec);
         heightSpec.format = (tonumber(current.SettingsWindowHeight) or 0) > 0 and '%d px' or 'Fit To Content';
         ThemeSlider('Starting Height', 'SettingsWindowHeight', 0, theme.MaxSettingsWindowHeight, 'How tall a settings window is when it opens. What does not fit scrolls, and Fit To Content makes it as tall as its contents.', heightSpec);
-        local _, drawnHeight = window.DrawnSize();
-        if drawnHeight ~= nil and widgets.Action('Use This Window\'s Height', 'Makes every settings window open at this window\'s current height.', 'Use##winxi.useHeight') then
+        local drawnWidth, drawnHeight = window.DrawnSize();
+        if drawnWidth ~= nil and drawnHeight ~= nil and widgets.Action('Use This Window\'s Size', 'Makes every settings window open at this window\'s current width and height.', 'Use##winxi.useSize') then
+            current.SettingsMinWidth = math.max(0, math.min(theme.MaxSettingsMinWidth, math.floor(drawnWidth)));
             current.SettingsWindowHeight = math.max(0, math.min(theme.MaxSettingsWindowHeight, math.floor(drawnHeight)));
             AfterControl(true);
         end
@@ -1001,6 +1018,10 @@ function widgets.SettingsAppearance(appearanceHooks)
         FontChoice('SettingsFontFile', 'SettingsFontSize',
             'The font every settings window uses. Default is the built-in font, and the rest come from Windows.',
             'How big the words are. Default keeps the usual size.');
+        widgets.Gap();
+        FontChoice('SettingsHeaderFontFile', 'SettingsHeaderFontSize',
+            'The font the section titles use. Window Font uses the window\'s font.',
+            'How big the section titles are. Window Size matches the window\'s text.', headerFontNames);
     end
 
     ResetRow('Reset Settings Windows', resetPopups.settings, theme.SettingsWindowKeys,

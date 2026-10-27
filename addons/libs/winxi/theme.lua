@@ -77,8 +77,11 @@ theme.Defaults = {
     SettingsHeaderColor     = { 0.469, 0.459, 0.667, 1.0 }, -- the titles of its sections (widgets.Header)
     SettingsPadding         = 10,
     SettingsWindowHeight    = 0,    -- pixels a settings window is tall as it opens, or 0 to fit its content
+    SettingsMinWidth        = 0,    -- pixels a settings window is at least wide, or 0 to fit its content
     SettingsFontFile        = '',
     SettingsFontSize        = 0,
+    SettingsHeaderFontFile  = '',   -- the section titles' font (widgets.Header), or '' for the window's
+    SettingsHeaderFontSize  = 0,    -- their size in pixels, or 0 for the window's
 
     -- every tooltip's (winxi.tooltip), over either kind of window
     TooltipsEnabled         = true,
@@ -97,7 +100,7 @@ theme.SettingsKeys = {
     HighlightColor = 'SettingsHighlightColor', Padding = 'SettingsPadding', FontFile = 'SettingsFontFile', FontSize = 'SettingsFontSize',
 };
 -- Every value that is a settings window's alone, and every value that is the game windows', for theme.Reset
-theme.SettingsWindowKeys = { 'ThemeTabColor', 'SettingsHeaderColor', 'SettingsWindowHeight' };
+theme.SettingsWindowKeys = { 'ThemeTabColor', 'SettingsHeaderColor', 'SettingsWindowHeight', 'SettingsMinWidth', 'SettingsHeaderFontFile', 'SettingsHeaderFontSize' };
 for _, key in pairs(theme.SettingsKeys) do
     theme.SettingsWindowKeys[#theme.SettingsWindowKeys + 1] = key;
 end
@@ -121,6 +124,7 @@ do
 end
 theme.MaxSettingsPadding = 20;
 theme.MaxSettingsWindowHeight = 2000;
+theme.MaxSettingsMinWidth = 2000;
 theme.MaxTitleOffsetX = 300;
 theme.MaxTitleOffsetY = 30;
 theme.MaxTooltipDelay = 2000;
@@ -196,7 +200,7 @@ theme.MaxTextOutline = 4;
 local numberKeys = { FontSize = { 0, theme.MaxFontSize }, TextOutline = { 0, theme.MaxTextOutline }, Padding = { 0, theme.MaxPadding }, ShadowOffset = { 0, 20 }, ShadowBlur = { 0, 20 }, ShadowOpacity = { 0, 100 }, BorderOpacity = { 0, 100 }, BookendOpacity = { 0, 100 }, BarGlow = { 0, 100 }, BarFrameOpacity = { 0, 100 }, TitleSize = { 0, theme.MaxFontSize },
     TitleOffsetX = { -50, theme.MaxTitleOffsetX }, TitleOffsetY = { -theme.MaxTitleOffsetY, theme.MaxTitleOffsetY },
     TitleShadowOffset = { 1, 6 }, TitleShadowOpacity = { 0, 100 },
-    SettingsPadding = { 0, theme.MaxSettingsPadding }, SettingsWindowHeight = { 0, theme.MaxSettingsWindowHeight }, SettingsFontSize = { 0, theme.MaxFontSize },
+    SettingsPadding = { 0, theme.MaxSettingsPadding }, SettingsWindowHeight = { 0, theme.MaxSettingsWindowHeight }, SettingsMinWidth = { 0, theme.MaxSettingsMinWidth }, SettingsFontSize = { 0, theme.MaxFontSize }, SettingsHeaderFontSize = { 0, theme.MaxFontSize },
     TooltipDelay = { 0, theme.MaxTooltipDelay }, TooltipMaxWidth = { theme.MinTooltipWidth, theme.MaxTooltipWidth },
     TooltipPadding = { 0, theme.MaxTooltipPadding }, TooltipFontSize = { 0, theme.MaxFontSize } };
 local booleanKeys = { 'ShadowEnabled', 'Bookends', 'BarBackdrop', 'StatusIcons', 'FrameTitles', 'TitleShadow', 'TitleAllCaps', 'TooltipsEnabled' };
@@ -277,7 +281,7 @@ local function Apply(target, source)
         end
     end
 
-    for _, key in ipairs({ 'FontFile', 'SettingsFontFile', 'TitleFontFile' }) do
+    for _, key in ipairs({ 'FontFile', 'SettingsFontFile', 'TitleFontFile', 'SettingsHeaderFontFile' }) do
         if IsFontFile(source[key]) then
             target[key] = source[key];
         end

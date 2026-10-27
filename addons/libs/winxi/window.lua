@@ -22,7 +22,8 @@
 -- double-click on a grip or an edge fits it to its content again. A fitted window is never taller than
 -- window.FitHeightShare of the screen (three quarters), its content scrolling below that. With the
 -- theme's Starting Height set (SettingsWindowHeight, winxisettings' Settings Windows tab), a fitted
--- window is that tall rather than as tall as its content; its width still fits. Fitted or not, it is never bigger
+-- window is that tall rather than as tall as its content; its width still fits, but is never less than
+-- the theme's Minimum Width (SettingsMinWidth). Fitted or not, it is never bigger
 -- than the screen. window.IsResized() says, while a window's content is drawn, whether it is a
 -- settings window that has been resized; window.DrawnSize() how big the settings window being drawn is.
 --
@@ -77,7 +78,8 @@ local resized = false; -- the window being drawn is a settings window that has b
 local drawnWidth, drawnHeight = nil, nil; -- the size of the settings window being drawn
 local fitSize = { 0, 0 };  -- a size of 0 fits the window to its content, on each side
 local startSize = { 0, 0 }; -- the width fitted, the height the theme's Starting Height
-local fitMost = { 0, 0 };   -- the most a fitted window may be: the screen's width, a share of its height
+local fitLeast = { 0, 0 }; -- the least a fitted window may be: the theme's Minimum Width
+local fitMost = { 0, 0 };   -- the most: the screen's width, a share of its height
 window.FitHeightShare = 0.75;
 local screenSize = { 0, 0 };
 local edgeReach = 4;       -- how far either side of an edge it can be taken hold of, as imgui has it
@@ -127,19 +129,23 @@ local function BeginSettings(name, flags)
     end
 
     if not state.resized then
-        local height = tonumber(theme.Get().SettingsWindowHeight) or 0;
+        local look = theme.Get();
+        local height = tonumber(look.SettingsWindowHeight) or 0;
+        local minWidth = tonumber(look.SettingsMinWidth) or 0;
         local io = imgui.GetIO();
         local display = io and io.DisplaySize;
+        if display and display.x and display.y and imgui.SetNextWindowSizeConstraints ~= nil then
+            -- at least the theme's Minimum Width; fitted to its content no taller than most of the
+            -- screen, the rest scrolling
+            fitLeast[1] = math.min(minWidth, display.x);
+            fitMost[1], fitMost[2] = display.x, height > 0 and display.y or display.y * window.FitHeightShare;
+            imgui.SetNextWindowSizeConstraints(fitLeast, fitMost);
+        end
         if height > 0 then
             if display and display.y then height = math.min(height, display.y); end
             startSize[2] = height;
             imgui.SetNextWindowSize(startSize, ImGuiCond_Always);
         else
-            -- fitted to its content, but never taller than most of the screen: the rest scrolls
-            if display and display.x and display.y and imgui.SetNextWindowSizeConstraints ~= nil then
-                fitMost[1], fitMost[2] = display.x, display.y * window.FitHeightShare;
-                imgui.SetNextWindowSizeConstraints(fitSize, fitMost);
-            end
             imgui.SetNextWindowSize(fitSize, ImGuiCond_Always);
         end
     else
