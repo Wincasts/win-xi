@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.0
+
+- The settings are described rows (winxi 65): each setting's name, a plain sentence under it saying what it does, and its control at the right, on every tab; the tooltips and (?) marks are gone, each folded into its sentence. The tabs and sections are as they were (Behavior, Style, Party, Target, Pets, Visibility). Icon Corner and Debuff Style are dropdowns instead of radio buttons; an offset is two sliders, X and Y, a row each; the target's Show and Debuffs checkboxes are rows under Visible, the debuffs greyed while their window is off; a setting that means nothing while another is off (the status settings under Show Statuses, Icon Corner and Icon Offset under the notification icons, Bracket Color under Lock-On Brackets, Reserved Pet Rows under Automatic Positioning, uihook's Party, Target and Follow Default UI Behavior under Use uihook, a window placed by Automatic Positioning) is greyed rather than hidden. Enabled is Visible on the Party, Target and Pets tabs, Clickthrough is Lock Windows, and the units are in the values (Frame Scale, Near Range, Low HP Warning and the rest). Affected Windows is a sub-section of Fading. The window is fitted to its rows by winxi.window rather than held at 780 pixels. Requires winxi 65.
+
 ## 0.3.6
 
 - Debuffs First orders by winxi's one list of harmful statuses (`winxi.statuses.Harmful`: what Erase or a waltz removes on the server, and the harms that cannot be cancelled), which sct and simplelog read too. Drain, Aspir and Haste Daze count now.

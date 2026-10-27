@@ -760,7 +760,7 @@ window PushClipRect (0,0) (1920,1080) false
 window AddText (383,193) #F0E6C2FF Target
 window PopClipRect
 imgui End
-## filled with sample data, the settings open (bare): 647 calls
+## filled with sample data, the settings open (bare): 649 calls
 imgui Begin Party Settings
 window AddRectFilled (10,17) (210,39) #B0ADC738
 window AddRectFilled (10,37) (210,39) #B0ADC766
@@ -768,8 +768,9 @@ imgui TextColored (1,0.75,0.55,1) Positioning
 imgui SameLine 0 0
 imgui TextColored (1,0.75,0.55,1) [-]
 imgui Dummy (0,7)
-imgui Text Automatic Positioning:
-imgui SameLine 22
+imgui Text Automatic Positioning
+imgui SetCursorPosY 5
+imgui Dummy (0,3)
 imgui NewLine
 window AddRectFilled (10,17) (210,39) #B0ADC738
 window AddRectFilled (10,37) (210,39) #B0ADC766
@@ -777,11 +778,12 @@ imgui TextColored (1,0.75,0.55,1) Mouse Interaction
 imgui SameLine 0 0
 imgui TextColored (1,0.75,0.55,1) [-]
 imgui Dummy (0,7)
-imgui Text Clickthrough
+imgui Text Lock Windows
 imgui SetCursorPosY 5
 imgui Dummy (0,3)
-imgui Text Show Tooltips:
-imgui SameLine 22
+imgui Text Show Tooltips
+imgui SetCursorPosY 5
+imgui Dummy (0,3)
 imgui Separator
 imgui SameLine
 imgui End

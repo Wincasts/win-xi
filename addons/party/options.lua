@@ -29,8 +29,6 @@ options.Version = 2
 -- end it starts at; down, past the top and bottom of a line (32 units high)
 local valueReach = { 140, 40 }
 
-local unitsNote = '\nThe number is in the frames\' own units, so it keeps its proportion as the scale changes.'
-
 -- A distance in the settings is in units of this many pixels at a scale of 100: what the frames were
 -- laid out in when the settings were first kept, so that what was set then still means what it did.
 -- Everything that draws works in pixels: options.Style, and whoever else reads a distance from the
@@ -41,113 +39,144 @@ options.Unit = 1.2
 --   check     a checkbox                        default true or false
 --   slider    a whole number between two        default, min, max, format
 --   offset    two sliders, across and down      default { x, y }, reach: how far either way, or
---                                               { across, down } where the two differ
---   choice    one of several, as radio buttons  default, choices: { key, label }, two to a line
---   dropdown  one of several, as a combo        default, choices: { key, label }
---   font      a font of C:\Windows\Fonts, as a combo   default '': the theme's font
+--                                               { across, down } where the two differ; sentences
+--                                               { across, down }, one for each slider
+--   choice    one of several, as a dropdown     default, choices: { key, label }
+--   dropdown  one of several, as a dropdown     default, choices: { key, label }
+--   font      a font of C:\Windows\Fonts, as a dropdown   default '': the theme's font
 --   place     where a window is, as two numbers default { x, y }, window: its key in windows.List
+--   statuslist  statuses picked from the game's list, kept as their numbers separated by commas
 --   gap       a little room between two families of settings
 --   header    a collapsible Winxi section heading (no saved value)
--- when, if given, says whether the entry is shown, from the settings.
+-- Each setting's sentence says what it does when on, or what the number is (config.lua writes it under
+-- the name). when, if given, says whether the entry is shown at all, from the settings; under, if
+-- given, says whether the setting means anything now (it is greyed otherwise), from the settings.
 options.Tabs = {
     { name = 'Style', entries = {
-        { kind = 'slider', section = 'style', key = 'scale', label = 'Frame Scale (%)', default = 100, min = 50, max = 200, format = '%d%%',
-          tooltip = 'How big the party lists and the target windows are drawn: the bars, the text and the buffs together.' },
-        { kind = 'slider', section = 'style', key = 'nameSize', label = 'Name Text Size (%)', default = 110, min = 50, max = 200, format = '%d%%',
-          tooltip = 'How big the names are written, apart from everything else.' },
+        { kind = 'slider', section = 'style', key = 'scale', label = 'Frame Scale', default = 100, min = 50, max = 200, format = '%d%%',
+          sentence = 'How big the party lists and the target windows are drawn, bars, text and icons together.' },
+        { kind = 'slider', section = 'style', key = 'nameSize', label = 'Name Text Size', default = 110, min = 50, max = 200, format = '%d%%',
+          sentence = 'How big the names are written, apart from everything else.' },
         { kind = 'font', section = 'style', key = 'nameFont', label = 'Name Font', default = 'trebucbi.ttf',
-          tooltip = 'The font the names, and the area of a member who is elsewhere, are written in: one from C:\\Windows\\Fonts, or Theme Font, the one set in Winxi Theme.' },
-        { kind = 'slider', section = 'style', key = 'buffSize', label = 'Buff Icon Size (%)', default = 120, min = 50, max = 200, format = '%d%%',
-          tooltip = 'How big the buff and debuff icons beside your party are drawn, apart from everything else.' },
+          sentence = 'The font the names are written in. Theme Font follows the Winxi Theme.' },
+        { kind = 'slider', section = 'style', key = 'buffSize', label = 'Buff Icon Size', default = 120, min = 50, max = 200, format = '%d%%',
+          sentence = 'How big the buff and debuff icons beside your party are, apart from everything else.' },
         { kind = 'slider', section = 'style', key = 'buffSpacing', label = 'Buff Spacing', default = 2, min = -5, max = 20,
-          tooltip = 'How much room there is between one buff icon and the next. At 0 they touch; less than 0 overlaps them.' .. unitsNote },
+          sentence = 'How much room there is between one status icon and the next. Below 0 they overlap.' },
         { kind = 'slider', section = 'style', key = 'buffDistance', label = 'Buff Distance', default = 4, min = -60, max = 200,
-          tooltip = 'How far the status icons start from the window\'s edge. Below 0 they overlap the window. Status Growth says which edge.' .. unitsNote },
-        { kind = 'slider', section = 'style', key = 'valueSize', label = 'Value Text Size (%)', default = 130, min = 50, max = 200, format = '%d%%',
-          tooltip = 'How big the HP, MP and TP values are written, apart from everything else.' },
+          sentence = 'How far the status icons start from the window\'s edge. Below 0 they overlap the window.' },
+        { kind = 'slider', section = 'style', key = 'valueSize', label = 'Value Text Size', default = 130, min = 50, max = 200, format = '%d%%',
+          sentence = 'How big the HP, MP and TP values are written, apart from everything else.' },
         { kind = 'font', section = 'style', key = 'valueFont', label = 'Value Font', default = 'ubuntu-bi.ttf',
-          tooltip = 'The font the HP, MP and TP values, and a target\'s distance and HP percentage, are written in: one from C:\\Windows\\Fonts, or Theme Font, the one set in Winxi Theme.' },
+          sentence = 'The font the HP, MP and TP values, and a target\'s distance and HP percentage, are written in. Theme Font follows the Winxi Theme.' },
         { kind = 'check', section = 'style', key = 'showMp', label = 'Show MP Values', default = true,
-          tooltip = 'Writes each member\'s MP beside their MP bar. Off leaves the bar alone.' },
+          sentence = 'Writes each member\'s MP beside their MP bar. Off, the bar stands alone.' },
         { kind = 'check', section = 'style', key = 'showTp', label = 'Show TP Values', default = true,
-          tooltip = 'Writes each member\'s TP on their line. TP has no bar, so off leaves TP out altogether.' },
+          sentence = 'Writes each member\'s TP on their line. Off, TP is left out altogether.' },
         { kind = 'check', section = 'style', key = 'tpFlash', label = 'Flash TP When Ready', default = true,
-          tooltip = 'TP of 1000 or more pulses between the TP Ready Color and a lighter shade of it. Off, ready TP is simply that colour.' },
+          sentence = 'TP of 1000 or more pulses between the TP Ready Color and a lighter shade of it. Off, it is simply that colour.' },
         { kind = 'color', section = 'style', key = 'tpColor', label = 'TP Ready Color', default = { 0x50 / 255, 0xB4 / 255, 0xFA / 255, 1 },
-          tooltip = 'The colour TP of 1000 or more is written in, blue to begin with.' },
+          sentence = 'The colour TP of 1000 or more is written in.' },
         { kind = 'check', section = 'style', key = 'zoneAbbr', label = 'Short Zone Names', default = true,
-          tooltip = 'A member in another area has that area written where their bars would be, in the game\'s short form for it. Off, its whole name, cut short where it does not fit.' },
+          sentence = 'A member in another area has it written in the game\'s short form where their bars would be. Off, its whole name, cut short where it does not fit.' },
     } },
     { name = 'Party', entries = {
-        { kind = 'check', section = 'party', key = 'enabled', label = 'Enabled', default = true },
+        { kind = 'check', section = 'party', key = 'enabled', label = 'Visible', default = true,
+          sentence = 'Shows your party\'s list, and the alliance\'s two other parties.' },
         { kind = 'gap' },
-        { kind = 'check', section = 'party', key = 'hideWhenSolo', label = 'Hide When Solo', default = false },
+        { kind = 'check', section = 'party', key = 'hideWhenSolo', label = 'Hide When Solo', default = false,
+          sentence = 'Hides the list while you are in no party.' },
         { kind = 'check', section = 'party', key = 'showInvites', label = 'Show Invites', default = true,
-          tooltip = 'The game\'s invitation icon beside your party\'s window while a party or alliance invite waits for your answer. With Hide When Solo on, the window shows while one waits.' },
+          sentence = 'Shows the invitation icon beside your party\'s list while an invite waits for your answer. With Hide When Solo on, the list shows while one waits.' },
         { kind = 'check', section = 'party', key = 'showTreasure', label = 'Show Treasure Pool', default = true,
-          tooltip = 'Shows the game\'s treasure chest icon beside your party\'s window while there is anything in the treasure pool. With an invite waiting too, it goes beside the invite\'s.' },
+          sentence = 'Shows the treasure chest icon beside your party\'s list while the treasure pool holds anything.' },
         { kind = 'choice', section = 'party', key = 'iconCorner', label = 'Icon Corner', default = 'TopRight', choices = notices.Corners,
-          when = function(saved) return saved.party.showInvites[1] or saved.party.showTreasure[1] end,
-          tooltip = 'The corner of your party\'s window the invite and treasure icons go beside: above a top corner, below a bottom one.' },
+          under = function(saved) return saved.party.showInvites[1] or saved.party.showTreasure[1] end,
+          sentence = 'The corner of your party\'s list the invite and treasure icons go beside, above a top corner or below a bottom one.' },
         { kind = 'offset', section = 'party', key = 'iconOffset', label = 'Icon Offset', default = { -5, 21 }, reach = 300,
-          when = function(saved) return saved.party.showInvites[1] or saved.party.showTreasure[1] end,
-          tooltip = 'Moves the invite and treasure icons from their corner: X to the right, Y down. Less than 0 moves them left or up.' .. unitsNote },
+          under = function(saved) return saved.party.showInvites[1] or saved.party.showTreasure[1] end,
+          sentences = { 'Moves the invite and treasure icons from their corner, to the right. Below 0, to the left.',
+                        'Moves them down. Below 0, up.' } },
         { kind = 'check', section = 'party', key = 'sortByRole', label = 'Sort By Role', default = false,
           when = function() return false end, -- hide the control without changing saved behavior
-          tooltip = 'Lists you first, then tanks (PLD, NIN, WAR, RUN), melee (MNK, SAM, DRK, DRG, THF, DNC, BLU, BST, PUP), ranged (RNG), support (BRD, COR, GEO), mages (BLM, SMN, SCH) and healers (RDM, WHM), each party of the alliance on its own. Off, the game\'s own order.' },
-        { kind = 'slider', section = 'party', key = 'allianceScale', label = 'Alliance Scale (%)', default = 80, min = 50, max = 200, format = '%d%%',
-          tooltip = 'How big the alliance\'s other two parties are drawn, on top of Frame Scale. Your own party is unchanged.' },
+          sentence = 'Lists you first, then tanks, melee, ranged, support, mages and healers. Off, the game default order.' },
+        { kind = 'slider', section = 'party', key = 'allianceScale', label = 'Alliance Scale', default = 80, min = 50, max = 200, format = '%d%%',
+          sentence = 'How big the alliance\'s other two parties are drawn, on top of Frame Scale. Your own party is unchanged.' },
         { kind = 'gap' },
         -- kept in style, as they were when they were on the Style tab
         { kind = 'offset', section = 'style', key = 'hpOffset', label = 'HP Value Offset', default = { -6, 0 }, reach = valueReach,
-          tooltip = 'Moves the HP value of your party, the alliance and pets from its usual place: X to the right, Y down. Less than 0 moves it left or up.' .. unitsNote },
+          sentences = { 'Moves the HP value of your party, the alliance and pets to the right of its usual place. Below 0, to the left.',
+                        'Moves it down. Below 0, up.' } },
         { kind = 'offset', section = 'style', key = 'mpOffset', label = 'MP Value Offset', default = { -2, 0 }, reach = valueReach,
-          tooltip = 'Moves the MP value of your party, the alliance and pets from its usual place: X to the right, Y down. Less than 0 moves it left or up.' .. unitsNote },
+          sentences = { 'Moves the MP value of your party, the alliance and pets to the right of its usual place. Below 0, to the left.',
+                        'Moves it down. Below 0, up.' } },
         { kind = 'offset', section = 'style', key = 'tpOffset', label = 'TP Value Offset', default = { -3, -2 }, reach = valueReach,
-          tooltip = 'Moves the TP value of your party and the alliance from its usual place: X to the right, Y down. Less than 0 moves it left or up.' .. unitsNote },
-        { kind = 'place', section = 'party', key = 'pos1', label = 'Alliance 1 Position', default = { 2098, 1215 }, window = 'party1' },
-        { kind = 'place', section = 'party', key = 'pos2', label = 'Alliance 2 Position', default = { 2098, 333 }, window = 'party2' },
-        { kind = 'place', section = 'party', key = 'pos3', label = 'Alliance 3 Position', default = { 2098, 593 }, window = 'party3' },
+          sentences = { 'Moves the TP value of your party and the alliance to the right of its usual place. Below 0, to the left.',
+                        'Moves it down. Below 0, up.' } },
+        { kind = 'place', section = 'party', key = 'pos1', label = 'Alliance 1 Position', default = { 2098, 1215 }, window = 'party1',
+          sentence = 'Where your party\'s list is on the screen. Dragging the list sets it too.' },
+        { kind = 'place', section = 'party', key = 'pos2', label = 'Alliance 2 Position', default = { 2098, 333 }, window = 'party2',
+          sentence = 'Where the alliance\'s second party is on the screen.' },
+        { kind = 'place', section = 'party', key = 'pos3', label = 'Alliance 3 Position', default = { 2098, 593 }, window = 'party3',
+          sentence = 'Where the alliance\'s third party is on the screen.' },
     } },
     { name = 'Target', entries = {
-        { kind = 'check', section = 'target', key = 'enabled', label = 'Enabled', default = true },
-        { kind = 'check', section = 'target', key = 'showMain', label = 'Show Target', default = true },
-        { kind = 'check', section = 'target', key = 'mainDebuffs', label = 'Target Debuffs', default = false },
-        { kind = 'check', section = 'target', key = 'showSub', label = 'Show Sub-Target', default = false },
-        { kind = 'check', section = 'target', key = 'subDebuffs', label = 'Sub-Target Debuffs', default = false },
-        { kind = 'check', section = 'target', key = 'showTot', label = 'Show Target Of Target', default = false },
-        { kind = 'check', section = 'target', key = 'totDebuffs', label = 'Target Of Target Debuffs', default = false },
+        { kind = 'check', section = 'target', key = 'enabled', label = 'Visible', default = true,
+          sentence = 'Shows the target windows chosen below.' },
+        { kind = 'check', section = 'target', key = 'showMain', label = 'Show Target', default = true,
+          under = function(saved) return saved.target.enabled[1] end,
+          sentence = 'A window for whatever you have targeted.' },
+        { kind = 'check', section = 'target', key = 'mainDebuffs', label = 'Target Debuffs', default = false,
+          under = function(saved) return saved.target.enabled[1] and saved.target.showMain[1] end,
+          sentence = 'Shows the target\'s debuffs with its window.' },
+        { kind = 'check', section = 'target', key = 'showSub', label = 'Show Sub-Target', default = false,
+          under = function(saved) return saved.target.enabled[1] end,
+          sentence = 'A window for the sub-target while you are choosing one.' },
+        { kind = 'check', section = 'target', key = 'subDebuffs', label = 'Sub-Target Debuffs', default = false,
+          under = function(saved) return saved.target.enabled[1] and saved.target.showSub[1] end,
+          sentence = 'Shows the sub-target\'s debuffs with its window.' },
+        { kind = 'check', section = 'target', key = 'showTot', label = 'Show Target Of Target', default = false,
+          under = function(saved) return saved.target.enabled[1] end,
+          sentence = 'A window for whatever your target is targeting.' },
+        { kind = 'check', section = 'target', key = 'totDebuffs', label = 'Target Of Target Debuffs', default = false,
+          under = function(saved) return saved.target.enabled[1] and saved.target.showTot[1] end,
+          sentence = 'Shows that target\'s debuffs with its window.' },
         { kind = 'check', section = 'target', key = 'gameNameColors', label = 'Game Name Colors', default = false,
-          tooltip = 'The name in the colour the game gives it over the head: an enemy yellow while unclaimed, red when claimed by your party or alliance, purple by anyone else and orange once help is called for; a player white, or blue in your party or alliance; an NPC green; anything dead grey.' },
+          sentence = 'Writes the name in the colour the game gives it over the head, yellow for an unclaimed enemy, red once claimed, blue for a party member.' },
         { kind = 'check', section = 'target', key = 'monsterLetters', label = 'Monster Letters', default = true,
-          tooltip = 'The monster\'s spawn letter after its name, in a small box in the name\'s colour: the same letter Name writes over its head, and the same on every player\'s screen. Past Z the letters start again at A. None where the game\'s list of the area cannot be read.' },
+          sentence = 'The monster\'s spawn letter after its name, in a small box in the name\'s colour. The same letter on every player\'s screen.' },
         { kind = 'check', section = 'target', key = 'lockBrackets', label = 'Lock-On Brackets', default = true,
-          tooltip = 'Brackets at the left and right of the target window while you are locked on, as the game frames its own target.' },
+          sentence = 'Brackets at the left and right of the target window while you are locked on.' },
         { kind = 'color', section = 'target', key = 'bracketColor', label = 'Bracket Color', default = { 1, 1, 1, 1 },
-          when = function(saved) return saved.target.lockBrackets[1] end,
-          tooltip = 'The colour of the lock-on brackets, edged with the Text Outline of Winxi Theme.' },
+          under = function(saved) return saved.target.lockBrackets[1] end,
+          sentence = 'The colour of the lock-on brackets, edged with the Text Outline of the Winxi Theme.' },
         { kind = 'choice', section = 'target', key = 'debuffStyle', label = 'Debuff Style', default = 'icons', choices = debuffs.Styles,
-          when = function(saved) return saved.target.enabled[1] and ((saved.target.showMain[1] and saved.target.mainDebuffs[1])
+          under = function(saved) return saved.target.enabled[1] and ((saved.target.showMain[1] and saved.target.mainDebuffs[1])
               or (saved.target.showSub[1] and saved.target.subDebuffs[1]) or (saved.target.showTot[1] and saved.target.totDebuffs[1])) end,
-          tooltip = 'Letters: a letter under the window for each of the usual debuffs, lit while it is on the target. Icons: an icon beside the window for every status seen to land on the target, drawn as your party\'s buffs are.' },
+          sentence = 'Letters lights a letter under the window for each usual debuff. Icons puts an icon beside the window for every status seen to land.' },
         { kind = 'gap' },
         -- defaults as the target's figures were drawn when they followed the party's TP offset (-3, -2)
-        { kind = 'offset', section = 'target', key = 'hpOffset', label = 'HP % Offset', default = { 0, -2 }, reach = valueReach,
-          tooltip = 'Moves the target\'s HP percentage from its usual place: X to the right, Y down. Less than 0 moves it left or up.' .. unitsNote },
+        { kind = 'offset', section = 'target', key = 'hpOffset', label = 'HP Percentage Offset', default = { 0, -2 }, reach = valueReach,
+          sentences = { 'Moves the target\'s HP percentage to the right of its usual place. Below 0, to the left.',
+                        'Moves it down. Below 0, up.' } },
         { kind = 'offset', section = 'target', key = 'distanceOffset', label = 'Distance Offset', default = { -3, -2 }, reach = valueReach,
-          tooltip = 'Moves the target\'s distance from its usual place: X to the right, Y down. Less than 0 moves it left or up.' .. unitsNote },
-        { kind = 'place', section = 'target', key = 'mainPos', label = 'Target Position', default = { 2098, 865 }, window = 'main' },
-        { kind = 'place', section = 'target', key = 'subPos', label = 'Sub-Target Position', default = { 34, 296 }, window = 'sub' },
-        { kind = 'place', section = 'target', key = 'totPos', label = 'Target Of Target Position', default = { 34, 223 }, window = 'tot' },
+          sentences = { 'Moves the target\'s distance to the right of its usual place. Below 0, to the left.',
+                        'Moves it down. Below 0, up.' } },
+        { kind = 'place', section = 'target', key = 'mainPos', label = 'Target Position', default = { 2098, 865 }, window = 'main',
+          sentence = 'Where the target window is on the screen. Dragging it sets this too.' },
+        { kind = 'place', section = 'target', key = 'subPos', label = 'Sub-Target Position', default = { 34, 296 }, window = 'sub',
+          sentence = 'Where the sub-target window is on the screen.' },
+        { kind = 'place', section = 'target', key = 'totPos', label = 'Target Of Target Position', default = { 34, 223 }, window = 'tot',
+          sentence = 'Where the target of target window is on the screen.' },
     } },
     { name = 'Pets', entries = {
-        { kind = 'check', section = 'pets', key = 'enabled', label = 'Enabled', default = true,
-          tooltip = 'Lists the pets under your party, below a line.' },
+        { kind = 'check', section = 'pets', key = 'enabled', label = 'Visible', default = true,
+          sentence = 'Lists the pets under your party, below a line.' },
         { kind = 'gap' },
         { kind = 'check', section = 'pets', key = 'showParty', label = 'Show Party Members\' Pets', default = true,
-          tooltip = 'Lists the other members\' pets under your own, with their owner\'s name. Only their HP is shown: the game tells a pet\'s MP and TP to its owner alone.' },
-        { kind = 'check', section = 'pets', key = 'exactAutomaton', label = 'Exact HP And MP (Puppetmaster)', default = true,
-          tooltip = 'Your automaton\'s HP and MP as numbers rather than percentages. Other pets always show percentages.' },
+          sentence = 'Lists the other members\' pets under your own, with their owner\'s name. Only their HP is shown.' },
+        { kind = 'check', section = 'pets', key = 'exactAutomaton', label = 'Exact Automaton HP And MP', default = true,
+          sentence = 'Your automaton\'s HP and MP as numbers instead of percentages. Other pets always show percentages.' },
     } },
 }
 
@@ -155,38 +184,48 @@ options.Tabs = {
 local extra = {
     Style = {
         { kind = 'dropdown', key = 'barShadows', label = 'Bar Shadows', default = 'full', choices = {
-            { key = 'off', label = 'Off' }, { key = 'simple', label = 'Simple' }, { key = 'full', label = 'Full' } } },
-        { kind = 'slider', key = 'castRange', label = 'Near Range (m)', default = 2079, min = 100, max = 5000, displayDivisor = 100,
-          tooltip = 'Members farther away than this are dimmed to Beyond Near Range Opacity. A rough guide to casting range: actions differ.' },
-        { kind = 'slider', key = 'targetRange', label = 'Far Range (m)', default = 50, min = 1, max = 100, format = '%d m',
-          tooltip = 'Members farther away than this are dimmed to Beyond Far Range Opacity.' },
-        { kind = 'slider', key = 'nearOpacity', label = 'Beyond Near Range Opacity (%)', default = 70, min = 0, max = 100 },
-        { kind = 'slider', key = 'farOpacity', label = 'Beyond Far Range Opacity (%)', default = 45, min = 0, max = 100 },
-        { kind = 'slider', key = 'lowHp', label = 'Low HP Warning (%)', default = 0, min = 0, max = 100,
-          tooltip = 'A ! before the name of a member at or below this HP percentage. 0 turns it off.' },
+            { key = 'off', label = 'Off' }, { key = 'simple', label = 'Simple' }, { key = 'full', label = 'Full' } },
+          sentence = 'A shadow under each bar. Simple is a close shadow, Full a softer one farther out as well.' },
+        { kind = 'slider', key = 'castRange', label = 'Near Range', default = 2079, min = 100, max = 5000, displayDivisor = 100,
+          sentence = 'Members farther away than this are dimmed to Beyond Near Range Opacity. A rough guide to casting range.' },
+        { kind = 'slider', key = 'targetRange', label = 'Far Range', default = 50, min = 1, max = 100, format = '%d m',
+          sentence = 'Members farther away than this are dimmed to Beyond Far Range Opacity.' },
+        { kind = 'slider', key = 'nearOpacity', label = 'Beyond Near Range Opacity', default = 70, min = 0, max = 100, format = '%d%%',
+          sentence = 'How much of a member beyond Near Range still shows.' },
+        { kind = 'slider', key = 'farOpacity', label = 'Beyond Far Range Opacity', default = 45, min = 0, max = 100, format = '%d%%',
+          sentence = 'How much of a member beyond Far Range still shows.' },
+        { kind = 'slider', key = 'lowHp', label = 'Low HP Warning', default = 0, min = 0, max = 100, format = '%d%%',
+          sentence = 'A ! before the name of a member at or below this much HP. At 0 there is none.' },
         { kind = 'check', key = 'hoverDetails', label = 'Show Tooltips', default = false,
-          when = function() return false end, -- drawn beside Clickthrough in Behavior; storage stays compatible
-          tooltip = 'Hovering the windows shows full names, jobs and pet owners, and each buff and debuff with its estimated time left.' },
+          when = function() return false end, -- drawn beside Lock Windows in Behavior; storage stays compatible
+          sentence = 'Hovering a window shows full names, jobs and pet owners, and each buff and debuff with its time left.' },
         { kind = 'check', key = 'showStatuses', label = 'Show Statuses', default = true,
-          tooltip = 'The buff and debuff icons beside your party and alliance. Off, their settings are kept, greyed. A target\'s debuffs follow the Target tab.' },
+          sentence = 'The buff and debuff icons beside your party and alliance. A target\'s debuffs follow the Target tab.' },
         { kind = 'check', key = 'debuffsFirst', label = 'Debuffs First', default = false,
-          tooltip = 'Debuffs nearest the window, before every buff. Priority Effects still order the debuffs among themselves, and the buffs.' },
+          sentence = 'Puts the debuffs nearest the window, before every buff. Priority Effects still orders each kind.' },
         { kind = 'statuslist', key = 'priorityStatuses', label = 'Priority Effects', default = '', ordered = true,
-          tooltip = 'Statuses shown first, in this order. One that is also in Hidden Effects stays hidden.' },
-        { kind = 'statuslist', key = 'hiddenStatuses', label = 'Hidden Effects', default = '', tooltip = 'Statuses never shown beside the party.' },
-        { kind = 'slider', key = 'buffLimit', label = 'Maximum Status Icons', default = 16, min = 1, max = 32 },
-        { kind = 'slider', key = 'buffRows', label = 'Status Rows', default = 1, min = 1, max = 2 },
-        { kind = 'check', key = 'buffOverflow', label = 'Status Overflow Count', default = true },
+          sentence = 'Statuses shown first, in this order. One that is also in Hidden Effects stays hidden.' },
+        { kind = 'statuslist', key = 'hiddenStatuses', label = 'Hidden Effects', default = '',
+          sentence = 'Statuses never shown beside the party.' },
+        { kind = 'slider', key = 'buffLimit', label = 'Maximum Status Icons', default = 16, min = 1, max = 32,
+          sentence = 'How many status icons a member has beside them at most.' },
+        { kind = 'slider', key = 'buffRows', label = 'Status Rows', default = 1, min = 1, max = 2,
+          sentence = 'How many rows the status icons are laid out in.' },
+        { kind = 'check', key = 'buffOverflow', label = 'Status Overflow Count', default = true,
+          sentence = 'When more statuses than fit are on a member, the last icon gives way to a count of the rest.' },
         { kind = 'dropdown', key = 'buffDirection', label = 'Status Growth', default = 'left', choices = {
-            { key = 'left', label = 'Left' }, { key = 'right', label = 'Right' }, { key = 'auto', label = 'Most Available Space' } } },
-        { kind = 'check', key = 'buffFitScreen', label = 'Fit Status Icons To Screen', default = true },
+            { key = 'left', label = 'Left' }, { key = 'right', label = 'Right' }, { key = 'auto', label = 'Most Available Space' } },
+          sentence = 'Which side of the window the status icons grow out from.' },
+        { kind = 'check', key = 'buffFitScreen', label = 'Fit Status Icons To Screen', default = true,
+          sentence = 'Draws fewer status icons where they would run off the screen.' },
     },
     Pets = {
         { kind = 'slider', key = 'reserve', label = 'Reserved Pet Rows', default = 2, min = 1, max = 6,
-          when = function(saved) return saved.automaticPositioning[1] and saved.pets.enabled[1] and saved.pets.showParty[1] end,
-          tooltip = 'How many pet rows Automatic Positioning leaves room for under the party, at least; more when there are more pets. Six keeps the windows still however many pets come and go.' },
+          under = function(saved) return saved.automaticPositioning[1] and saved.pets.enabled[1] and saved.pets.showParty[1] end,
+          sentence = 'How many pet rows Automatic Positioning leaves room for under the party, at least. Six keeps the windows still however many pets come and go.' },
         { kind = 'dropdown', key = 'nameFormat', label = 'Pet Names', default = 'ownerPet', choices = {
-            { key = 'pet', label = 'Pet' }, { key = 'ownerPet', label = 'Owner: Pet' }, { key = 'petOwner', label = 'Pet (Owner)' } } },
+            { key = 'pet', label = 'Pet' }, { key = 'ownerPet', label = 'Owner: Pet' }, { key = 'petOwner', label = 'Pet (Owner)' } },
+          sentence = 'How a pet is named in the list, with or without its owner.' },
     },
 }
 for _, tab in ipairs(options.Tabs) do
@@ -242,8 +281,6 @@ for _, tab in ipairs(options.Tabs) do
         for index = group.hiddenGroup and 1 or 2, #group do
             local key = group[index]
             local entry = assert(byKey[key], 'Unknown setting: ' .. key)
-            if tab.name == 'Target' and (key == 'showMain' or key == 'showSub' or key == 'showTot'
-                or key == 'mainDebuffs' or key == 'subDebuffs' or key == 'totDebuffs') then entry.targetRow = true end
             -- greyed while Show Statuses is off; the toggle itself never is
             entry.statuses = group.statuses and key ~= 'showStatuses' or nil
             entries[#entries + 1] = entry

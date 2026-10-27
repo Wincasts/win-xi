@@ -64,27 +64,37 @@ imgui.Checkbox=function(id)
     checks[id]=true
     return false
 end
+-- every setting a described row (winxi 65): its name, its sentence, and whether it is greyed under
+-- another setting (spec.parent) or marked experimental
+local rows,beginRow={},widgets.BeginRow
+widgets.BeginRow=function(name,sentence,spec)
+    local parent=spec and spec.parent
+    rows[name]={ sentence=sentence, greyed=type(parent)=='table' and not parent[1] or false, experimental=spec and spec.experimental or false }
+    return beginRow(name,sentence,spec)
+end
 package.loaded.hook={Status=function() return 'Native replacement ready.' end}
 local behavior=require('config').Tabs[1].draw
 assert(options.nativeHook[1],'settings from before the toggle keep their hooked windows hooked')
 H.loaded('uihook',true)
 options.nativeHook[1]=false
 behavior(options)
-assert(checks['##party.nativeHook'] and not checks['##party.nativeParty'],
-    'uihook found: the toggle alone until it is on')
+assert(checks['##party.nativeHook'] and checks['##party.nativeParty'] and checks['##party.nativeTarget'] and checks['##party.nativeBehavior'],
+    'uihook found: the toggle and its choices')
+assert(not rows['Use uihook'].greyed and rows['Party'].greyed and rows['Target'].greyed and rows['Follow Default UI Behavior'].greyed,
+    'uihook off: its choices greyed under the toggle until it is on')
 options.nativeHook[1]=true
 checks={}
 behavior(options)
 assert(checks['##party.nativeHook'] and checks['##party.nativeParty'] and checks['##party.nativeTarget'] and checks['##party.nativeBehavior'],
     'hooking on: which windows it hooks')
+assert(not rows['Party'].greyed and not rows['Target'].greyed and not rows['Follow Default UI Behavior'].greyed,'hooking on: its choices can be changed')
 assert(headers[1]=='Positioning' and headers[2]=='uihook' and headers[3]=='Mouse Interaction',
     'Behavior: Positioning, uihook, Mouse Interaction')
--- Use uihook, untagged; every explanation behind a (?); the plugin and its version in green after the
--- title; no status line
-local labels,marks,colored,wrapped={},0,{},0
-local label,disabled,textColored,textWrapped=widgets.Label,imgui.TextDisabled,imgui.TextColored,imgui.TextWrapped
+-- Use uihook, untagged; every uihook setting explained by its own sentence, no (?) marks; the plugin
+-- and its version in green after the title; no status line
+local marks,colored,wrapped=0,{},0
+local disabled,textColored,textWrapped=imgui.TextDisabled,imgui.TextColored,imgui.TextWrapped
 local getManager=AshitaCore.GetPluginManager
-widgets.Label=function(text,experimental) labels[text]=experimental or false end
 imgui.TextDisabled=function(text) if text=='(?)' then marks=marks+1 end end
 imgui.TextColored=function(color,text) colored[#colored+1]={color,text} end
 imgui.TextWrapped=function() wrapped=wrapped+1 end
@@ -93,9 +103,14 @@ AshitaCore.GetPluginManager=function(self)
     manager.Get=function(_,name) return name=='uihook' and { GetVersion=function() return 1.6 end } or nil end
     return manager
 end
+rows={}
 behavior(options)
-assert(labels['Use uihook']==false and labels['Hook Into uihook']==nil,'Use uihook, not experimental')
-assert(marks==4,'a (?) for each uihook setting: '..marks)
+assert(rows['Use uihook'] and rows['Use uihook'].experimental==false and rows['Hook Into uihook']==nil,'Use uihook, not experimental')
+for _,name in ipairs({'Use uihook','Party','Target','Follow Default UI Behavior'}) do
+    local row=rows[name]
+    assert(row and type(row.sentence)=='string' and #row.sentence>0,name..' has its sentence')
+end
+assert(marks==0,'no (?) marks: the sentences explain: '..marks)
 local found=colored[#colored]
 assert(found and found[2]=='[uihook 1.60 found]' and found[1][2]>found[1][1] and found[1][2]>found[1][3],'the plugin found, in green')
 assert(wrapped==0,'no native rendering status line')
@@ -103,7 +118,7 @@ AshitaCore.GetPluginManager=getManager
 colored={}
 behavior(options)
 assert(colored[#colored][2]=='[uihook found]','no version to be had: the plugin alone')
-widgets.Label,imgui.TextDisabled,imgui.TextColored,imgui.TextWrapped=label,disabled,textColored,textWrapped
+widgets.BeginRow,imgui.TextDisabled,imgui.TextColored,imgui.TextWrapped=beginRow,disabled,textColored,textWrapped
 H.loaded('uihook',false)
 checks={}
 behavior(options)

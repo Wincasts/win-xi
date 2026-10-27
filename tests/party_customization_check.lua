@@ -185,29 +185,34 @@ frames.Draw, organizer.IsActive, winxiGame.IsHidden = frameDraw, isActive, isHid
 roster.Counts, roster.Members = counts, rosterMembers
 o.style.showStatuses[1] = true
 local widgets = require('winxi.widgets')
-local header, disabled, greyedLabels, label = widgets.Header, 0, {}, widgets.Label
+-- a status setting is a row under Show Statuses (winxi 65's rows: spec.parent), greyed while it is off
+local header, disabled, greyedLabels, beginRow = widgets.Header, 0, {}, widgets.BeginRow
 local begin, finish = imgui.BeginDisabled, imgui.EndDisabled
 widgets.Header = function() return true end
-widgets.Label = function(text) greyedLabels[text] = disabled > 0; return label(text) end
+widgets.BeginRow = function(text, sentence, spec)
+    local parent = spec and spec.parent
+    greyedLabels[text] = disabled > 0 or (type(parent) == 'table' and not parent[1]) or false
+    return beginRow(text, sentence, spec)
+end
 imgui.BeginDisabled = function() disabled = disabled + 1 end
 imgui.EndDisabled = function() disabled = disabled - 1 end
 local styleTab
 for _, tab in ipairs(config.Tabs) do if tab.name == 'Style' then styleTab = tab end end
 styleTab.draw(o)
 assert(disabled == 0, 'every greyed setting is closed again')
-assert(greyedLabels['Buff Icon Size (%)'] == false and greyedLabels['Debuffs First'] == false,
+assert(greyedLabels['Buff Icon Size'] == false and greyedLabels['Debuffs First'] == false,
     'statuses on: nothing greyed')
 for k in pairs(greyedLabels) do greyedLabels[k] = nil end
 o.style.showStatuses[1] = false
 styleTab.draw(o)
 assert(disabled == 0 and greyedLabels['Show Statuses'] == false, 'the toggle itself is never greyed')
-for _, name in ipairs({ 'Buff Icon Size (%)', 'Buff Spacing', 'Buff Distance', 'Maximum Status Icons', 'Status Rows',
+for _, name in ipairs({ 'Buff Icon Size', 'Buff Spacing', 'Buff Distance', 'Maximum Status Icons', 'Status Rows',
     'Status Growth', 'Fit Status Icons To Screen', 'Status Overflow Count', 'Debuffs First', 'Priority Effects',
     'Hidden Effects', 'Priority Status IDs', 'Hidden Status IDs' }) do
     assert(greyedLabels[name] == true, name .. ' greyed while statuses are off')
 end
-assert(greyedLabels['Frame Scale (%)'] == false and greyedLabels['Low HP Warning (%)'] == false, 'other settings are not greyed')
-widgets.Header, widgets.Label, imgui.BeginDisabled, imgui.EndDisabled = header, label, begin, finish
+assert(greyedLabels['Frame Scale'] == false and greyedLabels['Low HP Warning'] == false, 'other settings are not greyed')
+widgets.Header, widgets.BeginRow, imgui.BeginDisabled, imgui.EndDisabled = header, beginRow, begin, finish
 o.style.showStatuses[1] = true
 H.print('Show Statuses: icons left out of party windows and the status settings greyed', true)
 
