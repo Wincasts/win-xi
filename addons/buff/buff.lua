@@ -837,7 +837,7 @@ local function AxisSlider(values, axis, label, id, low, high, sentence, spec)
     return changed;
 end
 
-local function PositionSliders(values, label, id, signed, sentence, spec)
+local function PositionSliders(values, label, id, signed, sentenceX, sentenceY, spec)
     local display = imgui.GetIO().DisplaySize;
     local width = math.floor(display.x or display[1] or 1920);
     local height = math.floor(display.y or display[2] or 1080);
@@ -846,14 +846,14 @@ local function PositionSliders(values, label, id, signed, sentence, spec)
         ids = { label .. ' X', label .. ' Y', id .. 'X', id .. 'Y' };
         sliderIds[id] = ids;
     end
-    local changedX = AxisSlider(values, 1, ids[1], ids[3], signed and -width or 0, width, sentence, spec);
-    local changedY = AxisSlider(values, 2, ids[2], ids[4], signed and -height or 0, height, nil, spec);
+    local changedX = AxisSlider(values, 1, ids[1], ids[3], signed and -width or 0, width, sentenceX, spec);
+    local changedY = AxisSlider(values, 2, ids[2], ids[4], signed and -height or 0, height, sentenceY, spec);
     return changedX or changedY;
 end
 
 local controllerTip = 'In the game\'s buff selector, confirm (A, or the bottom face button) removes the status its cursor is on, as a click does. Needs the uihook plugin, which says which one that is.\nThe press still reaches the game: buff asks for the status to be removed only when the game has not, a moment later.\nAn XInput controller\'s A is always heard; Controller Type picks the DirectInput make (PlayStation with XInput chosen).';
 
-local lockSpec = { label = 'Lock Position', description = 'Keeps the bar where it is. Off, drag it with the mouse to move it.' };
+local lockSpec = { description = 'Keeps the bar where it is. Off, drag it with the mouse to move it.' };
 local fontSpec = { description = 'The font for the times and the status tooltips. Theme Font follows the Winxi Theme.' };
 local sizeSpec = { description = 'How big the times and tooltips are. Theme Size follows the Winxi Theme.' };
 
@@ -867,15 +867,22 @@ local function DrawSettings(options)
                 widgets.Note(problem);
             end
             PositionSliders(options.anchorAdjustment, 'Anchor Adjustment', '##buff.anchorAdjustment', true,
-                'How far the bar is moved from where the game puts its first icon. Dragging the bar sets it too.', nudgeSpec);
+                'How far the bar is moved sideways from the game default icons. Dragging the bar sets it too.',
+                'How far the bar is moved up or down from them.', nudgeSpec);
         else
-            if PositionSliders(options.pos, 'Position', '##buff.position', false, 'Where the bar\'s corner is on the screen. Dragging the bar sets it too.', widgets.Pixels) then
+            if PositionSliders(options.pos, 'Position', '##buff.position', false,
+                'How far the bar\'s corner is from the left of the screen. Dragging the bar sets it too.',
+                'How far the bar\'s corner is from the top of the screen.', widgets.Pixels) then
                 imgui.SetWindowPos(windowName, options.pos);
                 anchor.Reset(windowName);
             end
         end
         widgets.Lock(options.lockPosition, '##buff.lockPosition', lockSpec);
         widgets.Check('Show Backdrop', 'A background and border behind the bar. Off, the icons sit straight over the game.', options.showBackdrop, '##buff.showBackdrop');
+        if widgets.Check('Hide Game Default Icons', 'Hides the game default status icons, since this bar stands in for them.', options.hideGameIcons, '##buff.hideGameIcons') then
+            hideFailed = false;
+            ApplyGameIcons(options);
+        end
     end
 
     if widgets.Header('Icons') then
@@ -889,13 +896,6 @@ local function DrawSettings(options)
         widgets.Check('Show Time Left', 'Writes under each icon how long the status has left.', options.showTimers, '##buff.showTimers');
         widgets.FontFile(options, 'fontFile', '##buff.fontFile', fontSpec);
         widgets.FontSize(options, 'fontSize', '##buff.fontSize', sizeSpec);
-    end
-
-    if widgets.Header('Game') then
-        if widgets.Check('Hide Game Default Icons', 'Hides the game default status icons, since this bar stands in for them.', options.hideGameIcons, '##buff.hideGameIcons') then
-            hideFailed = false;
-            ApplyGameIcons(options);
-        end
     end
 
     if widgets.Header('Controller') then

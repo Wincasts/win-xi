@@ -118,16 +118,19 @@ assert(selected.BorderStyle == previews.BorderStyle and selected.BarTexture == p
 assert(look.BorderStyle == 'crystal' and look.BarTexture == 'satin' and look.BookendStyle == 'royal_silver' and look.BackgroundStyle == 'ffxi' and look.TabStyle == 'brushed' and look.TitleStyle == 'plate')
 assert(previews.TitleStyle == 'Outlined Text')
 assert(previews.BarFrame == 'Bar Texture' and look.BarFrame == 'capsule', 'Bar Frame: the texture\'s own to begin with, chosen like the rest')
--- Bookend Style is only offered with bookends on
+-- Bookend Style and Title Style stay with bookends or frame titles off, greyed under their switch
+-- (winxi 65's rows): still drawn, so still opened here
+local greyed, disabled = 0, imgui.BeginDisabled
+imgui.BeginDisabled = function(off) if off then greyed = greyed + 1 end end
 look.Bookends, opened = false, 0
 last.draw(saved)
-assert(opened == 6)
+assert(opened == 7 and greyed >= 2, 'Bookend Style and Bookend Opacity greyed: ' .. greyed)
 look.Bookends = true
--- Title Style is only offered with frame titles on
-look.FrameTitles, opened = false, 0
+look.FrameTitles, opened, greyed = false, 0, 0
 last.draw(saved)
-assert(opened == 6)
+assert(opened == 7 and greyed >= 10, 'the title rows greyed: ' .. greyed)
 look.FrameTitles = true
+imgui.BeginDisabled = disabled
 -- Closed combos should not draw selectable items or rewrite settings.
 imgui.BeginCombo = function() return false end
 imgui.Selectable = function() error('Closed dropdown drew items') end

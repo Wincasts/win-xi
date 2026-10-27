@@ -558,8 +558,8 @@ Every addon's settings window is laid out the same way, by `winxi.widgets` and `
 someone who has set one addon up knows every other. The rules, in the order a window is read:
 
 1. **Tabs.** Settings (the addon's behaviour; `settingsLabel` may rename it), then the addon's own tabs,
-   then Visibility (for an addon with a window: Fade In And Out, whatever the addon adds with `visibility`,
-   and the rules for hiding under Hide Window), then Winxi Theme last, in its own colour. `winxi.shell`
+   then Visibility (for an addon with a window: one section with Fade In And Out, whatever the addon adds
+   with `visibility`, then a rule and the rules for hiding), then Winxi Theme last, in its own colour. `winxi.shell`
    draws the tabs; an addon without the shell draws the same ones.
 2. **Sections.** Every tab is sections under `widgets.Header`, each collapsible, its body inside the `if`.
    The first section of a tab is `Header(name, true)`, flush with the tab bar. A header sets itself apart
