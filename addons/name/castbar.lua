@@ -5,6 +5,7 @@ local bit = require('bit');
 local castbar = {};
 local actors, metadata = {}, { spell = {}, skill = {} };
 local count, enabled, skills, skillTimes = 0, false, false, nil;
+require('winxi.gamedata').OnChange(function() skillTimes=nil; end); -- another server's data chosen
 local MAX_ACTORS, USED_SECONDS = 256, 1.2;
 -- Session-only, never part of saved settings or observed actor state.
 castbar.Preview = { false };
@@ -35,13 +36,13 @@ local function remove(id)
 end
 local function clearSkills()
     for id,entry in pairs(actors) do if entry.kind=='skill' then remove(id); end end
-    metadata.skill={}; skillTimes=nil; package.loaded['assets.mob_cast_times']=nil;
+    metadata.skill={}; skillTimes=nil; 
 end
 function castbar.Reset()
     castbar.Preview[1] = false;
     previewUntil, previewStart, sampleAt = 0, nil, nil;
     if count>0 then actors={};count=0; end
-    if enabled then metadata={spell={},skill={}};skillTimes=nil;package.loaded['assets.mob_cast_times']=nil; end
+    if enabled then metadata={spell={},skill={}};skillTimes=nil; end
     enabled,skills=false,false;
 end
 function castbar.Configure(options)
@@ -99,7 +100,7 @@ local function action(kind, id)
         end);
         if ok then name=text(value); end
         if id>256 then
-            skillTimes=skillTimes or require('assets.mob_cast_times');
+            skillTimes=skillTimes or require('winxi.gamedata').Read('casttimes','index') or {}; -- the chosen server's casttimes set
             duration=skillTimes[id];
         end
     end

@@ -125,7 +125,7 @@ share the **Bars** tab.
   of player/enemy formats. Default: `[vendor: space=4][name]`.
   `[vendor]` draws a coin (`assets/special/vendor.png`) where it is for every NPC that sells: gil
   shops, guild merchants and outpost vendors, and nothing (with no space) for any other. The list is
-  `vendor_list.lua`, by area and name, made from the Phoenix server's NPC scripts by
+  the chosen server's `vendors` set (winxi's data), by area and name, made from its NPC scripts by
   `tools/build_name_vendors.py`. The Vendor Icons setting of 1.66 and before becomes
   `[vendor: space=N]` (N its old spacing) before the NPC format once if it was on.
 - Each format has its **Reset** button on the same row, after the editor. Hover the

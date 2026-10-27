@@ -1,4 +1,5 @@
 -- A tracked notorious monster's hunt sign and its placeholders' name. Run via tests/harness.lua.
+require('winxi.gamedata').Root('addons/libs/winxi/data/') -- the server's sets, from the repository's data
 local ffi = require('ffi')
 local imgui = require('imgui')
 local custom = require('custom')
@@ -95,7 +96,7 @@ options.trackedNm[1] = ''; render()
 H.print('tracking ended: as before', quads(1) == 4, draw.Textures[6] == 0)
 
 -- a vendor's coin: the sheet's other half, before the name of an NPC the area's list has
-local vendorList = require('vendor_list')
+local vendorList = dofile('addons/libs/winxi/data/phoenix/vendors/index.lua')
 local zoneOf, managerOf = 240, AshitaCore.GetMemoryManager
 AshitaCore.GetMemoryManager = function(...)
     local memory = managerOf(...)

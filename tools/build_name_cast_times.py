@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build Name's base monster ready times from Phoenix as live runs it (not runtime durations).
+"""Build the casttimes set (addons/libs/winxi/data/<server>/casttimes; a set of build_winxi_data), Name's base monster ready times from Phoenix as live runs it (not runtime durations).
 
 sql/mob_skills.sql, with the module SQL init.txt loads replayed over it (a move's ready time
 changed, a move's row replaced), and the Lua module overrides of monsters' moves and zones put
@@ -89,25 +89,31 @@ def render(rows, describe='Phoenix'):
     ])
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    source.add_arguments(parser)
-    parser.add_argument('--out', type=Path, default=ROOT / 'addons/name/assets/mob_cast_times.lua')
-    parser.add_argument('--verbose', action='store_true', help='List every module override looked at.')
-    args = parser.parse_args()
-    found = source.from_arguments(args)
+def build(server, output, settings=(), verbose=False):
+    """The casttimes set: output/index.lua, for the server's checkout at server."""
+    found = source.read(server)
     rows, applied = ready_times(found.path)
     done = modules.guard(found.path, ('xi.actions.mobskills.', 'xi.mobskills.', 'xi.zones.'), handle,
-                         out=None if args.verbose else io.StringIO())
+                         out=None if verbose else io.StringIO())
     own = [o for o, what in done if what.startswith('gives')]
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(render(rows, found.describe()))
-    print(f'{len(rows)} base ready times from {found.describe()} -> {args.out}')
+    output.mkdir(parents=True, exist_ok=True)
+    (output / 'index.lua').write_text(render(rows, found.describe()))
+    print(f'{len(rows)} base ready times from {found.describe()} -> {output}')
     for path in applied:
         print(f'  module SQL {path}')
     print(f'  {len(done)} module overrides looked at; {len(own)} give a monster its own ready time:')
     for override in own:
         print(f'    {override.target} ({override.where()})')
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    source.add_arguments(parser)
+    parser.add_argument('--out', type=Path, default=None, help='The set\'s folder; default data/<server>/casttimes.')
+    parser.add_argument('--verbose', action='store_true', help='List every module override looked at.')
+    args = parser.parse_args()
+    found = source.from_arguments(args)
+    build(found.path, args.out or ROOT / 'addons/libs/winxi/data' / source.KEY / 'casttimes', verbose=args.verbose)
 
 
 if __name__ == '__main__':

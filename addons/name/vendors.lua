@@ -1,16 +1,18 @@
--- The coin of [vendor] beside a vendor's name: which NPCs sell, by vendor_list.lua (tools/build_name_vendors.py),
--- the names of the NPCs whose scripts open a shop, for each area.
+-- The coin of [vendor] beside a vendor's name: which NPCs sell, by the chosen server's vendors set
+-- (tools/build_name_vendors.py), the names of the NPCs whose scripts open a shop, for each area.
 --
 --   vendors.Begin(wanted)     each frame: whether any name here can have the coin; wanted, whether a
 --                             format has [vendor]
 --   vendors.Of(written, name) whether this one is a vendor; written is custom's parse of it, which
 --                             keeps the answer while the character and the area are the same
 local ffi = require('ffi');
-local list = require('vendor_list');
+local gamedata = require('winxi.gamedata');
+local list = nil; -- the vendors set, read when first wanted, and again when another server's data is chosen
 
 local vendors = {};
 
 local here = nil; -- the area's vendors while the coin is wanted, or nothing
+gamedata.OnChange(function () list, here = nil, nil; end);
 
 function vendors.Begin(wanted)
     here = nil;
@@ -22,6 +24,7 @@ function vendors.Begin(wanted)
     if (party == nil or party.GetMemberZone == nil) then
         return false;
     end
+    list = list or gamedata.Read('vendors', 'index') or {};
     here = list[party:GetMemberZone(0)];
     return here ~= nil;
 end

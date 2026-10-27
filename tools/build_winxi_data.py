@@ -30,6 +30,8 @@ import build_item_data
 import build_action_data
 import build_quest_data
 import build_rules
+import build_name_cast_times
+import build_name_vendors
 import build_zone_weather
 import build_transports
 import build_debuff_durations
@@ -70,6 +72,9 @@ SETS = {
                 lambda server, output, settings: build_zone_weather.build(Path(server), output / 'index.lua')),
     'transports': ('The ships\' and airships\' timetable (winxi.infopanel.schedule)',
                    lambda server, output, settings: build_transports.build(Path(server), output / 'index.lua')),
+    'casttimes': ('Each monster move\'s ready time (name\'s cast bars)', build_name_cast_times.build),
+    'vendors': ('The NPCs whose scripts open a shop, by area (name\'s [vendor])',
+                lambda server, output, settings: build_name_vendors.build(Path(server), output / 'index.lua')),
     'rules': ('The server\'s game rules read from its code: Treasure Hunter, haste, swing, resting, bind (winxi.rules)', build_rules.build),
     'mobs': ('An area\'s monsters, as mobdb has them (winxi.mobs.Zone)', build_mobs),
     'placeholders': ('Each notorious monster\'s placeholders (winxi.mobs.Placeholders)', build_placeholders),
