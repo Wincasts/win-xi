@@ -1,5 +1,9 @@
 # zone changelog
 
+## 2.11
+
+- The settings are described rows (winxi 65): each a name, a sentence saying what it does, and its control at the right; no tooltips. The addon's own Visibility tab is gone: Timing is a section of Behaviour (after Sub-zone Popup, the per-line timing as a sub-section a line, greyed until Use Per-Line Timing is on), and the Visibility tab is the shell's, with Fade In And Out (off, a banner pops instead of fading) and the rules for hiding. Hold Seconds, Fade In Seconds and Fade Out Seconds are Hold, Fade In and Fade Out, their unit in the value; the location line's Position (X, Y) and the banner's Position / Offset (X, Y) are Position; Default among the fonts is Theme Font. Title Color and Detail Color are greyed, not hidden, while Use Theme Text Color is on, as are the image rows while Show Background Image is off; the preview and reload buttons read Preview and Reload at the right of their rows; Forget Discovered Areas asks first.
+
 ## 2.10
 
 - Each kind of zone announces its features from its own distance: Field Approach Distance (50 yalms to start, from 30), Town Approach Distance (10) and Dungeon Approach Distance (15). A saved Approach Distance is dropped for these.

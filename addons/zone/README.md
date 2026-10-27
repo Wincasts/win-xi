@@ -29,9 +29,10 @@ they share (set with winxisettings and `/winxi`) is zone's too.
 
 - `/zone` opens the settings. **Appearance** is how the banner looks (the previews,
   its style for zone entry and for sub-zones, sizes, fonts, position, colours,
-  backdrop); **Behaviour** is what it says and when (each popup's lines, detection,
-  entrances, the location line); **Visibility** is how long it stays and when it
-  is hidden.
+  backdrop); **Behaviour** is what it says and when (each popup's lines, how long
+  it stays, detection, entrances, the location line); **Visibility** is when it
+  is hidden. Every setting is a row: its name, a sentence saying what it does,
+  and its control at the right, as every winxi addon has them.
 - `/zone test` shows the zone now; `/zone test titlecard` (or `pennant`, `kanji`,
   `reveal`, `window`, `element`, `kind`, `classic`) shows it once in that style.
 - **Preview While Configuring** (Appearance → Preview) keeps a banner up while you
@@ -175,12 +176,16 @@ reloads character settings and shows the current zone again.
 The settings window has three tabs: **Appearance**, **Behaviour** and
 **Visibility**. **Appearance** begins with **Preview** (the preview buttons). **Behaviour** is, in order: **Announcements** (Show Banner, Show Sub-zone Popups, Show
 Weather Popups, Chat Announcements: every on and off in one place), **Zone
-Entry Popup** and **Sub-zone Popup** (the lines each shows, and Re-announce
-After), **Detection** (the three approach distances), **Entrances** (dungeon and
-town, each distance greyed while its switch is off) and **Location Line**.
-**Visibility** has **Timing** and **Hide Banner** (winxi's game-UI hiding
-rules). **Appearance** holds how the banner looks: its style and opacity, text,
-position and backdrop.
+Entry Popup** and **Sub-zone Popup** (the lines each shows, Re-announce
+After, and Forget Discovered Areas, which asks first), **Timing** (Hold, Fade
+In and Fade Out, and with Classic Text in use, Use Per-Line Timing with a
+sub-section a line, greyed until it is on), **Detection** (the three approach
+distances), **Entrances** (dungeon and town, each distance greyed while its
+switch is off) and **Location Line**. **Visibility** is winxi's: Fade In And
+Out (off, a banner pops instead of fading) and the rules for hiding (while the
+map or the chat log is open, while loading, during events, with the game
+interface hidden). **Appearance** holds how the banner looks: its style and
+opacity, text, position and backdrop.
 There is no Winxi Theme tab: the theme, window and style settings zone follows
 are set in **winxisettings**. Zone-entry popups never include a sub-zone line.
 Sub-zone popups show the area's name as the title, without a separate category
@@ -286,7 +291,8 @@ in use: **Banner Style**, **Pennant** and **Kanji Watermark** (when chosen),
 **Classic Text** (renderer and display style), **Text** (the sizes and fonts
 for the styles in use, and the colours), **Position**, **Backdrop** and **Flag
 And Background Image** (Classic Text only; it starts collapsed). **Use
-Per-Line Timing**, under Timing, is offered only while Classic Text is in use.
+Per-Line Timing**, under Behaviour → Timing, is offered only while Classic Text
+is in use.
 Classic Text offers:
 
 - **Floating Text** (default): large outlined title, smaller region above and
