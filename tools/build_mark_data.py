@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Export what the server knows of each notorious monster for the mark addon.
+"""Export what the server knows of each notorious monster for the mark addon: winxi's marks set
+(addons/libs/winxi/data/<server>/marks; a set of build_winxi_data), and mark's own data/maps.lua.
 
 For every notorious monster of every zone: how it comes to be there (a lottery on
 placeholders, a timed respawn, a trade to a ???, or a script the data says no more
@@ -270,6 +271,9 @@ def lua(value):
         return '{ ' + ', '.join(f'{key} = {lua(item)}' for key, item in value.items()) + ' }' if value else '{}'
     raise TypeError(type(value))
 
+
+# each zone's maps (the client's): mark's own, beside the addon, whichever server's data it reads
+MAPS = ROOT / 'addons/mark/data/maps.lua'
 
 class Builder:
     def __init__(self, server, output):
@@ -688,7 +692,7 @@ class Builder:
         """Each zone's maps, a floor to each: where it is in the client's table of maps, and its picture's file under the game's folder."""
         source = ROOT / 'addons/zone/data/all_maps.lua'
         if not source.exists():
-            print('  no addons/zone/data/all_maps.lua: data/maps.lua not written')
+            print('  no addons/zone/data/all_maps.lua: addons/mark/data/maps.lua not written')
             return
         floors = {}
         for zone_id, floor, index, dat in re.findall(
@@ -701,7 +705,8 @@ class Builder:
             listed = ', '.join(f'{{ floor = {floor}, index = {index}, dat = {lua(dat)} }}' for floor, (index, dat) in sorted(found.items()))
             lines.append(f'    [{zone_id}] = {{ {listed} }},')
         lines.append('};\n')
-        (self.output / 'maps.lua').write_text('\n'.join(lines))
+        # the client's maps are no server's: they stay with mark
+        MAPS.write_text('\n'.join(lines))
 
     # Module overrides read and decided on by hand, by module and target: what each does to what is
     # exported here, and why it is let be. A change of target sends it back to be read.
@@ -805,8 +810,8 @@ class Builder:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     source.add_arguments(parser)
-    parser.add_argument('--output', type=Path, default=ROOT / 'addons/mark/data')
+    parser.add_argument('--output', type=Path, default=None, help='The set\'s folder; default data/<server>/marks.')
     args = parser.parse_args()
     found = source.from_arguments(args)
     print(f'Server: {found.describe()}')
-    Builder(found.path, args.output).run()
+    Builder(found.path, args.output or ROOT / 'addons/libs/winxi/data' / source.KEY / 'marks').run()

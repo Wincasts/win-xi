@@ -7,7 +7,7 @@ return {
         Branch = 'live',
         Commit = '9a4494d5056429d0e75922dc9fa47d419142cf68',
         Committed = '2026-10-18T12:38:17-06:00',
-        Built = '2026-10-27T18:22:15+00:00',
+        Built = '2026-10-27T18:24:09+00:00',
         Settings = { },
     },
     Sets = {
@@ -26,6 +26,7 @@ return {
         transports = { Files = 1, About = 'The ships\' and airships\' timetable (winxi.infopanel.schedule)' },
         casttimes = { Files = 1, About = 'Each monster move\'s ready time (name\'s cast bars)' },
         vendors = { Files = 1, About = 'The NPCs whose scripts open a shop, by area (name\'s [vendor])' },
+        marks = { Files = 231, About = 'Each notorious monster: how it comes to be there, its placeholders, spawns and drops (mark)' },
         rules = { Files = 1, About = 'The server\'s game rules read from its code: Treasure Hunter, haste, swing, resting, bind (winxi.rules)' },
         mobs = { Files = 239, About = 'An area\'s monsters, as mobdb has them (winxi.mobs.Zone)' },
         placeholders = { Files = 105, About = 'Each notorious monster\'s placeholders (winxi.mobs.Placeholders)' },
