@@ -4,6 +4,7 @@
 
 - The statuses over enemies: Sleep, bind, paralysis, blindness, silence, poison, gravity and flash wear off when the server says so: their message is 204, which only Dia, Bio and Slow's 206 was listened for. Bind ends with a blow, weapon skill, spell or additional effect that does damage, as sleep does, unless you cast it: the server tells the caster when it breaks, and one hit in twenty does not.
 - Monsters' ready times are Phoenix's as live loads them: a lizard's Baleful Gaze readies in 1.8 s (a Phoenix module's), and the 1,375 moves commented out of the server's table, which it never loads, are no longer in it.
+- The Statuses tab lists the statuses Phoenix has (`winxi.statuses`), up to 813, where it stopped at 635 and kept its own list of numbers to leave out; without winxi's data it lists what the game names, as before.
 - Vendors: Taza in Lower Jeuno, whose shop the era module adds, is one; the vendor list is read from Phoenix's NPCs as its modules patch them.
 
 ## 1.84

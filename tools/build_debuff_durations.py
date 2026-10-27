@@ -59,6 +59,8 @@ def status_numbers(csv_path):
 
 def enum_block(text, name):
     """The NAME = number pairs of a table in an enum file."""
+    # a name commented out (-- SLEEPGA = 363) is not one: it would take the place of the real one
+    text = modules.blank_comments(text)
     found = re.search(re.escape(name) + r'\s*=\s*\{(.*?)\n\}', text, re.S)
     return {m.group(1): int(m.group(2)) for m in re.finditer(r'(\w+)\s*=\s*(\d+)', found.group(1))} if found else {}
 
@@ -262,6 +264,16 @@ def main():
             return None if re.search(r'duration', body, re.I) else 'leaves its duration'
         # anything else read here: only one that says nothing of durations can be passed over
         return None if re.search(r'\bduration\b|setDuration|addStatusEffect|mobStatusEffectMove', body, re.I) else 'nothing of durations in it'
+
+    # a spell's own script that puts a status on its target with a duration written out (Diaga II's
+    # Dia), where the tables above say nothing of that spell: before the modules, which replace it
+    for path in sorted((scripts / 'actions/spells').rglob('*.lua')):
+        number = spell_ids.get(key(path.stem))
+        if number is None or number in spells or path.parent.name == 'blue':
+            continue
+        text = modules.blank_comments(path.read_text(encoding='utf-8-sig'))
+        for effect, span in on_target(text, text) or []:
+            keep(spells, number, effect.removeprefix('xi.effect.'), span)
 
     print('Modules:')
     modules.guard(found.path, ('xi.spells.enfeebling.', 'xi.actions.spells.', 'xi.actions.mobskills.',

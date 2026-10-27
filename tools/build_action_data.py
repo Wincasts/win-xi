@@ -256,6 +256,30 @@ def build_reference(server, output, settings, kind):
     publish(server, output, kind, records, metadata)
 
 
+def build_statuses(server, output, settings):
+    """Every status effect the server has (data/status_effects.yaml as the modules patch it): its
+    number, the server's name for it, its flags (erasable, waltzable, dispelable, no_cancel, ...),
+    element, how a stronger one overwrites it, and the message that says it wore off."""
+    server, output = Path(server), Path(output)
+    document = modules.load_yaml(server, 'status_effects')
+    records = {}
+    for key, entry in (document.get('status_effects') or {}).items():
+        if not isinstance(entry, dict) or 'id' not in entry:
+            continue
+        ident = int(entry['id'])
+        record = {'Id': ident, 'Name': str(entry.get('name') or key).replace('_', ' '), 'Symbol': key.upper(),
+                  'Flags': sorted(entry.get('flags') or [])}
+        for field, name in (('element', 'Element'), ('overwrite', 'Overwrite'), ('wear_off_message_id', 'WearOff')):
+            if entry.get(field) is not None:
+                record[name] = entry[field]
+        records[ident] = record
+    metadata = {'Settings': list(settings),
+                'Patches': [path.relative_to(server).as_posix() for path in modules.data_patches(server, 'status_effects')],
+                'Limitations': ['Flags are the server\'s; which statuses harm is not a flag of its own: '
+                                'erasable and waltzable say what removes them.']}
+    publish(server, output, 'statuses', records, metadata)
+
+
 def builder(kind):
     def build(server, output, settings):
         if kind in CONFIG:

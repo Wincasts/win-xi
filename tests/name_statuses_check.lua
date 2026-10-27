@@ -1,5 +1,6 @@
 -- name: the row of status icons over a name, for the statuses chosen to be seen. The player's own
 -- and the party's are read from the game, an enemy's worked out from the spells seen to land on it.
+require('winxi.gamedata').Root('addons/libs/winxi/data/') -- the server's statuses, from the repository's data
 local ffi = require('ffi')
 local imgui = require('imgui')
 local nameplates = require('winxi.nameplates')
@@ -245,7 +246,7 @@ block.Frame = 12; H.frames(1)
 H.print('thirty-two chosen and on: twelve drawn', #icons(0x400))
 o.statusList = list; own = { 4, 13 }
 
--- the settings' tab, the fourth: a list of every status that has an icon and a name
+-- the settings' tab, the fourth: a list of every status the server has (winxi.statuses) that the game names
 local boxes, saves = {}, H.saves()
 local realCheckbox = imgui.Checkbox
 imgui.Checkbox = function(id, value) boxes[#boxes + 1] = id return false end
@@ -261,7 +262,7 @@ for _, id in ipairs(boxes) do
         if id:match('##name%.status%.' .. gone .. '$') then unlisted[#unlisted + 1] = gone end
     end
 end
-H.print('not listed: the game\'s stand-ins, in brackets, nor numbers the server has no status for', #unlisted == 0, table.concat(unlisted, ' '), '| 618 listed', named == 618)
+H.print('not listed: the game\'s stand-ins, in brackets, nor numbers the server has no status for', #unlisted == 0, table.concat(unlisted, ' '), '| 663 listed', named == 663)
 imgui.Checkbox = function(id, value)
     if id:find('##name.status.41', 1, true) and id:match('%.41$') then value[1] = not value[1] return true end
     return false

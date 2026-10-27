@@ -60,6 +60,7 @@ SETS = {
     'quests': ('Quest-log identities, NPC/zone references, declared rewards and source evidence (winxi.quests)', build_quest_data.build),
     **{kind: (f'Phoenix {kind}: definitions and source evidence (winxi.{kind})', build_action_data.builder(kind))
        for kind in ('spells', 'abilities', 'weaponskills', 'traits', 'jobs', 'skills', 'elements')},
+    'statuses': ('Every status effect the server has: name, flags, element (winxi.statuses)', build_action_data.build_statuses),
     'mobs': ('An area\'s monsters, as mobdb has them (winxi.mobs.Zone)', build_mobs),
     'placeholders': ('Each notorious monster\'s placeholders (winxi.mobs.Placeholders)', build_placeholders),
 }

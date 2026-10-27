@@ -5,7 +5,7 @@ return {
         Branch = 'live',
         Commit = '9a4494d5056429d0e75922dc9fa47d419142cf68',
         Committed = '2026-10-18T12:38:17-06:00',
-        Built = '2026-10-27T15:34:55+00:00',
+        Built = '2026-10-27T15:53:30+00:00',
         Settings = { },
     },
     Sets = {
@@ -18,6 +18,7 @@ return {
         jobs = { Files = 2, About = 'Phoenix jobs: definitions and source evidence (winxi.jobs)' },
         skills = { Files = 2, About = 'Phoenix skills: definitions and source evidence (winxi.skills)' },
         elements = { Files = 2, About = 'Phoenix elements: definitions and source evidence (winxi.elements)' },
+        statuses = { Files = 7, About = 'Every status effect the server has: name, flags, element (winxi.statuses)' },
         mobs = { Files = 239, About = 'An area\'s monsters, as mobdb has them (winxi.mobs.Zone)' },
         placeholders = { Files = 105, About = 'Each notorious monster\'s placeholders (winxi.mobs.Placeholders)' },
     },
