@@ -3,7 +3,7 @@
 -- k beside it. The load reads the module once; a frame touches only the world float while nothing
 -- changes and rewrites the ratios when something else moves world; the projection is lens's since
 -- 2.0, so C's load and k are never touched.
-package.path = 'addons/libs/?.lua;' .. package.path; require('winxi.gamedata').Root('addons/libs/winxi/data/') -- the server's sets, from the repository's data
+package.path = 'addons/libs/?.lua;' .. package.path; require('winxi.gamedata').Root((package.searchpath('winxi.gamedata', package.path):gsub('gamedata%.lua$', 'data/'))) -- the server's sets, beside the winxi loaded: the repository's, or a release's own
 local scan = require('scan')
 local view = require('view')
 local K_OFFSET, K_STOCK = 0x2E8, 0x3F4A7EFA -- k in the game object, lens's to change
