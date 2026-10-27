@@ -1,0 +1,28 @@
+1 VERSIONINFO
+ FILEVERSION 0,1,0,0
+ PRODUCTVERSION 0,1,0,0
+ FILEFLAGSMASK 0x3fL
+ FILEFLAGS 0
+ FILEOS 4
+ FILETYPE 2
+ FILESUBTYPE 0
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904E4"
+        BEGIN
+            VALUE "CompanyName", "win"
+            VALUE "FileDescription", "blockpool - reuses the d3d8 state blocks Ashita makes every frame, around a Proton leak"
+            VALUE "FileVersion", "0.1.0.0\0"
+            VALUE "InternalName", "blockpool"
+            VALUE "LegalCopyright", "Copyright (c) 2026 win"
+            VALUE "OriginalFilename", "blockpool.dll"
+            VALUE "ProductName", "blockpool"
+            VALUE "ProductVersion", "0.1.0\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1252
+    END
+END
