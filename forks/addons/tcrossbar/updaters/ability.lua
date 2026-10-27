@@ -316,6 +316,16 @@ function Updater:Initialize(element, binding)
         [825] = 2,
         [826] = 3
     };
+    -- fork: the server's (winxi.rules' abilityCosts, from its abilities' scripts; the client's number is
+    -- the server's and 512), the table above where winxi's data is not installed
+    local thrown = { [682] = 18259, [662] = 18258 };
+    local ok, rules = pcall(require, 'winxi.rules');
+    local costs = ok and rules.Get('abilityCosts') or nil;
+    if costs then
+        flourishes, thrown = T{}, {};
+        for id, moves in pairs(costs.Flourishes or {}) do flourishes[id + 512] = moves; end
+        for id, item in pairs(costs.Thrown or {}) do thrown[id + 512] = item; end
+    end
     local flourish = flourishes[binding.Id];
 
     --Custom (for use with jugs and such)
@@ -323,15 +333,10 @@ function Updater:Initialize(element, binding)
         self.CostKind = nil; -- winxi: the cost is no longer MP or TP
         self.CostFunction = ItemCost:bind2(binding.CostOverride);
 
-    --Angon
-    elseif (binding.Id == 682) then
+    --Angon, Tomahawk: the item each throws
+    elseif (thrown[binding.Id] ~= nil) then
         self.CostKind = nil;
-        self.CostFunction = ItemCost:bind2(T{18259});
-
-    --Tomahawk
-    elseif (binding.Id == 662) then
-        self.CostKind = nil;
-        self.CostFunction = ItemCost:bind2(T{18258});
+        self.CostFunction = ItemCost:bind2(T{ thrown[binding.Id] });
 
     --Finishing Moves
     elseif flourish ~= nil then
