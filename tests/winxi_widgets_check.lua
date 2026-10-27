@@ -16,7 +16,7 @@ imgui.SliderInt = function(id, box, low, high, format) sliders[id] = { low = low
 
 local options = { fontFile = '', fontSize = { 0 } }
 local changed = widgets.FontFile(options, 'fontFile', '##x.fontFile')
-H.print('the theme\'s font to begin with, nothing changed', combos['##x.fontFile'] == 'Theme Font', not changed, labels[#labels] == 'Font:')
+H.print('the theme\'s font to begin with, nothing changed', combos['##x.fontFile'] == 'Theme Font', not changed, labels[#labels] == 'Font')
 chosen = 'tahoma.ttf'
 changed = widgets.FontFile(options, 'fontFile', '##x.fontFile')
 H.print('a font chosen: kept, and said to have changed', options.fontFile == 'tahoma.ttf', changed)
@@ -32,7 +32,7 @@ H.print('the theme\'s own called what the addon says', combos['##x.fontFile'] ==
 
 widgets.FontSize(options, 'fontSize', '##x.fontSize')
 local slider = sliders['##x.fontSize']
-H.print('size 0: Theme Size, up to the theme\'s most', slider.format == 'Theme Size', slider.low == 0, slider.high == theme.MaxFontSize, labels[#labels] == 'Font Size:')
+H.print('size 0: Theme Size, up to the theme\'s most', slider.format == 'Theme Size', slider.low == 0, slider.high == theme.MaxFontSize, labels[#labels] == 'Font Size')
 options.fontSize[1] = 18
 widgets.FontSize(options, 'fontSize', '##x.fontSize', { max = 48 })
 H.print('a size: in pixels', sliders['##x.fontSize'].format == '%d px', sliders['##x.fontSize'].high == 48)
@@ -43,9 +43,9 @@ H.print('a range from above 0 offers no theme size', sliders['##x.fontSize'].for
 local box, told = { false }, nil
 imgui.Checkbox = function(_, value) value[1] = not value[1]; return true end
 changed = widgets.Lock(box, '##x.locked', { onChanged = function(value) told = value end })
-H.print('Lock Window: changed, and the addon told', changed, box[1] == true, told == true, labels[#labels] == 'Lock Window:')
+H.print('Lock Window: changed, and the addon told', changed, box[1] == true, told == true, labels[#labels] == 'Lock Window')
 widgets.Lock(box, '##x.locked', { label = 'Lock' })
-H.print('under a name of the addon\'s own', labels[#labels] == 'Lock:')
+H.print('under a name of the addon\'s own', labels[#labels] == 'Lock')
 
 -- the edge round text over a bar or the game is the theme's, in thickness and colour
 local look = theme.Get()

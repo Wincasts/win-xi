@@ -117,6 +117,8 @@
 -- 63: perf, every event handler of an addon timed into shared memory for the perf addon: Events, Rows,
 --     ResetMax, Seconds; required by shell, so every shell addon is timed
 -- 64: partystatus, the player's and the party's statuses as the game keeps them: Own, Member, Party
+-- 65: widgets' described rows: Check, Slider, Numbers, Dropdown, Color, Action, BeginRow/EndRow, Note,
+--     Status, the unit specs; shell's Visibility tab in place of hideHeader
 return {
-    Number = 64,
+    Number = 65,
 };

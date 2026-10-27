@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9
+
+- The settings are described rows (winxi 65): each setting's name, a plain sentence under it saying what it does, and its control at the right, in Window, Received Items and Lines sections; the rules for hiding and Fade In And Out are on a Visibility tab of their own. The rows under Separate Popup are greyed while it is off. Requires winxi 65.
+
 ## 0.8 — first release
 
 - Scrolling text for your own statuses: `+ [icon] Name` as you gain one, `- [icon] Name` as you lose one, down a box and fading out. Buffs blue, enfeebles purple, anything lost grey, each colour your own.

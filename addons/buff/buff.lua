@@ -828,17 +828,16 @@ end
 -- nudge. Returns whether either was changed.
 local sliderIds = {};
 local sliderBox = { 0 };
+local nudgeSpec = { format = '%d px', parent = true };
 
-local function AxisSlider(values, axis, label, id, low, high, tooltip)
-    widgets.Label(label);
+local function AxisSlider(values, axis, label, id, low, high, sentence, spec)
     sliderBox[1] = values[axis];
-    local changed = imgui.SliderInt(id, sliderBox, low, high);
+    local changed = widgets.Slider(label, sentence, sliderBox, low, high, id, spec);
     if changed then values[axis] = sliderBox[1]; end
-    tips.Hover(tooltip);
     return changed;
 end
 
-local function PositionSliders(values, label, id, signed, tooltip)
+local function PositionSliders(values, label, id, signed, sentence, spec)
     local display = imgui.GetIO().DisplaySize;
     local width = math.floor(display.x or display[1] or 1920);
     local height = math.floor(display.y or display[2] or 1080);
@@ -847,76 +846,62 @@ local function PositionSliders(values, label, id, signed, tooltip)
         ids = { label .. ' X', label .. ' Y', id .. 'X', id .. 'Y' };
         sliderIds[id] = ids;
     end
-    widgets.PushControlWidth();
-    local changedX = AxisSlider(values, 1, ids[1], ids[3], signed and -width or 0, width, tooltip);
-    local changedY = AxisSlider(values, 2, ids[2], ids[4], signed and -height or 0, height, tooltip);
-    widgets.PopControlWidth();
+    local changedX = AxisSlider(values, 1, ids[1], ids[3], signed and -width or 0, width, sentence, spec);
+    local changedY = AxisSlider(values, 2, ids[2], ids[4], signed and -height or 0, height, nil, spec);
     return changedX or changedY;
 end
 
 local controllerTip = 'In the game\'s buff selector, confirm (A, or the bottom face button) removes the status its cursor is on, as a click does. Needs the uihook plugin, which says which one that is.\nThe press still reaches the game: buff asks for the status to be removed only when the game has not, a moment later.\nAn XInput controller\'s A is always heard; Controller Type picks the DirectInput make (PlayStation with XInput chosen).';
 
+local anchorSpec = { tooltip = 'With the uihook plugin loaded, the game draws its menus over the bar as it does over its own icons, and the bar goes when they would. Without it the bar is drawn over everything.' };
+local lockSpec = { label = 'Lock Position', description = 'Keeps the bar where it is. Off, drag it with the mouse to move it.',
+    tooltip = 'Anchored, dragging sets the Anchor Adjustment. In the game\'s buff selector a click removes a status instead.' };
+local backdropSpec = { tooltip = 'The anchored bar never has one.' };
+local growSpec = { tooltip = 'Left keeps the icons at the left of the bar, as the game does; Right at its right; Middle in its middle. Anchored, the bar spans a full row of Icons Per Row from where it is placed.' };
+local fontSpec = { description = 'The font for the times and the status tooltips. Theme Font follows the Winxi Theme.' };
+local sizeSpec = { description = 'How big the times and tooltips are. Theme Size follows the Winxi Theme. The icons keep their own size.' };
+local hideGameSpec = { tooltip = 'They come back when this is switched off, or the addon is unloaded. Anchored with uihook, the bar takes the place of the game\'s row whatever this says.' };
+
 local function DrawSettings(options)
-    widgets.Label('Visible');
-    imgui.Checkbox('##buff.visible', options.isVisible);
-    tips.Hover('Whether the window shows while you are under a status. /buff switches this.');
-    widgets.Label('Anchor To Default Location');
-    imgui.Checkbox('##buff.anchorToDefault', options.anchorToDefault);
-    tips.Hover('Puts the bar where the game puts its own status icons, in their place.\nWith uihook loaded, the game draws its menus over the bar as it does over its icons, and the bar goes when they would.\nWithout it the bar is drawn over everything.');
-    if options.anchorToDefault[1] then
-        local problem = hook.Problem();
-        if problem ~= nil then
-            imgui.PushTextWrapPos(0);
-            imgui.TextDisabled(problem);
-            imgui.PopTextWrapPos();
+    if widgets.Header('Window', true) then
+        widgets.Check('Visible', 'Shows the bar while you are under a status. /buff switches it too.', options.isVisible, '##buff.visible');
+        widgets.Check('Anchor To Default Location', 'Puts the bar where the game shows its own status icons.', options.anchorToDefault, '##buff.anchorToDefault', anchorSpec);
+        if options.anchorToDefault[1] then
+            local problem = hook.Problem();
+            if problem ~= nil then
+                widgets.Note(problem);
+            end
+            PositionSliders(options.anchorAdjustment, 'Anchor Adjustment', '##buff.anchorAdjustment', true,
+                'How far the bar is moved from where the game puts its first icon. Dragging the bar sets it too.', nudgeSpec);
+        else
+            if PositionSliders(options.pos, 'Position', '##buff.position', false, 'Where the bar\'s corner is on the screen. Dragging the bar sets it too.', widgets.Pixels) then
+                imgui.SetWindowPos(windowName, options.pos);
+                anchor.Reset(windowName);
+            end
         end
-        PositionSliders(options.anchorAdjustment, 'Anchor Adjustment', '##buff.anchorAdjustment', true,
-            'How far the bar is moved from where the game puts its first icon, in screen pixels, independent of native UI scaling. Zero puts it there.\nDragging the bar sets it too. Ctrl+click to type a number.');
-    else
-        if PositionSliders(options.pos, 'Position', '##buff.position', false, 'Where the window\'s corner is, in screen pixels. Dragging the window sets it too. Ctrl+click to type a number.') then
-            imgui.SetWindowPos(windowName, options.pos);
-            anchor.Reset(windowName);
+        widgets.Lock(options.lockPosition, '##buff.lockPosition', lockSpec);
+        widgets.Check('Show Backdrop', 'A background and border behind the bar. Off, the icons sit straight over the game.', options.showBackdrop, '##buff.showBackdrop', backdropSpec);
+    end
+
+    if widgets.Header('Icons') then
+        widgets.Slider('Icon Size', 'How tall each icon is. At 32 or 64 they are at their sharpest.', options.iconSize, 16, 96, '##buff.iconSize', widgets.Pixels);
+        widgets.Slider('Cursor Size', 'How big the game\'s pointing hand is in the buff selector, as a share of an icon.', options.cursorSize, 25, 100, '##buff.cursorSize', widgets.Percent);
+        widgets.Slider('Icons Per Row', 'How many icons sit in a row before a new row starts.', options.perRow, 1, 32, '##buff.perRow');
+        local chosen = widgets.Dropdown('Grow From', 'Which way a row fills as statuses come and go.', growModes, options.growFrom, '##buff.growFrom', growSpec);
+        if chosen ~= nil then
+            options.growFrom = chosen;
+        end
+        widgets.Check('Show Time Left', 'Writes under each icon how long the status has left.', options.showTimers, '##buff.showTimers');
+        widgets.FontFile(options, 'fontFile', '##buff.fontFile', fontSpec);
+        widgets.FontSize(options, 'fontSize', '##buff.fontSize', sizeSpec);
+    end
+
+    if widgets.Header('Game') then
+        if widgets.Check('Hide Game\'s Icons', 'Stops the game drawing its own status icons, since this bar stands in for them.', options.hideGameIcons, '##buff.hideGameIcons', hideGameSpec) then
+            hideFailed = false;
+            ApplyGameIcons(options);
         end
     end
-    widgets.Lock(options.lockPosition, '##buff.lockPosition', { label = 'Lock Position',
-        tooltip = 'Keeps the bar where it is. Off, drag it with the left button to move it.\nAnchored, dragging sets the Anchor Adjustment; in the game\'s buff selector a click removes a status instead.' });
-
-    widgets.Gap();
-    widgets.Label('Icon Size');
-    widgets.PushControlWidth();
-    imgui.SliderInt('##buff.iconSize', options.iconSize, 16, 96);
-    tips.Hover('How tall an icon is, in pixels. The icons are 64 tall as made: at 64, or 32, they are at their sharpest.');
-    widgets.Label('Cursor Size');
-    imgui.SliderInt('##buff.cursorSize', options.cursorSize, 25, 100, '%d%%');
-    tips.Hover('How tall the game\'s hand is in the buff selector, as a share of an icon\'s height.');
-    widgets.Label('Icons Per Row');
-    imgui.SliderInt('##buff.perRow', options.perRow, 1, 32);
-    widgets.PopControlWidth();
-    widgets.Label('Grow From');
-    for index, mode in ipairs(growModes) do
-        if index > 1 then imgui.SameLine(); end
-        if imgui.RadioButton(mode .. '##buff.growFrom', options.growFrom == mode) then
-            options.growFrom = mode;
-        end
-        tips.Hover('Which way a row grows as statuses come and go. Left keeps the icons at the left of the bar, as the game does; Right keeps them at its right; Middle keeps them in its middle.\nAnchored, the bar spans a full row of Icons Per Row from where it is placed. Dragged, the window keeps that side of itself where it is.');
-    end
-    widgets.Label('Show Backdrop');
-    imgui.Checkbox('##buff.showBackdrop', options.showBackdrop);
-    tips.Hover('The theme\'s backdrop, border and shadow behind the dragged window. Off, the icons and times sit straight over the game.\nThe anchored bar never has one.');
-    widgets.Label('Show Time Left');
-    imgui.Checkbox('##buff.showTimers', options.showTimers);
-    tips.Hover('Writes under each icon how long the status has left: seconds, then minutes (m), then hours (h).');
-
-    widgets.FontFile(options, 'fontFile', '##buff.fontFile', { tooltip = 'Font for countdowns and status tooltips. Theme Font follows Winxi Theme.' });
-    widgets.FontSize(options, 'fontSize', '##buff.fontSize', { tooltip = 'Countdown and tooltip font size in pixels. Zero inherits the theme size.\nDoes not resize the icons.' });
-
-    widgets.Gap();
-    widgets.Label('Hide Game\'s Icons');
-    if imgui.Checkbox('##buff.hideGameIcons', options.hideGameIcons) then
-        hideFailed = false;
-        ApplyGameIcons(options);
-    end
-    tips.Hover('Stops the game drawing its own status icons, which this window stands in for.\nThey come back when this is switched off, or the addon is unloaded.\nAnchored with uihook, the bar takes the place of the game\'s row of icons whatever this says.');
 
     if widgets.Header('Controller') then
         controller.SetLayout(options.controllerType);

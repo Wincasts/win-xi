@@ -1,5 +1,42 @@
 -- winxi.widgets: ready-made controls for an addon's settings window.
 --
+-- Every setting is a described row (winxi 65): its name, a plain sentence under the name saying what
+-- it does, and its control at the right. The sentence is for someone who does not know the game's
+-- insides: one short line, no jargon, no settings named by their keys. A long note goes in a (?) after
+-- the sentence (spec.tooltip), and only where the sentence cannot say it.
+--
+--   widgets.Check(name, sentence, box, id, spec)              a checkbox; returns whether it changed
+--   widgets.Slider(name, sentence, box, low, high, id, spec)  a slider of whole numbers (spec.float for
+--                                    fractions); spec.format puts the unit in the value: '%d px', '%d s',
+--                                    '%d%%'. Returns whether it changed, and whether it was let go after
+--                                    a change, for an addon that saves then
+--   widgets.Numbers(name, sentence, box, id, spec)            one or two whole numbers typed in (a position),
+--                                    sized to their digits (spec.digits, 5); returns whether changed
+--   widgets.Dropdown(name, sentence, choices, current, id, spec)   one of a list: choices are { key, label }
+--                                    tables, or plain strings. Returns the key newly chosen, or nil.
+--                                    spec.onOpen, if given, is called as the list opens and gives the
+--                                    choices afresh
+--   widgets.Color(name, sentence, color, id, spec)            a colour swatch; the picker opens on it
+--   widgets.Action(name, sentence, label, spec)               a button at the right, reading label (with
+--                                    its ##id); returns whether it was clicked
+--   widgets.BeginRow(name, sentence, spec) / EndRow()         a row with a control of the addon's own
+--                                    between them, drawn at the cursor, widgets.RowControlWidth wide
+--   widgets.Note(text)               a dim sentence on its own, for what is not a setting (a warning)
+--   widgets.Status(text)             the addon's state, one dim line at the foot of a tab, over a rule
+--   widgets.Header(text, first)      a section title; [-] or [+] before it, a click collapses or opens
+--                                    it, and it returns whether it is open, for the section to be
+--                                    drawn only then. It sets itself apart from the section above; no
+--                                    Gap before it
+--   widgets.Gap()                    the space between one family of settings and the next, within a section
+--
+-- spec, on every row, each optional:
+--   experimental   true: [Experimental], in yellow, goes before the name
+--   parent         the box of the setting this one depends on: the row is indented under it, and greyed
+--                  while it is off. parent = true indents without greying; indent = false never indents
+--   tooltip        a longer note, behind a (?) after the sentence
+--   description    where a widget writes its own sentence (Lock, FontFile): one of the addon's own
+--
+-- The theme's own sections, drawn this way:
 --   widgets.Appearance(hooks)        the Theme, Window, Font and Styles sections of the Winxi Theme tab: the
 --                                    windows on the game screen
 --   widgets.SettingsAppearance(hooks) the settings windows' own Window and Font sections
@@ -8,23 +45,19 @@
 --                                    shared theme's
 --   widgets.BeginThemeTab() / EndThemeTab()   the Winxi Theme tab itself: last in its tab bar, against
 --                                    its right edge, in a colour of its own
---   widgets.Header(text)             a section title, for the addon's own section after those; [-] or
---                                    [+] before it, a click collapses or opens it, and it returns
---                                    whether it is open, for the section to be drawn only then
---   widgets.Label(text)              a setting's name, to the left of its control, in line with winxi's
---   widgets.Label(text, true)        the same for an experimental setting: [Experimental], in yellow,
---                                    goes before its name
---   widgets.BeginLabels(key)         starts a group of settings whose controls line up with each other
---   widgets.Gap()                    the space between one family of settings and the next
---   widgets.PushControlWidth() / PopControlWidth()   around an addon's own settings, to match winxi's
---   widgets.NumberWidth(fields, digits)   the width for a box of whole numbers (InputInt, InputInt2),
---                                    for SetNextItemWidth: room for the digits in each field and no more
---   widgets.GrowFrom(current)        four buttons for a window's corner; returns the new choice or nil
---   widgets.Fade(settings, onChanged) the controls for fading while idle (see winxi.fade)
+--   widgets.GrowFrom(current)        Grow From, the corner a window grows from; returns the new choice or nil
+--   widgets.Fade(settings, onChanged) the rows for fading while idle (see winxi.fade)
+--   widgets.Hide(settings, onChanged) the rows for the rules for hiding (see winxi.game)
 --   widgets.FontFile(options, key, id, spec)   a font of the addon's own, for text it writes itself: the
 --                                    theme's font or a .ttf of C:\Windows\Fonts, kept as a file name
 --   widgets.FontSize(options, key, id, spec)   its size: the theme's size (0) or pixels
 --   widgets.Lock(box, id, spec)      Lock Window: holds a window still and lets the mouse through it
+--
+-- Still here for the addons not yet on rows (party, name, and their kind):
+--   widgets.Label(text)              a setting's name, to the left of its control, in line with winxi's
+--   widgets.BeginLabels(key)         starts a group of settings whose controls line up with each other
+--   widgets.PushControlWidth() / PopControlWidth()   around such settings
+--   widgets.NumberWidth(fields, digits)   the width for a box of whole numbers
 --
 -- With the shared theme in use, the theme controls change it for every addon using winxi. Changes show
 -- at once in the addon they are made in, and are saved (and so reach the others) when a control is let
@@ -51,6 +84,7 @@ local widgets = {};
 local dirty = false; -- the theme has been changed since it was last saved
 local box = { 0 };   -- a number on its way in and out of a slider
 local hooks = nil;   -- the functions given to the Appearance call being drawn
+local noSpec = {};
 
 -- Saves the theme in use: the shared one to its file, the addon's own through the addon
 local function Commit()
@@ -85,13 +119,300 @@ end
 
 local Tooltip = tooltip.Hover;
 
+-- Text as it is: imgui.Text and TextDisabled take theirs as a format, and make something else of a
+-- percent sign. Each sentence is escaped once.
+local escaped = {};
+
+local function Escaped(text)
+    local done = escaped[text];
+    if done == nil then
+        done = text:gsub('%%', '%%%%');
+        escaped[text] = done;
+    end
+    return done;
+end
+
+local function TextHeight()
+    local _, height = imgui.CalcTextSize('A');
+    return height or 14;
+end
+
+local function FrameHeight()
+    if imgui.GetFrameHeight ~= nil then
+        local height = imgui.GetFrameHeight();
+        if height ~= nil then return height; end
+    end
+    local style = imgui.GetStyle();
+    return TextHeight() + 2 * ((style and style.FramePadding and style.FramePadding.y) or 2);
+end
+
+-- An experimental setting says so before its name: [Experimental], in this colour, as every addon here
+-- marks one
+widgets.ExperimentalColor = { 1.0, 1.0, 0.0, 1.0 };
+
+local experimentalTag = '[Experimental]';
+local experimentalGap = 6;      -- between the tag and the name
+
+-- Described rows
+--
+-- The name and its sentence are at the left, the sentence wrapped at widgets.DescriptionWidth text
+-- heights; the control is in a column at the right, widgets.RowControlWidth text heights wide, in line
+-- with the name. A settings window fits itself to the two; one that has been resized (winxi.window)
+-- keeps the control column and gives the sentence what is left.
+widgets.DescriptionWidth = 30;
+widgets.RowControlWidth = 13;
+local rowGap = 14;           -- between the sentence and the control column
+local rowSpacing = { 0, 3 }; -- a little air between one row and the next
+local minDescription = 10;   -- text heights, in a window resized very narrow
+
+local row = { left = 0, top = 0, bottom = 0, controlX = 0, controlWidth = 0, right = 0, greyed = false, indented = false };
+
+local function RowColumns()
+    local textHeight = TextHeight();
+    local control = textHeight * widgets.RowControlWidth;
+    local description = textHeight * widgets.DescriptionWidth;
+    if window.IsResized() then
+        local available = imgui.GetContentRegionAvail();
+        if type(available) == 'number' then
+            description = math.max(textHeight * minDescription, available - rowGap - control);
+        end
+    end
+    return description, control;
+end
+
+-- Whether a row's parent, as its spec says, lets it be changed
+local function ParentOn(parent)
+    if parent == nil or parent == true then return true; end
+    if type(parent) == 'table' then return parent[1] and true or false; end
+    return parent and true or false;
+end
+
+function widgets.BeginRow(name, sentence, spec)
+    spec = spec or noSpec;
+    local indented = spec.parent ~= nil or spec.indent == true;
+    if spec.indent == false then indented = false; end
+    local greyed = not ParentOn(spec.parent) and imgui.BeginDisabled ~= nil;
+    row.indented, row.greyed = indented, greyed;
+    if indented then imgui.Indent(); end
+    if greyed then imgui.BeginDisabled(true); end
+
+    local description, control = RowColumns();
+    local left, top = imgui.GetCursorPosX(), imgui.GetCursorPosY();
+    row.left, row.top = left, top;
+    row.controlX = left + description + rowGap;
+    row.controlWidth = control;
+    row.right = row.controlX + control;
+
+    imgui.BeginGroup();
+    imgui.AlignTextToFramePadding();
+    if spec.experimental then
+        imgui.TextColored(widgets.ExperimentalColor, experimentalTag);
+        imgui.SameLine(0, experimentalGap);
+    end
+    imgui.Text(Escaped(name));
+    if sentence ~= nil and sentence ~= '' then
+        imgui.PushTextWrapPos(left + description);
+        imgui.TextDisabled(Escaped(sentence));
+        imgui.PopTextWrapPos();
+    end
+    if spec.tooltip ~= nil then
+        if sentence ~= nil and sentence ~= '' then imgui.SameLine(); end
+        imgui.TextDisabled('(?)');
+        Tooltip(spec.tooltip);
+    end
+    imgui.EndGroup();
+    row.bottom = imgui.GetCursorPosY();
+
+    -- the control goes in line with the name
+    imgui.SetCursorPosY(top);
+    imgui.SetCursorPosX(row.controlX);
+    imgui.PushItemWidth(control);
+end
+
+-- Puts a control of the given width against the right edge of the control column
+local function AtRight(width)
+    imgui.SetCursorPosX(math.max(row.controlX, row.right - width));
+end
+
+function widgets.EndRow()
+    imgui.PopItemWidth();
+    local after = imgui.GetCursorPosY();
+    if after < row.bottom then
+        imgui.SetCursorPosY(row.bottom);
+    end
+    imgui.SetCursorPosX(row.left);
+    if row.greyed then imgui.EndDisabled(); end
+    if row.indented then imgui.Unindent(); end
+    imgui.Dummy(rowSpacing);
+end
+
+function widgets.Check(name, sentence, value, id, spec)
+    widgets.BeginRow(name, sentence, spec);
+    AtRight(FrameHeight());
+    local changed = imgui.Checkbox(id, value);
+    widgets.EndRow();
+    return changed;
+end
+
+function widgets.Slider(name, sentence, value, low, high, id, spec)
+    spec = spec or noSpec;
+    widgets.BeginRow(name, sentence, spec);
+    local changed;
+    if spec.float then
+        changed = imgui.SliderFloat(id, value, low, high, spec.format or '%.1f');
+    else
+        changed = imgui.SliderInt(id, value, low, high, spec.format or '%d');
+    end
+    local done = imgui.IsItemDeactivatedAfterEdit() and true or false;
+    widgets.EndRow();
+    return changed, done;
+end
+
+-- A box of whole numbers sized to what goes in it, rather than to the controls around it: each field
+-- is wide enough for digits figures (5 if not given) and its padding, with the gap between fields.
+-- Meant for boxes without +/- buttons (InputInt with a step of 0, InputInt2).
+function widgets.NumberWidth(fields, digits)
+    fields = fields or 1;
+    local textWidth = imgui.CalcTextSize(('0'):rep(digits or 5));
+    local style = imgui.GetStyle();
+    local field = textWidth + style.FramePadding.x * 2;
+    return field * fields + style.ItemInnerSpacing.x * (fields - 1);
+end
+
+function widgets.Numbers(name, sentence, value, id, spec)
+    spec = spec or noSpec;
+    local fields = spec.fields or (#value >= 2 and 2 or 1);
+    widgets.BeginRow(name, sentence, spec);
+    local width = widgets.NumberWidth(fields, spec.digits);
+    AtRight(width);
+    imgui.SetNextItemWidth(width);
+    local changed;
+    if fields == 2 then
+        changed = imgui.InputInt2(id, value);
+    else
+        changed = imgui.InputInt(id, value, 0, 0);
+    end
+    widgets.EndRow();
+    return changed;
+end
+
+-- The labels of a dropdown's choices, each with the dropdown's id in it: made once per dropdown
+local dropdownLabels = {};
+
+local function ChoiceKey(choice)
+    if type(choice) == 'table' then return choice.key; end
+    return choice;
+end
+
+local function ChoiceLabel(choice)
+    if type(choice) == 'table' then return choice.label; end
+    return choice;
+end
+
+function widgets.Dropdown(name, sentence, choices, current, id, spec)
+    spec = spec or noSpec;
+    widgets.BeginRow(name, sentence, spec);
+    local shown = nil;
+    for _, choice in ipairs(choices) do
+        if ChoiceKey(choice) == current then
+            shown = ChoiceLabel(choice);
+            break;
+        end
+    end
+    -- a choice not in the list (a set of icons whose folder has gone) is shown by its key
+    if shown == nil then
+        if current ~= nil and current ~= '' then
+            shown = tostring(current);
+        elseif choices[1] ~= nil then
+            shown = ChoiceLabel(choices[1]);
+        end
+    end
+    local chosen = nil;
+    if imgui.BeginCombo(id, shown or '') then
+        -- a list that is looked for afresh as it is opened (the icon sets, from their folders)
+        if spec.onOpen ~= nil then
+            choices = spec.onOpen() or choices;
+            dropdownLabels[id] = nil;
+        end
+        local labels = dropdownLabels[id];
+        if labels == nil then
+            labels = {};
+            dropdownLabels[id] = labels;
+        end
+        for index, choice in ipairs(choices) do
+            local label = labels[index];
+            if label == nil then
+                label = ('%s%s.%s'):format(ChoiceLabel(choice), id, tostring(ChoiceKey(choice)));
+                labels[index] = label;
+            end
+            local selected = ChoiceKey(choice) == current;
+            if imgui.Selectable(label, selected) and not selected then
+                chosen = ChoiceKey(choice);
+            end
+            if selected then
+                imgui.SetItemDefaultFocus();
+            end
+        end
+        imgui.EndCombo();
+    end
+    widgets.EndRow();
+    return chosen;
+end
+
+local colorFlags = nil;
+
+function widgets.Color(name, sentence, color, id, spec)
+    colorFlags = colorFlags or ImGuiColorEditFlags_NoInputs or 0;
+    widgets.BeginRow(name, sentence, spec);
+    AtRight(FrameHeight());
+    local changed = imgui.ColorEdit4(id, color, colorFlags);
+    widgets.EndRow();
+    return changed;
+end
+
+local buttonShown = {}; -- a button's label -> the words shown on it, before any ##
+
+function widgets.Action(name, sentence, label, spec)
+    widgets.BeginRow(name, sentence, spec);
+    local shown = buttonShown[label];
+    if shown == nil then
+        shown = label:match('^(.-)##') or label;
+        buttonShown[label] = shown;
+    end
+    local style = imgui.GetStyle();
+    local padding = (style and style.FramePadding and style.FramePadding.x) or 4;
+    AtRight(imgui.CalcTextSize(shown) + 2 * padding);
+    local clicked = imgui.Button(label);
+    widgets.EndRow();
+    return clicked;
+end
+
+-- A dim sentence of its own, as wide as a row's sentence, for what is not a setting
+function widgets.Note(text)
+    local description = RowColumns();
+    imgui.PushTextWrapPos(imgui.GetCursorPosX() + description);
+    imgui.TextDisabled(Escaped(text));
+    imgui.PopTextWrapPos();
+end
+
+-- The addon's state, at the foot of a tab: a thin line, then the words, dim, as wide as the rows
+function widgets.Status(text)
+    local description, control = RowColumns();
+    imgui.Dummy(rowSpacing);
+    imgui.Separator();
+    imgui.PushTextWrapPos(imgui.GetCursorPosX() + description + rowGap + control);
+    imgui.TextDisabled(Escaped(text));
+    imgui.PopTextWrapPos();
+end
+
+-- Labelled settings, as the addons not yet on rows draw them
+--
 -- A setting's name goes to the left of its control, followed by a colon, and the controls line up in a
 -- column to the right of the longest name. The widths are measured once per name.
 --
 -- The column is kept per group of settings, so that one tab's long names do not push another tab's
 -- controls across: widgets.BeginLabels(key) starts a group, and every widgets.Label after it belongs to
--- that group until the next. widgets.Appearance starts one for the Appearance tab, which the addon's
--- own section then carries on.
+-- that group until the next.
 local labelTexts = {};    -- name -> the name with its colon
 local labelWidths = {};
 local labelColumns = {};  -- group -> where its controls start, from the longest name seen in it
@@ -102,18 +423,11 @@ function widgets.BeginLabels(key)
     labelGroup = key or 'default';
 end
 
--- An experimental setting says so before its name: [Experimental], in this colour, as every addon here
--- marks one
-widgets.ExperimentalColor = { 1.0, 1.0, 0.0, 1.0 };
-
-local experimentalTag = '[Experimental]';
-local experimentalGap = 6;      -- between the tag and the name
 local experimentalTagWidth = nil;
 local experimentalWidths = {};  -- name -> how wide the tag, the name and its colon are together
 
 -- Draws a setting's name and leaves the cursor where its control goes. Give the control a label that
--- shows nothing ('##something'). For an addon's own settings as well as winxi's, so that they line up.
--- experimental: true for a setting that is experimental, which is then tagged as one.
+-- shows nothing ('##something'). experimental: true for a setting that is experimental.
 function widgets.Label(text, experimental)
     local shown = labelTexts[text];
     local width = labelWidths[text];
@@ -149,22 +463,12 @@ function widgets.Label(text, experimental)
     imgui.SameLine(column);
 end
 
--- How wide the controls are, in text heights. ImGui's own width in a self-sizing window is 16, which
--- cuts the figures in a colour picker short; a self-sizing settings window grows to fit.
+-- How wide labelled controls are, in text heights
 widgets.ControlWidth = 20;
-
--- Call before drawing settings and widgets.PopControlWidth after, for controls of the width above.
--- widgets.Appearance does so for its own; an addon does for its section, so the two match.
---
--- In a settings window that has been resized (winxi.window), the controls are no wider than the room
--- there is between the column they start in and the window's right edge, so that they fit it; never
--- narrower than widgets.ControlMinWidth text heights. A window fitting its content keeps the width
--- above, which is what it is fitted to.
 widgets.ControlMinWidth = 5;
 
 function widgets.PushControlWidth()
-    local _, textHeight = imgui.CalcTextSize('A');
-    textHeight = textHeight or 14;
+    local textHeight = TextHeight();
     local width = textHeight * widgets.ControlWidth;
     local column = labelColumns[labelGroup];
     if window.IsResized() and column ~= nil then
@@ -178,18 +482,7 @@ function widgets.PopControlWidth()
     imgui.PopItemWidth();
 end
 
--- A box of whole numbers sized to what goes in it, rather than to the controls around it: each field
--- is wide enough for digits figures (5 if not given) and its padding, with the gap between fields.
--- Meant for boxes without +/- buttons (InputInt with a step of 0, InputInt2).
-function widgets.NumberWidth(fields, digits)
-    fields = fields or 1;
-    local textWidth = imgui.CalcTextSize(('0'):rep(digits or 5));
-    local style = imgui.GetStyle();
-    local field = textWidth + style.FramePadding.x * 2;
-    return field * fields + style.ItemInnerSpacing.x * (fields - 1);
-end
-
--- The space between one family of settings and the next (the colours, the padding, the drop shadow)
+-- The space between one family of settings and the next, within a section
 local familyGap = { 0, 5 };
 
 function widgets.Gap()
@@ -209,72 +502,48 @@ local controlIds = Ids('##winxi.');
 local fadeIds = Ids('##winxi.fade.');
 local hideIds = Ids('##winxi.hide.');
 
-local function Color(label, key, tooltip)
-    widgets.Label(label);
-    local changed = imgui.ColorEdit4(controlIds[key], theme.Get()[key]);
-    Tooltip(tooltip);
-    AfterControl(changed);
+-- The theme's own rows: each a value of theme.Get(), saved as the theme is
+local function ThemeColor(label, key, sentence, spec)
+    AfterControl(widgets.Color(label, sentence, theme.Get()[key], controlIds[key], spec));
 end
 
--- One of a style's choices (theme.BorderStyles and the like), as a dropdown
-local dropdownIds = {}; -- key -> { the label of each choice }, made once
-
-local function Choice(label, key, choices, tooltip)
+local function ThemeChoice(label, key, choices, sentence, spec)
     local current = theme.Get();
-    widgets.Label(label);
-    local chosen = choices[1];
-    for _, choice in ipairs(choices) do
-        if choice.key == current[key] then
-            chosen = choice;
-            break;
-        end
-    end
-    local opened = imgui.BeginCombo(controlIds[key], chosen.label);
-    Tooltip(tooltip);
-    if opened then
-        local labels = dropdownIds[key];
-        if labels == nil then
-            labels = {};
-            dropdownIds[key] = labels;
-        end
-        for index, choice in ipairs(choices) do
-            labels[index] = labels[index] or ('%s##winxi.%s.%d'):format(choice.label, key, index);
-            local selected = choice.key == chosen.key;
-            if imgui.Selectable(labels[index], selected) and not selected then
-                current[key] = choice.key;
-                AfterControl(true);
-            end
-            if selected then
-                imgui.SetItemDefaultFocus();
-            end
-        end
-        imgui.EndCombo();
+    local chosen = widgets.Dropdown(label, sentence, choices, current[key], controlIds[key], spec);
+    if chosen ~= nil then
+        current[key] = chosen;
+        AfterControl(true);
     end
 end
 
-local function Check(label, key, tooltip)
+local function ThemeCheck(label, key, sentence, spec)
     local current = theme.Get();
-    widgets.Label(label);
     box[1] = current[key];
-    local changed = imgui.Checkbox(controlIds[key], box);
+    local changed = widgets.Check(label, sentence, box, controlIds[key], spec);
     if changed then
         current[key] = box[1] and true or false;
     end
-    Tooltip(tooltip);
     AfterControl(changed);
 end
 
-local function Slider(label, key, min, max, tooltip)
+local function ThemeSlider(label, key, min, max, sentence, spec)
     local current = theme.Get();
-    widgets.Label(label);
     box[1] = current[key];
-    local changed = imgui.SliderInt(controlIds[key], box, min, max);
+    local changed = widgets.Slider(label, sentence, box, min, max, controlIds[key], spec);
     if changed then
         current[key] = box[1];
     end
-    Tooltip(tooltip);
     AfterControl(changed);
 end
+
+-- Units go in a slider's value, never in its name: a spec for each, for addons too
+widgets.Percent = { format = '%d%%' };
+widgets.Pixels = { format = '%d px' };
+widgets.Seconds = { format = '%d s' };
+widgets.Milliseconds = { format = '%d ms' };
+local percent, pixels, milliseconds = widgets.Percent, widgets.Pixels, widgets.Milliseconds;
+local dependent = { parent = true };
+local dependentPercent = { parent = true, format = '%d%%' };
 
 -- The title of a section of a settings window, with a blank line before it to set it apart from the
 -- section above (pass first for the section that heads the tab). An addon's Winxi Theme tab has five:
@@ -325,10 +594,10 @@ function widgets.Header(text, first, defaultCollapsed)
 end
 
 local resetPopups = {
-    game = { id = 'Reset Shared Theme?##winxi.reset', what = 'the colours, padding, drop shadow, font and styles of the windows on the game screen' },
-    settings = { id = 'Reset Settings Windows?##winxi.resetSettings', what = 'the colours, padding and font of the settings windows' },
-    icons = { id = 'Reset Icons?##winxi.resetIcons', what = 'the icons' },
-    tooltips = { id = 'Reset Tooltips?##winxi.resetTooltips', what = 'the look and delay of the tooltips' },
+    game = { id = 'Reset Shared Theme?##winxi.reset', button = 'Reset##winxi.reset.game', what = 'the colours, padding, drop shadow, font and styles of the windows on the game screen' },
+    settings = { id = 'Reset Settings Windows?##winxi.resetSettings', button = 'Reset##winxi.reset.settings', what = 'the colours, padding and font of the settings windows' },
+    icons = { id = 'Reset Icons?##winxi.resetIcons', button = 'Reset##winxi.reset.icons', what = 'the icons' },
+    tooltips = { id = 'Reset Tooltips?##winxi.resetTooltips', button = 'Reset##winxi.reset.tooltips', what = 'the look and delay of the tooltips' },
 };
 local resetPopupOpen = { true };
 local resetPopupFlags = nil;
@@ -367,11 +636,12 @@ local function ConfirmSharedReset(popup)
     return confirmed;
 end
 
--- The reset button of a part of the theme: theme.GameWindowKeys or theme.SettingsWindowKeys. An addon's
+-- The reset row of a part of the theme: theme.GameWindowKeys or theme.SettingsWindowKeys. An addon's
 -- own theme is reset at once. The shared one is everyone's, so that is confirmed first.
-local function ResetButton(label, popup, keys, tooltipShared, tooltipOwn)
+local function ResetRow(label, popup, keys, sentenceShared, sentenceOwn)
     local shared = theme.IsShared();
-    if imgui.Button(label) then
+    widgets.Gap();
+    if widgets.Action(label, shared and sentenceShared or sentenceOwn, popup.button) then
         if shared then
             imgui.OpenPopup(popup.id);
         else
@@ -380,7 +650,6 @@ local function ResetButton(label, popup, keys, tooltipShared, tooltipOwn)
             Commit();
         end
     end
-    Tooltip(shared and tooltipShared or tooltipOwn);
 
     if ConfirmSharedReset(popup) then
         theme.Reset(keys);
@@ -393,85 +662,67 @@ end
 -- own, or the titles'. names, if given: { the font's label, the size's label, what '' is called }.
 local fontNames = { 'Font', 'Font Size', 'Default' };
 local titleFontNames = { 'Title Font', 'Title Size', 'Window Font' };
+local fontChoices = {};   -- what '' is called -> the list of choices, that first then every font file
 
-local function FontChoice(fileKey, sizeKey, fileTooltip, sizeTooltip, names)
+local function FontList(themeLabel)
+    local list = fontChoices[themeLabel];
+    if list == nil then
+        list = { { key = '', label = themeLabel } };
+        for _, file in ipairs(fonts.Files()) do
+            list[#list + 1] = file;
+        end
+        fontChoices[themeLabel] = list;
+    end
+    return list;
+end
+
+local function FontChoice(fileKey, sizeKey, fileSentence, sizeSentence, names)
     names = names or fontNames;
     local current = theme.Get();
-    widgets.Label(names[1]);
-    local file = current[fileKey];
-    local opened = imgui.BeginCombo(controlIds[fileKey], file ~= '' and file or names[3]);
-    Tooltip(fileTooltip);
-    if opened then
-        if imgui.Selectable(names[3] .. controlIds[fileKey .. '.default'], file == '') and file ~= '' then
-            current[fileKey] = '';
-            AfterControl(true);
-        end
-        for _, choice in ipairs(fonts.Files()) do
-            if imgui.Selectable(choice, file == choice) and file ~= choice then
-                current[fileKey] = choice;
-                AfterControl(true);
-            end
-        end
-        imgui.EndCombo();
+    local chosen = widgets.Dropdown(names[1], fileSentence, FontList(names[3]), current[fileKey], controlIds[fileKey]);
+    if chosen ~= nil then
+        current[fileKey] = chosen;
+        AfterControl(true);
     end
-    widgets.Label(names[2]);
     box[1] = current[sizeKey];
-    local resized = imgui.SliderInt(controlIds[sizeKey], box, 0, theme.MaxFontSize, current[sizeKey] > 0 and '%d px' or 'Default');
+    local resized = widgets.Slider(names[2], sizeSentence, box, 0, theme.MaxFontSize, controlIds[sizeKey],
+        { format = current[sizeKey] > 0 and '%d px' or names[3] });
     if resized then
         current[sizeKey] = box[1];
     end
-    Tooltip(sizeTooltip);
     AfterControl(resized);
 end
 
 -- Custom Icons: None (the game's own) or one of the sets, the folders of libs\winxi\statusicons. The
--- folders are looked for when the list is opened, so that one just added is there to choose.
-local iconSets = nil;   -- statusicons.Sets(), as last looked for
-local iconLabels = {};  -- set -> its label in the list, made once
+-- folders are looked for each time the row is drawn with the list open, so that one just added is there.
 local noIcons = { key = '', label = 'None' };
+local iconChoices = nil;
 
-local function IconSetLabel(set)
-    local label = iconLabels[set.key];
-    if label == nil then
-        label = ('%s##winxi.StatusIconSet.%s'):format(set.label, set.key);
-        iconLabels[set.key] = label;
+local function IconSets()
+    iconChoices = { noIcons };
+    for _, set in ipairs(statusicons.Sets()) do
+        iconChoices[#iconChoices + 1] = set;
     end
-    return label;
+    return iconChoices;
 end
+
+local iconSpec = { onOpen = IconSets, tooltip = 'For the addons that follow this setting: party, buff and name. A set is a folder in libs\\winxi\\statusicons with a picture for each status; add a folder there and it is in this list the next time it is opened. FFXIV is the set winxi comes with.' };
 
 local function StatusIcons()
     local current = theme.Get();
-    iconSets = iconSets or statusicons.Sets();
-    local chosen = noIcons;
-    if current.StatusIcons then
-        chosen = { key = current.StatusIconSet, label = current.StatusIconSet };
-        for _, set in ipairs(iconSets) do
-            if set.key == current.StatusIconSet then
-                chosen = set;
-                break;
-            end
-        end
+    if iconChoices == nil then
+        IconSets();
     end
-
-    widgets.Label('Custom Icons');
-    local opened = imgui.BeginCombo(controlIds.StatusIconSet, chosen.label);
-    Tooltip('The icons buffs and debuffs are drawn with, in addons that follow this setting (the party addon, buff and name): a set of custom icons, for every status the set has one for, or None for the game\'s own.\nA set is a folder of libs\\winxi\\statusicons holding <status number>.png for each status it has an icon for, 1.png for Poison and so on; add a folder there and it is in this list. FFXIV is the set winxi comes with.');
-    if opened then
-        iconSets = statusicons.Sets();
-        local changed = false;
-        if imgui.Selectable('None##winxi.StatusIconSet.none', chosen == noIcons) and chosen ~= noIcons then
+    local currentKey = current.StatusIcons and current.StatusIconSet or '';
+    local chosen = widgets.Dropdown('Custom Icons', 'The pictures used for buffs and debuffs. None keeps the game\'s own.',
+        iconChoices, currentKey, controlIds.StatusIconSet, iconSpec);
+    if chosen ~= nil then
+        if chosen == '' then
             current.StatusIcons = false;
-            changed = true;
+        else
+            current.StatusIcons, current.StatusIconSet = true, chosen;
         end
-        for _, set in ipairs(iconSets) do
-            local selected = current.StatusIcons and set.key == current.StatusIconSet;
-            if imgui.Selectable(IconSetLabel(set), selected) and not selected then
-                current.StatusIcons, current.StatusIconSet = true, set.key;
-                changed = true;
-            end
-        end
-        imgui.EndCombo();
-        AfterControl(changed);
+        AfterControl(true);
     end
 end
 
@@ -479,19 +730,16 @@ end
 function widgets.IconAppearance(appearanceHooks)
     hooks = appearanceHooks;
     widgets.BeginLabels('winxi.iconAppearance');
-    widgets.PushControlWidth();
 
-    if widgets.Header('HQ Icons', true) then
+    if widgets.Header('Icons', true) then
         StatusIcons();
     end
 
-    widgets.Gap();
-    ResetButton('Reset Icons', resetPopups.icons, theme.IconKeys,
-        'Puts the icons back as they started, for every addon using the shared theme.',
-        'Puts this addon\'s own icons back as they started.');
+    ResetRow('Reset Icons', resetPopups.icons, theme.IconKeys,
+        'Puts the icons back as they started, for every addon that shares the theme.',
+        'Puts this addon\'s icons back as they started.');
 
     SaveIfChanged();
-    widgets.PopControlWidth();
 end
 
 -- The Theme section (whether this addon uses the shared theme), and for the windows on the game
@@ -506,45 +754,34 @@ function widgets.Appearance(appearanceHooks, parts)
     hooks = appearanceHooks;
     local withIcons = parts == nil or parts.icons ~= false;
     widgets.BeginLabels('winxi.appearance');
-    widgets.PushControlWidth();
 
     -- Only an addon that can keep a theme of its own offers the choice
     local offersChoice = hooks ~= nil and hooks.onUseShared ~= nil;
     if offersChoice and widgets.Header('Theme', true) then
-        widgets.Label('Use Shared Theme');
         box[1] = theme.IsShared();
-        if imgui.Checkbox('##winxi.UseSharedTheme', box) then
+        if widgets.Check('Use Shared Theme', 'Look like every other winxi addon, and change them all from here. Off, this addon keeps colours of its own.', box, '##winxi.UseSharedTheme') then
             hooks.onUseShared(box[1] and true or false);
         end
-        Tooltip('On: this addon looks like every other addon that uses the shared theme, and changes made here change them all.\nOff: this addon keeps colours, padding and shadow of its own, starting from the shared ones.');
     end
 
     local current = theme.Get();
 
     -- Three families of settings, a little apart: the colours, the padding, the drop shadow
     if widgets.Header('Window', not offersChoice) then
-        Color('Background Color', 'BackgroundColor', 'The background of every window on the game screen.');
-        Color('Border Color', 'BorderColor', 'The border of every window on the game screen. Tabs, buttons, sliders and other controls in them are tinted from it.');
-        Color('Text Color', 'TextColor');
-        Color('Highlight Color', 'HighlightColor', 'The tab that is chosen, and the line drawn under its row of tabs, in a window on the game screen.');
+        ThemeColor('Background Color', 'BackgroundColor', 'Behind everything in each window.');
+        ThemeColor('Border Color', 'BorderColor', 'The line round each window. Buttons, tabs and sliders take their colour from it.');
+        ThemeColor('Text Color', 'TextColor', 'The words in each window.');
+        ThemeColor('Highlight Color', 'HighlightColor', 'The tab you have chosen, and the line under the tabs.');
 
         widgets.Gap();
-        Slider('Padding', 'Padding', 0, theme.MaxPadding, 'Space between a window\'s border and its content, the same on every side.');
+        ThemeSlider('Padding', 'Padding', 0, theme.MaxPadding, 'Space between a window\'s edge and what is in it.', pixels);
 
         widgets.Gap();
-        widgets.Label('Drop Shadow');
-        box[1] = current.ShadowEnabled;
-        if imgui.Checkbox('##winxi.ShadowEnabled', box) then
-            current.ShadowEnabled = box[1] and true or false;
-            theme.Touch();
-            Commit();
-        end
-        Tooltip('Draws a soft shadow behind each window on the game screen, down and to the right of it. Settings windows have none.');
-
+        ThemeCheck('Drop Shadow', 'ShadowEnabled', 'A soft shadow behind each window, down and to the right.');
         if current.ShadowEnabled then
-            Slider('Shadow Offset', 'ShadowOffset', 0, 20);
-            Slider('Shadow Softness', 'ShadowBlur', 0, 20);
-            Slider('Shadow Opacity (%)', 'ShadowOpacity', 0, 100);
+            ThemeSlider('Shadow Offset', 'ShadowOffset', 0, 20, 'How far the shadow falls from the window.', pixels);
+            ThemeSlider('Shadow Softness', 'ShadowBlur', 0, 20, 'How blurred the shadow\'s edge is.', pixels);
+            ThemeSlider('Shadow Opacity', 'ShadowOpacity', 0, 100, 'How dark the shadow is.', percent);
         end
     end
 
@@ -552,50 +789,58 @@ function widgets.Appearance(appearanceHooks, parts)
     -- edge round text written over a bar or the game
     if widgets.Header('Font') then
         FontChoice('FontFile', 'FontSize',
-            'The font every window on the game screen drawn with winxi is written in: a font of Windows\' own, by its file in C:\\Windows\\Fonts. Default is imgui\'s own.\nA font or size an addon sets for its own text is used in place of this one.',
-            'How big the text of every window on the game screen is, in pixels. 0 (Default) keeps the base size.\nAn addon that sets sizes of its own (the party addon\'s names and values, for one) keeps them.');
+            'The font every window is written in. Default is the built-in one; the rest are the fonts Windows has.',
+            'How big the words are. Default keeps the usual size.');
         widgets.Gap();
-        Slider('Text Outline', 'TextOutline', 0, theme.MaxTextOutline, 'How thick the dark edge round text written over a bar, an image or the game itself is, in pixels, in every addon that writes with winxi: the party addon\'s names and figures, a clock\'s line, scrolling text, zone banners. 0 is none.');
-        Color('Outline Color', 'TextOutlineColor', 'The colour of that edge, and how solid it is.');
+        ThemeSlider('Text Outline', 'TextOutline', 0, theme.MaxTextOutline, 'A dark edge round words written over a bar or the game, so they stay easy to read. 0 is none.', pixels);
+        ThemeColor('Outline Color', 'TextOutlineColor', 'The colour of that edge.');
     end
 
     -- The styles: the window border for every window, and what an addon that draws bars or statuses
     -- draws them with
     if widgets.Header('Styles') then
-        Choice('Window Border', 'BorderStyle', theme.BorderStyles, 'Thin 3px borders in place of the plain window border, on every window on the game screen. Keeps the background colour; use at least 3px padding to keep content clear of the edging. Settings windows keep the plain border.');
-        Choice('Window Background', 'BackgroundStyle', theme.BackgroundStyles, 'A texture in place of the flat background, on every window on the game screen, in the Background Color: a gradient, the FFXI-inspired gradient with fine lines, stone grain, marble veins, a linen weave or brushed metal. Settings windows keep the flat background.');
-        Choice('Tab Style', 'TabStyle', theme.TabStyles, 'A texture over the tabs of every window on the game screen that has them (the inventory\'s bags, mark\'s pages), keeping their colours: Plain is none, Sheen a soft light at the top and shade at the foot, Glass a bright upper half, Bevel raised edges, then brushed metal, stone grain, the FFXI-inspired fine lines or soft satin folds. Settings windows keep plain tabs.');
-        Slider('Border Opacity (%)', 'BorderOpacity', 0, 100, 'How solid the border of every window on the game screen is, plain or styled: 100 is solid, 0 is no border. Settings windows keep a solid border.');
+        ThemeChoice('Window Border', 'BorderStyle', theme.BorderStyles, 'A decorative border in place of the plain line.',
+            { tooltip = 'The window keeps its Background Color. With a decorative border, a Padding of 3 or more keeps the words clear of it. Settings windows keep the plain line.' });
+        ThemeChoice('Window Background', 'BackgroundStyle', theme.BackgroundStyles, 'A texture behind each window in place of the flat colour.',
+            { tooltip = 'Drawn in the Background Color: a gradient, fine lines, stone, marble, linen or brushed metal. Settings windows keep the flat colour.' });
+        ThemeChoice('Tab Style', 'TabStyle', theme.TabStyles, 'A finish over the tabs of windows that have them.',
+            { tooltip = 'Plain is none. Sheen, Glass and Bevel are drawn; the rest are textures. The tabs keep their colours. Settings windows keep plain tabs.' });
+        ThemeSlider('Border Opacity', 'BorderOpacity', 0, 100, 'How solid the border is. 0 is no border.', percent);
         widgets.Gap();
-        Check('Frame Titles', 'FrameTitles', 'Writes the name of each window on the game screen across its top edge, at the right, in addons that name their windows (the party addon: Party, Target and the rest). Settings windows keep their own title bar.');
+        ThemeCheck('Frame Titles', 'FrameTitles', 'Writes each window\'s name along its top edge.',
+            { tooltip = 'In the addons that name their windows, as party does: Party, Target and the rest. Settings windows keep their own title bar.' });
         if current.FrameTitles then
-            Choice('Title Style', 'TitleStyle', theme.TitleStyles, 'Outlined Text is the name alone, over the border, with a dark edge. Break In Border leaves a gap in the border for it; Break With Shadow does too, with a soft dark haze behind the name and a slight shadow under it. Plate sets it on a small plate of the Background Color, edged in the Border Color.');
-            Color('Title Color', 'TitleColor');
-            Check('Title All Caps', 'TitleAllCaps', 'Writes every title in capitals: PARTY, TARGET and the rest.');
+            ThemeChoice('Title Style', 'TitleStyle', theme.TitleStyles, 'How the name sits on the edge.',
+                { tooltip = 'Outlined Text is the name alone with a dark edge. Break In Border leaves a gap in the border for it; Break With Shadow adds a soft haze behind it. Plate sets it on a small plate.' });
+            ThemeColor('Title Color', 'TitleColor', 'The colour of the name.');
+            ThemeCheck('Title All Caps', 'TitleAllCaps', 'PARTY in place of Party.');
             FontChoice('TitleFontFile', 'TitleSize',
-                'The font the titles are written in: a font of Windows\' own, by its file in C:\\Windows\\Fonts. Window Font is the window\'s own.',
-                'How big the titles are, in pixels. 0 (Default) is the size of the window\'s own text.', titleFontNames);
-            Slider('Title Position X', 'TitleOffsetX', -50, theme.MaxTitleOffsetX, 'How far in from the window\'s right edge the title ends, in pixels. Below 0 it runs past the edge.');
-            Slider('Title Position Y', 'TitleOffsetY', -theme.MaxTitleOffsetY, theme.MaxTitleOffsetY, 'How far down the title is moved, in pixels, from sitting across the top edge. Below 0 moves it up, clear of the window.');
-            Check('Title Shadow', 'TitleShadow', 'A soft dark copy of the title, down and to the right of it.');
+                'The font the names are written in. Window Font is the window\'s own.',
+                'How big the names are. Default is the size of the window\'s own words.', titleFontNames);
+            ThemeSlider('Title Position X', 'TitleOffsetX', -50, theme.MaxTitleOffsetX, 'How far in from the right edge the name ends. Below 0 it runs past the edge.', pixels);
+            ThemeSlider('Title Position Y', 'TitleOffsetY', -theme.MaxTitleOffsetY, theme.MaxTitleOffsetY, 'Moves the name down, or up when below 0.', pixels);
+            ThemeCheck('Title Shadow', 'TitleShadow', 'A soft dark copy of the name, down and to the right of it.');
             if current.TitleShadow then
-                Slider('Title Shadow Offset', 'TitleShadowOffset', 1, 6, 'How far down and to the right the shadow falls, in pixels.');
-                Slider('Title Shadow Opacity (%)', 'TitleShadowOpacity', 0, 100, 'How dark the shadow is: 100 is solid, 0 is none.');
+                ThemeSlider('Title Shadow Offset', 'TitleShadowOffset', 1, 6, 'How far the copy falls.', pixels);
+                ThemeSlider('Title Shadow Opacity', 'TitleShadowOpacity', 0, 100, 'How dark the copy is.', percent);
             end
         end
         widgets.Gap();
-        Choice('Bar Texture', 'BarTexture', theme.BarTextures, 'Matching HP and MP textures, for addons that draw HP and MP bars (the party addon): original, glossy glass, detailed metal, faceted crystal, soft satin, runic markings, a classic FF-style bevel, a brighter Radiant fill, polished chrome, plain flat, ten-cell segmented, a glowing ember, Kingdom console-menu bevels, Magitek machinery, Aether shards, Elven curved rails, Gothic ironwork, or the smooth ones, shaded from top to foot with nothing along the bar so that they look the same at any HP: Enamel (a bright upper half over a deeper one, as the game\'s own bars), Enamel (Lit Rim), Enamel (Gradient), Glass Tube, Glass Tube (Deep) and Glass Enamel. Keeps HP/MP colour tinting.');
-        Choice('Bar Frame', 'BarFrame', theme.BarFrames, 'The frame round the HP and MP bars of the party addon. Bar Texture is the texture\'s own. Capsule Outline is a thin rim in the cyan of the Rounded bookends, Capsule Outline (Silver) in Rounded Silver\'s, in place of the texture\'s frame and not tinted by the bar: with those bookends the bar and its caps are one capsule being filled. Without them its ends are closed square.');
-        Slider('Bar Frame Opacity (%)', 'BarFrameOpacity', 0, 100, 'How solid the frame round the party addon\'s HP and MP bars is, the Capsule Outline or the texture\'s own: 100 is solid, 0 is none.');
-        Slider('Fill End Glow (%)', 'BarGlow', 0, 100, 'A soft light at the end of the HP and MP fills, where each stops, as on the game\'s own gauges: 0 is none, 100 the brightest.');
-        Check('Custom Bar Backdrop', 'BarBackdrop', 'The empty part of the HP and MP bars in a colour of your own. Off, it is the bar\'s own colour, darkened.');
+        ThemeChoice('Bar Texture', 'BarTexture', theme.BarTextures, 'The look of the HP and MP bars.',
+            { tooltip = 'For the addons that draw bars, as party does. The bars keep their HP and MP colours whatever the texture. The Enamel and Glass Tube ones are shaded from top to foot, so they look the same at any HP.' });
+        ThemeChoice('Bar Frame', 'BarFrame', theme.BarFrames, 'The frame round each bar.',
+            { tooltip = 'Bar Texture is the texture\'s own frame. Capsule Outline is a thin rim that goes with the Rounded bookends, so the bar and its caps are one capsule being filled.' });
+        ThemeSlider('Bar Frame Opacity', 'BarFrameOpacity', 0, 100, 'How solid the frame is. 0 is none.', percent);
+        ThemeSlider('Fill End Glow', 'BarGlow', 0, 100, 'A soft light where the bar\'s fill ends, as on the game\'s own gauges. 0 is none.', percent);
+        ThemeCheck('Custom Bar Backdrop', 'BarBackdrop', 'Choose the colour of the empty part of each bar. Off, it is the bar\'s own colour, darkened.');
         if current.BarBackdrop then
-            Color('Bar Backdrop Color', 'BarBackdropColor', 'The colour of the empty part of the HP and MP bars. Its alpha lets the dark trough under it show through.');
+            ThemeColor('Bar Backdrop Color', 'BarBackdropColor', 'The colour of the empty part. Its alpha lets the dark trough show through.', dependent);
         end
-        Check('Bar Bookends', 'Bookends', 'Puts a small cap at each end of the HP and MP bars.');
+        ThemeCheck('Bar Bookends', 'Bookends', 'A small cap at each end of the bars.');
         if current.Bookends then
-            Choice('Bookend Style', 'BookendStyle', theme.BookendStyles, 'Separate coloured ornaments for HP and MP: matching window borders, Kingdom crowns, Magitek couplings, Aether shards, Elven leaves, and Gothic lances, or Rounded and Rounded Silver, round ends after the game\'s own that carry the bar on past each end. Match Border follows the Window Border; with the Theme border it uses the bar texture cap.');
-            Slider('Bookend Opacity (%)', 'BookendOpacity', 0, 100, 'How solid the bookends are: 100 is solid, 0 is none.');
+            ThemeChoice('Bookend Style', 'BookendStyle', theme.BookendStyles, 'The look of the caps.',
+                { parent = true, tooltip = 'Match Border follows the Window Border. Rounded and Rounded Silver are round ends after the game\'s own, that carry the bar on past each end.' });
+            ThemeSlider('Bookend Opacity', 'BookendOpacity', 0, 100, 'How solid the caps are. 0 is none.', dependentPercent);
         end
         if withIcons then
             widgets.Gap();
@@ -615,13 +860,11 @@ function widgets.Appearance(appearanceHooks, parts)
         end
         resetKeys = gameKeysWithoutIcons;
     end
-    widgets.Gap();
-    ResetButton('Reset Appearance', resetPopups.game, resetKeys,
-        'Puts the colours, padding, shadow, font and styles of the windows on the game screen back as they started, for every addon using the shared theme.',
-        'Puts this addon\'s own colours, padding, shadow, font and styles back as they started.');
+    ResetRow('Reset Appearance', resetPopups.game, resetKeys,
+        'Puts every setting above back as it started, for every addon that shares the theme.',
+        'Puts this addon\'s own look back as it started.');
 
     SaveIfChanged();
-    widgets.PopControlWidth();
 end
 
 -- The settings windows' own values (winxi.window's settings kind): the Window section (their colours,
@@ -631,33 +874,30 @@ end
 function widgets.SettingsAppearance(appearanceHooks)
     hooks = appearanceHooks;
     widgets.BeginLabels('winxi.settingsAppearance');
-    widgets.PushControlWidth();
 
     if widgets.Header('Window', true) then
-        Color('Background Color', 'SettingsBackgroundColor', 'The background of every settings window.');
-        Color('Border Color', 'SettingsBorderColor', 'The border of every settings window. Tabs, buttons, sliders and other controls in them are tinted from it.');
-        Color('Text Color', 'SettingsTextColor');
-        Color('Highlight Color', 'SettingsHighlightColor', 'The tab that is chosen, and the line drawn under its row of tabs.');
-        Color('Sub-Category Color', 'SettingsHeaderColor', 'The titles of the sections in every settings window, the ones that collapse with [-] and [+].');
-        Color('Theme Tab Color', 'ThemeTabColor', 'The colour of the Winxi Theme tab, which sets it apart from the addon\'s own tabs. It is a little darker when not chosen, and lighter under the mouse.');
+        ThemeColor('Background Color', 'SettingsBackgroundColor', 'Behind everything in each settings window.');
+        ThemeColor('Border Color', 'SettingsBorderColor', 'The line round each settings window. Buttons, tabs and sliders take their colour from it.');
+        ThemeColor('Text Color', 'SettingsTextColor', 'The words in each settings window.');
+        ThemeColor('Highlight Color', 'SettingsHighlightColor', 'The tab you have chosen, and the line under the tabs.');
+        ThemeColor('Sub-Category Color', 'SettingsHeaderColor', 'The section titles, the ones that fold with [-] and [+].');
+        ThemeColor('Theme Tab Color', 'ThemeTabColor', 'The Winxi Theme tab, which sets it apart from an addon\'s own tabs.');
 
         widgets.Gap();
-        Slider('Padding', 'SettingsPadding', 0, theme.MaxSettingsPadding, 'Space between a settings window\'s border and its content, the same on every side.');
+        ThemeSlider('Padding', 'SettingsPadding', 0, theme.MaxSettingsPadding, 'Space between a settings window\'s edge and what is in it.', pixels);
     end
 
     if widgets.Header('Font') then
         FontChoice('SettingsFontFile', 'SettingsFontSize',
-            'The font every settings window is written in: a font of Windows\' own, by its file in C:\\Windows\\Fonts. Default is imgui\'s own.',
-            'How big the text of every settings window is, in pixels. 0 (Default) keeps the base size.');
+            'The font every settings window is written in. Default is the built-in one; the rest are the fonts Windows has.',
+            'How big the words are. Default keeps the usual size.');
     end
 
-    widgets.Gap();
-    ResetButton('Reset Settings Windows', resetPopups.settings, theme.SettingsWindowKeys,
-        'Puts the colours, padding and font of the settings windows back as they started, for every addon using the shared theme.',
-        'Puts this addon\'s own settings window colours, padding and font back as they started.');
+    ResetRow('Reset Settings Windows', resetPopups.settings, theme.SettingsWindowKeys,
+        'Puts every setting above back as it started, for every addon that shares the theme.',
+        'Puts this addon\'s own settings windows back as they started.');
 
     SaveIfChanged();
-    widgets.PopControlWidth();
 end
 
 -- Every tooltip's values (winxi.tooltip): whether they show, how soon, their colours, padding, text
@@ -667,43 +907,42 @@ local tooltipSample = 'A tooltip looks like this. Its words go on to another lin
 function widgets.TooltipAppearance()
     hooks = nil;
     widgets.BeginLabels('winxi.tooltipAppearance');
-    widgets.PushControlWidth();
 
     if widgets.Header('Tooltips', true) then
-        Check('Show Tooltips', 'TooltipsEnabled', 'Off, no tooltip of any addon drawn with winxi is shown, this one included.');
-        Slider('Delay (ms)', 'TooltipDelay', 0, theme.MaxTooltipDelay, 'How long the mouse rests on something before its tooltip shows, in milliseconds. Moving straight on to the next thing shows its tooltip at once.');
+        ThemeCheck('Show Tooltips', 'TooltipsEnabled', 'Little notes that appear when the mouse rests on something, in every winxi addon.');
+        ThemeSlider('Delay', 'TooltipDelay', 0, theme.MaxTooltipDelay, 'How long the mouse rests on something before its note appears.', milliseconds);
     end
 
     if widgets.Header('Window') then
-        Color('Background Color', 'TooltipBackgroundColor', 'The background of every tooltip.');
-        Color('Border Color', 'TooltipBorderColor', 'The border of every tooltip.');
-        Color('Text Color', 'TooltipTextColor');
+        ThemeColor('Background Color', 'TooltipBackgroundColor', 'Behind the words of each note.');
+        ThemeColor('Border Color', 'TooltipBorderColor', 'The line round each note.');
+        ThemeColor('Text Color', 'TooltipTextColor', 'The words of each note.');
         widgets.Gap();
-        Slider('Padding', 'TooltipPadding', 0, theme.MaxTooltipPadding, 'Space between a tooltip\'s border and its words, the same on every side.');
-        Slider('Max Width', 'TooltipMaxWidth', theme.MinTooltipWidth, theme.MaxTooltipWidth, 'How wide a tooltip grows, in pixels, before its words go on to another line.');
-        widgets.Label('Font Size');
+        ThemeSlider('Padding', 'TooltipPadding', 0, theme.MaxTooltipPadding, 'Space between a note\'s edge and its words.', pixels);
+        ThemeSlider('Max Width', 'TooltipMaxWidth', theme.MinTooltipWidth, theme.MaxTooltipWidth, 'How wide a note grows before its words go on to another line.', pixels);
         local current = theme.Get();
         box[1] = current.TooltipFontSize;
-        local resized = imgui.SliderInt(controlIds.TooltipFontSize, box, 0, theme.MaxFontSize, current.TooltipFontSize > 0 and '%d px' or 'Window\'s Own');
+        local resized = widgets.Slider('Font Size', 'How big a note\'s words are. Window\'s Own is the size of the window it is over.', box, 0, theme.MaxFontSize, controlIds.TooltipFontSize,
+            { format = current.TooltipFontSize > 0 and '%d px' or 'Window\'s Own' });
         if resized then
             current.TooltipFontSize = box[1];
         end
-        Tooltip('How big a tooltip\'s text is, in pixels. 0 (Window\'s Own) is the size of the window it is over.');
         AfterControl(resized);
 
         widgets.Gap();
-        widgets.Label('Sample');
+        widgets.BeginRow('Sample', 'Rest the mouse on the mark at the right to see a note.');
+        AtRight(imgui.CalcTextSize('(?)'));
+        imgui.AlignTextToFramePadding();
         imgui.TextDisabled('(?)');
         Tooltip(tooltipSample);
+        widgets.EndRow();
     end
 
-    widgets.Gap();
-    ResetButton('Reset Tooltips', resetPopups.tooltips, theme.TooltipKeys,
-        'Puts every tooltip\'s look and delay back as they started, for every addon using winxi.',
-        'Puts every tooltip\'s look and delay back as they started.');
+    ResetRow('Reset Tooltips', resetPopups.tooltips, theme.TooltipKeys,
+        'Puts every setting above back as it started, for every winxi addon.',
+        'Puts every setting above back as it started.');
 
     SaveIfChanged();
-    widgets.PopControlWidth();
 end
 
 -- The Winxi Theme tab: the one that holds widgets.Appearance, in every addon's settings window. It is
@@ -758,56 +997,21 @@ function widgets.EndThemeTab()
     imgui.EndTabItem();
 end
 
--- The corner a window grows from, as four buttons laid out as the corners themselves are. current is
--- the present choice. Returns the newly chosen corner, or nil if it was not changed.
--- From the left of the first column of corners to the left of the second: the widest option in the
--- first column (its button, which is about as wide as the text is tall, and its name), then a gap.
--- Measured rather than fixed, so the two columns stay apart at any font size.
-local growFromGap = 24;
-local growFromColumn = nil;
-local growFromIds = {}; -- corner -> its button's label: made once
+-- Grow From: the corner a window grows from, as a dropdown. current is the present choice. Returns the
+-- newly chosen corner, or nil if it was not changed.
+local growFromChoices = nil;
 
-local function GrowFromColumn()
-    if growFromColumn == nil then
-        local widest, textHeight = 0, 14;
-        for index, mode in ipairs(anchor.Modes) do
-            if index % 2 == 1 then
-                local width, height = imgui.CalcTextSize(anchor.Labels[mode]);
-                widest = math.max(widest, width or 0);
-                textHeight = height or textHeight;
-            end
+function widgets.GrowFrom(current, spec)
+    if growFromChoices == nil then
+        growFromChoices = {};
+        for _, mode in ipairs(anchor.Modes) do
+            growFromChoices[#growFromChoices + 1] = { key = mode, label = anchor.Labels[mode] };
         end
-        growFromColumn = widest + textHeight * 2 + growFromGap;
     end
-    return growFromColumn;
-end
-
-function widgets.GrowFrom(current)
     if anchor.Labels[current] == nil then
         current = anchor.Default;
     end
-
-    -- two to a row, the top corners then the bottom ones, starting wherever the cursor is: after
-    -- widgets.Label, that is the column the other controls are in
-    local left = imgui.GetCursorPosX();
-    local chosen = nil;
-    for index, mode in ipairs(anchor.Modes) do
-        if index % 2 == 0 then
-            imgui.SameLine(left + GrowFromColumn());
-        elseif index > 1 then
-            imgui.SetCursorPosX(left);
-        end
-        local id = growFromIds[mode];
-        if id == nil then
-            id = anchor.Labels[mode] .. '##winxi.growfrom';
-            growFromIds[mode] = id;
-        end
-        if imgui.RadioButton(id, current == mode) and current ~= mode then
-            chosen = mode;
-        end
-        Tooltip('The corner that stays where it is when the window\'s content changes size: it grows away from that corner.');
-    end
-    return chosen;
+    return widgets.Dropdown('Grow From', 'The corner that stays where it is as the window changes size.', growFromChoices, current, '##winxi.growfrom', spec);
 end
 
 -- A font of the addon's own, for the text an addon writes itself (a clock's line, a bar's figures,
@@ -815,119 +1019,126 @@ end
 -- winxi addon offers it. The settings are a file name, '' for the theme's font, and a size in a table
 -- (as imgui's sliders take), 0 for the theme's size.
 --
---   widgets.FontFile(options, key, id, spec)   the combo: Theme Font, then every .ttf of C:\Windows\Fonts
+--   widgets.FontFile(options, key, id, spec)   the dropdown: Theme Font, then every .ttf of C:\Windows\Fonts
 --   widgets.FontSize(options, key, id, spec)   the slider: Theme Size at 0, or pixels
 --
 -- options[key] is the setting; id the control's hidden label ('##buff.fontFile'). spec, each optional:
---   label     the setting's name to its left: Font, or Font Size; false for none, where the addon has
---             written one already
---   tooltip   over the control
---   theme     what the theme's own is called: Theme Font, or Theme Size
---   min, max  the size's range: 0 and theme.MaxFontSize. Only a range from 0 offers the theme's size.
+--   label        the setting's name: Font, or Font Size
+--   description  the sentence under it, in place of the usual one
+--   tooltip      a longer note, behind a (?)
+--   theme        what the theme's own is called: Theme Font, or Theme Size
+--   min, max     the size's range: 0 and theme.MaxFontSize. Only a range from 0 offers the theme's size.
 -- Both return whether the setting was changed this frame. FontSize returns as well whether the slider
 -- was let go after a change, for an addon that saves then rather than as it is dragged.
-local noSpec = {};
-
 function widgets.FontFile(options, key, id, spec)
     spec = spec or noSpec;
     local file = options[key];
     if type(file) ~= 'string' then file = ''; end
     local themeLabel = spec.theme or 'Theme Font';
-    if spec.label ~= false then widgets.Label(spec.label or 'Font'); end
-    local opened = imgui.BeginCombo(id, file ~= '' and file or themeLabel);
-    Tooltip(spec.tooltip);
-    local changed = false;
-    if opened then
-        if imgui.Selectable(themeLabel .. id .. '.theme', file == '') and file ~= '' then
-            options[key] = '';
-            changed = true;
-        end
-        for _, choice in ipairs(fonts.Files()) do
-            if imgui.Selectable(choice .. id .. '.' .. choice, file == choice) and file ~= choice then
-                options[key] = choice;
-                changed = true;
+    local choices = FontList(themeLabel);
+    if spec.label == false then
+        -- the control alone, after a name the addon wrote itself
+        local changed = false;
+        if imgui.BeginCombo(id, file ~= '' and file or themeLabel) then
+            for _, choice in ipairs(choices) do
+                local choiceKey, label = ChoiceKey(choice), ChoiceLabel(choice);
+                if imgui.Selectable(label .. id .. '.' .. choiceKey, file == choiceKey) and file ~= choiceKey then
+                    options[key] = choiceKey;
+                    changed = true;
+                end
             end
+            imgui.EndCombo();
         end
-        imgui.EndCombo();
+        return changed;
     end
-    return changed;
+    local chosen = widgets.Dropdown(spec.label or 'Font',
+        spec.description or ('The font for this addon\'s own words. %s follows the Winxi Theme; the rest are the fonts Windows has.'):format(themeLabel),
+        choices, file, id, spec);
+    if chosen ~= nil then
+        options[key] = chosen;
+        return true;
+    end
+    return false;
 end
 
 function widgets.FontSize(options, key, id, spec)
     spec = spec or noSpec;
     local low, high = spec.min or 0, spec.max or theme.MaxFontSize;
-    if spec.label ~= false then widgets.Label(spec.label or 'Font Size'); end
     local size = options[key];
-    local format = (low <= 0 and (tonumber(size[1]) or 0) <= 0) and (spec.theme or 'Theme Size') or '%d px';
+    local themeLabel = spec.theme or 'Theme Size';
+    local format = (low <= 0 and (tonumber(size[1]) or 0) <= 0) and themeLabel or '%d px';
+    if spec.label == false then
+        -- the control alone, after a name the addon wrote itself
+        local changed = imgui.SliderInt(id, size, low, high, format);
+        return changed, imgui.IsItemDeactivatedAfterEdit() and true or false;
+    end
+    widgets.BeginRow(spec.label or 'Font Size',
+        spec.description or ('How big this addon\'s own words are. %s follows the Winxi Theme.'):format(themeLabel), spec);
     local changed = imgui.SliderInt(id, size, low, high, format);
     local done = imgui.IsItemDeactivatedAfterEdit() and true or false;
-    Tooltip(spec.tooltip);
+    widgets.EndRow();
     return changed, done;
 end
 
 -- Lock Window: a window held where it is, the mouse going through it to the game (winxi.window's
 -- locked and clickThrough options, or the addon's own flags). box is the setting, a table holding
--- true or false; id the control's hidden label. spec, each optional: label (Lock Window), tooltip, and
--- onChanged, called with the new value. Returns whether it was changed.
-function widgets.Lock(box, id, spec)
+-- true or false; id the control's hidden label. spec, each optional: label (Lock Window), description,
+-- tooltip, and onChanged, called with the new value. Returns whether it was changed.
+function widgets.Lock(value, id, spec)
     spec = spec or noSpec;
-    widgets.Label(spec.label or 'Lock Window');
-    local changed = imgui.Checkbox(id, box);
-    Tooltip(spec.tooltip or 'Keeps the window where it is, and lets the mouse through it to the game. Off, it can be dragged.');
+    local changed = widgets.Check(spec.label or 'Lock Window',
+        spec.description or 'Keeps the window where it is, and lets clicks through it to the game. Off, it can be dragged.',
+        value, id, spec);
     if changed and spec.onChanged then
-        spec.onChanged(box[1] and true or false);
+        spec.onChanged(value[1] and true or false);
     end
     return changed;
 end
 
 local fadeDirty = false; -- a fade setting has been changed since the addon was last told
 
-local function FadeCheck(settings, label, key, tooltip)
-    widgets.Label(label);
+local function FadeCheck(settings, label, key, sentence, spec)
     box[1] = settings[key];
-    if imgui.Checkbox(fadeIds[key], box) then
+    if widgets.Check(label, sentence, box, fadeIds[key], spec) then
         settings[key] = box[1] and true or false;
         fadeDirty = true;
     end
-    Tooltip(tooltip);
 end
 
-local function FadeNumber(settings, label, key, min, max, format, tooltip)
-    widgets.Label(label);
+local function FadeNumber(settings, label, key, min, max, spec, sentence)
     box[1] = settings[key];
-    local changed;
-    if format then
-        changed = imgui.SliderFloat(fadeIds[key], box, min, max, format);
-    else
-        changed = imgui.SliderInt(fadeIds[key], box, min, max);
-    end
-    if changed then
+    if widgets.Slider(label, sentence, box, min, max, fadeIds[key], spec) then
         settings[key] = box[1];
         fadeDirty = true;
     end
-    Tooltip(tooltip);
 end
+
+local fadeDelay = { format = '%d s', parent = true };
+local fadeDuration = { float = true, format = '%.1f s', parent = true };
+local fadeTransition = { float = true, format = '%.2f s', parent = true };
+local fadeOpacity = { format = '%d%%', parent = true };
+local fadeDependent = { parent = true };
 
 -- The controls for an addon's idle-fade settings (a table as winxi.fade describes). onChanged, if given,
 -- is called when a change is final (the mouse is up), for the addon to save its settings.
 -- grouped optionally splits the detailed controls into collapsible sections.
 function widgets.Fade(settings, onChanged, grouped)
-    FadeCheck(settings, 'Fade When Idle', 'Enabled', 'Fades the windows out once you have stood still for a while, and brings them back as soon as you move.');
+    FadeCheck(settings, 'Fade When Idle', 'Enabled', 'The windows fade out after you have stood still for a while, and come back as soon as you move.');
 
     if settings.Enabled then
         if not grouped or widgets.Header('Timing And Opacity') then
-        FadeNumber(settings, 'Idle Time (Seconds)', 'Delay', 1, 120, nil, 'How long you must stand still before the fade starts.');
-        FadeNumber(settings, 'Idle Fade Time (Seconds)', 'Duration', 0, 5, '%.1f', 'How long the windows take to fade out once you are idle.');
-        FadeNumber(settings, 'Fade In/Out Time (Seconds)', 'Transition', 0, 1, '%.2f', 'How long a window takes to fade in as it appears, out as it goes, and back in when you stop being idle.\nOne speed for every window. At 0 they appear and go at once.');
-        FadeNumber(settings, 'Faded Opacity (%)', 'Opacity', 0, 100, nil, 'How visible a faded window stays. At 0 it disappears completely.');
+            FadeNumber(settings, 'Idle Time', 'Delay', 1, 120, fadeDelay, 'How long you stand still before they start to fade.');
+            FadeNumber(settings, 'Idle Fade Time', 'Duration', 0, 5, fadeDuration, 'How long the fading out takes.');
+            FadeNumber(settings, 'Fade In/Out Time', 'Transition', 0, 1, fadeTransition, 'How long a window takes to appear, to go, and to come back when you move. At 0 it is at once.');
+            FadeNumber(settings, 'Faded Opacity', 'Opacity', 0, 100, fadeOpacity, 'How much of a faded window still shows. At 0 it disappears.');
         end
         if not grouped or widgets.Header('Keep Frames Visible') then
-        FadeCheck(settings, 'Stay Visible While Moving', 'Moving', 'Moving about does not count as idle. Switched off, the windows fade on the move as well, once nothing else has kept them up for the idle time.');
-        FadeCheck(settings, 'Show On Party Changes', 'Party', 'A change to the party list brings the windows back: someone joining, leaving or changing area.');
-        FadeCheck(settings, 'Stay Visible While Engaged', 'Combat', 'Standing still with your weapon drawn does not count as idle.');
-        FadeCheck(settings, 'Stay Visible While Targeting', 'Target', 'Having anything targeted does not count as idle: the windows come back as soon as you target something, or your target changes.');
-        FadeCheck(settings, 'Stay Visible While Missing HP', 'MissingHp', 'Standing still below full HP does not count as idle.');
-        FadeCheck(settings, 'Stay Visible While Healing', 'Resting', 'Resting to recover HP and MP (/heal) does not count as idle.');
+            FadeCheck(settings, 'Stay Visible While Moving', 'Moving', 'Walking about keeps the windows shown. Off, they fade on the move too.', fadeDependent);
+            FadeCheck(settings, 'Show On Party Changes', 'Party', 'Someone joining, leaving or changing area brings them back.', fadeDependent);
+            FadeCheck(settings, 'Stay Visible While Engaged', 'Combat', 'Having your weapon drawn keeps them shown.', fadeDependent);
+            FadeCheck(settings, 'Stay Visible While Targeting', 'Target', 'Having anything targeted keeps them shown.', fadeDependent);
+            FadeCheck(settings, 'Stay Visible While Missing HP', 'MissingHp', 'Being below full HP keeps them shown.', fadeDependent);
+            FadeCheck(settings, 'Stay Visible While Healing', 'Resting', 'Resting to recover HP and MP keeps them shown.', fadeDependent);
         end
     end
 
@@ -941,24 +1152,22 @@ end
 
 local hideDirty = false; -- a hide rule has been changed since the addon was last told
 
-local function HideCheck(settings, label, key, tooltip)
-    widgets.Label(label);
+local function HideCheck(settings, label, key, sentence)
     box[1] = settings[key];
-    if imgui.Checkbox(hideIds[key], box) then
+    if widgets.Check(label, sentence, box, hideIds[key]) then
         settings[key] = box[1] and true or false;
         hideDirty = true;
     end
-    Tooltip(tooltip);
 end
 
 -- The controls for an addon's rules for getting its windows out of the way (a table as winxi.game
 -- describes). onChanged, if given, is called when a change is final, for the addon to save its settings.
 function widgets.Hide(settings, onChanged)
-    HideCheck(settings, 'Hide While Map Open', 'UnderMap', 'The windows are not drawn while the map is open.');
-    HideCheck(settings, 'Hide While Chat Open', 'UnderChat', 'The windows are not drawn while the chat log is opened right out.');
-    HideCheck(settings, 'Hide While Loading', 'WhileLoading', 'The windows are not drawn while changing area.');
-    HideCheck(settings, 'Hide During Events', 'DuringEvent', 'The windows are not drawn during cutscenes and while talking to an NPC.');
-    HideCheck(settings, 'Hide With Game Interface', 'WithInterface', 'The windows are not drawn while the game\'s own interface is hidden.');
+    HideCheck(settings, 'Hide While Map Open', 'UnderMap', 'The windows go while the map is open.');
+    HideCheck(settings, 'Hide While Chat Open', 'UnderChat', 'The windows go while the chat log is opened right out.');
+    HideCheck(settings, 'Hide While Loading', 'WhileLoading', 'The windows go while you change area.');
+    HideCheck(settings, 'Hide During Events', 'DuringEvent', 'The windows go during cutscenes and while you talk to someone.');
+    HideCheck(settings, 'Hide With Game Interface', 'WithInterface', 'The windows go when you hide the game\'s own interface.');
 
     if hideDirty and MouseIsUp() then
         hideDirty = false;
@@ -969,4 +1178,3 @@ function widgets.Hide(settings, onChanged)
 end
 
 return widgets;
-

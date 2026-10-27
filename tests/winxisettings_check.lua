@@ -288,6 +288,6 @@ H.command('/winxi')
 H.tab(5)
 H.frames(1)
 local saveShown = false
-for _, label in ipairs(buttons) do saveShown = saveShown or label == 'Save Layout for 1920x1080' end
+for _, label in ipairs(buttons) do saveShown = saveShown or label == 'Save Layout##winxisettings.save' end
 H.print('Layouts: the resolution, Switch With Resolution and Save Layout', saveShown and checks['##winxisettings.automatic'] == true)
 imgui.Button, imgui.Checkbox = realButton, realCheckbox

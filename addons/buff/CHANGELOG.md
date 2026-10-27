@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The settings are described rows (winxi 65): each setting's name, a plain sentence under it saying what it does, and its control at the right, in Window, Icons, Game and Controller sections; the rules for hiding and Fade In And Out are on a Visibility tab of their own. Grow From is a dropdown. Requires winxi 65.
 - uihook's buff block is read as plugins/ABI.md promises (winxi 57's `winxi.abi`): the same Version and at least the size this knows, so a newer uihook that adds to the block is still read. Requires winxi 57.
 - uihook alone: the retired buffhook plugin is no longer looked for.
 - The plugin's block is let go of when uihook (or buffhook) has been unloaded and loaded again at another address since it was found, even between two looks, so the old DLL's memory is never read or written (the plugin's base is compared each look, as winxi's uihook readers do).

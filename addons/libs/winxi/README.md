@@ -20,7 +20,7 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 | `winxi.organize` | Arranging an addon's windows: an Organize button, labels, an alignment grid, and linking one window against another |
 | `winxi.controller` | Working an addon's windows with a controller (XInput, or DirectInput by make): taking button presses, a highlight that moves over things drawn in rows, and a menu of choices |
 | `winxi.anchor` | "Grow from": which corner of a self-sizing window stays put |
-| `winxi.widgets` | Ready-made settings controls: the theme with its "Use Shared Theme" checkbox (`Appearance`), the Winxi Theme tab that holds it (`BeginThemeTab`), a corner picker (`GrowFrom`), the fade settings (`Fade`) and the rules for hiding (`Hide`), an addon's own font and its size as a file name and pixels (`FontFile`, `FontSize`), and Lock Window (`Lock`) |
+| `winxi.widgets` | Settings windows as described rows (winxi 65: `Check`, `Slider`, `Numbers`, `Dropdown`, `Color`, `Action`, `BeginRow`/`EndRow`, `Note`, `Status`, collapsible `Header`), and the ready-made ones: the theme with its "Use Shared Theme" checkbox (`Appearance`), the Winxi Theme tab that holds it (`BeginThemeTab`), Grow From (`GrowFrom`), the fade settings (`Fade`) and the rules for hiding (`Hide`), an addon's own font and its size (`FontFile`, `FontSize`), and Lock Window (`Lock`). See [Settings windows: the rules](#settings-windows-the-rules) |
 | `winxi.sound` | The small sounds a menu makes, off until an addon turns them on |
 | `winxi.game` | What is asked of the game itself: the menu on top, whether the map is open or an event running, bag access, and the rules for when windows hide |
 | `winxi.packets` | The packets addons send and read, set out once |
@@ -520,7 +520,7 @@ of character. `BeginFrame` is false, and nothing of the addon's is drawn, from t
 logs out until a character's settings are loaded again: Ashita's settings library hands every addon the
 defaults at the logout, in which the window is open and at its first place, and the addons run on for
 half a second as the game shuts down, so a window kept closed showed over the black screen until then.
-An addon loaded at the title screen draws nothing until the login, by the same rule. Optional in the spec: `drawAppearance` (more for the Winxi Theme tab's Addon section),
+An addon loaded at the title screen draws nothing until the login, by the same rule. Optional in the spec: `drawAppearance` (more for the Winxi Theme tab's Addon section), `visibility` (more for the Visibility tab, after Fade In And Out),
 `commands` (more verbs), `onSettings` (called when the settings are loaded or swapped), `toggleSays`
 (`{ shown = '...', hidden = '...' }`, said in the chat log as the command shows or hides the window: for
 a window that is only there some of the time, where the change cannot otherwise be seen) and `import` (a
@@ -550,6 +550,69 @@ Words go on to another line at the Max Width. `Begin` returns false while toolti
 mouse has not rested for the Delay yet; `End` is called only when it returned true. winxi's own
 tooltips (`winxi.widgets`, `winxi.shell`, `winxi.organize`) all go through it.
 
+## Settings windows: the rules
+
+Every addon's settings window is laid out the same way, by `winxi.widgets` and `winxi.shell`, so that
+someone who has set one addon up knows every other. The rules, in the order a window is read:
+
+1. **Tabs.** Settings (the addon's behaviour; `settingsLabel` may rename it), then the addon's own tabs,
+   then Visibility (for an addon with a window: Fade In And Out, whatever the addon adds with `visibility`,
+   and the rules for hiding under Hide Window), then Winxi Theme last, in its own colour. `winxi.shell`
+   draws the tabs; an addon without the shell draws the same ones.
+2. **Sections.** Every tab is sections under `widgets.Header`, each collapsible, its body inside the `if`.
+   The first section of a tab is `Header(name, true)`, flush with the tab bar. A header sets itself apart
+   from the section above: never a `Gap` before one. `Gap` goes only between families of settings inside
+   a section. The first section of the Settings tab is **Window**, where there is a window: Visible, Lock
+   Window, Position, and whatever else is about the window itself, under those names in every addon.
+3. **Rows.** Every setting is a described row: its name, a sentence under the name saying what it does,
+   and its control at the right. `widgets.Check`, `Slider`, `Numbers`, `Dropdown`, `Color` and `Action`
+   draw one each; `BeginRow` / `EndRow` hold a control of the addon's own. An addon never calls imgui's
+   controls for a setting by itself, and never sets a control's width: the rows do.
+4. **The sentence.** One short line, written for someone who does not know the game's insides: what
+   happens when the setting is on, or what the number is. Plain words, no keys, no addon names where
+   "this window" will do, no "whether": "Shows the bar while you are under a status", not "Whether the
+   window is visible". Where a command does the same, say so at the end: "/buff switches it too." The
+   long note, where one is needed, goes behind a (?) after the sentence (`spec.tooltip`) and is the only
+   tooltip a settings window has; explanatory lines between controls are gone.
+5. **Names.** Each word capitalised: "Shadow Opacity", "Fade When Idle". No unit in the name: the unit
+   goes in the value, with `widgets.Pixels`, `Percent`, `Seconds` and `Milliseconds` or a `format` of the
+   addon's own ("%d px/s"). An experimental setting has `[Experimental]`, in yellow, before its name
+   (`spec.experimental`).
+6. **Dependents.** A setting that only means something while another is on takes that one as its
+   `parent`: it is indented under it and greyed while it is off, not hidden. Hide a row only when it is
+   meaningless rather than idle (a style's own settings while another style is chosen).
+7. **Choices.** One of a few is always a dropdown, never a row of radio buttons; the Winxi Theme's Grow
+   From is one too (`widgets.GrowFrom`).
+8. **Colours.** A swatch; the picker opens on it (`widgets.Color`, `ImGuiColorEditFlags_NoInputs`).
+9. **Buttons.** An action is a row too (`widgets.Action`): a name, a sentence saying what it does, and a
+   button at the right reading a verb (Reset, Test, Save). A reset row is last in its tab, after a `Gap`.
+   Anything that loses something asks first, in a popup. `SmallButton` only inside tables.
+10. **Status.** What the addon is doing now is one dim line at the foot of the tab, over a rule
+    (`widgets.Status`), never between controls. Diagnostics get a section of their own, collapsed to
+    start (`Header(name, false, true)`).
+
+```lua
+if widgets.Header('Window', true) then
+    widgets.Check('Visible', 'Shows the bar while you are under a status. /buff switches it too.', options.isVisible, '##buff.visible');
+    widgets.Lock(options.locked, '##buff.locked');
+    widgets.Numbers('Position', 'Where the bar\'s corner is on the screen.', options.pos, '##buff.position');
+end
+if widgets.Header('Icons') then
+    widgets.Slider('Icon Size', 'How tall each icon is.', options.iconSize, 16, 96, '##buff.iconSize', widgets.Pixels);
+    widgets.Check('Show Time Left', 'Writes under each icon how long the status has left.', options.showTimers, '##buff.showTimers');
+    widgets.Slider('Flash Below', 'An icon flashes when this much time is left.', options.flashBelow, 0, 60, '##buff.flashBelow', { parent = options.showTimers, format = '%d s' });
+end
+widgets.Status(('%d icons shown.'):format(count));
+```
+
+Rows are 30 text heights of name and sentence, a gap, and 13 of control (`widgets.DescriptionWidth`,
+`widgets.RowControlWidth`); a settings window fits itself to them, and one that has been resized keeps
+the control column and gives the sentence what is left.
+
+On rows so far: the theme's own sections, the shell's Visibility and Controller rows, and the buff, sct,
+atlas, mark and winxisettings addons. The rest (party, name, chatbox, inventory, zone and the others)
+still draw labelled columns with `widgets.Label`, which stays until they are converted.
+
 ## Converting an addon: checklist
 
 An addon with one main window can use `winxi.shell` (above), which does all of this. Otherwise:
@@ -562,10 +625,9 @@ An addon with one main window can use `winxi.shell` (above), which does all of t
    (colours, padding, drop shadow), **Font** (the base font and size) and **Styles** (window border, frame titles, bar texture, bar bookends and their
    style, Custom Icons), then Reset Appearance, which asks first when it is the shared theme
    being reset. An addon that draws HP and MP bars or statuses reads the styles from `theme.Get()`:
-   `BarTexture`, `Bookends`, `BookendStyle`, `StatusIcons` (whether custom icons are drawn) and `StatusIconSet` (which set). The addon draws the last section itself, under `widgets.Header('Addon')`, for its own appearance options. Its
-   settings are named with `widgets.Label` (the name on the left, then a colon, in line with winxi's)
-   and its families of settings kept apart with `widgets.Gap`.
+   `BarTexture`, `Bookends`, `BookendStyle`, `StatusIcons` (whether custom icons are drawn) and `StatusIconSet` (which set). The addon draws the last section itself, under `widgets.Header('Addon')`, for its own appearance options, as described rows.
 5. Remove the addon's own colour, padding and shadow settings and the code that drew with them.
+6. Lay its settings out by the rules above.
 
 ## Custom icons
 
@@ -603,11 +665,6 @@ end
 A header whose return is not used still shows `[-]`, but collapsing it hides nothing: always draw a
 section inside its `if`. Which sections are collapsed is kept while the addon is loaded. The titles are
 in the theme's `SettingsHeaderColor`, Sub-Category Color on winxisettings' Settings Windows tab.
-
-## Naming options
-
-Every option's name has each word capitalised ("Shadow Opacity", "Fade When Idle"), in winxi and in
-every addon's own settings.
 
 ## Checks
 
