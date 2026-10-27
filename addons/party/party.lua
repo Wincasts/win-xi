@@ -26,6 +26,7 @@ do
 end
 
 require('common')
+pcall(require, 'winxi.perf')   -- the handlers timed for the perf addon; before any is registered
 local imgui = require('imgui')
 local settings = require('settings')
 local winxiFade = require('winxi.fade')

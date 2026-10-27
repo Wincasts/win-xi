@@ -114,6 +114,8 @@
 --     ClaimSlot, SlotDrawing (for BeginDrawing) and ReleaseSlot; SharedPriority
 -- 62: layers, drawing into the world through namehook 1.46: Take, Begin, AtEntity, AtWorld, Quad, End,
 --     SetTexture (0 to 31) and Release
+-- 63: perf, every event handler of an addon timed into shared memory for the perf addon: Events, Rows,
+--     ResetMax, Seconds; required by shell, so every shell addon is timed
 return {
-    Number = 62,
+    Number = 63,
 };
