@@ -568,9 +568,9 @@ local heightSpec = { format = '%d px' };
 -- else it has to set.
 --
 -- Every section can be collapsed: its title has [-] at the right edge of the window while open and
--- [+] while collapsed, and a click on either changes which. A bar in the settings windows' Highlight
--- Color runs under the title row from one edge of the window to the other, so a section is found at a
--- glance; a sub-section's runs from its indent, thinner. widgets.Header returns whether it is open,
+-- [+] while collapsed, and a click on either changes which. A band in the settings windows' Highlight
+-- Color lies behind the title row from one edge of the window to the other, with a solid line along
+-- its foot, so a section is found at a glance; a sub-section's starts at its indent, fainter. widgets.Header returns whether it is open,
 -- and the section's settings are drawn only then:
 --     if widgets.Header('Window') then
 --         ...
@@ -585,12 +585,12 @@ local currentHeader = ''; -- the section being drawn, which its sub-sections are
 local subIndent = 0;      -- the steps the sub-section being drawn has indented by: its title's, and its rows'
 local subGap = { 0, 3 };  -- before a sub-section's title
 local markers = { '[-]', '[+]' };
-local barHeight = { 2, 1 };      -- a section's bar, a sub-section's
-local barGap = 2;                -- between the title row and the bar
-local barAfter = { 0, 4 };       -- the room left under the bar
-local barColor = { 0, 0, 0, 0 }; -- the bar's colour this frame
+local bandPad = 3;               -- the band reaches this far above and below the title row
+local lineHeight = { 2, 1 };     -- the line along the band's foot: a section's, a sub-section's
+local bandOpacity = { 0.55, 0.35 }; -- of the Highlight Color's own: the band of a section, of a sub-section
+local barAfter = { 0, 5 };       -- the room left under the band
+local bandColor, lineColor = { 0, 0, 0, 0 }, { 0, 0, 0, 0 };
 local barFrom, barTo = { 0, 0 }, { 0, 0 };
-local subBarOpacity = 0.6;
 
 -- A title over a bar, [-] or [+] at the right, returning whether its section is open. key is what the
 -- collapsed state is kept under; sub, true for a sub-section.
@@ -608,6 +608,29 @@ local function Title(text, key, defaultCollapsed, sub)
     local marker = isCollapsed and markers[2] or markers[1];
     local clicked = false;
 
+    -- a band behind the row, across the whole window for a section and from the indent for a
+    -- sub-section, with a line along its foot; the window clips its content short of its edges, so
+    -- the band is let through to them
+    local list = imgui.GetWindowDrawList();
+    local x, y = imgui.GetCursorScreenPos();
+    local windowX = imgui.GetWindowPos();
+    local windowWidth = imgui.GetWindowSize();
+    local textHeight = TextHeight();
+    if list ~= nil and list.AddRectFilled ~= nil and list.PushClipRect ~= nil and x ~= nil and y ~= nil and windowX ~= nil and windowWidth ~= nil then
+        local highlight = look.SettingsHighlightColor or look.HighlightColor or color;
+        local opacity = highlight[4] or 1;
+        bandColor[1], bandColor[2], bandColor[3], bandColor[4] = highlight[1], highlight[2], highlight[3], opacity * (sub and bandOpacity[2] or bandOpacity[1]);
+        lineColor[1], lineColor[2], lineColor[3], lineColor[4] = highlight[1], highlight[2], highlight[3], opacity;
+        local line = sub and lineHeight[2] or lineHeight[1];
+        barFrom[1], barFrom[2] = sub and x or windowX, y - bandPad;
+        barTo[1], barTo[2] = windowX + windowWidth, y + textHeight + bandPad + line;
+        list:PushClipRect(barFrom, barTo, false);
+        list:AddRectFilled(barFrom, barTo, imgui.GetColorU32(bandColor));
+        barFrom[2] = barTo[2] - line;
+        list:AddRectFilled(barFrom, barTo, imgui.GetColorU32(lineColor));
+        list:PopClipRect();
+    end
+
     -- the title at the left, the marker against the right edge, both clickable
     imgui.TextColored(color, text);
     if imgui.IsItemHovered() and ImGuiMouseCursor_Hand ~= nil then imgui.SetMouseCursor(ImGuiMouseCursor_Hand); end
@@ -622,24 +645,8 @@ local function Title(text, key, defaultCollapsed, sub)
     if imgui.IsItemHovered() and ImGuiMouseCursor_Hand ~= nil then imgui.SetMouseCursor(ImGuiMouseCursor_Hand); end
     if imgui.IsItemClicked() then clicked = true; end
 
-    -- the bar under the row: across the whole window for a section, from the indent for a sub-section
-    local list = imgui.GetWindowDrawList();
-    local x, y = imgui.GetCursorScreenPos();
-    local windowX = imgui.GetWindowPos();
-    local windowWidth = imgui.GetWindowSize();
-    if list ~= nil and list.AddRectFilled ~= nil and list.PushClipRect ~= nil and x ~= nil and y ~= nil and windowX ~= nil and windowWidth ~= nil then
-        local highlight = look.SettingsHighlightColor or look.HighlightColor or color;
-        barColor[1], barColor[2], barColor[3] = highlight[1], highlight[2], highlight[3];
-        barColor[4] = (highlight[4] or 1) * (sub and subBarOpacity or 1);
-        local height = sub and barHeight[2] or barHeight[1];
-        barFrom[1], barFrom[2] = sub and x or windowX, y + barGap;
-        barTo[1], barTo[2] = windowX + windowWidth, y + barGap + height;
-        -- the window clips its content short of its edges: the bar is let through to them
-        list:PushClipRect(barFrom, barTo, false);
-        list:AddRectFilled(barFrom, barTo, imgui.GetColorU32(barColor));
-        list:PopClipRect();
-    end
-    barAfter[2] = barGap + (sub and barHeight[2] or barHeight[1]) + 2;
+    -- room under the row for the band's foot and its line
+    barAfter[2] = bandPad + (sub and lineHeight[2] or lineHeight[1]) + 2;
     imgui.Dummy(barAfter);
 
     if clicked then
