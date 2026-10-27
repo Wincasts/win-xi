@@ -71,16 +71,23 @@ remain visible even when there is currently nothing to heal or enfeeble. Generic
 names use the configured spell-name color; Healing, Elemental and Status removal use Puppet's
 Light, Ice and Water colors. The sample preview includes pet spell timers.
 
-Pet tracking works independently of Puppet. Both use the shared definitions in
+Pet tracking supports PUP as either main job or subjob and works independently of Puppet.
+Both use the shared definitions in
 `addons/libs/winxi/automaton/`, with independent runtime state in their respective addons. Install
 or update the winxi library along with cooldowns.
 
-Only observed, running cooldowns are shown, not guessed-ready or unknown timers. Observations are
-cleared when the pet, character, job, or zone changes. Head, frame and attachments are cached per
+Only observed, running cooldowns are shown, not guessed-ready or unknown timers. Shot is tracked
+from the automaton's ranged attack, which the server always sends as its mob skill 1949 (never as an
+ordinary ranged attack), including with player cooldowns disabled. If no pet cooldown has been observed (or all have expired), the pet-only window is hidden.
+Observations are cleared when the pet, character, job, or zone changes. Head, frame and attachments are cached per
 character from the server's extended-job packet; on first use, zone or change an attachment to get
 that description. A timer already running before cooldowns loads is not known until its action is
 observed again. Cooldown durations and attachment/maneuver reductions follow the Phoenix-era rules
 used by Puppet. Pet timers use the same recast formatting and urgency colors as player timers.
+
+If a pet timer is missing, run `/cooldowns debug` after the pet acts. This prints the detected pet,
+head/frame, last observed Shot time, and the ten most recent pet action category/parameter pairs.
+The history is bounded, temporary, and cleared with the pet observations.
 
 ## Performance
 

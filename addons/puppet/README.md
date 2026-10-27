@@ -98,6 +98,54 @@ With debug enabled, the cooldown window stays available for diagnostics even if 
 switched off. `/puppet` toggles both windows together. **Always Show**, transparency, fading, and the
 shared game-UI hiding rules apply to both. Dummy data is separated into the same two windows.
 
+## Attachment bonus window
+
+Enable **Attachment Bonuses** in `/puppet config` for a separate, independently movable window.
+It works with either combined or split mode; its position is saved per character and can also be
+edited under **Attachment Position**. It starts disabled so existing layouts are unchanged.
+
+Each equipped attachment shows its current contribution at the active maneuver count, shown in
+brackets after its name. Values refresh at 10 Hz and when attachment packets arrive. Zero-maneuver
+bonuses and penalties are included. Optic Fiber enhances only the modifiers the server marks eligible,
+rounding each contribution down separately (including negative values). Overdrive treats an element
+with at least one maneuver as three, but does not create maneuvers for inactive elements.
+
+These are **attachment contributions, not final pet stats**: equipment, other buffs, stat caps and
+conditional proc state are not inferred. Repair Kit regen shows its max-HP formula because pet max HP
+is not available here. Mana Tank refresh uses the era's flat values. Ability effects such as Stoneskin
+and Blink describe what activation grants, not a claim that the buff is currently active. Attachments
+without a passive modifier are explicitly marked as action/conditional effects; unfamiliar modifier
+units remain labelled as server units rather than guessed percentages.
+
+The window follows `/puppet`, Always Show, transparency, fade and game-UI hiding settings, and hides
+when there is no automaton out. Dummy Data previews it with sample attachments. Equipped parts use
+the same server packet and per-character cache as the existing trackers; zone or change an attachment
+if the addon has not yet received a parts description.
+
+The attachments are the chosen server's data: winxi's `attachments` set, made by
+`tools/build_winxi_data.py` (or `tools/build_puppet_attachments.py` alone) from the server as it
+runs. It reads `sql/item_puppet.sql` and `item_basic.sql` for each attachment and its element (by
+`item_basic`'s name, the one the server keys an attachment by), and `scripts/globals/automaton.lua`
+for the modifiers, the Repair Kit and Mana Tank formulas and each frame's divisor. Then it applies
+what the modules put in their place, such as the era's
+`modules/era/lua/actions/abilities/pets/automaton/attachments.lua`. On Phoenix that means:
+
+- the era's Strobe and Store TP values
+- Defense on the Armor Plates
+- gear haste on the Turbo Charger
+- Mana Booster's cooldown reduction
+- Drum Magazine's accuracy penalty
+- Heatsink
+- Repair Kit II, and Mana Tank I and II with flat refresh
+- the abilities, such as Analyzer, Replicator and Shock Absorber
+
+A Repair Kit's or Mana Tank's frame bonus is the server's divisor for the fitted frame. A Mana Tank
+adds nothing on Valoredge or Sharpshot, which have no MP. An attachment the data does not have is
+named as such, not guessed.
+
+The game client does not need network access: the data is in `addons/libs/winxi/data/<server>/attachments`,
+and `attachments.lua` calculates and formats the contributions.
+
 ## Other settings
 
 **Transparent** takes away the window's backdrop, border and shadow, and writes every
@@ -148,4 +196,5 @@ burden, TP, history, split-window layout/visibility/positions, and update-budget
 ```sh
 luajit tests/harness.lua puppet addons/puppet/puppet.lua tests/puppet_check.lua
 luajit tests/harness.lua puppet addons/puppet/puppet.lua tests/puppet_regression_check.lua
+luajit tests/harness.lua puppet addons/puppet/puppet.lua tests/puppet_attachments_check.lua
 ```

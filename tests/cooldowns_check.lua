@@ -140,8 +140,47 @@ check(shown() == '', 'changing character clears cooldowns')
 parts(5, 0x22, {})
 did(3, 1949)
 check(shown():find('Shot', 1, true), 'Sharpshot ranged cooldown')
+recasts.Clear()
+local entityHelper = GetEntity
+GetEntity = nil -- native pet lookup must work without a globally loaded entity helper
+options.showPlayerCooldowns = false
+local function ranged(actor, category)
+    action = { actor_id = actor, category = category, param = 0, targets = {} }
+    H.packetData(packets.inbound.action.id, '')
+end
+ranged(99, 2)
+check(shown() == '', 'another actor ranged attack does not start Shot')
+ranged(3, 12)
+check(shown() == '', 'ranged start alone does not invent a Shot cooldown')
+check(table.concat(recasts.Debug(options.petAutomaton), '|'):find('category=12 param=0', 1, true),
+    'diagnostics retain unrecognized pet actions')
+ranged(3, 2)
+check(shown() == '', 'a ranged attack is not the automaton\'s Shot: the server\'s is always mob skill 1949')
+did(3, 1949)
+text = shown()
+check(text:find('Shot', 1, true) and not text:find('Maneuver', 1, true)
+    and not text:find('<separator>', 1, true), 'Shot shown with player cooldowns disabled')
+check(table.concat(recasts.Debug(options.petAutomaton), '|'):find('Pet=3', 1, true),
+    'native entity memory detects pet without GetEntity global')
+GetEntity = entityHelper
+H.wait(37)
+check(shown() == '', 'Shot cooldown expires')
+check(table.concat(recasts.Debug(options.petAutomaton), '|'):find('Shot last observed', 1, true),
+    'diagnostics report observed Shot timing')
+options.showPlayerCooldowns = true
 game.job = 1
 check(shown() == '', 'changing job removes automaton cooldowns')
+game.subjob = 18
+options.showPlayerCooldowns = false
+did(3, 1949)
+text = shown()
+check(text:find('Shot', 1, true) and not text:find('<separator>', 1, true),
+    'PUP subjob shows observed Shot with player cooldowns disabled')
+check(table.concat(recasts.Debug(options.petAutomaton), '|'):find('Pet=3', 1, true),
+    'PUP subjob detects automaton')
+game.subjob = 0
+check(shown() == '', 'removing PUP subjob hides automaton cooldowns')
+options.showPlayerCooldowns = true
 game.job = 18
 parts(5, 0x22, { 69 })
 did(3, 1949)

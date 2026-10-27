@@ -626,6 +626,12 @@ local function OnCommand(e)
     end
 
     e.blocked = true
+    if args[2] and args[2]:lower() == 'debug' then
+        for _, line in ipairs(PetRecasts.Debug(Config.petAutomaton)) do
+            print('[cooldowns] ' .. line)
+        end
+        return
+    end
     ShowConfig[1] = not ShowConfig[1]
 end
 

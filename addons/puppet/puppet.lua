@@ -1,6 +1,6 @@
 addon.name    = 'puppet'
 addon.author  = 'win'
-addon.version = '1.13'
+addon.version = '1.14'
 addon.desc    = 'Automaton burden, selected magic with its cooldown, and selected weapon skill with current TP.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -31,6 +31,8 @@ local packets = require('winxi.packets')
 local predict = require('predict')
 local tracker = require('tracker')
 local burden = require('burden')
+local attachments = require('attachments')
+local gamedata = require('winxi.gamedata')
 local tp = require('tp')
 local settings = require('settings')
 
@@ -41,6 +43,10 @@ local splitBurden = { name = burdenWindowName, position = 'burdenPos', open = { 
     style = { }, place = true }
 local splitCooldown = { name = cooldownWindowName, position = 'cooldownPos', open = { true },
     style = { title = 'Cooldowns' }, place = true }
+
+local bonusWindow = { name = windowName .. '.attachments', position = 'attachmentPos', open = { true },
+    style = { title = 'Attachment Bonuses' }, place = true }
+local bonusRows = {}
 
 local jobPup = 18
 local extendedJobPacket = 0x044
@@ -496,6 +502,23 @@ splitCooldown.draw = function()
     DrawContent(false, app.options.showPriority[1], app.options.showDebug[1])
 end
 
+bonusWindow.draw = function()
+    WriteFaint('Attachment contributions (not final pet stats)')
+    if #bonusRows == 0 then
+        WriteFaint(automaton.head == nil and 'Parts unknown: zone or change an attachment.' or 'No attachments equipped.')
+        return
+    end
+    if imgui.BeginTable('##puppet.attachments', 2, tableFlags) then
+        for _, row in ipairs(bonusRows) do
+            imgui.TableNextRow()
+            imgui.TableNextColumn()
+            Write(row.name .. (row.count and (' [%d]'):format(row.count) or ''), maneuverColors[row.element])
+            imgui.TableNextColumn(); Write(row.text)
+        end
+        imgui.EndTable()
+    end
+end
+
 local function CaptureSplit(trackerWindow)
     -- window.Full's capture hook runs inside the real window, never its off-screen measure pass.
     local options = app.options
@@ -512,6 +535,7 @@ local function CaptureSplit(trackerWindow)
 end
 splitBurden.style.capture = function() CaptureSplit(splitBurden) end
 splitCooldown.style.capture = function() CaptureSplit(splitCooldown) end
+bonusWindow.style.capture = function() CaptureSplit(bonusWindow) end
 
 local function DrawSplit(trackerWindow, enabled, wanted)
     local options = app.options
@@ -548,6 +572,7 @@ local defaults = T{
     alwaysShow = T{ true }, -- the window whether the automaton is fighting or not
     showPriority = T{ true }, -- everything the automaton might do next, in its order, and how each stands
     showBurden = T{ true }, -- the burden of each element, as a figure in its colour
+    showAttachments = T{ false }, -- separate attachment contributions window
     transparent = T{ false }, -- no backdrop, border or shadow: outlined text straight over the game
     showDebug = T{ false }, -- under it, what the addon knows: for finding out what is wrong
 }
@@ -589,6 +614,14 @@ local function DrawSettings(options)
     widgets.Label('Show Burden')
     imgui.Checkbox('##puppet.showBurden', options.showBurden)
     tips.Hover('The burden of each element as a figure in its colour, in one line: fire, ice, wind, earth, thunder, water, light, dark.\nA ? is an element not known of yet: the automaton was out before the addon was loaded. A maneuver of it says.\nResting the mouse on a figure names its element, marks estimated burden, and gives an estimated chance of one more maneuver overloading.');
+    widgets.Label('Attachment Bonuses')
+    imgui.Checkbox('##puppet.showAttachments', options.showAttachments)
+    tips.Hover(('A separate window of what each fitted attachment adds at the current maneuvers, as %s has its attachments: Optic Fiber and Overdrive included.\nThe brackets after a name are the maneuvers it counts. These are the attachments\' part, not the automaton\'s final stats, and an ability\'s effect is what it gives when it goes off.')
+        :format(gamedata.Manifest().Source and gamedata.Manifest().Source.Name or 'the server'));
+    if options.showAttachments[1] then
+        widgets.Label('Attachment Position')
+        if imgui.InputInt2('##puppet.attachmentPosition', options.attachmentPos) then bonusWindow.place = true end
+    end
     widgets.Label('Show Dummy Data')
     imgui.Checkbox('##puppet.showDummy', dummy.on)
     tips.Hover('For seeing how the window looks: every part of it filled with made-up data, whether there is an automaton out or not.\nThe parts switched off above stay off. It is not kept: it is off again when the addon is next loaded.');
@@ -630,10 +663,12 @@ app = shell.New({
             options.transparent = T{ false }
         end
         if type(options.splitWindows) ~= 'table' then options.splitWindows = T{ false } end
-        for _, trackerWindow in ipairs({ splitBurden, splitCooldown }) do
+        if type(options.showAttachments) ~= 'table' then options.showAttachments = T{ false } end
+        for _, trackerWindow in ipairs({ splitBurden, splitCooldown, bonusWindow }) do
             local pos = options[trackerWindow.position]
             if type(pos) ~= 'table' or type(pos[1]) ~= 'number' or type(pos[2]) ~= 'number' then
-                options[trackerWindow.position] = T{ options.pos[1], options.pos[2] + (trackerWindow == splitCooldown and 60 or 0) }
+                options[trackerWindow.position] = T{ options.pos[1], options.pos[2]
+                    + (trackerWindow == bonusWindow and 120 or trackerWindow == splitCooldown and 60 or 0) }
             end
             trackerWindow.place = true
         end
@@ -712,6 +747,15 @@ ashita.events.register('d3d_present', 'puppet_present', function()
         dirty, nextUpdate = false, now + updateInterval
         local state = Snapshot(pet)
         burden.Update(BurdenState(state), now)
+        if options.showAttachments[1] then
+            if dummy.on[1] then
+                bonusRows = attachments.Rows({ [1] = true, [98] = true, [70] = true, [194] = true },
+                    { maneuvers = { fire = 1, earth = 1, wind = 2, light = 1 }, frame = 33 })
+            else
+                state.frame = automaton.frame
+                bonusRows = attachments.Rows(automaton.attachments, state)
+            end
+        end
         if dummy.on[1] then
             ShowDummy()
         else
@@ -751,6 +795,8 @@ ashita.events.register('d3d_present', 'puppet_present', function()
         and (dummy.on[1] or options.alwaysShow[1] or (target ~= nil
             and ((options.showPriority[1] and #showing.priority > 0)
                 or (options.showBurden[1] and showing.burden ~= nil) or options.showDebug[1])))
+    DrawSplit(bonusWindow, options.showAttachments[1], options.isVisible[1]
+        and (dummy.on[1] or (pet ~= nil and (options.alwaysShow[1] or target ~= nil))))
     if options.splitWindows[1] then
         DrawSplit(splitBurden, options.showBurden[1], wanted[1])
         DrawSplit(splitCooldown, options.showPriority[1] or options.showDebug[1], wanted[1])
