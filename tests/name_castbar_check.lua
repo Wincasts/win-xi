@@ -1,3 +1,4 @@
+require('winxi.gamedata').Root('addons/libs/winxi/data/') -- the server's sets, from the repository's data
 local casts,custom=require('castbar'),require('custom')
 local packet=dofile('tests/fixtures/parse_packets.lua')
 local options=custom.Defaults({})
@@ -63,13 +64,13 @@ local used=send(3,16);assert(view().name=='Fast Blade' and view().timer=='Used')
 local started=view().started;now=now+.3
 casts.HandlePacket({id=0x028,data=used},options);assert(view().started==started,'duplicate finishes cannot prolong a flash')
 options.castBarWeaponskills[1]=false;casts.Begin(options,now)
-assert(not view() and package.loaded['assets.mob_cast_times']==nil)
+assert(not view())
 options.castBarWeaponskills[1]=true;send(7,392);send(7,0,nil,28787);assert(not view(),'ready move interrupted')
 send(8,999);now=now+31;casts.Begin(options,now);assert(not view(),'safety timeout bounds missed finishes')
 for i=1,300 do send(8,144,5000+i) end
 assert(casts.Diagnostics():find('256 observed',1,true),'actor state must be bounded')
 options.showCastBar[1]=false;casts.Begin(options,now)
-assert(casts.Diagnostics():find('0 observed',1,true) and package.loaded['assets.mob_cast_times']==nil)
+assert(casts.Diagnostics():find('0 observed',1,true))
 options.showCastBar[1]=true;options.drawNames={false};send(8,144);assert(not view())
 options.drawNames[1]=true;casts.Configure(options)
 casts.Preview[1]=true;casts.PreviewVisible(now)

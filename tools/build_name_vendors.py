@@ -10,7 +10,7 @@ on to super) makes it none. Each NPC in an area's data/zones/<area>/npcs.yaml, a
 it (phoenix.modules.load_yaml), names its script and the name the game shows (display_name); its
 area is the NPC id's (id >> 12).
 
-Requires PyYAML. Writes addons/name/vendor_list.lua. Reads the live branch of phoenixffxi/Phoenix, fetched from
+Requires PyYAML. Writes the vendors set (addons/libs/winxi/data/<server>/vendors; a set of build_winxi_data). Reads the live branch of phoenixffxi/Phoenix, fetched from
 GitHub (tools/phoenix).
 """
 import argparse
@@ -25,7 +25,7 @@ from phoenix import modules, source  # noqa: E402
 from build_zone_kinds import zone_ids  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
-OUTPUT = ROOT / 'addons/name/vendor_list.lua'
+OUTPUT = ROOT / 'addons/libs/winxi/data'  # <server>/vendors/index.lua
 SHOP = re.compile(r'xi\.(?:shop\.(?:general|generalGuild|nation|celebratory|curioVendorMoogle|outpost|handleRegionalShop|handleValerianoShop)'
                   r'|guildShops\.onTrigger|conquest\.vendorOnTrigger|besieged\.shop)\(')
 NPC_OVERRIDE = re.compile(r'xi\.zones\.([^.]+)\.npcs\.([^.]+)\.(\w+)$')
@@ -88,7 +88,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     source.add_arguments(parser)
     found = source.from_arguments(parser.parse_args())
-    build(found.path, OUTPUT)
+    target = OUTPUT / source.KEY / 'vendors'
+    target.mkdir(parents=True, exist_ok=True)
+    build(found.path, target / 'index.lua')
 
 
 if __name__ == '__main__':
