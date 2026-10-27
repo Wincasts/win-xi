@@ -40,6 +40,9 @@ core patch that names the constant, stops it too (phoenix.modules.guard, cpp_mod
                      hours the weather turns to fog outside cities (zone.cpp), which fog monsters wait on
     jobs             the jobs that have MP: those data/grades.yaml grades for MP (not 'none'), by number
     entities         how far from the player the server sends entities (zone_entities.cpp's ENTITY_RENDER_DISTANCE)
+    abilityCosts     what an ability uses up besides TP or MP: the finishing moves each flourish needs at least
+                     (its onAbilityCheck), and the item Angon and Tomahawk throw (job_utils), by the server's
+                     ability number
     merits           the limit points a merit point is (merit.cpp's MAX_LIMIT_POINTS)
     weaponskillTp    the TP a weapon skill's extra hits return, each, before Store TP (scripts/globals/weaponskills.lua)
     automaton        what an automaton casts and uses: each spell's magic skill and the heads that cast it
@@ -478,6 +481,35 @@ def entities(server):
     return {'SendDistance': float(m.group(1)), 'Source': 'src/map/zone_entities.cpp'}
 
 
+def ability_costs(server):
+    def handle(override):
+        return None if re.search(r'FINISHING_MOVE|checkFlourishAbility|ANGON|TOMAHAWK', override.body) else 'nothing of what abilities use up'
+    modules.guard(server, ('xi.actions.abilities.', 'xi.job_utils.dancer.', 'xi.job_utils.dragoon.', 'xi.job_utils.warrior.'), handle, out=io.StringIO())
+    numbers = {k.lower(): int(v) for k, v in re.findall(r'^\s*(\w+)\s*=\s*(\d+),', read(server, 'scripts/enum/job_ability.lua'), re.M)}
+    items = {k: int(v) for k, v in re.findall(r'^\s*(\w+)\s*=\s*(\d+),', read(server, 'scripts/enum/item.lua'), re.M)}
+    flourishes = {}
+    for path in sorted((Path(server) / 'scripts/actions/abilities').glob('*_flourish.lua')):
+        text = modules.blank_comments(path.read_text())
+        check = re.search(r'onAbilityCheck\s*=\s*', text)
+        body = modules.function_body(text, check.end()) if check else ''
+        given = re.search(r'checkFlourishAbility\(player, target, ability, \w+, (\d+)\)', body)
+        moves = [int(n) for n in re.findall(r'hasStatusEffect\(xi\.effect\.FINISHING_MOVE_(\d)\)', body)]
+        if given:
+            flourishes[numbers[path.stem]] = int(given.group(1))
+        elif moves:
+            flourishes[numbers[path.stem]] = min(moves)
+        elif 'FINISHING_MOVE' in body:
+            sys.exit(f'{path}: what it needs of finishing moves is not as it was written')
+    thrown = {}
+    for job, ability, check in (('dragoon', 'angon', 'abilityCheckAngon'), ('warrior', 'tomahawk', None)):
+        text = read(server, f'scripts/globals/job_utils/{job}.lua')
+        m = re.search(r'== xi\.item\.(ANGON|THROWING_TOMAHAWK)\b', text) if ability == 'tomahawk' else re.search(r'id == xi\.item\.(ANGON)\b', text)
+        if m is None:
+            sys.exit(f'scripts/globals/job_utils/{job}.lua: the item {ability} throws is not as it was')
+        thrown[numbers[ability]] = items[m.group(1)]
+    return {'Flourishes': flourishes, 'Thrown': thrown}
+
+
 def build(server, output, settings=()):
     server, output = Path(server), Path(output)
     from build_debuff_durations import enum_block
@@ -502,6 +534,7 @@ def build(server, output, settings=()):
         'spawnWindows': spawn_windows(server),
         'jobs': jobs(server),
         'entities': entities(server),
+        'abilityCosts': ability_costs(server),
     }
     output.mkdir(parents=True, exist_ok=True)
     write_data(output / 'index.lua', {'Schema': 1, 'Source': provenance(server), 'Settings': list(settings),
