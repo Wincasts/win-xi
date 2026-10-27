@@ -204,6 +204,20 @@ corsair_rolls = {
 	[390] = {[3] = ' (Lucky Roll!)', [7] = ' (Unlucky Roll!)'},     -- Naturalit's Roll
 	[391] = {[4] = ' (Lucky Roll!)', [8] = ' (Unlucky Roll!)'},     -- Runeist's Roll
 }
+-- winxi: each roll's lucky and unlucky number as the server has them (winxi.rules, from its rolls' powers
+-- with the era modules' on live: Puppet and Drachen as their era had them); the table above where
+-- winxi's data is not installed
+do
+	local ok, rules = pcall(require, 'winxi.rules')
+	local rolls = ok and rules.Get('corsairRolls') or nil
+	if rolls then
+		local found = {}
+		for id, roll in pairs(rolls) do
+			found[id] = { [roll.Lucky] = ' (Lucky Roll!)', [roll.Unlucky] = ' (Unlucky Roll!)' }
+		end
+		corsair_rolls = found
+	end
+end
 
 reaction_offsets = {
     [1] = 8,

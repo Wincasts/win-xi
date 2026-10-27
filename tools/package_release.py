@@ -131,6 +131,8 @@ def notes(addon, version, changelog):
 
 def winxi_dependencies(text):
     modules = set(re.findall(r"require\(['\"]winxi\.([\w.]+)['\"]\)", text))
+    # and those loaded where they may be missing: pcall(require, 'winxi.debuff_durations')
+    modules.update(re.findall(r"pcall\(\s*require\s*,\s*['\"]winxi\.([\w.]+)['\"]\s*\)", text))
     # tips.Get loads its catalogue by namespace at runtime, not a literal require.
     modules.update('data.tooltips.' + key.split('.')[0] for key in tooltip_references(text))
     return modules
