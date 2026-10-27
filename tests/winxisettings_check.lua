@@ -192,21 +192,22 @@ do
     H.tab(1)
     colors = {}
     H.frames(1)
-    assert(titles[1] == '[-] Window' and colors['##winxi.BackgroundColor'], 'open: ' .. tostring(titles[1]))
-    clickOn = '[-] Window'
+    -- a title, then its marker at the right of the row (winxi 65)
+    assert(titles[1] == 'Window' and titles[2] == '[-]' and colors['##winxi.BackgroundColor'], 'open: ' .. tostring(titles[1]) .. ' ' .. tostring(titles[2]))
+    clickOn = 'Window'
     H.frames(1)
     clickOn, titles, colors = nil, {}, {}
     H.frames(1)
-    assert(titles[1] == '[+] Window' and not colors['##winxi.BackgroundColor'], 'collapsed: ' .. tostring(titles[1]))
+    assert(titles[1] == 'Window' and titles[2] == '[+]' and not colors['##winxi.BackgroundColor'], 'collapsed: ' .. tostring(titles[2]))
     -- the Font section under it is still open
     local fontOpen = false
-    for _, t in ipairs(titles) do if t == '[-] Font' then fontOpen = true end end
+    for i, t in ipairs(titles) do if t == 'Font' and titles[i + 1] == '[-]' then fontOpen = true end end
     assert(fontOpen, 'the others stay open')
-    clickOn = '[+] Window'
+    clickOn = '[+]'
     H.frames(1)
     clickOn, titles, colors = nil, {}, {}
     H.frames(1)
-    assert(titles[1] == '[-] Window' and colors['##winxi.BackgroundColor'], 'opened again')
+    assert(titles[1] == 'Window' and titles[2] == '[-]' and colors['##winxi.BackgroundColor'], 'opened again, by its marker')
     imgui.TextColored, imgui.IsItemClicked = realText, realClicked
     H.print('sections collapse and open again with [-] and [+], each on its own', true)
 end
@@ -252,7 +253,7 @@ end
 do
     local tints = {}
     local realText = imgui.TextColored
-    imgui.TextColored = function(color, text) if text:find('^%[[-+]%] ') then tints[#tints + 1] = color end end
+    imgui.TextColored = function(color, text) if text == '[-]' or text == '[+]' then tints[#tints + 1] = color end end
     H.tab(4)
     colors = {}
     H.frames(1)

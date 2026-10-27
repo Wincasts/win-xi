@@ -359,7 +359,7 @@ d.mode, d.backdrop[1] = 'floating', false;
 -- Appearance shows the sections for the styles in use.
 local headers = {};
 local realcolored = imgui.TextColored;
-imgui.TextColored = function(color, words) headers[(words:gsub('^%[[-+]%] ', ''))] = true; return realcolored(color, words); end;
+imgui.TextColored = function(color, words) if words ~= '[-]' and words ~= '[+]' then headers[words] = true; end return realcolored(color, words); end;
 local function appearance(zone_style, area_style)
     d.zoneStyle, d.areaStyle = zone_style, area_style;
     headers = {};

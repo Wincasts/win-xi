@@ -24,10 +24,10 @@
 --                                    between them, drawn at the cursor, widgets.RowControlWidth wide
 --   widgets.Note(text)               a dim sentence on its own, for what is not a setting (a warning)
 --   widgets.Status(text)             the addon's state, one dim line at the foot of a tab, over a rule
---   widgets.Header(text, first)      a section title; [-] or [+] before it, a click collapses or opens
---                                    it, and it returns whether it is open, for the section to be
---                                    drawn only then. It sets itself apart from the section above; no
---                                    Gap before it
+--   widgets.Header(text, first)      a section title over a bar across the window, [-] or [+] at the
+--                                    right; a click collapses or opens it, and it returns whether it is
+--                                    open, for the section to be drawn only then. It sets itself apart
+--                                    from the section above; no Gap before it
 --   widgets.SubHeader(text, first)   a sub-section inside a section, for a section with many families:
 --                                    its title indented a step, its rows a step more, collapsible as a
 --                                    section is. The next SubHeader or Header ends it; a row after the
@@ -567,9 +567,11 @@ local heightSpec = { format = '%d px' };
 -- Theme, Window, Font and Styles, which widgets.Appearance draws, and Addon, the addon's own, for whatever
 -- else it has to set.
 --
--- Every section can be collapsed: its title starts [-] while open and [+] while collapsed, and a click
--- on it changes which. widgets.Header returns whether it is open, and the section's settings are drawn
--- only then:
+-- Every section can be collapsed: its title has [-] at the right edge of the window while open and
+-- [+] while collapsed, and a click on either changes which. A bar in the settings windows' Highlight
+-- Color runs under the title row from one edge of the window to the other, so a section is found at a
+-- glance; a sub-section's runs from its indent, thinner. widgets.Header returns whether it is open,
+-- and the section's settings are drawn only then:
 --     if widgets.Header('Window') then
 --         ...
 --     end
@@ -579,32 +581,68 @@ local heightSpec = { format = '%d px' };
 widgets.HeaderColor = { 1.0, 0.75, 0.55, 1.0 };
 
 local collapsed = {};   -- group -> { title -> true while that section is collapsed }
-local headerTexts = {}; -- title -> { as shown open, as shown collapsed }, made once
 local currentHeader = ''; -- the section being drawn, which its sub-sections are kept under
 local subIndent = 0;      -- the steps the sub-section being drawn has indented by: its title's, and its rows'
 local subGap = { 0, 3 };  -- before a sub-section's title
+local markers = { '[-]', '[+]' };
+local barHeight = { 2, 1 };      -- a section's bar, a sub-section's
+local barGap = 2;                -- between the title row and the bar
+local barAfter = { 0, 4 };       -- the room left under the bar
+local barColor = { 0, 0, 0, 0 }; -- the bar's colour this frame
+local barFrom, barTo = { 0, 0 }, { 0, 0 };
+local subBarOpacity = 0.6;
 
--- Draws a title, [-] or [+] before it, and returns whether its section is open. key is what the
--- collapsed state is kept under.
-local function Title(text, key, defaultCollapsed)
-    local shown = headerTexts[text];
-    if shown == nil then
-        shown = { '[-] ' .. text, '[+] ' .. text };
-        headerTexts[text] = shown;
-    end
+-- A title over a bar, [-] or [+] at the right, returning whether its section is open. key is what the
+-- collapsed state is kept under; sub, true for a sub-section.
+local function Title(text, key, defaultCollapsed, sub)
     local group = collapsed[labelGroup];
     if group == nil then
         group = {};
         collapsed[labelGroup] = group;
     end
-
     if group[key] == nil and defaultCollapsed then group[key] = true; end
     local isCollapsed = group[key] == true;
-    imgui.TextColored(theme.Get().SettingsHeaderColor or widgets.HeaderColor, isCollapsed and shown[2] or shown[1]);
-    if imgui.IsItemHovered() and ImGuiMouseCursor_Hand ~= nil then
-        imgui.SetMouseCursor(ImGuiMouseCursor_Hand);
+
+    local look = theme.Get();
+    local color = look.SettingsHeaderColor or widgets.HeaderColor;
+    local marker = isCollapsed and markers[2] or markers[1];
+    local clicked = false;
+
+    -- the title at the left, the marker against the right edge, both clickable
+    imgui.TextColored(color, text);
+    if imgui.IsItemHovered() and ImGuiMouseCursor_Hand ~= nil then imgui.SetMouseCursor(ImGuiMouseCursor_Hand); end
+    if imgui.IsItemClicked() then clicked = true; end
+    imgui.SameLine(0, 0);
+    local room = imgui.GetContentRegionAvail();
+    local markerWidth = imgui.CalcTextSize(marker) or 0;
+    if type(room) == 'number' and room > markerWidth then
+        imgui.SetCursorPosX((imgui.GetCursorPosX() or 0) + room - markerWidth);
     end
-    if imgui.IsItemClicked() then
+    imgui.TextColored(color, marker);
+    if imgui.IsItemHovered() and ImGuiMouseCursor_Hand ~= nil then imgui.SetMouseCursor(ImGuiMouseCursor_Hand); end
+    if imgui.IsItemClicked() then clicked = true; end
+
+    -- the bar under the row: across the whole window for a section, from the indent for a sub-section
+    local list = imgui.GetWindowDrawList();
+    local x, y = imgui.GetCursorScreenPos();
+    local windowX = imgui.GetWindowPos();
+    local windowWidth = imgui.GetWindowSize();
+    if list ~= nil and list.AddRectFilled ~= nil and list.PushClipRect ~= nil and x ~= nil and y ~= nil and windowX ~= nil and windowWidth ~= nil then
+        local highlight = look.SettingsHighlightColor or look.HighlightColor or color;
+        barColor[1], barColor[2], barColor[3] = highlight[1], highlight[2], highlight[3];
+        barColor[4] = (highlight[4] or 1) * (sub and subBarOpacity or 1);
+        local height = sub and barHeight[2] or barHeight[1];
+        barFrom[1], barFrom[2] = sub and x or windowX, y + barGap;
+        barTo[1], barTo[2] = windowX + windowWidth, y + barGap + height;
+        -- the window clips its content short of its edges: the bar is let through to them
+        list:PushClipRect(barFrom, barTo, false);
+        list:AddRectFilled(barFrom, barTo, imgui.GetColorU32(barColor));
+        list:PopClipRect();
+    end
+    barAfter[2] = barGap + (sub and barHeight[2] or barHeight[1]) + 2;
+    imgui.Dummy(barAfter);
+
+    if clicked then
         isCollapsed = not isCollapsed;
         group[key] = isCollapsed;
     end
@@ -638,7 +676,7 @@ function widgets.SubHeader(text, first, defaultCollapsed)
     end
     imgui.Indent();
     subIndent = 1;
-    local open = Title(text, currentHeader .. '/' .. text, defaultCollapsed);
+    local open = Title(text, currentHeader .. '/' .. text, defaultCollapsed, true);
     if open then
         imgui.Indent();
         subIndent = 2;
