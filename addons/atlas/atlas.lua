@@ -402,7 +402,7 @@ local function MarkerSettings(kind, label, showKey, styles)
     local key = kind .. 'Style';
     local chosen = widgets.Dropdown(names[1], 'The shape of these markers.', styles, options[key], names[4], specs.style);
     if chosen ~= nil then options[key] = chosen; end
-    widgets.Slider(names[2], 'How big these markers are. 0 uses Marker Size below.', options[kind .. 'Size'], 0, 24, names[5], specs.size);
+    widgets.Slider(names[2], 'How big these markers are. 0 uses Marker Size above.', options[kind .. 'Size'], 0, 24, names[5], specs.size);
     widgets.Check(names[3], 'A dark edge round these markers.', options[kind .. 'Outline'], names[6], specs.outline);
 end
 
@@ -433,6 +433,7 @@ local controllerTip = '/atlas browse (from a macro) gives the map the controller
 local nameChoices = { { key = 'always', label = 'Always' }, { key = 'hover', label = 'On Hover' }, { key = 'hidden', label = 'Hidden' } };
 local lockSpec = { description = 'Keeps the window where it is. The map can still be panned and zoomed.' };
 local stickSpec = {};
+local askSpec = {};
 
 local function DrawSettings(options)
     if widgets.Header('Window', true) then
@@ -441,11 +442,11 @@ local function DrawSettings(options)
     end
 
     if widgets.Header('Open') then
-        Frame('open', 'while it is open: shown by /atlas, or browsed with the controller');
+        Frame('open', 'while you use it');
     end
 
     if widgets.Header('Passthrough') then
-        Frame('passthrough', 'in passthrough, the last step of /atlas cycle, when the controller is left to the game');
+        Frame('passthrough', 'in passthrough, when it stays up while you play');
         widgets.Slider('Passthrough Opacity', 'How much of the map shows while you move in passthrough. It comes back as you stop.', options.passthroughOpacity, 0, 100, '##atlas.passthroughOpacity', widgets.Percent);
     end
 
@@ -456,6 +457,7 @@ local function DrawSettings(options)
         if chosen ~= nil then
             options.showNames[1], options.namesOnHover[1] = chosen ~= 'hidden', chosen == 'hover';
         end
+        Show('Show Target', 'showTarget', 'targetColor', 'What you have targeted.');
         if widgets.SubHeader('Player') then
             Show('Show Player', 'showPlayer', 'playerColor', 'You, and which way you are facing.');
             MarkerSettings('player', 'Player', 'showPlayer', playerStyles);
@@ -463,19 +465,14 @@ local function DrawSettings(options)
         if widgets.SubHeader('Party') then
             Show('Show Party', 'showParty', 'partyColor', 'Your party. One out of sight is drawn hollow, where the server says it is.');
             MarkerSettings('party', 'Party', 'showParty', memberStyles);
+            askSpec.parent = options.showParty;
+            widgets.Check('Party Across Zone', 'Asks the server where party members out of sight are, every few seconds.', options.askServer, '##atlas.askServer', askSpec);
         end
         if widgets.SubHeader('Alliance') then
             Show('Show Alliance', 'showAlliance', 'allianceColor', 'The alliance\'s other parties.');
             MarkerSettings('alliance', 'Alliance', 'showAlliance', memberStyles);
         end
-        if widgets.SubHeader('Target') then
-            Show('Show Target', 'showTarget', 'targetColor', 'What you have targeted.');
-        end
         widgets.EndSub();
-    end
-
-    if widgets.Header('Party') then
-        widgets.Check('Party Across Zone', 'Asks the server where party members out of sight are, every few seconds.', options.askServer, '##atlas.askServer');
     end
 
     if widgets.Header('Controller') then

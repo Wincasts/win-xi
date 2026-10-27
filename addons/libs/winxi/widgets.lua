@@ -203,7 +203,7 @@ function widgets.BeginRow(name, sentence, spec)
     if greyed then imgui.BeginDisabled(true); end
 
     local description, control = RowColumns();
-    local left, top = imgui.GetCursorPosX(), imgui.GetCursorPosY();
+    local left, top = imgui.GetCursorPosX() or 0, imgui.GetCursorPosY() or 0;
     row.left, row.top = left, top;
     row.controlX = left + description + rowGap;
     row.controlWidth = control;
@@ -391,7 +391,7 @@ end
 -- A dim sentence of its own, as wide as a row's sentence, for what is not a setting
 function widgets.Note(text)
     local description = RowColumns();
-    imgui.PushTextWrapPos(imgui.GetCursorPosX() + description);
+    imgui.PushTextWrapPos((imgui.GetCursorPosX() or 0) + description);
     imgui.TextDisabled(Escaped(text));
     imgui.PopTextWrapPos();
 end
@@ -401,7 +401,7 @@ function widgets.Status(text)
     local description, control = RowColumns();
     imgui.Dummy(rowSpacing);
     imgui.Separator();
-    imgui.PushTextWrapPos(imgui.GetCursorPosX() + description + rowGap + control);
+    imgui.PushTextWrapPos((imgui.GetCursorPosX() or 0) + description + rowGap + control);
     imgui.TextDisabled(Escaped(text));
     imgui.PopTextWrapPos();
 end
@@ -554,6 +554,12 @@ widgets.Milliseconds = { format = '%d ms' };
 local percent, pixels, milliseconds = widgets.Percent, widgets.Pixels, widgets.Milliseconds;
 local dependent = { parent = true };
 local dependentPercent = { parent = true, format = '%d%%' };
+-- the rows under one of the theme's switches: greyed while it is off, the parent set as they are drawn
+local shadowPixels, shadowPercent = { parent = true, format = '%d px' }, { parent = true, format = '%d%%' };
+local titleDependent, titlePixels, titlePercent = { parent = true }, { parent = true, format = '%d px' }, { parent = true, format = '%d%%' };
+local backdropDependent = { parent = true };
+local bookendDependent, bookendPercent = { parent = true }, { parent = true, format = '%d%%' };
+local titleShadowPixels = { parent = true, format = '%d px' };
 local heightSpec = { format = '%d px' };
 
 -- The title of a section of a settings window, with a blank line before it to set it apart from the
@@ -724,17 +730,20 @@ local function FontList(themeLabel)
     return list;
 end
 
-local function FontChoice(fileKey, sizeKey, fileSentence, sizeSentence, names)
+local fontSizeSpec = { format = '%d px' };
+
+local function FontChoice(fileKey, sizeKey, fileSentence, sizeSentence, names, spec)
     names = names or fontNames;
     local current = theme.Get();
-    local chosen = widgets.Dropdown(names[1], fileSentence, FontList(names[3]), current[fileKey], controlIds[fileKey]);
+    local chosen = widgets.Dropdown(names[1], fileSentence, FontList(names[3]), current[fileKey], controlIds[fileKey], spec);
     if chosen ~= nil then
         current[fileKey] = chosen;
         AfterControl(true);
     end
     box[1] = current[sizeKey];
-    local resized = widgets.Slider(names[2], sizeSentence, box, 0, theme.MaxFontSize, controlIds[sizeKey],
-        { format = current[sizeKey] > 0 and '%d px' or names[3] });
+    fontSizeSpec.format = current[sizeKey] > 0 and '%d px' or names[3];
+    fontSizeSpec.parent = spec and spec.parent or nil;
+    local resized = widgets.Slider(names[2], sizeSentence, box, 0, theme.MaxFontSize, controlIds[sizeKey], fontSizeSpec);
     if resized then
         current[sizeKey] = box[1];
     end
@@ -826,11 +835,10 @@ function widgets.Appearance(appearanceHooks, parts)
 
         widgets.Gap();
         ThemeCheck('Drop Shadow', 'ShadowEnabled', 'A soft shadow behind each window, down and to the right.');
-        if current.ShadowEnabled then
-            ThemeSlider('Shadow Offset', 'ShadowOffset', 0, 20, 'How far the shadow falls from the window.', pixels);
-            ThemeSlider('Shadow Softness', 'ShadowBlur', 0, 20, 'How blurred the shadow\'s edge is.', pixels);
-            ThemeSlider('Shadow Opacity', 'ShadowOpacity', 0, 100, 'How dark the shadow is.', percent);
-        end
+        shadowPixels.parent, shadowPercent.parent = current.ShadowEnabled, current.ShadowEnabled;
+        ThemeSlider('Shadow Offset', 'ShadowOffset', 0, 20, 'How far the shadow falls from the window.', shadowPixels);
+        ThemeSlider('Shadow Softness', 'ShadowBlur', 0, 20, 'How blurred the shadow\'s edge is.', shadowPixels);
+        ThemeSlider('Shadow Opacity', 'ShadowOpacity', 0, 100, 'How dark the shadow is.', shadowPercent);
     end
 
     -- The font every window is written in, where its addon does not choose one of its own, and the
@@ -855,21 +863,21 @@ function widgets.Appearance(appearanceHooks, parts)
         end
         if widgets.SubHeader('Titles') then
         ThemeCheck('Frame Titles', 'FrameTitles', 'Writes each window\'s name along its top edge.');
-        if current.FrameTitles then
-            ThemeChoice('Title Style', 'TitleStyle', theme.TitleStyles, 'How the name sits on the edge.');
-            ThemeColor('Title Color', 'TitleColor', 'The colour of the name.');
-            ThemeCheck('Title All Caps', 'TitleAllCaps', 'Writes the name in capitals, PARTY instead of Party.');
-            FontChoice('TitleFontFile', 'TitleSize',
-                'The font the names are written in. Window Font uses the window\'s font.',
-                'How big the names are. Default matches the window\'s text.', titleFontNames);
-            ThemeSlider('Title Position X', 'TitleOffsetX', -50, theme.MaxTitleOffsetX, 'How far in from the right edge the name ends. Below 0 it runs past the edge.', pixels);
-            ThemeSlider('Title Position Y', 'TitleOffsetY', -theme.MaxTitleOffsetY, theme.MaxTitleOffsetY, 'Moves the name down, or up when below 0.', pixels);
-            ThemeCheck('Title Shadow', 'TitleShadow', 'A soft dark copy of the name, down and to the right of it.');
-            if current.TitleShadow then
-                ThemeSlider('Title Shadow Offset', 'TitleShadowOffset', 1, 6, 'How far the copy falls.', pixels);
-                ThemeSlider('Title Shadow Opacity', 'TitleShadowOpacity', 0, 100, 'How dark the copy is.', percent);
-            end
-        end
+        local titled = current.FrameTitles and true or false;
+        titleDependent.parent, titlePixels.parent = titled, titled;
+        ThemeChoice('Title Style', 'TitleStyle', theme.TitleStyles, 'How the name sits on the edge.', titleDependent);
+        ThemeColor('Title Color', 'TitleColor', 'The colour of the name.', titleDependent);
+        ThemeCheck('Title All Caps', 'TitleAllCaps', 'Writes the name in capitals, PARTY instead of Party.', titleDependent);
+        FontChoice('TitleFontFile', 'TitleSize',
+            'The font the names are written in. Window Font uses the window\'s font.',
+            'How big the names are. Default matches the window\'s text.', titleFontNames, titleDependent);
+        ThemeSlider('Title Position X', 'TitleOffsetX', -50, theme.MaxTitleOffsetX, 'How far in from the right edge the name ends. Below 0 it runs past the edge.', titlePixels);
+        ThemeSlider('Title Position Y', 'TitleOffsetY', -theme.MaxTitleOffsetY, theme.MaxTitleOffsetY, 'Moves the name down, or up when below 0.', titlePixels);
+        ThemeCheck('Title Shadow', 'TitleShadow', 'A soft dark copy of the name, down and to the right of it.', titleDependent);
+        local shadowed = titled and current.TitleShadow and true or false;
+        titlePercent.parent, titleShadowPixels.parent = shadowed, shadowed;
+        ThemeSlider('Title Shadow Offset', 'TitleShadowOffset', 1, 6, 'How far the copy falls.', titleShadowPixels);
+        ThemeSlider('Title Shadow Opacity', 'TitleShadowOpacity', 0, 100, 'How dark the copy is.', titlePercent);
         end
         if widgets.SubHeader('Bars') then
         ThemeChoice('Bar Texture', 'BarTexture', theme.BarTextures, 'The look of the HP and MP bars.');
@@ -877,14 +885,12 @@ function widgets.Appearance(appearanceHooks, parts)
         ThemeSlider('Bar Frame Opacity', 'BarFrameOpacity', 0, 100, 'How solid the frame is. 0 is none.', percent);
         ThemeSlider('Fill End Glow', 'BarGlow', 0, 100, 'A soft light where the bar\'s fill ends. 0 is none.', percent);
         ThemeCheck('Custom Bar Backdrop', 'BarBackdrop', 'Lets you choose the colour of the empty part of each bar. Off, it is a darker shade of the bar.');
-        if current.BarBackdrop then
-            ThemeColor('Bar Backdrop Color', 'BarBackdropColor', 'The colour of the empty part. The more see-through it is, the more the dark behind it shows.', dependent);
-        end
+        backdropDependent.parent = current.BarBackdrop and true or false;
+        ThemeColor('Bar Backdrop Color', 'BarBackdropColor', 'The colour of the empty part. The more see-through it is, the more the dark behind it shows.', backdropDependent);
         ThemeCheck('Bar Bookends', 'Bookends', 'A small cap at each end of the bars.');
-        if current.Bookends then
-            ThemeChoice('Bookend Style', 'BookendStyle', theme.BookendStyles, 'The look of the caps.', dependent);
-            ThemeSlider('Bookend Opacity', 'BookendOpacity', 0, 100, 'How solid the caps are. 0 is none.', dependentPercent);
-        end
+        bookendDependent.parent, bookendPercent.parent = current.Bookends and true or false, current.Bookends and true or false;
+        ThemeChoice('Bookend Style', 'BookendStyle', theme.BookendStyles, 'The look of the caps.', bookendDependent);
+        ThemeSlider('Bookend Opacity', 'BookendOpacity', 0, 100, 'How solid the caps are. 0 is none.', bookendPercent);
         end
         if withIcons and widgets.SubHeader('Icons') then
             StatusIcons();

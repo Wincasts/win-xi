@@ -186,8 +186,8 @@ local function DrawTabs(tabs, options)
 end
 
 -- The settings window: the addon's Settings tab, whatever tabs the addon has of its own, a Visibility
--- tab for an addon with a window (Fade In And Out, whatever the addon adds, and the rules for hiding
--- under Hide Window), and the Winxi Theme tab with winxi's Theme, Window, Font and Styles sections and
+-- tab for an addon with a window (Fade In And Out, whatever the addon adds, then the rules for hiding),
+-- and the Winxi Theme tab with winxi's Theme, Window, Font and Styles sections and
 -- the addon's own under Addon. Every tab is a column of described rows (winxi.widgets).
 local function DrawConfigContent(app)
     local options = app.options;
@@ -210,13 +210,13 @@ local function DrawConfigContent(app)
         if spec.window ~= nil and imgui.BeginTabItem('Visibility') then
             widgets.BeginLabels(app.ids.visibility);
             imgui.Dummy(tabAir);
-            if widgets.Header('Window', true) then
+            if widgets.Header('Visibility', true) then
                 widgets.Check('Fade In And Out', 'The window fades in and out instead of popping.', options.fadeInOut, app.ids.fade);
                 if spec.visibility ~= nil then
                     spec.visibility(options);
                 end
-            end
-            if widgets.Header('Hide Window') then
+                widgets.EndSub();
+                widgets.Gap();
                 widgets.Hide(options.hide, app.save);
             end
             widgets.EndSub();
