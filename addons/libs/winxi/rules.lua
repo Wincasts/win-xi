@@ -28,4 +28,6 @@ function rules.Clear()
     index = nil;
 end
 
+gamedata.OnChange(function () rules.Clear(); end); -- another server's data chosen
+
 return rules;

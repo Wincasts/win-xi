@@ -443,7 +443,7 @@ H.print('player, enemy and NPC formats render independently, including distance 
 -- [level]: the levels a monster can be, from the area's tables: by its index, or failing that its name
 local levels = require('levels')
 H.print('[level] is a thing:', parts('[name] Lv[level:grey]'), '| wanted', format.Compile('[level]').level)
-local zone = dofile('addons/libs/winxi/data/mobs/100.lua') -- West Ronfaure, as copied from mobdb
+local zone = dofile('addons/libs/winxi/data/phoenix/mobs/100.lua') -- West Ronfaure, as copied from mobdb
 H.print('the copied tables read: by index, a Forest Hare', zone.Indices[60].Name, zone.Indices[60].MinLevel, zone.Indices[60].MaxLevel)
 levels.Set(zone)
 H.print('by index', levels.Of(60, 'Whatever'), '| by name', levels.Of(9999, 'Bomb'), '| not in them', levels.Of(9999, 'Nobody') == nil)

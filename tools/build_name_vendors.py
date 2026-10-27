@@ -86,10 +86,8 @@ def build(server, output):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument('--offline', action='store_true', help='use the copy fetched last time')
-    parser.add_argument('--server', type=Path, help='another checkout, for a change not pushed yet')
-    args = parser.parse_args()
-    found = source.read(args.server) if args.server else source.fetch(offline=args.offline)
+    source.add_arguments(parser)
+    found = source.from_arguments(parser.parse_args())
     build(found.path, OUTPUT)
 
 

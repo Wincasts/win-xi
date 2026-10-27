@@ -190,4 +190,6 @@ function quests.TooltipKey(key, presentation)
     return model(quests.GetKey(key), presentation);
 end
 
+gamedata.OnChange(function () quests.Clear(); end); -- another server's data chosen
+
 return quests;

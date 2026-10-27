@@ -1,4 +1,5 @@
-"""Fetch the Phoenix server's source from GitHub for the build scripts.
+"""Fetch the server's source from its repository for the build scripts: the active server profile's
+(phoenix.profiles; Phoenix's live branch on GitHub unless --server-profile says another).
 
     python3 tools/phoenix/source.py              fetch, and print the folder and the commit
     python3 tools/phoenix/source.py --offline    the folder and commit as last fetched
@@ -12,8 +13,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-# the server the data is made for: its name as players know it, where its source is, and the branch
-# live runs
+# the server the data is made for, as the active profile has it (phoenix.profiles.use sets these):
+# its key, its name as players know it, where its source is, and the branch live runs
+KEY = 'phoenix'
 NAME = 'Phoenix'
 REPOSITORY = 'https://github.com/phoenixffxi/Phoenix.git'
 BRANCH = 'live'
@@ -22,7 +24,7 @@ PATHS = ('data', 'scripts', 'modules', 'settings', 'sql', 'src/map')
 
 
 def cache_for(branch):
-    return ROOT / '.cache' / f'phoenix-{branch}'
+    return ROOT / '.cache' / f'{KEY}-{branch}'
 
 
 def git(*args, cwd=None):
@@ -60,8 +62,9 @@ def read(path, repository=None, branch=None):
     return Source(path, repository, branch, commit, committed)
 
 
-def fetch(branch=BRANCH, repository=REPOSITORY, offline=False):
+def fetch(branch=None, repository=None, offline=False):
     """The branch's newest commit, in the cache: cloned the first time, moved on after that."""
+    branch, repository = branch or BRANCH, repository or REPOSITORY
     path = cache_for(branch)
     if offline:
         if not (path / '.git').exists():
@@ -82,7 +85,7 @@ def fetch(branch=BRANCH, repository=REPOSITORY, offline=False):
     return read(path, repository, branch)
 
 
-def resolve(server=None, branch=BRANCH, offline=False):
+def resolve(server=None, branch=None, offline=False):
     """A script's --server if it was given, or the fetched branch."""
     if server is not None:
         return read(server)
@@ -90,14 +93,19 @@ def resolve(server=None, branch=BRANCH, offline=False):
 
 
 def add_arguments(parser):
-    """--server, --branch and --offline, the same for every build script."""
+    """--server-profile, --server, --branch and --offline, the same for every build script."""
+    from . import profiles
+    parser.add_argument('--server-profile', default=profiles.DEFAULT, choices=sorted(profiles.PROFILES),
+                        help=f'The server to make the data for (tools/phoenix/profiles.py); default {profiles.DEFAULT}.')
     parser.add_argument('--server', type=Path,
                         help='Read this server checkout instead of fetching from GitHub (for a change not pushed yet).')
-    parser.add_argument('--branch', default=BRANCH, help=f'The branch of {REPOSITORY} to fetch; default {BRANCH}.')
+    parser.add_argument('--branch', default=None, help='The branch to fetch; default the profile\'s.')
     parser.add_argument('--offline', action='store_true', help='Use the copy fetched last time, without fetching.')
 
 
 def from_arguments(args):
+    from . import profiles
+    profiles.use(getattr(args, 'server_profile', profiles.DEFAULT))
     return resolve(args.server, args.branch, args.offline)
 
 

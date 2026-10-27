@@ -1,16 +1,19 @@
 addon.name    = 'winxisettings'
 addon.author  = 'win'
-addon.version = '1.1'
+addon.version = '1.2'
 addon.desc    = 'The look shared by every winxi addon, in one settings window of its own.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
--- winxi's appearance options and its layouts, in a window drawn with winxi itself. Five tabs:
+-- winxi's appearance options, its layouts and whose game data it reads, in a window drawn with winxi
+-- itself. Six tabs:
 --   Game Windows       the windows on the game screen: their colours, padding, drop shadow, font, and
 --                      the styles (borders, backgrounds, frame titles, bars, bookends)
 --   Icons              whether statuses have FFXIV's icons
 --   Tooltips           every tooltip's colours, padding, size, width and delay, and whether they show
 --   Settings Windows   the settings windows' own colours, padding and font, every addon's
 --   Layouts            every addon's settings kept for each screen resolution (winxi.layouts)
+--   Server Data        which server's data every winxi addon reads (winxi.gamedata's datasets), and what
+--                      it was made from
 -- Every change is to the shared theme, and so to every addon that follows it.
 --
 --   /winxi or /wxi   opens or closes the window
@@ -33,6 +36,7 @@ local imgui = require('imgui')
 local shell = require('winxi.shell')
 local widgets = require('winxi.widgets')
 local layouts = require('winxi.layouts')
+local gamedata = require('winxi.gamedata')
 
 local function Say(text)
     print(('\30\68[%s]\30\01 %s'):format(addon.name, text))
@@ -130,6 +134,33 @@ local function DrawLayouts()
     end
 end
 
+-- The Server Data tab: the servers there is data for, the one every addon reads, and what it was made from
+local function DrawServerData()
+    widgets.BeginLabels('winxisettings.server')
+    if widgets.Header('Server Data', true) then
+        local choices = {}
+        for _, dataset in ipairs(gamedata.Datasets()) do
+            choices[#choices + 1] = { key = dataset.Key, label = dataset.Name or dataset.Key }
+        end
+        if #choices == 0 then
+            widgets.BeginRow('Server', 'There is no server data installed: install winxi with an addon that comes with it.')
+            imgui.TextDisabled('None')
+            widgets.EndRow()
+        else
+            local chosen = widgets.Dropdown('Server', 'Whose data every winxi addon reads: its monsters, spells, statuses and rules, as that server has them.',
+                choices, gamedata.Dataset(), '##winxisettings.dataset')
+            if chosen ~= nil and chosen ~= gamedata.Dataset() and gamedata.UseDataset(chosen) then
+                Say(('Every winxi addon now reads %s\'s data.'):format(chosen))
+            end
+            local made = gamedata.Manifest().Source or {}
+            widgets.BeginRow('Made From', 'The server\'s source the data was made from, and when.')
+            imgui.AlignTextToFramePadding()
+            imgui.Text(('%s %s %s'):format(made.Branch or '?', (made.Commit or '?'):sub(1, 9), (made.Committed or ''):sub(1, 10)))
+            widgets.EndRow()
+        end
+    end
+end
+
 local app = shell.New({
     defaults = T{ },
     configTitle = 'winxi Appearance',
@@ -144,6 +175,7 @@ local app = shell.New({
         { label = 'Tooltips', draw = function() widgets.TooltipAppearance() end },
         { label = 'Settings Windows', draw = function() widgets.SettingsAppearance() end },
         { label = 'Layouts', draw = DrawLayouts },
+        { label = 'Server Data', draw = DrawServerData },
     },
     hideAppearance = true,
 })

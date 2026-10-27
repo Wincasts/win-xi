@@ -36,6 +36,7 @@ run perf       addons/perf/perf.lua     perf_check.lua
 luajit tests/winxi_presence_check.lua || exit 1
 luajit tests/winxi_partystatus_check.lua || exit 1
 luajit tests/winxi_statuses_check.lua || exit 1
+luajit tests/winxi_datasets_check.lua || exit 1
 luajit tests/winxi_abi_check.lua || exit 1
 luajit tests/winxi_camera_check.lua || exit 1
 luajit tests/winxi_slots_check.lua || exit 1

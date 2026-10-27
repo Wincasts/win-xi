@@ -268,9 +268,10 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description=__doc__)
     source.add_arguments(parser)
-    parser.add_argument('--out', type=Path, default=Path(__file__).resolve().parents[1] / 'addons/libs/winxi/data/items')
+    parser.add_argument('--out', type=Path, default=None, help='Where to write the set; default data/<server>/items.')
     args = parser.parse_args()
     found = source.from_arguments(args)
+    args.out = args.out or Path(__file__).resolve().parents[1] / 'addons/libs/winxi/data' / source.KEY / 'items'
     # A standalone build also discards stale pages only after generation succeeds.
     import tempfile
     args.out.parent.mkdir(parents=True, exist_ok=True)

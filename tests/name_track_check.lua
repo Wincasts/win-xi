@@ -208,8 +208,8 @@ H.print('None ends it', options.trackedNm[1] == '', saved == 3)
 imgui.Checkbox, imgui.SliderInt = realCheckbox, realSlider
 
 -- the bundled lots are of the bundled tables: the slot's name is the game's to give, read as the area is entered
-local zone = dofile('addons/libs/winxi/data/placeholders/100.lua')
-local tables = dofile('addons/libs/winxi/data/mobs/100.lua')
+local zone = dofile('addons/libs/winxi/data/phoenix/placeholders/100.lua')
+local tables = dofile('addons/libs/winxi/data/phoenix/mobs/100.lua')
 H.print('bundled West Ronfaure: Jaggedy-Eared Jack is drawn from one slot, in an area with Forest Hares',
     #zone['Jaggedy-Eared Jack'] == 1 and zone['Jaggedy-Eared Jack'][1] == 294 and tables.Names['Forest Hare'] ~= nil)
 

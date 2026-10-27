@@ -115,4 +115,6 @@ function items.Tooltip(id, resource)
     return model;
 end
 
+gamedata.OnChange(function () items.Clear(); end); -- another server's data chosen
+
 return items;
