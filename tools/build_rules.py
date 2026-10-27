@@ -21,6 +21,7 @@ core patch that names the constant, stops it too (phoenix.modules.guard, cpp_mod
                      overload and the chance, how fast it falls, what Cooldown takes off
                      (scripts/globals/automaton.lua, pets/automaton.lua, automaton_entity.cpp,
                      job_utils/puppetmaster.lua)
+    weaponskillTp    the TP a weapon skill's extra hits return, each, before Store TP (scripts/globals/weaponskills.lua)
     automaton        what an automaton casts and uses: each spell's magic skill and the heads that cast it
                      (automaton_spells, module SQL over it), each frame's weapon skills with the skill
                      they need and the element whose maneuvers bring them on (its pet's skill list,
@@ -281,6 +282,16 @@ def automaton(server):
             'Heads': {v: k.title() for k, v in heads.items()}, 'Frames': {v: k.title() for k, v in frames.items()}}
 
 
+def weaponskill_tp(server):
+    path = 'scripts/globals/weaponskills.lua'
+    def handle(override):
+        return None if re.search(r'extraHitsLanded|takeWeaponskillDamage', override.body) else 'nothing of TP'
+    modules.guard(server, ('xi.weaponskills.',), handle, out=io.StringIO())
+    extra = find(server, path, r'local extraHitsTP\s*=\s*\(wsResults\.extraHitsLanded \* (\d+) \* storeTPModifier\) \+ wsResults\.bonusTP', 'the extra hits\' TP')
+    find(server, path, r'local storeTPModifier\s*=\s*1 \+ \(attacker:getMod\(xi\.mod\.STORETP\) \+ attacker:getMerit\(xi\.merit\.STORE_TP_EFFECT\)\) / 100', 'Store TP on them')
+    return {'ExtraHitTp': int(extra.group(1)), 'StoreTpScalesExtra': True, 'Source': path}
+
+
 def build(server, output, settings=()):
     server, output = Path(server), Path(output)
     from build_debuff_durations import enum_block
@@ -295,6 +306,7 @@ def build(server, output, settings=()):
         'bind': bind(server),
         'burden': burden(server),
         'automaton': automaton(server),
+        'weaponskillTp': weaponskill_tp(server),
     }
     output.mkdir(parents=True, exist_ok=True)
     write_data(output / 'index.lua', {'Schema': 1, 'Source': provenance(server), 'Settings': list(settings),

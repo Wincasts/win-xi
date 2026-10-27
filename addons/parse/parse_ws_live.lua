@@ -6,7 +6,22 @@ local blocked = { [54]=true, [168]=true, [170]=true, [270]=true, [271]=true, [27
     [468]=true, [472]=true, [483]=true, [502]=true, [801]=true }
 -- Without a complete trait/modifier view, reject these jobs conservatively even
 -- at levels where a trait may not yet apply: WAR/THF/BLU multi-attacks; RNG/DRG/DNC Conserve TP.
+-- They are the server's (winxi.traits: every job its traits table gives Double Attack, Triple Attack or
+-- Conserve TP, and BLU where blue magic can set one); these, the same, where winxi's data is not installed.
 local unsafeJobs = { [1]=true, [6]=true, [11]=true, [14]=true, [16]=true, [19]=true }
+do
+    local DOUBLE_ATTACK, TRIPLE_ATTACK, CONSERVE_TP, BLU = 15, 16, 108, 16 -- the server's trait and job numbers
+    local ok, traits = pcall(require, 'winxi.traits')
+    if ok and #traits.Ids() > 0 then
+        local found = {}
+        for _, id in ipairs({ DOUBLE_ATTACK, TRIPLE_ATTACK, CONSERVE_TP }) do
+            local record = traits.Get(id)
+            for _, row in ipairs(record and record.Rows or {}) do found[row.job] = true end
+            if record and record.Blue and #record.Blue > 0 then found[BLU] = true end
+        end
+        unsafeJobs = found
+    end
+end
 function M.Context(memory, resources)
     local result = { id = memory:GetParty():GetMemberServerId(0), safe = false, reason = 'unavailable local context' }
     local ok = pcall(function()

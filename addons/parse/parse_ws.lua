@@ -1,5 +1,13 @@
 -- Experimental, single-weapon physical WS inference. A profile explicitly assumes
 -- a known attempt count and no DA/TA/QA, Conserve/Save TP or other hidden TP source.
+-- the TP each extra hit of a weapon skill returns before Store TP: the server's (winxi.rules, from its
+-- weaponskills.lua), or its 10 where winxi's data is not installed
+local extraHitTp = 10
+do
+    local ok, rules = pcall(require, 'winxi.rules')
+    local tp = ok and rules.Get('weaponskillTp') or nil
+    extraHitTp = tp and tp.ExtraHitTp or extraHitTp
+end
 local M = {}
 function M.Valid(profile)
     if type(profile) ~= 'table' then return false end
@@ -15,7 +23,7 @@ function M.Solve(tp, profile, success)
     for first = 0, 1 do
         for extra = 0, profile.attempts - 1 do
             local hits = first + extra
-            local predicted = first * profile.base + math.floor(extra * 10 * (1 + profile.store / 100) + 0.000001)
+            local predicted = first * profile.base + math.floor(extra * extraHitTp * (1 + profile.store / 100) + 0.000001)
             if predicted == tp and ((success and hits > 0) or (not success and hits == 0)) then candidates[hits] = true end
         end
     end
