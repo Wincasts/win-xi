@@ -1,4 +1,4 @@
--- The settings' Triggers tab: the indicator's settings, the making of a trigger from what mobs.lua
+-- The settings' Triggers tab: the indicator's settings, the making of a trigger from what the triggermobs set
 -- says each kind of mob can do, and the triggers there are.
 local imgui = require('imgui')
 local widgets = require('winxi.widgets')
@@ -33,7 +33,7 @@ local createSize = nil -- how big the button is: found out once
 -- What only the kind's notorious monsters do comes after what its other mobs do, in lists of its
 -- own: what several of them do under one heading, then each monster's own under its name and level,
 -- those of the area you are in first, then the rest,
--- the lowest in level first as mobs.lua has them. A monster that is in two areas is two where it is
+-- the lowest in level first as the triggermobs set has them. A monster that is in two areas is two where it is
 -- not the same in both.
 local kindLabels = triggers.kindLabels
 local severalHeading = 'Notorious Monsters' -- over what several of a kind's notorious monsters do

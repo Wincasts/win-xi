@@ -135,7 +135,7 @@ Each trigger has a switch, its sound, a Test button and a Remove button; they ar
 the settings. A trigger starts on `voicef-trigger.wav` ("Heads up"); `voicem-trigger.wav` is
 the same in the other voice, and `tone-trigger1.wav` and `tone-trigger2.wav` are tones for it.
 
-What the kinds can do, and which kind each area's mobs are, is in `mobs.lua`, with only the mobs that do
+What the kinds can do, and which kind each area's mobs are, is in the server's `triggermobs` set (winxi's data), with only the mobs that do
 something. It is made from the server's live branch by `tools/build_trigger_mobs.py` (which uses MobDB's
 importer through `tools/phoenix`, reads the server as its modules leave it, and says how the file is
 laid out), and wants making again when the server's mobs change. A kind is the server's family for a mob. A mob's weaponskills and abilities are those of its

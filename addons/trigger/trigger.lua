@@ -12,7 +12,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 --
 -- Beside the events there are triggers, which are experimental: a sound of your choosing when a mob
 -- of a kind of your choosing begins a spell or a weaponskill of your choosing, or uses an ability,
--- in any area. They are made in the settings' Triggers tab, from what mobs.lua says each kind can do.
+-- in any area. They are made in the settings' Triggers tab, from what the server's triggermobs set says each kind can do.
 -- A trigger can be seen as well as heard: the indicator, a small window in the theme that says for a
 -- few seconds what the mob does, as the chat log does.
 --

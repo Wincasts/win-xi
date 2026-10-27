@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Makes mobs.lua, what trigger knows of the game's mobs, for its triggers.
+"""Makes the triggermobs set (addons/libs/winxi/data/<server>/triggermobs; a set of build_winxi_data),
+what trigger knows of the game's mobs, for its triggers.
 
 The kinds of mob there are (the server's families: sheep, crabs, quadav), and for each kind what its
 mobs can do between them, wherever they are, by the numbers the game sends when a mob does it: the
@@ -30,7 +31,7 @@ A mob's weaponskills and abilities are those of its skill list, those its own sc
 its script takes the job special mixin and names none, the special of its main job. Only mobs that do
 something are written. Run it again when the server's mobs change. Requires PyYAML.
 
-mobs.lua is written to be small and to cost nothing until it is wanted: what a kind does is two strings
+The set's index.lua is written to be small and to cost nothing until it is wanted: what a kind does is two strings
 of numbers, and an area is one string, taken apart only when trigger asks about that area.
 
     kinds = { ['Sheep'] = { spells = '53 59', moves = '260 261 a688',      a marks an ability
@@ -55,7 +56,7 @@ from build_item_data import enabled_files, replay
 from phoenix import importer, modules, source
 
 ROOT = Path(__file__).resolve().parents[1]
-TARGET = ROOT / 'addons/trigger/mobs.lua'
+TARGET = None  # the set's index.lua: data/<server>/triggermobs, or where build is told
 mobdb = importer.load('trigger_phoenix_import')
 
 
@@ -283,18 +284,25 @@ class Mobs(mobdb.Generator):
             len(self.kinds), monsters, len(lists), os.path.getsize(self.args.target), self.args.target))
 
 
+def build(server, output, settings=()):
+    """The triggermobs set: output/index.lua, for the server's checkout at server."""
+    import types
+    output.mkdir(parents=True, exist_ok=True)
+    target = output / 'index.lua'
+    # the rest is as MobDB's importer has it when asked for nothing in particular; it writes nothing itself
+    args = types.SimpleNamespace(server=str(server), target=str(target), out=str(output), names=str(importer.CLIENT_NAMES),
+                                 set=list(settings), zone=None, no_module_data=False, elements='rank',
+                                 build_dat_names=None, dat_overlay=[])
+    Mobs(args).run()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     source.add_arguments(parser)
     args = parser.parse_args()
     found = source.from_arguments(args)
     print(f'Server: {found.describe()}')
-    args.server, args.target = str(found.path), str(TARGET)
-    # the rest is as MobDB's importer has it when asked for nothing in particular; it writes nothing itself
-    args.out, args.names, args.set, args.zone = str(TARGET.parent), str(importer.CLIENT_NAMES), [], None
-    args.no_module_data, args.elements = False, 'rank'
-    args.build_dat_names, args.dat_overlay = None, []
-    Mobs(args).run()
+    build(found.path, ROOT / 'addons/libs/winxi/data' / source.KEY / 'triggermobs')
 
 
 if __name__ == '__main__':
