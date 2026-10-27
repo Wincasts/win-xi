@@ -30,6 +30,9 @@ import build_item_data
 import build_action_data
 import build_quest_data
 import build_rules
+import build_zone_kinds
+import build_zone_entrances
+import build_zone_regions
 import build_trigger_mobs
 import build_mark_data
 import build_name_cast_times
@@ -80,6 +83,11 @@ SETS = {
     'marks': ('Each notorious monster: how it comes to be there, its placeholders, spawns and drops (mark)',
               lambda server, output, settings: build_mark_data.Builder(server, output).run()),
     'triggermobs': ('The kinds of mob, what each can do, and each area\'s mobs of each kind (trigger)', build_trigger_mobs.build),
+    'zonekinds': ('Each zone\'s kind: city, outdoors or dungeon (vis\'s presets, zone\'s kind frames)',
+                  lambda server, output, settings: (output.mkdir(parents=True, exist_ok=True), build_zone_kinds.build(Path(server), [output / 'index.lua']))),
+    'entrances': ('Each zone\'s dungeon and town entrances (zone)', build_zone_entrances.build_set),
+    'regions': ('Each region\'s zones, as the server places them (zone)',
+                lambda server, output, settings: (output.mkdir(parents=True, exist_ok=True), build_zone_regions.build(Path(server), output / 'index.lua'))),
     'rules': ('The server\'s game rules read from its code: Treasure Hunter, haste, swing, resting, bind (winxi.rules)', build_rules.build),
     'mobs': ('An area\'s monsters, as mobdb has them (winxi.mobs.Zone)', build_mobs),
     'placeholders': ('Each notorious monster\'s placeholders (winxi.mobs.Placeholders)', build_placeholders),

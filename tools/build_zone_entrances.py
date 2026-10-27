@@ -16,7 +16,7 @@ feature of the map already names the way in, as Jeuno's bridges do) is left out.
 
 Names are the game's English zone names, from Boussole's zone table (references/boussole).
 
-Writes addons/zone/data/entrances.lua. Reads the live branch of phoenixffxi/Phoenix, fetched from
+Writes winxi's entrances set (addons/libs/winxi/data/<server>/entrances; a set of build_winxi_data). Reads the live branch of phoenixffxi/Phoenix, fetched from
 GitHub (tools/phoenix), as live loads it: module SQL over zone_settings and each zone.yaml patched by
 the modules (phoenix.modules.load_yaml).
 """
@@ -36,7 +36,7 @@ from build_zone_ja import names as zone_names  # noqa: E402
 ROOT = Path(__file__).resolve().parents[1]
 REVIEW = ROOT / 'addons/zone/research/dungeon_entrances.json'
 BOUSSOLE = ROOT / 'references/boussole/data/zones.lua'
-OUTPUT = ROOT / 'addons/zone/data/entrances.lua'
+OUTPUT = None  # the entrances set's index.lua: data/<server>/entrances
 SAME_ENTRANCE = {'dungeon': 30.0, 'town': 60.0}  # yalms apart, level
 SAME_HEIGHT = 10.0
 # The server's types do not make every town a city or every city a town.
@@ -103,6 +103,13 @@ def lua_string(text):
     return "'" + text.replace('\\', '\\\\').replace("'", "\\'") + "'"
 
 
+def build_set(server, output, settings=()):
+    """The entrances set, as build_winxi_data makes it: output/index.lua."""
+    english = {zone: en for zone, (en, _) in zone_names(BOUSSOLE.read_text(encoding='utf-8')).items()}
+    output.mkdir(parents=True, exist_ok=True)
+    return build(Path(server), REVIEW, english, output / 'index.lua')
+
+
 def build(server, review, english, output):
     found = zones(server)
     marked = json.loads(review.read_text(encoding='utf-8'))
@@ -149,9 +156,11 @@ if __name__ == '__main__':
     source.add_arguments(parser)
     parser.add_argument('--review', type=Path, default=REVIEW)
     parser.add_argument('--zones', type=Path, default=BOUSSOLE, help="Boussole's data/zones.lua, for the English names")
-    parser.add_argument('--output', type=Path, default=OUTPUT)
+    parser.add_argument('--output', type=Path, default=None, help='Where to write it; default data/<server>/entrances/index.lua.')
     args = parser.parse_args()
     server = source.from_arguments(args)
+    args.output = args.output or ROOT / 'addons/libs/winxi/data' / source.KEY / 'entrances' / 'index.lua'
+    args.output.parent.mkdir(parents=True, exist_ok=True)
     print(f'Server: {server.describe()}')
     english = {zone: en for zone, (en, _) in zone_names(args.zones.read_text(encoding='utf-8')).items()}
     total, numbered, zone_count, unreviewed, towns = build(server.path, args.review, english, args.output)

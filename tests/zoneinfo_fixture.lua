@@ -1,4 +1,5 @@
 -- Loads zoneinfo with a synthetic client-map table for the shared Ashita harness.
+package.path = 'addons/libs/?.lua;' .. package.path; require('winxi.gamedata').Root('addons/libs/winxi/data/') -- the server's sets, from the repository's data
 package.path = 'addons/zone/?.lua;' .. package.path;
 package.preload['chat'] = function()
     return {

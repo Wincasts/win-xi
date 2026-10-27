@@ -1,5 +1,6 @@
 -- vis: finds the calls to the scale function in a run of bytes, reads what each caller does,
 -- builds the stub that re-scales one, and in the game's absence says so and still answers commands
+package.path = 'addons/libs/?.lua;' .. package.path; require('winxi.gamedata').Root('addons/libs/winxi/data/') -- the server's sets, from the repository's data
 local scan = require('scan')
 local printCheck = H.print
 H.print = function(label, ...)
@@ -213,7 +214,7 @@ H.print('real: the object range is the caller at 0x0333BF53', realObject ~= nil 
     '| two of them is none', scan.objectCaller({ realCallers[1], realCallers[1] }) == nil)
 
 -- three layers: the general values, a preset for the zone's kind (every zone a city, outdoors or
--- a dungeon by zones.lua), and the zone's own; the zone from the zone-in packet
+-- a dungeon by the server's zonekinds set), and the zone's own; the zone from the zone-in packet
 local function said() return table.concat(H.printed, '\n') end
 local function zoneIn(id) H.packetData(0x00A, ('\0'):rep(0x30) .. string.char(id % 256, math.floor(id / 256)) .. ('\0'):rep(0x80)) end
 local store = H.options()

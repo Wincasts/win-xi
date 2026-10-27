@@ -1,5 +1,5 @@
 -- Pure tests: no game or graphics required. Coordinates/transforms here are synthetic.
-package.path = 'addons/zone/?.lua;' .. package.path;
+package.path = 'addons/zone/?.lua;addons/libs/?.lua;' .. package.path; require('winxi.gamedata').Root('addons/libs/winxi/data/'); -- the server's sets, from the repository's data
 local g = require('area_geometry');
 local tracking = require('area_tracking');
 local position = require('map_position');

@@ -7,7 +7,7 @@ return {
         Branch = 'live',
         Commit = '9a4494d5056429d0e75922dc9fa47d419142cf68',
         Committed = '2026-10-18T12:38:17-06:00',
-        Built = '2026-10-27T18:25:39+00:00',
+        Built = '2026-10-27T18:27:16+00:00',
         Settings = { },
     },
     Sets = {
@@ -28,6 +28,9 @@ return {
         vendors = { Files = 1, About = 'The NPCs whose scripts open a shop, by area (name\'s [vendor])' },
         marks = { Files = 231, About = 'Each notorious monster: how it comes to be there, its placeholders, spawns and drops (mark)' },
         triggermobs = { Files = 1, About = 'The kinds of mob, what each can do, and each area\'s mobs of each kind (trigger)' },
+        zonekinds = { Files = 1, About = 'Each zone\'s kind: city, outdoors or dungeon (vis\'s presets, zone\'s kind frames)' },
+        entrances = { Files = 1, About = 'Each zone\'s dungeon and town entrances (zone)' },
+        regions = { Files = 1, About = 'Each region\'s zones, as the server places them (zone)' },
         rules = { Files = 1, About = 'The server\'s game rules read from its code: Treasure Hunter, haste, swing, resting, bind (winxi.rules)' },
         mobs = { Files = 239, About = 'An area\'s monsters, as mobdb has them (winxi.mobs.Zone)' },
         placeholders = { Files = 105, About = 'Each notorious monster\'s placeholders (winxi.mobs.Placeholders)' },

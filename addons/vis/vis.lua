@@ -65,9 +65,8 @@ local KINDS = { city = 'a city', outdoors = 'outdoors', dungeon = 'a dungeon' };
 local KIND_PRESET = { city = 'the city preset', outdoors = 'the outdoors preset', dungeon = 'the dungeon preset' };
 local SEED = { city = { world = 2 }, dungeon = { world = 2 } };
 
--- Each zone's kind, from the server's data; without the file no zone has one.
-local okZones, zoneKinds = pcall(require, 'zones');
-if (not okZones or type(zoneKinds) ~= 'table') then zoneKinds = {}; end
+-- Each zone's kind, from the chosen server's data (its zonekinds set); without it no zone has one.
+local zoneKinds = require('winxi.gamedata').Lookup('zonekinds');
 
 local state = T{
     settings = nil,

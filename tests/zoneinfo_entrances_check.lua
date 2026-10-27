@@ -1,9 +1,10 @@
--- Dungeon entrances (data/entrances.lua, from the server's zone lines) and the distance each kind of
+-- Dungeon entrances (the server's entrances set, from its zone lines) and the distance each kind of
 -- zone announces from. Pure: the transform is synthetic, the places the generated data's own.
-package.path = 'addons/zone/?.lua;' .. package.path;
+package.path = 'addons/zone/?.lua;addons/libs/?.lua;' .. package.path;
+require('winxi.gamedata').Root('addons/libs/winxi/data/'); -- the server's entrances and zonekinds sets, from the repository's data
 local g = require('area_geometry');
 local tracking = require('area_tracking');
-local entrances = require('data.entrances');
+local entrances = dofile('addons/libs/winxi/data/phoenix/entrances/index.lua');
 local checks = 0;
 local function check(label, value)
     assert(value, label);

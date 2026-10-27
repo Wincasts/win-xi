@@ -7,10 +7,10 @@ require('common');
 
 local chat    = require('chat');
 local regions = require('data.regions');
-local rz      = require('data.regionZones');
+local gamedata = require('winxi.gamedata');
 local region_flags = require('data.region_flags');
 local zone_names_ja = require('data.zone_names_ja');
-local zone_kinds = require('data.zone_kinds');
+local zone_kinds = gamedata.Lookup('zonekinds'); -- the chosen server's: each zone's kind
 local map_position = require('map_position');
 local debug_view   = require('debug_view');
 local presentation = require('presentation');
@@ -82,12 +82,16 @@ local function build_region_lookup()
         region_names_ja[r.id] = r.ja;
     end
 
-    for region_id, zones in pairs(rz.map) do
+    zone_to_region = {};
+    -- each region's zones, as the chosen server places them (its regions set)
+    local rz = gamedata.Read('regions', 'index') or {};
+    for region_id, zones in pairs(rz.map or {}) do
         for _, zone_id in ipairs(zones) do
             zone_to_region[zone_id] = region_id;
         end
     end
 end
+gamedata.OnChange(function () build_region_lookup(); end); -- another server's data chosen
 
 -- Read every frame: made once, so no function is made each time.
 local function read_zone()
