@@ -7,6 +7,7 @@ python3 tools/abi_check.py || exit 1
 python3 -m unittest discover -s tools -p test_build_tooltips.py || exit 1
 python3 -m unittest discover -s tools -p test_build_name_cast_times.py || exit 1
 python3 -m unittest discover -s tools -p test_deploy.py || exit 1
+python3 -m unittest discover -s tools -p test_phoenix_modules.py || exit 1
 luajit tests/winxi_tips_check.lua || exit 1
 run() { echo "== $1"; luajit tests/harness.lua "$1" "$2" "tests/$3" 2>&1; echo; }
 run inventory  addons/inventory/inventory.lua inventory_check.lua
