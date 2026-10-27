@@ -19,9 +19,11 @@
 -- A settings window can be resized, whatever flags it is given. It fits its content, as it changes,
 -- until it is resized by a grip or an edge; from then it keeps the size it was given, its controls
 -- narrowing to fit it (winxi.widgets) and its content scrolling where it is still too big. A
--- double-click on a grip or an edge fits it to its content again. Fitted or not, it is never bigger
+-- double-click on a grip or an edge fits it to its content again. With the theme's Starting Height
+-- set (SettingsWindowHeight, winxisettings' Settings Windows tab), a fitted window is that tall rather
+-- than as tall as its content, which scrolls; its width still fits. Fitted or not, it is never bigger
 -- than the screen. window.IsResized() says, while a window's content is drawn, whether it is a
--- settings window that has been resized.
+-- settings window that has been resized; window.DrawnSize() how big the settings window being drawn is.
 --
 -- Either way the font is pushed around the window, so it is what the window is written in unless draw
 -- pushes a font or size of its own.
@@ -71,12 +73,18 @@ end
 -- Each settings window's last place and size, and whether it has been resized: by its name
 local settingsState = {};
 local resized = false; -- the window being drawn is a settings window that has been resized
+local drawnWidth, drawnHeight = nil, nil; -- the size of the settings window being drawn
 local fitSize = { 0, 0 };  -- a size of 0 fits the window to its content, on each side
+local startSize = { 0, 0 }; -- the width fitted, the height the theme's Starting Height
 local screenSize = { 0, 0 };
 local edgeReach = 4;       -- how far either side of an edge it can be taken hold of, as imgui has it
 
 function window.IsResized()
     return resized;
+end
+
+function window.DrawnSize()
+    return drawnWidth, drawnHeight;
 end
 
 -- Whether the mouse is where the window's edges or its bottom corners' grips can be taken hold of,
@@ -116,7 +124,16 @@ local function BeginSettings(name, flags)
     end
 
     if not state.resized then
-        imgui.SetNextWindowSize(fitSize, ImGuiCond_Always);
+        local height = tonumber(theme.Get().SettingsWindowHeight) or 0;
+        if height > 0 then
+            local io = imgui.GetIO();
+            local display = io and io.DisplaySize;
+            if display and display.y then height = math.min(height, display.y); end
+            startSize[2] = height;
+            imgui.SetNextWindowSize(startSize, ImGuiCond_Always);
+        else
+            imgui.SetNextWindowSize(fitSize, ImGuiCond_Always);
+        end
     else
         -- resized, but no bigger than the screen
         local io = imgui.GetIO();
@@ -163,9 +180,11 @@ local function Body(job)
             state.x, state.y = imgui.GetWindowPos();
             state.w, state.h = imgui.GetWindowSize();
             resized = state.resized;
+            drawnWidth, drawnHeight = state.w, state.h;
         end
         draw();
         resized = false;
+        drawnWidth, drawnHeight = nil, nil;
         local gapLeft, gapRight = titles.Gap(title);
         borders.Draw(border, gapLeft, gapRight, options and options.border);
         titles.Draw(title, options);

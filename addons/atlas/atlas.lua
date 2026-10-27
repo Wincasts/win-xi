@@ -285,6 +285,8 @@ local function MouseOverWindow()
     return mx ~= nil and my ~= nil and mx >= windowRect[1] and my >= windowRect[2] and mx < windowRect[3] and my < windowRect[4];
 end
 
+local controlsAir = { 0, 5 }; -- between the map and the controls under it
+
 local function Draw()
     local options = app.options;
     local now = os.clock();
@@ -332,7 +334,7 @@ local function Draw()
         Hovered(mx, my, maps.Entry(shown, zone));
     end
 
-    widgets.Gap(); -- breathing room between the map and its controls
+    imgui.Dummy(controlsAir); -- breathing room between the map and its controls
     if imgui.SmallButton('-##atlas.zoomOut') then view.Zoom(state, state.zoom / 1.25, state.cx, state.cy); end
     imgui.SameLine();
     imgui.Text(('%.1fx'):format(state.zoom));

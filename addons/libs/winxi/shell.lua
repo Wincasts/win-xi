@@ -71,6 +71,7 @@ App.__index = App;
 
 local itemSpacing = { 8, 4 };
 local framePadding = { 4, 2 };
+local tabAir = { 0, 5 }; -- between a tab bar and what is under it, and after the last row
 
 function App:Say(text)
     print(('\30\81[%s]\30\01 %s'):format(addon.name, text));
@@ -175,9 +176,9 @@ local function DrawTabs(tabs, options)
     for _, tab in ipairs(tabs or noTabs) do
         if imgui.BeginTabItem(tab.label) then
             widgets.BeginLabels(tab.label);
-            widgets.Gap();
+            imgui.Dummy(tabAir);
             tab.draw(options);
-            widgets.Gap();
+            imgui.Dummy(tabAir);
             imgui.EndTabItem();
         end
     end
@@ -197,16 +198,16 @@ local function DrawConfigContent(app)
         if spec.drawSettings ~= nil and imgui.BeginTabItem(spec.settingsLabel or 'Settings') then
             widgets.BeginLabels(app.ids.labels);
             -- the addon's settings are set a little apart from the tabs over them, as from what is under them
-            widgets.Gap();
+            imgui.Dummy(tabAir);
             spec.drawSettings(options);
-            widgets.Gap();
+            imgui.Dummy(tabAir);
             imgui.EndTabItem();
         end
         -- the addon's own tabs, each with its own column of names
         DrawTabs(spec.tabs, options);
         if spec.window ~= nil and imgui.BeginTabItem('Visibility') then
             widgets.BeginLabels(app.ids.visibility);
-            widgets.Gap();
+            imgui.Dummy(tabAir);
             if widgets.Header('Window', true) then
                 widgets.Check('Fade In And Out', 'The window fades in as it appears and out as it goes, in place of popping.', options.fadeInOut, app.ids.fade);
                 if spec.visibility ~= nil then
@@ -216,7 +217,7 @@ local function DrawConfigContent(app)
             if widgets.Header('Hide Window') then
                 widgets.Hide(options.hide, app.save);
             end
-            widgets.Gap();
+            imgui.Dummy(tabAir);
             imgui.EndTabItem();
         end
         if spec.hideAppearance ~= true and widgets.BeginThemeTab() then
