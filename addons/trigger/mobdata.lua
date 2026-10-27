@@ -1,4 +1,5 @@
--- What is known of the game's mobs is in mobs.lua, which tools/build_trigger_mobs.py makes and says the layout
+-- What is known of the game's mobs is the chosen server's triggermobs set (winxi's data), which
+-- tools/build_trigger_mobs.py makes and says the layout
 -- of: the kinds of mob there are (sheep, crabs, quadav) with what each kind's mobs can do, and for
 -- every area the names of its mobs of each kind.
 --
@@ -6,18 +7,15 @@
 -- go of it when the settings are closed; and once in an area, on arriving there with a trigger made,
 -- to find out which kind each of the area's mobs is, so that it is not read in the middle of a fight.
 -- That is kept for the one area, being small: a few dozen names.
-local mobData = nil -- mobs.lua as it is, or false if it cannot be read
+local mobData = nil -- the triggermobs set as it is, or false if it cannot be read
 local area = nil    -- the one area: { zone, kindOf = a mob's name in small letters -> its kind, among = kind -> its mobs there, as written }
 
 local function MobData()
     if mobData == nil then
         mobData = false
-        local chunk = loadfile(addon.path .. 'mobs.lua')
-        if chunk ~= nil then
-            local ok, found = pcall(chunk)
-            if ok and type(found) == 'table' and type(found.zones) == 'table' and type(found.kinds) == 'table' and type(found.lists) == 'table' then
-                mobData = found
-            end
+        local found = require('winxi.gamedata').Read('triggermobs', 'index')
+        if type(found) == 'table' and type(found.zones) == 'table' and type(found.kinds) == 'table' and type(found.lists) == 'table' then
+            mobData = found
         end
     end
     return mobData or nil
@@ -30,6 +28,7 @@ local function ForgetMobData()
     -- the names were for the lists of the Triggers tab
     actionNames.spell, actionNames.move = { }, { }
 end
+require('winxi.gamedata').OnChange(function () ForgetMobData(); area = nil end) -- another server's data chosen
 
 -- An area's mobs: which kind each is, and each kind's mobs. Nothing in either for an area nothing
 -- is known of.
@@ -66,7 +65,7 @@ end
 
 -- What a spell, a weaponskill or an ability is called. A mob's weaponskills and abilities over 256
 -- are named in the game's list of monsters' abilities, and those under it are the players' own. Where
--- the game has no name, the server's is used, from mobs.lua.
+-- the game has no name, the server's is used, from the triggermobs set.
 actionNames = { spell = { }, move = { } }
 
 local function ActionName(kind, id)
@@ -109,7 +108,7 @@ end
 
 return {
     Read = MobData,
-    -- whether mobs.lua is held at the moment, or was found not to be readable
+    -- whether the triggermobs set is held at the moment, or was found not to be readable
     IsRead = function() return mobData ~= nil end,
     Forget = ForgetMobData,
     Area = Area,

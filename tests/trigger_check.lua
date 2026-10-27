@@ -90,14 +90,15 @@ local function action(actor, category, number, message, what)
     end
     return table.concat(bytes)
 end
--- mobs.lua is the project's; entity 0x123 is an Acro Bat, a bat, and 0x124 an Akbaba, a bird
+-- the triggermobs set is the project's; entity 0x123 is an Acro Bat, a bat, and 0x124 an Akbaba, a bird
 local realLoadfile = loadfile
-loadfile = function(path) local own = path:match('trigger.(mobs%.lua)$') return realLoadfile(own and ('addons/trigger/' .. own) or path) end
+require('winxi.gamedata').Root('addons/libs/winxi/data/') -- the server's triggermobs set, from the repository's data
+loadfile = function(path) return realLoadfile(path) end
 local entities = { [0x123] = { ServerId = 0x1066123, Name = 'Acro Bat' }, [0x124] = { ServerId = 0x1066124, Name = 'Akbaba' } }
 function GetEntity(index) return entities[index] end
 H.packetData(0x028, action(0x1066123, 7, 392, 43)); H.print('a weaponskill, no triggers: silence', heard() == '')
 -- a trigger is for a kind of mob, wherever it is: which kind a mob is, is read from mobs.lua for the area, once
-local reads = 0; local mapped = loadfile; loadfile = function(path) if path:find('mobs%.lua') then reads = reads + 1 end return mapped(path) end
+local reads = 0; local mapped = loadfile; loadfile = function(path) if path:find('triggermobs') then reads = reads + 1 end return mapped(path) end
 o.triggers[1] = { mob = 'Bat', kind = 'skill', ids = { 392, 1700 }, name = 'Ultrasonics', sound = 'voicef-trigger.wav', enabled = { true } }
 o.triggers[2] = { mob = 'Elemental', kind = 'spell', ids = { 154 }, name = 'Aero', sound = 'tone-trigger1.wav', enabled = { true } }
 IndexTriggers(o.triggers)

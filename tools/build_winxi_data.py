@@ -30,6 +30,7 @@ import build_item_data
 import build_action_data
 import build_quest_data
 import build_rules
+import build_trigger_mobs
 import build_mark_data
 import build_name_cast_times
 import build_name_vendors
@@ -78,6 +79,7 @@ SETS = {
                 lambda server, output, settings: build_name_vendors.build(Path(server), output / 'index.lua')),
     'marks': ('Each notorious monster: how it comes to be there, its placeholders, spawns and drops (mark)',
               lambda server, output, settings: build_mark_data.Builder(server, output).run()),
+    'triggermobs': ('The kinds of mob, what each can do, and each area\'s mobs of each kind (trigger)', build_trigger_mobs.build),
     'rules': ('The server\'s game rules read from its code: Treasure Hunter, haste, swing, resting, bind (winxi.rules)', build_rules.build),
     'mobs': ('An area\'s monsters, as mobdb has them (winxi.mobs.Zone)', build_mobs),
     'placeholders': ('Each notorious monster\'s placeholders (winxi.mobs.Placeholders)', build_placeholders),
