@@ -162,9 +162,12 @@ local experimentalGap = 6;      -- between the tag and the name
 -- Described rows
 --
 -- The name and its sentence are at the left, the sentence wrapped at widgets.DescriptionWidth text
--- heights; the control is in a column at the right, widgets.RowControlWidth text heights wide, in line
--- with the name. A settings window fits itself to the two; one that has been resized (winxi.window)
--- keeps the control column and gives the sentence what is left.
+-- heights from the window's content edge; the control is in a column at the right, widgets.RowControlWidth
+-- text heights wide, in line with the name. The column is measured from the content edge, not the row's
+-- own left, so every control is at the same x whatever the row's indentation (a sub-section's rows, a
+-- row under its parent): an indented sentence wraps that much sooner. A settings window fits itself to
+-- the two; one that has been resized (winxi.window) keeps the control column and gives the sentence
+-- what is left.
 widgets.DescriptionWidth = 30;
 widgets.RowControlWidth = 13;
 local rowGap = 14;           -- between the sentence and the control column
@@ -186,6 +189,18 @@ local function RowColumns()
     return description, control;
 end
 
+-- The window's content edge, in window coordinates: where an unindented row starts. imgui's start
+-- position where it gives one, else the cursor as it is.
+local function ContentLeft(cursorX)
+    if imgui.GetCursorStartPos ~= nil then
+        local startX = imgui.GetCursorStartPos();
+        if type(startX) == 'number' then
+            return startX;
+        end
+    end
+    return cursorX;
+end
+
 -- Whether a row's parent, as its spec says, lets it be changed
 local function ParentOn(parent)
     if parent == nil or parent == true then return true; end
@@ -205,9 +220,19 @@ function widgets.BeginRow(name, sentence, spec)
     local description, control = RowColumns();
     local left, top = imgui.GetCursorPosX() or 0, imgui.GetCursorPosY() or 0;
     row.left, row.top = left, top;
-    row.controlX = left + description + rowGap;
+    -- the control column's right edge, the same for every row: from the content edge in a fitted
+    -- window, the window's own right edge in a resized one
+    local right = ContentLeft(left) + description + rowGap + control;
+    if window.IsResized() then
+        local available = imgui.GetContentRegionAvail();
+        if type(available) == 'number' then
+            right = left + available;
+        end
+    end
+    row.controlX = math.max(right - control, left + TextHeight() * minDescription + rowGap);
     row.controlWidth = control;
     row.right = row.controlX + control;
+    local wrapAt = row.controlX - rowGap;
 
     imgui.BeginGroup();
     imgui.AlignTextToFramePadding();
@@ -217,7 +242,7 @@ function widgets.BeginRow(name, sentence, spec)
     end
     imgui.Text(Escaped(name));
     if sentence ~= nil and sentence ~= '' then
-        imgui.PushTextWrapPos(left + description);
+        imgui.PushTextWrapPos(wrapAt);
         imgui.TextDisabled(Escaped(sentence));
         imgui.PopTextWrapPos();
     end
