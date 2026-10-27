@@ -169,6 +169,26 @@ local TwoHours = {
     [21] = 'Bolster',
     [22] = 'Elemental Sforzo',
 }
+-- fork: each job's one-hour ability as the server has it (winxi.abilities: the job's ability on recast 0
+-- at the lowest level), the table above where winxi's data is not installed
+do
+    local ok, abilities = pcall(require, 'winxi.abilities')
+    local found = {}
+    for _, id in ipairs(ok and abilities.Ids() or {}) do
+        local record = abilities.Get(id)
+        local data = record and record.Data
+        if data and data.recastId == 0 and data.job and data.job > 0 then
+            local best = found[data.job]
+            if best == nil or data.level < best.level then
+                found[data.job] = { level = data.level, name = record.Name:gsub('(%a)([%w\']*)', function(a, b) return a:upper() .. b end) }
+            end
+        end
+    end
+    if next(found) ~= nil then
+        TwoHours = {}
+        for job, entry in pairs(found) do TwoHours[job] = entry.name end
+    end
+end
 
 -- Recast timers that several abilities share, and what to call them. The game's resources would give the
 -- first ability on the timer, whichever was used: every puppetmaster maneuver showed as Fire Maneuver.
