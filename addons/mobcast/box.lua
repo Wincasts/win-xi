@@ -189,6 +189,13 @@ function box.Reset()
     anchor.Reset(windowName)
 end
 
+-- The settings' Position row has been changed: the box goes there, by the side it grows from (the
+-- anchor is told afresh the next frame), and at once as imgui places it
+function box.Move(options)
+    anchor.Reset(windowName)
+    imgui.SetWindowPos(windowName, options.pos)
+end
+
 -- The sample lines, said as if they were real: for /mobcast test and the settings' Test button
 function box.Test()
     local options = shared.app.options

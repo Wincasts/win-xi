@@ -199,6 +199,43 @@ H.wait(10); shown()
 -- the sample, with the settings open
 H.command('/mobcast'); drawn = 0
 H.print('the settings open, the sample is shown:', shown() == 'Mad Sheep readies Sheep Song. | Goblin Smithy starts casting Fire on Tester. | Orcish Fighter uses Mighty Strikes.', drawn == 1)
+
+-- the settings window: described rows under their sections, the Settings tab and the Visibility tab
+local widgets = require('winxi.widgets')
+local imgui = require('imgui')
+local rows, sections, beginRow, header = {}, {}, widgets.BeginRow, widgets.Header
+widgets.BeginRow = function(name, sentence, spec)
+    rows[#rows + 1] = name
+    assert(type(sentence) == 'string' and sentence ~= '', name .. ' has no sentence')
+    return beginRow(name, sentence, spec)
+end
+widgets.Header = function(name, first, collapsed)
+    sections[#sections + 1] = name
+    return header(name, first, collapsed)
+end
+local function laidOut(tab)
+    for i = #rows, 1, -1 do rows[i] = nil end
+    for i = #sections, 1, -1 do sections[i] = nil end
+    H.tab(tab); H.frames(1)
+    return table.concat(sections, ' | '), table.concat(rows, ' | ')
+end
+local settingsSections, settingsRows = laidOut(1)
+H.print('the Settings tab: Window, Enemies and Lines,', settingsSections == 'Window | Enemies | Lines',
+    'each setting a row:', settingsRows == 'Lock Window | Position | Grow From | Font Size | Show Spells | Show Weaponskills | Show Abilities | Show Targets | Only My Target | Duration | Max Lines | Newest Line | Spell Color | Weaponskill Color | Ability Color | Test')
+local visibilitySections, visibilityRows = laidOut(2)
+H.print('the Visibility tab, the addon\'s own: Fade In And Out and the hide rules', visibilitySections == 'Visibility',
+    visibilityRows == 'Fade In And Out | Hide While Map Open | Hide While Chat Open | Hide While Loading | Hide During Events | Hide With Game Interface')
+H.tab(1); H.frames(1)
+widgets.BeginRow, widgets.Header = beginRow, header
+
+-- the Position row moves the box there: the anchor forgotten, and imgui told
+local moved = nil
+local setWindowPos = imgui.SetWindowPos
+rawset(imgui, 'SetWindowPos', function(name, pos) if name == 'mobcast.box' then moved = pos end end)
+o.pos[1], o.pos[2] = 250, 350
+box.Move(o)
+H.print('the box put at the Position row\'s numbers:', moved == o.pos and moved[1] == 250)
+rawset(imgui, 'SetWindowPos', setWindowPos)
 H.packetData(0x028, action(bat, 6, 0, bat, 0, 100))
 H.print('and a real line puts it away:', shown() == 'Acro Bat uses Mighty Strikes.')
 H.wait(10); shown()
