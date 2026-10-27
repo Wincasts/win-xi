@@ -1,5 +1,6 @@
--- The settings' Triggers tab: the indicator's settings, the making of a trigger from what the triggermobs set
--- says each kind of mob can do, and the triggers there are.
+-- The settings' Triggers tab (the making of a trigger from what the triggermobs set says each kind of
+-- mob can do, and the triggers there are) and its Toast tab (the indicator's settings), as described
+-- rows (winxi.widgets).
 local imgui = require('imgui')
 local widgets = require('winxi.widgets')
 local shared = require('shared')
@@ -14,16 +15,20 @@ local MobData, Area, CurrentZone = mobdata.Read, mobdata.Area, mobdata.CurrentZo
 local ActionName, ZoneName = mobdata.ActionName, mobdata.ZoneName
 local IndexTriggers, triggerSound = triggers.Index, triggers.defaultSound
 local Indicate = indicator.Indicate
-local SoundCombo, Mark = controls.SoundCombo, controls.RightMark
+local SoundCombo = controls.SoundCombo
 
 -- The trigger being made: its sound is chosen once it is made, in the list of triggers
--- said is what the mark beside the kind says, put together for a kind (saidOf) in an area (saidIn)
+-- said is the status line's account of the kind's mobs in the area, put together for a kind (saidOf)
+-- in an area (saidIn)
 local making = { mob = nil, action = nil, said = nil, saidOf = nil, saidIn = nil }
 
--- The button that makes it, its right side under that of the list over it
-local createLabel = 'Create Trigger'
-local typeSaid = 'Choose the mob type you wish to set a new trigger for. Mobs found in your area are displayed first when applicable.'
-local createSize = nil -- how big the button is: found out once
+-- The rows of New Trigger: their sentences, and the spec of the Create row, which is what is experimental
+local mobSentence = 'The kind of mob to listen for. Those in your area come first.'
+local actionSentence = 'What the mob does. A spell or weaponskill sounds as it begins, an ability as it is used.'
+local createSentence = 'Makes a trigger for the kind and action chosen. Its sound is chosen in the list below.'
+local createSpec = { experimental = true }
+local noData = 'The list of what mobs can do cannot be read. Put winxi\'s data back, then open the settings again.'
+local noTriggers = 'None yet. Choose a mob type and an action above, then Create.'
 
 -- What a kind of mob can do, each with its name, in the order of their names: found out once for a
 -- kind, and kept with what is known of it. The game has some things under more than one number (a
@@ -119,22 +124,15 @@ local function MobActions(data, known, zone)
     return actions
 end
 
+-- The rules for hiding the toast: each a row, under Enable Toast. The sounds play whatever they say.
 local hideRules = {
-    { 'Hide While Map Open', 'UnderMap', 'Hide the indicator while the map is open.' },
-    { 'Hide While Chat Open', 'UnderChat', 'Hide the indicator while the chat log is opened right out.' },
-    { 'Hide While Loading', 'WhileLoading', 'Hide the indicator while changing area.' },
-    { 'Hide During Events', 'DuringEvent', 'Hide the indicator during cutscenes and while talking to an NPC.' },
-    { 'Hide With Game Interface', 'WithInterface', 'Hide the indicator while the game interface is hidden.' },
+    { 'Hide While Map Open', 'UnderMap', 'Hides the toast while the map is open. Sounds still play.', '##trigger.hide.UnderMap' },
+    { 'Hide While Chat Open', 'UnderChat', 'Hides the toast while the chat log is fully open. Sounds still play.', '##trigger.hide.UnderChat' },
+    { 'Hide While Loading', 'WhileLoading', 'Hides the toast while you change area. Sounds still play.', '##trigger.hide.WhileLoading' },
+    { 'Hide During Events', 'DuringEvent', 'Hides the toast during cutscenes and while you talk to someone. Sounds still play.', '##trigger.hide.DuringEvent' },
+    { 'Hide With Game Interface', 'WithInterface', 'Hides the toast when you hide the game interface. Sounds still play.', '##trigger.hide.WithInterface' },
 }
 local hideValue = { false }
-
--- A trigger's sound, and its words in the indicator if that is switched on
-local function TestButton(trigger)
-    if imgui.Button('Test') then
-        Indicate(trigger)
-        Try(trigger.sound)
-    end
-end
 
 local function HasTrigger(triggers, mob, action)
     for _, trigger in ipairs(triggers) do
@@ -179,18 +177,17 @@ local function ActionChoices(actions)
     end
 end
 
+-- The New Trigger rows: the kind of mob, what it does, and the Create button
 local function DrawMaking(options)
     local data = MobData()
     if data == nil then
-        imgui.TextDisabled('mobs.lua, which says what mobs can do, cannot be read.')
-        Mark('Trigger creation needs mobs.lua in the addon folder. Restore or regenerate that file, then reopen settings.')
+        widgets.Note(noData)
         return
     end
     local zone = CurrentZone()
     local lists = KindLists(data, zone)
 
-    widgets.Label('Mob Type')
-    widgets.PushControlWidth()
+    widgets.BeginRow('Mob Type', mobSentence)
     if imgui.BeginCombo('##trigger.making.mob', making.mob or 'Choose One') then
         -- the area's own first, under its name, then the rest
         if #lists.here > 0 then
@@ -202,23 +199,9 @@ local function DrawMaking(options)
         KindChoices(lists.elsewhere)
         imgui.EndCombo()
     end
-    widgets.PopControlWidth()
-    -- what the mark says, and under it the mobs of the kind chosen that are in the area: put together
-    -- when the kind or the area is another one
-    if making.mob == nil then
-        Mark(typeSaid, true)
-    else
-        if making.saidOf ~= making.mob or making.saidIn ~= zone then
-            local here = Area(zone).among[making.mob]
-            making.saidOf, making.saidIn = making.mob, zone
-            making.said = ('%s\n\n%s'):format(typeSaid, here ~= nil and ('In %s: %s'):format(ZoneName(zone), (here:gsub('|', ', ')))
-                or ('None in %s.'):format(ZoneName(zone)))
-        end
-        Mark(making.said, true)
-    end
+    widgets.EndRow()
 
-    widgets.Label('Action')
-    widgets.PushControlWidth()
+    widgets.BeginRow('Action', actionSentence)
     if imgui.BeginCombo('##trigger.making.action', making.action and making.action.label or 'Choose One') then
         if making.mob ~= nil and data.kinds[making.mob] ~= nil then
             local actions = MobActions(data, data.kinds[making.mob], zone)
@@ -236,15 +219,9 @@ local function DrawMaking(options)
         end
         imgui.EndCombo()
     end
-    widgets.PopControlWidth()
-    -- where the list ends, which is where the button under it ends too
-    imgui.SameLine(0, 0)
-    local listEnd = imgui.GetCursorPosX()
-    Mark('Choose the action for which you wish to create a new trigger. Spells and weaponskills trigger as soon as they begin casting or are readied and an ability is triggered immediately upon use.', true)
+    widgets.EndRow()
 
-    createSize = createSize or { imgui.CalcTextSize(createLabel) + 20, 0 }
-    imgui.SetCursorPosX(math.max(listEnd - createSize[1], imgui.GetCursorPosX()))
-    if imgui.Button(createLabel, createSize) then
+    if widgets.Action('Create Trigger', createSentence, 'Create##trigger.making.create', createSpec) then
         if making.mob == nil or making.action == nil then
             shared.app:Say('Choose a kind of mob and what it does first.')
         elseif HasTrigger(options.triggers, making.mob, making.action) then
@@ -257,7 +234,6 @@ local function DrawMaking(options)
             shared.app:Save()
         end
     end
-    Mark('Create a trigger for the selected mob type and action. Choose its sound in the list below. Duplicate triggers are not added.')
 end
 
 -- What a trigger is shown as: put together once for each
@@ -272,101 +248,118 @@ local function TriggerText(trigger)
     return text
 end
 
-local growIds = { } -- a side the indicator grows from -> its button's label
-for _, grow in ipairs(indicator.Grows) do
-    growIds[grow] = grow .. '##trigger.indicator.grow'
-end
+-- The triggers there are, in a table: each with its switch, its name, its sound, and Test and Remove
+local tableFlags = nil
 
-local function DrawIndicatorSettings(options)
-    widgets.Label('Enable Toast')
-    if imgui.Checkbox('##trigger.indicator.enabled', options.showIndicator) then shared.app:Save() end
-    Mark('A small window showing what triggered, as the chat log does. While enabled, a preview appears on this tab so you can drag it into position.')
-    if not options.showIndicator[1] then return end
-
-    -- how long only while it is switched on: off, there is nothing for it to set
-    if options.showIndicator[1] then
-        widgets.Label('Duration')
-        widgets.PushControlWidth()
-        imgui.SliderInt('##trigger.indicator.seconds', options.indicatorSeconds, 1, 15, '%d s')
-        widgets.PopControlWidth()
-        if imgui.IsItemDeactivatedAfterEdit() then shared.app:Save() end
-        Mark('How long each triggered message stays in the indicator, in seconds.')
-    end
-    widgets.Gap()
-    for _, rule in ipairs(hideRules) do
-        widgets.Label(rule[1])
-        hideValue[1] = options.hide[rule[2]]
-        if imgui.Checkbox('##trigger.hide.' .. rule[2], hideValue) then
-            options.hide[rule[2]] = hideValue[1]
-            shared.app:Save()
-        end
-        Mark(rule[3] .. ' Sounds are unaffected.')
-    end
-end
-
-local function DrawAppearance(options)
-    widgets.Label('Fade In And Out')
-    if imgui.Checkbox('##trigger.indicator.fade', options.fadeInOut) then shared.app:Save() end
-    Mark('The indicator fades in as it appears and out as it goes.', true)
-
-    widgets.Gap()
-    widgets.Label('Grow From')
-    for index, grow in ipairs(indicator.Grows) do
-        if index > 1 then
-            imgui.SameLine()
-        end
-        if imgui.RadioButton(growIds[grow], options.indicatorGrow == grow) and options.indicatorGrow ~= grow then
-            options.indicatorGrow = grow
-            shared.app:Save()
-        end
-    end
-    Mark('The side of the indicator that stays where it is as what it says gets longer or shorter. Its lines are set to that side too.', true)
-end
-
-local function DrawToast(options)
-    indicator.sample = options.showIndicator[1]
-    DrawIndicatorSettings(options)
-    if not options.showIndicator[1] then return end
-    widgets.Gap()
-    DrawAppearance(options)
-end
-
-local function DrawTriggers(options)
-    imgui.TextColored(widgets.ExperimentalColor, '[Experimental]')
-
-    if widgets.Header('New Trigger') then
-        DrawMaking(options)
-    end
-
-    if not widgets.Header('Triggers') then return end
+local function DrawList(options)
     local triggers = options.triggers
     if #triggers == 0 then
-        imgui.TextDisabled('None yet.')
-        Mark('Use Mob Type and Action above, then Create Trigger, to add a trigger.')
+        widgets.Note(noTriggers)
         return
     end
+    tableFlags = tableFlags or ImGuiTableFlags_SizingFixedFit
+    if not imgui.BeginTable('##trigger.triggers', 4, tableFlags) then return end
+    imgui.TableSetupColumn('##trigger.triggers.on', ImGuiTableColumnFlags_WidthFixed)
+    imgui.TableSetupColumn('##trigger.triggers.name', ImGuiTableColumnFlags_WidthFixed)
+    imgui.TableSetupColumn('##trigger.triggers.sound', ImGuiTableColumnFlags_WidthFixed)
+    imgui.TableSetupColumn('##trigger.triggers.buttons', ImGuiTableColumnFlags_WidthFixed)
+    -- the list of sounds as wide as a row's control column
+    local _, textHeight = imgui.CalcTextSize('A')
+    local soundWidth = (textHeight or 14) * widgets.RowControlWidth
     local removed = nil
     for index, trigger in ipairs(triggers) do
-        if index > 1 then widgets.Gap() end
+        imgui.TableNextRow()
         imgui.PushID(index)
+        imgui.TableNextColumn()
         if imgui.Checkbox('##enabled', trigger.enabled) then shared.app:Save() end
-        imgui.SameLine()
+        imgui.TableNextColumn()
+        imgui.AlignTextToFramePadding()
         imgui.Text(TriggerText(trigger))
-        widgets.Label('Sound')
-        SoundCombo('##sound', trigger, 'trigger')
+        imgui.TableNextColumn()
+        SoundCombo('##sound', trigger, 'trigger', soundWidth)
+        imgui.TableNextColumn()
+        -- the trigger's sound, and its words in the toast if that is switched on
+        if imgui.SmallButton('Test') then
+            Indicate(trigger)
+            Try(trigger.sound)
+        end
         imgui.SameLine()
-        TestButton(trigger)
-        imgui.SameLine()
-        if imgui.Button('Remove') then
+        if imgui.SmallButton('Remove') then
             removed = index
         end
-
         imgui.PopID()
     end
+    imgui.EndTable()
     if removed ~= nil then
         table.remove(triggers, removed)
         IndexTriggers(triggers)
         shared.app:Save()
+    end
+end
+
+-- The foot of the Triggers tab: the mobs of the kind chosen that are in the area, put together when
+-- the kind or the area is another one; with no kind chosen, how many triggers are listened for
+local function TriggersStatus(options)
+    if making.mob == nil then
+        local on = 0
+        for _, trigger in ipairs(options.triggers) do
+            if trigger.enabled[1] then on = on + 1 end
+        end
+        return ('Listening for %d of %d triggers.'):format(on, #options.triggers)
+    end
+    local zone = CurrentZone()
+    if making.saidOf ~= making.mob or making.saidIn ~= zone then
+        local here = Area(zone).among[making.mob]
+        making.saidOf, making.saidIn = making.mob, zone
+        making.said = here ~= nil and ('%s mobs in %s: %s.'):format(making.mob, ZoneName(zone), (here:gsub('|', ', ')))
+            or ('No %s mobs in %s.'):format(making.mob, ZoneName(zone))
+    end
+    return making.said
+end
+
+local function DrawTriggers(options)
+    if widgets.Header('New Trigger', true) then
+        DrawMaking(options)
+    end
+    if widgets.Header('Triggers') then
+        DrawList(options)
+    end
+    widgets.Status(TriggersStatus(options))
+end
+
+-- The Toast tab: the switch, and under it the rows that mean something while it is on, then the
+-- rules for hiding. Each row's spec takes the switch as its parent each draw: the settings table is
+-- another after a change of character.
+local toastSpec = { }
+local durationSpec = { format = '%d s' }
+
+local function DrawToast(options)
+    indicator.sample = options.showIndicator[1]
+    if not widgets.Header('Toast', true) then return end
+    if widgets.Check('Enable Toast', 'Shows a small window saying what a trigger heard, as the chat log does. A sample shows while this tab is open.',
+        options.showIndicator, '##trigger.indicator.enabled') then
+        shared.app:Save()
+    end
+    toastSpec.parent, durationSpec.parent = options.showIndicator, options.showIndicator
+    local _, done = widgets.Slider('Duration', 'How long each line stays.', options.indicatorSeconds, 1, 15, '##trigger.indicator.seconds', durationSpec)
+    if done then shared.app:Save() end
+    if widgets.Check('Fade In And Out', 'The toast fades in and out instead of popping.', options.fadeInOut, '##trigger.indicator.fade', toastSpec) then
+        shared.app:Save()
+    end
+    local grow = widgets.Dropdown('Grow From', 'The side that stays where it is as the words get longer or shorter.',
+        indicator.Grows, options.indicatorGrow, '##trigger.indicator.grow', toastSpec)
+    if grow ~= nil then
+        options.indicatorGrow = grow
+        shared.app:Save()
+    end
+
+    widgets.Gap()
+    for _, rule in ipairs(hideRules) do
+        hideValue[1] = options.hide[rule[2]]
+        if widgets.Check(rule[1], rule[3], hideValue, rule[4], toastSpec) then
+            options.hide[rule[2]] = hideValue[1]
+            shared.app:Save()
+        end
     end
 end
 

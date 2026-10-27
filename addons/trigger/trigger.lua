@@ -1,6 +1,6 @@
 addon.name    = 'trigger'
 addon.author  = 'win'
-addon.version = '1.0'
+addon.version = '1.1'
 addon.desc    = 'Plays a sound when something happens: a tell, an invite, a trade, being examined, an item you are after dropping, low HP and the like.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -52,7 +52,7 @@ local triggertab = require('triggertab')
 
 local events, Boxed = shared.events, shared.Boxed
 local PlayFile, Try, Renamed = playing.PlayFile, playing.Try, playing.Renamed
-local SoundCombo, Mark = controls.SoundCombo, controls.Mark
+local SoundRow = controls.SoundRow
 
 local defaults = T{
     events = T{ },
@@ -86,72 +86,54 @@ for _, event in ipairs(events) do
     }
 end
 
-local soundColumn = 0
+-- The rows under an event, which mean something while it is switched on: their specs take the
+-- event's switch as their parent each draw
+local soundSentence = 'The sound it plays. Test plays it now.'
+local itemsSentence = 'The items to listen for, by name, with a comma between one and the next.'
+local dependent = { }
+local thresholdSpec = { format = '%d%%' }
 
 local function DrawEvent(options, event)
     local chosen = options.events[event.key]
     local id = ids[event.key]
 
-    widgets.Label(event.label)
-    if imgui.Checkbox(id.enabled, chosen.enabled) then
+    -- what sets the event off
+    if widgets.Check(event.label, event.sentence, chosen.enabled, id.enabled) then
         shared.app:Save()
     end
 
-    imgui.SameLine()
-    local soundX = imgui.GetCursorPosX()
-    soundColumn = soundX
-    SoundCombo(id.sound, chosen, event.key)
-
-    imgui.SameLine()
-    if imgui.Button(id.test) then
+    dependent.parent, thresholdSpec.parent = chosen.enabled, chosen.enabled
+    if SoundRow('Sound', soundSentence, id.sound, chosen, event.key, id.test, dependent) then
         Try(chosen.sound)
     end
-    controls.EndLine()
 
-    -- what sets the event off
-    Mark(event.tooltip)
-
-    -- the threshold only while the event is switched on: off, there is nothing for it to set
-    if event.threshold ~= nil and chosen.enabled[1] then
-        widgets.Label(event.thresholdLabel)
-        imgui.SetCursorPosX(soundX)
-        widgets.PushControlWidth()
-        imgui.SliderInt(id.threshold, options[event.threshold], 5, 90, '%d%%')
-        widgets.PopControlWidth()
-        if imgui.IsItemDeactivatedAfterEdit() then shared.app:Save() end
+    if event.threshold ~= nil then
+        local _, done = widgets.Slider(event.thresholdLabel, event.thresholdSentence, options[event.threshold], 5, 90, id.threshold, thresholdSpec)
+        if done then shared.app:Save() end
     end
 
     -- and so the names of the items listened for
-    if event.items ~= nil and chosen.enabled[1] then
-        widgets.Label('Items')
-        imgui.SetCursorPosX(soundX)
-        widgets.PushControlWidth()
+    if event.items ~= nil then
+        widgets.BeginRow('Items', itemsSentence, dependent)
         imgui.InputText(id.items, options[event.items], 1024)
-        widgets.PopControlWidth()
         if imgui.IsItemDeactivatedAfterEdit() then
             shared.app:Save()
         end
-        Mark('Item names, separated by commas.\nex: Kindred\'s Seal, Beastmen\'s Seal')
+        widgets.EndRow()
     end
 end
 
 local volumeLevels = { 'High', 'Medium', 'Low' }
 local function DrawVolume(options)
-    widgets.Label('Volume')
-    imgui.SetCursorPosX(soundColumn)
-    widgets.PushControlWidth()
-    if imgui.BeginCombo('##trigger.volume', options.volume) then
-        for _, level in ipairs(volumeLevels) do
-            if imgui.Selectable(level, options.volume == level) and options.volume ~= level then
-                options.volume = level
-                shared.app:Save()
-            end
-        end
-        imgui.EndCombo()
+    local chosen = widgets.Dropdown('Volume', 'How loud every sound is, tests and previews too. Medium is the sound as it was made.',
+        volumeLevels, options.volume, '##trigger.volume')
+    if chosen ~= nil then
+        options.volume = chosen
+        shared.app:Save()
     end
-    widgets.PopControlWidth()
-    Mark('Volume for all events, triggers, previews and tests. Medium is the original volume.\nHigh is slightly louder; Low is quieter. Custom sounds without volume copies use their original volume.')
 end
+
+local overlapSpec = { experimental = true }
 
 local function DrawSettings(options)
     local group, open = nil, true
@@ -167,11 +149,10 @@ local function DrawSettings(options)
     end
     if not widgets.Header('Playback') then return end
     DrawVolume(options)
-    widgets.Label('Overlap Sounds')
-    if imgui.Checkbox('##trigger.overlap', options.overlapSounds) then
+    if widgets.Check('Overlap Sounds', 'Plays up to eight sounds at once instead of one after another. Off, each waits for the one before it.',
+        options.overlapSounds, '##trigger.overlap', overlapSpec) then
         shared.app:Save()
     end
-    Mark('Experimental: play up to eight sounds at once instead of queuing. Applies to events, triggers, previews and tests.\nRequires Windows and mono/stereo integer PCM WAVs, up to 16 MiB each. Extra sounds are dropped; the one-second repeat limit remains.\nTurn off to return to queued playback. If the backend is unavailable, the queue is used.')
 end
 
 -- Whatever saved settings lack, or have as the wrong kind of thing
