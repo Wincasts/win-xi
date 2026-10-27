@@ -110,8 +110,15 @@ local function NinjutsuCost(updater, items)
     return tostring(itemCount), (itemCount > 0);
 end
 
-local function ManaCost(resource)
-    local cost = resource.ManaCost;
+-- fork: the spell as the server has it (winxi.spells: its levels for each job and its MP), or nil where
+-- winxi's data is not installed; the client's resource is used then
+local function ServerSpell(id)
+    local ok, spells = pcall(require, 'winxi.spells');
+    return ok and spells.Get(id) or nil;
+end
+
+local function ManaCost(resource, base)
+    local cost = base or resource.ManaCost;
 
     local buffs = AshitaCore:GetMemoryManager():GetPlayer():GetBuffs();
     for _,buff in ipairs(buffs) do
@@ -318,6 +325,15 @@ end
 function Updater:Initialize(element, binding)
     self.State = element.State;
     self.Resource      = AshitaCore:GetResourceManager():GetSpellById(binding.Id);
+    local server = ServerSpell(binding.Id); -- fork: the server's levels and MP where it has them
+    local manaCost = (server and server.Data and server.Data.mpCost) or self.Resource.ManaCost;
+    -- the level a job learns it at, -1 for a job that does not
+    local function Level(job)
+        if server then
+            return (server.Jobs and server.Jobs[job]) or -1;
+        end
+        return self.Resource.LevelRequired[job + 1];
+    end
 
     --Set cost and recast function for charge-based abilities.
 
@@ -328,13 +344,13 @@ function Updater:Initialize(element, binding)
         self.CostFunction = ItemCost:bind2(binding.CostOverride);
     elseif (ninjutsu ~= nil) then
         self.CostFunction = NinjutsuCost:bind2(ninjutsu);
-    elseif (self.Resource.ManaCost < 1) then
+    elseif (manaCost < 1) then
         self.CostFunction = function()
             return '', true;
         end
     else
         self.CostKind = 'MP'; -- winxi: for the low MP tint
-        self.CostFunction = ManaCost:bind1(self.Resource);
+        self.CostFunction = function () return ManaCost(self.Resource, manaCost); end;
     end
 
     local jobData = player:GetJobData();
@@ -346,11 +362,11 @@ function Updater:Initialize(element, binding)
 
     if bit.band(bit.rshift(self.Resource.JobPointMask, jobData.MainJob), 1) == 1 then
         self.MainJobCheck = JobPointCheck;
-        self.MainRequirement = self.Resource.LevelRequired[jobData.MainJob + 1];
+        self.MainRequirement = Level(jobData.MainJob);
         self.MainAddendum = false; --Nothing requires addendum and JP..
     else
         self.MainJobCheck = MainJobCheck;
-        self.MainRequirement = self.Resource.LevelRequired[jobData.MainJob + 1];
+        self.MainRequirement = Level(jobData.MainJob);
         if (self.MainRequirement == -1) then
             self.MainRequirement = 999;
         end
@@ -363,7 +379,7 @@ function Updater:Initialize(element, binding)
     end
     
     if bit.band(bit.rshift(self.Resource.JobPointMask, jobData.SubJob), 1) == 0 then
-        self.SubRequirement = self.Resource.LevelRequired[jobData.SubJob + 1];
+        self.SubRequirement = Level(jobData.SubJob);
         if (self.SubRequirement == -1) then
             self.SubRequirement = 999;
         end
