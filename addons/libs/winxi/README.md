@@ -563,8 +563,10 @@ someone who has set one addon up knows every other. The rules, in the order a wi
 2. **Sections.** Every tab is sections under `widgets.Header`, each collapsible, its body inside the `if`.
    The first section of a tab is `Header(name, true)`, flush with the tab bar. A header sets itself apart
    from the section above: never a `Gap` before one. `Gap` goes only between families of settings inside
-   a section. The first section of the Settings tab is **Window**, where there is a window: Visible, Lock
-   Window, Position, and whatever else is about the window itself, under those names in every addon.
+   a section, and draws a faint rule across the window with a little air either side, so the families
+   can be told apart at a glance. The first section of the Settings tab is **Window**, where there is a
+   window: Visible, Lock Window, Position, and whatever else is about the window itself, under those
+   names in every addon.
 3. **Rows.** Every setting is a described row: its name, a sentence under the name saying what it does,
    and its control at the right. `widgets.Check`, `Slider`, `Numbers`, `Dropdown`, `Color` and `Action`
    draw one each; `BeginRow` / `EndRow` hold a control of the addon's own. An addon never calls imgui's
@@ -608,7 +610,9 @@ widgets.Status(('%d icons shown.'):format(count));
 
 Rows are 30 text heights of name and sentence, a gap, and 13 of control (`widgets.DescriptionWidth`,
 `widgets.RowControlWidth`); a settings window fits itself to them, and one that has been resized keeps
-the control column and gives the sentence what is left.
+the control column and gives the sentence what is left. How tall a settings window opens is the theme's
+Starting Height (winxisettings' Settings Windows tab, with a button that takes the height of that window
+as it stands): Fit To Content, or a height in pixels that its content scrolls within.
 
 On rows so far: the theme's own sections, the shell's Visibility and Controller rows, and the buff, sct,
 atlas, mark and winxisettings addons. The rest (party, name, chatbox, inventory, zone and the others)

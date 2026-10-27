@@ -27,7 +27,9 @@
 --                                    it, and it returns whether it is open, for the section to be
 --                                    drawn only then. It sets itself apart from the section above; no
 --                                    Gap before it
---   widgets.Gap()                    the space between one family of settings and the next, within a section
+--   widgets.Gap()                    between one family of settings and the next, within a section: a faint
+--                                    rule across the window, with a little air either side. Never before a
+--                                    header, which sets itself apart
 --
 -- spec, on every row, each optional:
 --   experimental   true: [Experimental], in yellow, goes before the name
@@ -482,10 +484,19 @@ function widgets.PopControlWidth()
     imgui.PopItemWidth();
 end
 
--- The space between one family of settings and the next, within a section
-local familyGap = { 0, 5 };
+-- Between one family of settings and the next, within a section: a faint rule in the settings windows'
+-- border colour, with a little air either side
+local familyGap = { 0, 2 };
+local ruleColor = { 0, 0, 0, 0 };
+local ruleOpacity = 0.35;
 
 function widgets.Gap()
+    local border = theme.For('BorderColor', true) or theme.Get().BorderColor;
+    ruleColor[1], ruleColor[2], ruleColor[3], ruleColor[4] = border[1], border[2], border[3], (border[4] or 1) * ruleOpacity;
+    imgui.Dummy(familyGap);
+    imgui.PushStyleColor(ImGuiCol_Separator, ruleColor);
+    imgui.Separator();
+    imgui.PopStyleColor();
     imgui.Dummy(familyGap);
 end
 
@@ -544,6 +555,7 @@ widgets.Milliseconds = { format = '%d ms' };
 local percent, pixels, milliseconds = widgets.Percent, widgets.Pixels, widgets.Milliseconds;
 local dependent = { parent = true };
 local dependentPercent = { parent = true, format = '%d%%' };
+local heightSpec = { format = '%d px', tooltip = 'A window resized by its edge keeps that size until it is double-clicked there, which fits it again.' };
 
 -- The title of a section of a settings window, with a blank line before it to set it apart from the
 -- section above (pass first for the section that heads the tab). An addon's Winxi Theme tab has five:
@@ -885,6 +897,16 @@ function widgets.SettingsAppearance(appearanceHooks)
 
         widgets.Gap();
         ThemeSlider('Padding', 'SettingsPadding', 0, theme.MaxSettingsPadding, 'Space between a settings window\'s edge and what is in it.', pixels);
+
+        widgets.Gap();
+        local current = theme.Get();
+        heightSpec.format = (tonumber(current.SettingsWindowHeight) or 0) > 0 and '%d px' or 'Fit To Content';
+        ThemeSlider('Starting Height', 'SettingsWindowHeight', 0, theme.MaxSettingsWindowHeight, 'How tall a settings window is when it opens; what does not fit scrolls. Fit To Content makes it as tall as what is in it.', heightSpec);
+        local _, drawnHeight = window.DrawnSize();
+        if drawnHeight ~= nil and widgets.Action('Use This Window\'s Height', 'Makes the height this window has now the starting height of every settings window.', 'Use##winxi.useHeight') then
+            current.SettingsWindowHeight = math.max(0, math.min(theme.MaxSettingsWindowHeight, math.floor(drawnHeight)));
+            AfterControl(true);
+        end
     end
 
     if widgets.Header('Font') then
