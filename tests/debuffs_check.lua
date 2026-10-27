@@ -98,12 +98,15 @@ cast(1, 253, { [900] = 236 }); act(5, 1, 0, 901, 1, 48); H.print('another is hit
 act(1, 11, 999, 902, 242, 19); H.print('Sleep II by number from a move:', statuses(902))
 act(5, 11, 998, 902, 185, 30, 160, 4); H.print('a move that hurts and paralyses: awake, paralysed', statuses(902))
 act(1, 11, 999, 903, 185, 30, 160, 2); H.print('a move that hurts and then sleeps: asleep', statuses(903))
--- something eating its HP wakes nothing, as is seen in the game
+-- something eating its HP: the next tick wakes it, three seconds away at most
 debuffs.Clear()
 cast(1, 253, { [900] = 236 }); cast(2, 23, { [900] = 2 })
-now = now + 9; H.print('Dia on a sleeper, nine seconds on: still asleep', debuffs.Remaining(900, 'sleep'), '| by number', debuffs.StatusRemaining(900, 2))
+H.print('Dia on a sleeper: sleep has', debuffs.Remaining(900, 'sleep'), '| by number', debuffs.StatusRemaining(900, 2), '| Dia its own', debuffs.StatusRemaining(900, 134))
+now = now + 3; H.print('three seconds on: awake', names(900) == 'Dia 57', statuses(900) == '134:57')
 cast(2, 220, { [901] = 236 }); cast(1, 253, { [901] = 236 })
-now = now + 9; H.print('Sleep on one poisoned, nine seconds on: still asleep', debuffs.Remaining(901, 'sleep'))
+H.print('Sleep on one poisoned: sleep has', debuffs.Remaining(901, 'sleep'), '| Poison its own', debuffs.StatusRemaining(901, 3) > 3)
+cast(1, 253, { [902] = 236 }); cast(2, 56, { [902] = 236 })
+H.print('Slow on a sleeper, which does not bleed: sleep has', debuffs.Remaining(902, 'sleep'))
 -- the fade messages: sleep, bind and the other ailments say 204, Dia, Bio and Slow 206
 debuffs.Clear()
 cast(1, 253, { [900] = 236 }); cast(1, 258, { [900] = 236 })

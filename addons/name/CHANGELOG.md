@@ -2,7 +2,7 @@
 
 ## 1.85
 
-- The statuses over enemies: Sleep, bind, paralysis, blindness, silence, poison, gravity and flash wear off when the server says so: their message is 204, which only Dia, Bio and Slow's 206 was listened for. Bind ends with a blow, weapon skill, spell or additional effect that does damage, as sleep does, unless you cast it: the server tells the caster when it breaks, and one hit in twenty does not. Damage over time no longer wakes a sleeper.
+- The statuses over enemies: Sleep, bind, paralysis, blindness, silence, poison, gravity and flash wear off when the server says so: their message is 204, which only Dia, Bio and Slow's 206 was listened for. Bind ends with a blow, weapon skill, spell or additional effect that does damage, as sleep does, unless you cast it: the server tells the caster when it breaks, and one hit in twenty does not.
 
 ## 1.84
 

@@ -27,7 +27,8 @@
 -- one for the status (winxi.debuff_durations, made from the server's scripts), or failing that
 -- DEFAULT_SECONDS; the server saying it wore off, or was taken off, ends it before that.
 -- A blow, weapon skill, spell or additional effect that does damage ends sleep, and bind but for one
--- the player put there, which waits for the server to say it broke; damage over time ends neither.
+-- the player put there, which waits for the server to say it broke. Damage over time wakes a sleeper
+-- at the server's next regen tick and leaves bind.
 --
 -- name is the spell that put it there, by the server id of who cast it, element the element of a
 -- threnody. An addon that has parsed the packet already hands the result over in place of the packet:
@@ -618,10 +619,9 @@ local ProcRemoves = { [168] = true };
 -- Being hurt wakes a sleeper, and so does being cured; being hurt breaks bind, nineteen times in
 -- twenty (BindBreakCheck). The server takes them off when a blow, a weapon skill, a spell or an
 -- additional effect does damage, and says it wore off only to the one who put it there and to its
--- owner, when a player: everyone else sees it in the blow, or not at all. What eats HP over time
--- (Dia, Bio, Poison and the like) is taken to wake nothing, as is seen in the game, though the
--- server's scripts say its tick does. The messages of an action's result that say the target took
--- damage, param the amount (a blow for 0 wakes nothing), as the server numbers them:
+-- owner, when a player: everyone else sees it in the blow, or not at all. The messages of an action's
+-- result that say the target took damage, param the amount (a blow for 0 wakes nothing), as the
+-- server numbers them:
 local Hurts = {
     [1] = true,   [2] = true,   [67] = true,  [110] = true, [185] = true, [187] = true, [227] = true,
     [252] = true, [264] = true, [317] = true, [352] = true, [353] = true, [379] = true, [522] = true,
@@ -634,10 +634,57 @@ local ProcHurts = { [161] = true, [163] = true, [229] = true };
 -- the sleeps, by number, and bind
 local Sleeps = { 2, 19 };
 local BIND = 11;
+-- A sleeper whose HP something eats wakes at the server's next regen tick, three seconds away at most:
+-- it takes sleep off with the damage of Poison, Dia, Bio, the elemental debuffs and Requiem (TickRegen,
+-- for REGEN_DOWN), and says nothing of it to anyone. Bind it leaves.
+local Bleeds = {
+    [3] = true, [128] = true, [129] = true, [130] = true, [131] = true, [132] = true, [133] = true,
+    [134] = true, [135] = true, [192] = true,
+};
+local TICK_SECONDS = 3;
 
 local function Seconds(category, param, status)
     local by = (category == SPELL and durations.spells[param]) or (category == MOVE and durations.mobskills[param]) or nil;
     return (by and by[status]) or durations.statuses[status] or DEFAULT_SECONDS;
+end
+
+local function Has(target, set)
+    local on = statuses[target];
+    if on == nil then
+        return false;
+    end
+    local now = os.time();
+    for status in pairs(set) do
+        local entry = on[status];
+        if entry ~= nil and now < entry.expires then
+            return true;
+        end
+    end
+    return false;
+end
+
+local Asleep = {};
+for _, status in ipairs(Sleeps) do
+    Asleep[status] = true;
+end
+
+-- The sleep on a target runs out at the next regen tick: by number and by kind
+local function WakeSoon(target)
+    local limit = os.time() + TICK_SECONDS;
+    local on = statuses[target];
+    if on ~= nil then
+        for _, status in ipairs(Sleeps) do
+            local entry = on[status];
+            if entry ~= nil and entry.expires > limit then
+                entry.expires = limit;
+            end
+        end
+    end
+    local kinds = tracked[target];
+    local entry = kinds and kinds[StatusType.Sleep];
+    if entry ~= nil and entry.expires > limit then
+        entry.expires = limit;
+    end
 end
 
 -- The player's server id, or 0
@@ -690,6 +737,10 @@ local function Put(target, status, seconds, actor, category, param)
         statuses[target] = on;
     end
     on[status] = { id = status, expires = os.time() + seconds, by = actor, category = category, param = param };
+    -- sleep on one that bleeds, or bleeding on one asleep: the next tick wakes it
+    if (Asleep[status] and Has(target, Bleeds)) or (Bleeds[status] and Has(target, Asleep)) then
+        WakeSoon(target);
+    end
 end
 
 local function Take(target, status)
