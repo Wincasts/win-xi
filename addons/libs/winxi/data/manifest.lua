@@ -5,7 +5,7 @@ return {
         Branch = 'live',
         Commit = '9a4494d5056429d0e75922dc9fa47d419142cf68',
         Committed = '2026-10-18T12:38:17-06:00',
-        Built = '2026-10-27T17:04:03+00:00',
+        Built = '2026-10-27T17:05:55+00:00',
         Settings = { },
     },
     Sets = {

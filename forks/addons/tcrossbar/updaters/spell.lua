@@ -117,8 +117,54 @@ local function ServerSpell(id)
     return ok and spells.Get(id) or nil;
 end
 
+-- fork: what changes a spell's MP on the server (winxi.rules' magicCost: the Arts' and Addenda's fixed
+-- part of the cost mods, Penury and Parsimony, Manafont), or nil where winxi's data is not installed
+local magicCost = nil;
+do
+    local ok, rules = pcall(require, 'winxi.rules');
+    magicCost = ok and rules.Get('magicCost') or nil;
+end
+
+-- fork: a ninjutsu spell's tools as the server has them: its own (the spell_list's mpCost) and the
+-- universal one a NIN may use in its place (magicCost.UniversalTools), or nil
+local function ServerTools(id, server)
+    local own = server and server.Data and server.Data.skill == 39 and server.Data.mpCost or nil;
+    if (own == nil or own == 0 or magicCost == nil) then
+        return nil;
+    end
+    return T{ own, magicCost.UniversalTools and magicCost.UniversalTools[own] or own };
+end
+
+-- fork: the MP as the server reckons it (battleutils' CalculateSpellCost): Manafont makes it nothing;
+-- Penury (white) or Parsimony (black) halves it, rounding down; else the Arts and Addenda add their
+-- percentage of the base, the part past a whole point dropped. The gear and merits that add to the
+-- Arts are not known here.
+local function ServerManaCost(resource, base, buffs)
+    for _, buff in ipairs(buffs) do
+        for _, free in ipairs(magicCost.Free or {}) do
+            if (buff == free) then return 0; end
+        end
+    end
+    local kind = (resource.Type == 1) and 'White' or (resource.Type == 2) and 'Black' or nil;
+    if (kind == nil) then return base; end
+    local halved = (kind == 'White') and magicCost.HalvedWhite or magicCost.HalvedBlack;
+    local percent = 0;
+    for _, buff in ipairs(buffs) do
+        if (buff == halved) then return math.floor(base / 2); end
+        local arts = magicCost.Arts and magicCost.Arts[buff];
+        if (arts) then percent = percent + arts[kind]; end
+    end
+    local delta = base * percent / 100;
+    return base + (delta < 0 and math.ceil(delta) or math.floor(delta));
+end
+
 local function ManaCost(resource, base)
     local cost = base or resource.ManaCost;
+    if (magicCost ~= nil) then
+        local buffs = AshitaCore:GetMemoryManager():GetPlayer():GetBuffs();
+        cost = ServerManaCost(resource, cost, buffs);
+        return tostring(cost), (AshitaCore:GetMemoryManager():GetParty():GetMemberMP(0) >= cost);
+    end
 
     local buffs = AshitaCore:GetMemoryManager():GetPlayer():GetBuffs();
     for _,buff in ipairs(buffs) do
@@ -337,7 +383,7 @@ function Updater:Initialize(element, binding)
 
     --Set cost and recast function for charge-based abilities.
 
-    local ninjutsu = ninjutsuCost[binding.Id];
+    local ninjutsu = ServerTools(binding.Id, server) or ninjutsuCost[binding.Id];
     
     --Custom
     if (binding.CostOverride) then
