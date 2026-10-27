@@ -27,6 +27,10 @@ int main() {
     auto failing=[](uint32_t&) { return false; };
     Check(skin.Lookup(0x3000,5,failing)==-1,"one that cannot be read: left");
     Check(skin.Clear().size()==2 && !skin.On() && skin.pointers.empty(),"cleared, its textures handed back");
+    Check(SkinLeftOutside(true,0,true),"a font drawn in no window (the names over heads): left as the game's");
+    Check(!SkinLeftOutside(true,1,true) && !SkinLeftOutside(true,2,true),"a font in a window, or one within another: skinned");
+    Check(!SkinLeftOutside(true,0,false),"another texture drawn in no window: skinned");
+    Check(!SkinLeftOutside(false,0,true),"the windows not heard: every font skinned, as before");
 
     SkinLook full; full.textures.push_back(a);
     for (uint32_t i=0;i<SKIN_POINTERS;i++) full.Lookup(0x10000+i*16,i,as(0x1));

@@ -198,3 +198,8 @@ private:
         return index;
     }
 };
+
+// Whether a draw the skin has a picture for is left as the game's (1.69): a font's texture drawn in no game window,
+// as the names over heads are (the game draws them from the menu font), while the windows are heard (Window::Render's
+// detour in, depth the windows being drawn now). The skin dresses the menus; without the detour, every draw as before.
+inline bool SkinLeftOutside(bool windowsHeard,unsigned depth,bool font) { return windowsHeard && depth==0 && font; }
