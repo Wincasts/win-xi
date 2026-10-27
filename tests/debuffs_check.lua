@@ -77,7 +77,7 @@ H.print('Protectra on two: Protect on both', debuffs.StatusRemaining(1, 40) ~= n
 debuffs.Clear()
 cast(3, 454, { [900] = 237 }); H.print('Fire Threnody lasts the server\'s 60 s:', names(900), '| by number', statuses(900))
 cast(3, 368, { [901] = 237 }); H.print('Foe Requiem lasts the server\'s 64 s:', names(901), '| by number', statuses(901))
-cast(1, 23, { [902] = 2 }); H.print('Dia, which the scripts do not say: this file\'s 60 s:', names(902), '| by number', statuses(902))
+cast(1, 23, { [902] = 2 }); H.print('Dia, 60 s as the era module casts it:', names(902), '| by number', statuses(902))
 
 -- being hurt wakes a sleeper, and so does being cured; the server says nothing of it to most
 debuffs.Clear()
