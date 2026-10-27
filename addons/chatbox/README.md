@@ -212,7 +212,8 @@ the info panel (Anchor Above Info Panel, removed in 0.15.0).
 
 ## Settings
 
-`/chatbox` opens Settings, Info Panel and Tooltips tabs. There is no Winxi Theme tab; Settings are kept for each character. The
+`/chatbox` opens Settings, Info Panel and Tooltips tabs. Every setting is a described row: its name, a sentence under it
+saying what it does, and its control at the right (winxi 65). There is no Winxi Theme tab; Settings are kept for each character. The
 Chatbox and Look sections apply in both modes; the Layout and Activity sections are the WinXI Skin's and
 are shown only in it (their settings are kept, and ignored, in Follow Game). The look is WinXI's in both:
 the mode is how the boxes behave and where they stand.
@@ -249,8 +250,8 @@ the mode is how the boxes behave and where they stand.
   and `off` do the same. There is no history-clear button; `/chatbox clear` remains available.
 - **Tooltips tab — Chat Tooltips** (on to begin with): resting the mouse on an item, key item, auto-translate phrase,
   spell, ability, weapon skill, quest or place in the compact log, Window 2 or (with Replace Expanded Log)
-  the expanded log's rows shows a tooltip of it, the gap between two rows counted as the row above. While
-  it is on, one switch for each kind, all on to begin with: **Items**, **Spells And Abilities**, **Weapon
+  the expanded log's rows shows a tooltip of it, the gap between two rows counted as the row above. Under
+  it, greyed while it is off, one switch for each kind, all on to begin with: **Items**, **Spells And Abilities**, **Weapon
   Skills**, **Quests**, **Places** and **Auto-Translate**; and **Tooltip Notes** (on to begin with), the
   dimmed lines: what the catalogs cannot vouch for (presence is not availability, modifiers in server
   units) and a phrase's category and kind; off, only the name and the facts. The shared Winxi tooltip settings (whether
@@ -264,16 +265,16 @@ the mode is how the boxes behave and where they stand.
   game's rows give: the first window's row pitch (its height less the top and bottom padding, over the
   lines it shows) less the row gap, read where the reading is sound and kept until another is, 12 until
   the first; so the rows stand where the game's do.
-- Under them, how to select and expand the log, and the bridge's status.
+- The bridge's status is at the foot of the tab.
 
 **Layout** (WinXI Skin)
 
 - **Lock Window** (on to begin with): off, the log can be taken hold of with the left button anywhere on
   it but its scrollbar and dragged wherever you want; let go, the place is kept for the character and
-  Position becomes Custom. The wheel and the scrollbar still work. On, it stays where it is, the mouse
+  Placement becomes Custom. The wheel and the scrollbar still work. On, it stays where it is, the mouse
   going through it to the game.
-- **Position**: **At the Game's Chat** (to begin with), where the game puts its own log, or **Custom**,
-  wherever it was dragged to or the **Place** typed under it (the log's bottom-left in pixels from the
+- **Placement**: **At the Game's Chat** (to begin with), where the game puts its own log, or **Custom**,
+  wherever it was dragged to or the **Position** typed under it (the log's bottom-left in pixels from the
   screen's top-left, kept on the screen). Choosing Custom takes the place the log stands at. The input
   bar uses the bottom of that footprint while typing, a stacked or side-by-side
   second window keeps its place beside the first, the info panel attaches as before, and Expand In
@@ -298,8 +299,8 @@ the mode is how the boxes behave and where they stand.
 
 **Activity** (WinXI Skin)
 
-Window 1 and Window 2 have independent settings, all **off by default**. Each switch shows its own
-controls only while it is on.
+Window 1 and Window 2 have independent settings, all **off by default**, each window a sub-section. Each
+switch's own rows are under it, greyed while it is off.
 
 - **Auto Resize**: grows the compact log to fit recent wrapped messages routed to that window,
   up to its rows, then shrinks as messages age out. With it on:

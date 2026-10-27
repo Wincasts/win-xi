@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.0
+
+- The settings are described rows (winxi 65): every setting is its name, a sentence under it saying what it does, and its control at the right; the tooltips, the (?) marks and the greyed explanation lines are gone, their essentials folded into the sentences. Settings: the rows after Enable in the Chatbox section are under it; Layout's Position dropdown is now Placement, with the typed place under it named Position; Activity is a Window 1 and a Window 2 sub-section, each switch's rows under it and greyed while it is off instead of hidden; Look's families are set apart by rules; the bridge's status is at the foot of the tab. Tooltips: the kinds are a Shown For sub-section under Chat Tooltips, greyed with it off. Info Panel (winxi.infopanel.chat_settings): General has Anchor, Hide Game Clock and Hide Compass in one section, with the panel's status at its foot, and About is gone; Window 2 Panel is at the top of the Window 2 tab; the timetable's lines are a sub-section a group, with Every Line and No Lines rows; the icon set is a dropdown row. Every control id and every setting is as it was. tests/chatbox_ui_check asserts the rows.
+
 ## 0.16.1
 
 - The settings' tooltips and notes reread for plain words: each says what its setting does and what it leaves alone, no longer how. The greyed line under Font Size says what the game's keys still do; `/chatbox help` no longer ends in a sentence about native controls.

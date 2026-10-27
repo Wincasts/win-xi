@@ -1,6 +1,6 @@
 addon.name = 'chatbox'
 addon.author = 'win'
-addon.version = '0.16.1'
+addon.version = '0.17.0'
 addon.desc = 'WinXI native-backed chat, input and expanded history, with an optional chat-owned three-slot info panel.'
 local winxiNeeded = 50
 do
@@ -446,13 +446,11 @@ end
 -- Room between each edge of the log and input bar and their text, in pixels: 3 each by default
 local PADDING_DEFAULT, PADDING_MOST = 3, 40
 local PADDING_SIDES = {
-    { key = 'leftPadding', label = 'Left Padding', tip = 'How far the text sits from the left edge of the log and the input bar, in pixels.' },
-    { key = 'rightPadding', label = 'Right Padding', tip = 'How far long lines stop short of the right edge, in pixels.' },
-    { key = 'topPadding', label = 'Top Padding', tip = 'Room kept above the log\'s rows, in pixels. The input bar grows by it too, its text centred.' },
-    { key = 'bottomPadding', label = 'Bottom Padding', tip = 'Room kept below the log\'s rows, in pixels. The input bar grows by it too, its text centred.' },
+    { key = 'leftPadding', label = 'Left Padding', id = '##chatbox.leftPadding', sentence = 'How far the text sits from the left edge of the log and the input bar.' },
+    { key = 'rightPadding', label = 'Right Padding', id = '##chatbox.rightPadding', sentence = 'How far long lines stop short of the right edge.' },
+    { key = 'topPadding', label = 'Top Padding', id = '##chatbox.topPadding', sentence = 'Room kept above the log\'s rows. The input bar grows by it too.' },
+    { key = 'bottomPadding', label = 'Bottom Padding', id = '##chatbox.bottomPadding', sentence = 'Room kept below the log\'s rows. The input bar grows by it too.' },
 }
-
-local Tip = require('winxi.tooltip').Hover;
 -- Chat Tooltips' kinds, each a switch of its own, all on to begin with; missing or not a switch, on
 local function TooltipKinds(kinds)
     kinds = type(kinds) == 'table' and kinds or T{}
@@ -484,43 +482,65 @@ local function HideHud(options, args, key, name)
     app:Say(hide[1] and ('Game %s hidden. Unload clock and hidecompass, which hide the same thing.'):format(name)
         or ('Game %s shown.'):format(name))
 end
--- Activity, each window's: Auto Resize and Fade When Idle, each with its own controls shown only while it is on, and
--- Idle Time, which both use, while either is
+-- Activity, each window's: Auto Resize and Fade When Idle, each with its own rows under it, greyed while it is off, and
+-- Idle Time, which both use, greyed while neither is on. Every spec, id and sentence the settings rows need is made
+-- once, in this one table; each draw sets the parents that change.
+local R = {
+    activity = { animate = {}, resizeDuration = { float = true, format = '%.2f s' }, minimum = {},
+        duration = { float = true, format = '%.1f s' }, idle = { format = '%d s' } },
+    activityIds = {}, -- window number -> its rows' ids
+    enabled = {},     -- the Settings tab's rows under Enable
+    replace = { false }, -- Replace Native Chat, read from and written to the mode
+    font = { description = 'The font of the log, input bar and expanded log. Theme Font follows the Winxi Theme, and the rest come from Windows.' },
+    fontSize = { theme = 'Automatic', max = 24 },
+    fontSizeSentences = {
+        game = 'How large the text of the log, input bar and expanded log is. Automatic fits the rows where the game default puts them.',
+        skin = 'How large the text of the log and input bar is, both growing with it. With Replace Expanded Log, the expanded log\'s too.' },
+    lock = { description = 'Keeps the log where it is, and lets clicks through it to the game. Off, dragging it makes Placement Custom.' },
+    rows = {}, -- its format says Automatic at 0
+    rowsNames = { 'Window 1 Rows', 'Window 2 Rows' }, rowsIds = { '##chatbox.window1Rows', '##chatbox.window2Rows' },
+    notes = {}, kind = {},
+    kindRows = {}, -- each tooltip kind's row: its id and sentence
+    kindSentences = { items = 'Items and key items named in the log.', actions = 'Spells and abilities named in the log.',
+        weaponskills = 'Weapon skills named in the log.', quests = 'Quests named in the log.', places = 'Places named in the log.',
+        autotranslate = 'Auto-translate phrases in the log.' },
+}
+function R.ActivityIds(number)
+    local ids = R.activityIds[number]
+    if ids == nil then
+        local id = '##chatbox.visibility.' .. number
+        ids = { resize = id .. '.resize', animate = id .. '.animate', resizeDuration = id .. '.resizeDuration', minimum = id .. '.minimum',
+            fade = id .. '.fade', duration = id .. '.duration', idle = id .. '.idle' }
+        R.activityIds[number] = ids
+    end
+    return ids
+end
+function R.KindRow(kind)
+    local row = R.kindRows[kind.key]
+    if row == nil then
+        row = { id = '##chatbox.tooltips.' .. kind.key, sentence = R.kindSentences[kind.key] or (kind.label .. ' named in the log.') }
+        R.kindRows[kind.key] = row
+    end
+    return row
+end
 local function VisibilitySettings(options, number)
-    local id = '##chatbox.visibility.' .. number
-    widgets.Label('Window ' .. number .. ' Auto Resize')
-    if imgui.Checkbox(id .. '.resize', options.resize) then app.save() end
-    Tip('The window grows with its recent messages, up to its rows, and shrinks as they age. The messages are kept.')
-    if options.resize[1] then
-        widgets.Label('Animate Resize')
-        if imgui.Checkbox(id .. '.animate', options.animate) then app.save() end
-        Tip('Grows and shrinks the box smoothly from its bottom edge. Typing, selecting or scrolling restores the full size at once.')
-        if options.animate[1] then
-            widgets.Label('Resize Duration')
-            imgui.SliderFloat(id .. '.resizeDuration', options.resizeDuration, 0.05, 2, '%.2f s')
-            if imgui.IsItemDeactivatedAfterEdit() then app.save() end
-            Tip('How long a grow or shrink takes.')
-        end
-        widgets.Label('Minimum Rows')
-        imgui.SliderInt(id .. '.minimum', options.minimum, 0, 50, '%d')
-        if imgui.IsItemDeactivatedAfterEdit() then app.save() end
-        Tip('Rows kept while idle. 0 hides the log altogether; typing or selecting brings it back.')
-    end
-    widgets.Label('Window ' .. number .. ' Fade When Idle')
-    if imgui.Checkbox(id .. '.fade', options.fade) then app.save() end
-    Tip('Fades this log and its panel out once no message has reached it for Idle Time. A new message fades it back in; typing, selecting or scrolling keeps it shown. The expanded log is unchanged.')
-    if options.fade[1] then
-        widgets.Label('Fade Duration')
-        imgui.SliderFloat(id .. '.duration', options.duration, 0.1, 10, '%.1f s')
-        if imgui.IsItemDeactivatedAfterEdit() then app.save() end
-        Tip('How long the fade out takes.')
-    end
-    if options.resize[1] or options.fade[1] then
-        widgets.Label('Idle Time')
-        imgui.SliderInt(id .. '.idle', options.idle, 1, 300, '%d s')
-        if imgui.IsItemDeactivatedAfterEdit() then app.save() end
-        Tip('How long a message counts as recent: Auto Resize keeps rows for it, and Fade When Idle starts fading after it.')
-    end
+    local ids, specs = R.ActivityIds(number), R.activity
+    if widgets.Check('Auto Resize', 'The window grows with its recent messages, up to its rows, and shrinks as they age. Off, it stands at its rows.', options.resize, ids.resize) then app.save() end
+    specs.animate.parent = options.resize
+    if widgets.Check('Animate Resize', 'Grows and shrinks the box smoothly. Typing, selecting or scrolling brings the full size back at once.', options.animate, ids.animate, specs.animate) then app.save() end
+    specs.resizeDuration.parent = (options.resize[1] and options.animate[1]) and true or false
+    local _, done = widgets.Slider('Resize Duration', 'How long a grow or shrink takes.', options.resizeDuration, 0.05, 2, ids.resizeDuration, specs.resizeDuration)
+    if done then app.save() end
+    specs.minimum.parent = options.resize
+    _, done = widgets.Slider('Minimum Rows', 'Rows kept while idle. At 0 the log hides altogether until you type or select.', options.minimum, 0, 50, ids.minimum, specs.minimum)
+    if done then app.save() end
+    if widgets.Check('Fade When Idle', 'Fades this log and its panel out once no message has reached it for Idle Time. A new message fades it back in.', options.fade, ids.fade) then app.save() end
+    specs.duration.parent = options.fade
+    _, done = widgets.Slider('Fade Duration', 'How long the fade out takes.', options.duration, 0.1, 10, ids.duration, specs.duration)
+    if done then app.save() end
+    specs.idle.parent = (options.resize[1] or options.fade[1]) and true or false
+    _, done = widgets.Slider('Idle Time', 'How long a message counts as recent, for Auto Resize and Fade When Idle alike.', options.idle, 1, 300, ids.idle, specs.idle)
+    if done then app.save() end
 end
 app = shell.New({
     defaults = T{ enabled = T{ true }, mode = T{ 'game' }, timestamps = T{ true }, width = T{ 640 }, fontSize = T{ 12 },
@@ -539,108 +559,84 @@ app = shell.New({
     drawSettings = function(options)
         local game = Game(options)
         if widgets.Header('Chatbox', true) then
-            widgets.Label('Enable')
-            if imgui.Checkbox('##chatbox.enabled', options.enabled) then
+            if widgets.Check('Enable', 'Draws the chat log, input bar and expanded log in the Winxi look instead of the game default. /chatbox on and off switch it too.', options.enabled, '##chatbox.enabled') then
                 if not options.enabled[1] then Release() end
                 app.save()
             end
-            Tip('Off, the game\'s own chat log and input bar come back at once and the other settings are greyed out, their values kept. /chatbox on and off do the same.')
-            imgui.BeginDisabled(not options.enabled[1])
-            widgets.Label('Replace Native Chat')
-            local replace = { game }
-            if imgui.Checkbox('##chatbox.replaceNativeChat', replace) then
-                game = replace[1]
+            R.enabled.parent, R.font.parent, R.fontSize.parent = options.enabled, options.enabled, options.enabled
+            R.replace[1] = game
+            if widgets.Check('Replace Native Chat', 'Puts the log, input bar and expanded log where the game default ones stand, at their size. Off, Layout and Activity below place and size them.', R.replace, '##chatbox.replaceNativeChat', R.enabled) then
+                game = R.replace[1]
                 options.mode[1] = game and 'game' or 'skin'
                 app.save()
             end
-            Tip('On, the log, input bar and expanded log stand where the game\'s own do, at their size. Off, they have chatbox\'s own place, width, rows and activity, set in the Layout and Activity sections. They look the same either way.')
-            widgets.Label('Auto-Translate')
-            if imgui.Checkbox('##chatbox.autoTranslate', options.autoTranslate) then
+            if widgets.Check('Auto-Translate', 'Tab while typing lists auto-translate phrases for the word at the caret, instead of the game default menu. /chatbox translate switches it too.', options.autoTranslate, '##chatbox.autoTranslate', R.enabled) then
                 if not options.autoTranslate[1] then Translate.Cancel() end
                 app.save()
             end
-            Tip('Tab while typing opens chatbox\'s own list of auto-translate phrases for the word at the caret, or the categories with no word. Tab, Shift+Tab, Up and Down move, Enter puts the phrase in, Escape closes. Off, Tab opens the game\'s own menu. /chatbox translate on and off do the same.')
-            widgets.Label('Timestamps')
-            if imgui.Checkbox('##chatbox.timestamps', options.timestamps) then model.ShowStamps(history, options.timestamps[1]); app.save() end
-            Tip('Shows the timestamps SimpleLog or the timestamp addon writes, in their own format and colours. Chatbox adds none of its own, so turn them on in one of those addons; both would write two. Off, they are hidden in every log, not removed. /chatbox timestamps on and off do the same.')
-            if widgets.FontFile(options, 'fontFile', '##chatbox.fontFile', { tooltip = 'The chat\'s font: one of C:\\Windows\\Fonts, or the theme\'s.' }) then
-                app.save()
+            if widgets.Check('Timestamps', 'Shows the timestamps SimpleLog or the timestamp addon writes, hidden otherwise. /chatbox timestamps switches it too.', options.timestamps, '##chatbox.timestamps', R.enabled) then
+                model.ShowStamps(history, options.timestamps[1]); app.save()
             end
-            local _, done = widgets.FontSize(options, 'fontSize', '##chatbox.fontSize', { min = game and 0 or 8, max = 24, theme = 'Automatic',
-                tooltip = game and 'How large the text of the log, input bar and expanded log is, in pixels. Automatic: the size that fits the game\'s rows, so the rows stand where the game\'s do.'
-                    or 'How large the text of the log and input bar is, in pixels; both grow with it. With Replace Expanded Log, the expanded log\'s text too, on the game\'s rows.' })
+            if widgets.FontFile(options, 'fontFile', '##chatbox.fontFile', R.font) then app.save() end
+            R.fontSize.min = game and 0 or 8
+            R.fontSize.description = game and R.fontSizeSentences.game or R.fontSizeSentences.skin
+            local _, done = widgets.FontSize(options, 'fontSize', '##chatbox.fontSize', R.fontSize)
             if done then app.save() end
-            imgui.TextDisabled('The game\'s own keys still work: Square picks a log window, Confirm expands it and Cancel closes it.')
-            imgui.TextDisabled(primary.Status())
-            imgui.EndDisabled()
         end
         imgui.BeginDisabled(not options.enabled[1])
         if not game and widgets.Header('Layout') then
-            widgets.Lock(options.locked, '##chatbox.locked', { tooltip = 'Off, the log can be dragged with the mouse wherever you want, and Position becomes Custom; the wheel and scrollbar still work. On, it stays put and the mouse goes through it to the game.' })
-            widgets.Label('Position')
-            if imgui.BeginCombo('##chatbox.position', options.position[1] == 'custom' and POSITIONS[2].label or POSITIONS[1].label) then
-                for _, entry in ipairs(POSITIONS) do
-                    if imgui.Selectable(entry.label .. '##chatbox.position.' .. entry.key, options.position[1] == entry.key) and options.position[1] ~= entry.key then
-                        options.position[1] = entry.key
-                        if entry.key == 'custom' and layoutState.left and layoutState.closedBottom then
-                            options.pos[1], options.pos[2] = math.floor(layoutState.left), math.floor(layoutState.closedBottom)
-                        end
-                        app.save()
-                    end
+            widgets.Lock(options.locked, '##chatbox.locked', R.lock)
+            local chosen = widgets.Dropdown('Placement', 'Where the log stands: at the game default chat, or wherever it was dragged to. The input bar and second window go with it.', POSITIONS, options.position[1], '##chatbox.position')
+            if chosen ~= nil then
+                options.position[1] = chosen
+                if chosen == 'custom' and layoutState.left and layoutState.closedBottom then
+                    options.pos[1], options.pos[2] = math.floor(layoutState.left), math.floor(layoutState.closedBottom)
                 end
-                imgui.EndCombo()
+                app.save()
             end
-            Tip('Where the log stands. At the Game\'s Chat: where the game puts its own. Custom: wherever it was dragged to, or the place typed below. The input bar, the second window and the game\'s clock go with it.')
             if options.position[1] == 'custom' then
-                widgets.Label('Place')
+                widgets.BeginRow('Position', 'The log\'s bottom-left corner, in pixels from the top-left of the screen.')
                 imgui.InputInt2('##chatbox.pos', options.pos)
                 if imgui.IsItemDeactivatedAfterEdit() then app.save() end
-                Tip('The log\'s bottom-left corner, in pixels from the screen\'s top-left; kept on the screen.')
+                widgets.EndRow()
             end
-            widgets.Label('Width')
-            imgui.SliderInt('##chatbox.width', options.width, 240, 1200, '%d px')
-            if imgui.IsItemDeactivatedAfterEdit() then app.save() end
-            Tip('How wide the log, input bar and expanded log are, in pixels. The game\'s rows in the expanded log are cut to this width, not rewrapped.')
+            local _, done = widgets.Slider('Width', 'How wide the log, input bar and expanded log are.', options.width, 240, 1200, '##chatbox.width', widgets.Pixels)
+            if done then app.save() end
             for number = 1, 2 do
-                widgets.Label('Window ' .. number .. ' Rows')
                 local rows = options['window' .. number .. 'Rows']
-                imgui.SliderInt('##chatbox.window' .. number .. 'Rows', rows, 0, 50, rows[1] == 0 and 'Automatic' or '%d rows')
-                if imgui.IsItemDeactivatedAfterEdit() then app.save() end
-                Tip('How many rows this window shows. Automatic is ten. With Auto Resize, the most it grows to. The expanded log is unchanged.')
+                R.rows.format = rows[1] == 0 and 'Automatic' or '%d rows'
+                _, done = widgets.Slider(R.rowsNames[number], 'How many rows this window shows. Automatic is ten, and Auto Resize grows it up to this.', rows, 0, 50, R.rowsIds[number], R.rows)
+                if done then app.save() end
             end
-            widgets.Label('Expand In Place')
-            if imgui.Checkbox('##chatbox.expandInPlace', options.expandInPlace) then app.save() end
-            Tip('Opens the expanded log where the chat log stands, growing up from the log\'s bottom-left corner; the info panel is hidden while it is open. Off, it opens where the game puts it.')
-            widgets.Label('Expanded Height')
-            imgui.SliderInt('##chatbox.expandedHeight', options.expandedHeight, 25, 100, '%d%%')
-            if imgui.IsItemDeactivatedAfterEdit() then app.save() end
-            Tip('How far up the screen the expanded log reaches, as a share of the screen\'s height, never above the game\'s own. Rows above that are cut off. 100% is the game\'s own height.')
+            widgets.Gap()
+            if widgets.Check('Expand In Place', 'Opens the expanded log where the chat log stands, growing up from its bottom-left corner. Off, it opens where the game default does.', options.expandInPlace, '##chatbox.expandInPlace') then app.save() end
+            _, done = widgets.Slider('Expanded Height', 'How far up the screen the expanded log reaches, never above the game default.', options.expandedHeight, 25, 100, '##chatbox.expandedHeight', widgets.Percent)
+            if done then app.save() end
         end
         if not game and widgets.Header('Activity') then
-            imgui.TextDisabled('Each window grows with its recent messages or fades while idle; off, it stands at its rows.')
-            VisibilitySettings(options.visibility.window1, 1)
-            VisibilitySettings(options.visibility.window2, 2)
+            if widgets.SubHeader('Window 1', true) then VisibilitySettings(options.visibility.window1, 1) end
+            if widgets.SubHeader('Window 2') then VisibilitySettings(options.visibility.window2, 2) end
+            widgets.EndSub()
         end
         if widgets.Header('Look') then
-            widgets.Label('Window Title')
+            widgets.BeginRow('Window Title', 'The words on the log\'s top edge. Empty, the channel you are speaking in.')
             imgui.InputText('##chatbox.windowTitle', options.windowTitle, TITLE_LONGEST)
             if imgui.IsItemDeactivatedAfterEdit() then app.save() end
-            Tip('The words on the log\'s top edge. Left empty, the channel you are speaking in: Say, Party, Linkshell, Tell and the rest.')
-            widgets.Label('Window 2 Title')
+            widgets.EndRow()
+            widgets.BeginRow('Window 2 Title', 'The words on the second log window\'s top edge. Empty, Window 2.')
             imgui.InputText('##chatbox.splitTitle', options.splitTitle, TITLE_LONGEST)
             if imgui.IsItemDeactivatedAfterEdit() then app.save() end
-            Tip('The words on the second log window\'s top edge, with the game\'s Log Window 2 on. Left empty, Window 2.')
+            widgets.EndRow()
+            widgets.Gap()
             for _, side in ipairs(PADDING_SIDES) do
-                widgets.Label(side.label)
-                imgui.SliderInt('##chatbox.' .. side.key, options[side.key], 0, PADDING_MOST, '%d px')
-                if imgui.IsItemDeactivatedAfterEdit() then app.save() end
-                Tip(side.tip)
+                local _, done = widgets.Slider(side.label, side.sentence, options[side.key], 0, PADDING_MOST, side.id, widgets.Pixels)
+                if done then app.save() end
             end
-            widgets.Label('Replace Expanded Log')
-            if imgui.Checkbox('##chatbox.replaceExpanded', options.replaceExpanded) then app.save() end
-            Tip('Draws the expanded log in chatbox\'s own look: its channel tabs, scrollbar, rows in the chat\'s font and size, and the cursor on its row. The wheel scrolls it; Square, the arrows and Confirm choose rows. Off, the game\'s own expanded log is drawn inside the WinXI frame.')
+            widgets.Gap()
+            if widgets.Check('Replace Expanded Log', 'Draws the expanded log in the Winxi look too, with channel tabs and a scrollbar. Off, the game default one is drawn inside the Winxi frame.', options.replaceExpanded, '##chatbox.replaceExpanded') then app.save() end
         end
         imgui.EndDisabled()
+        widgets.Status(primary.Status())
     end,
     tabs = {
         { label = 'Info Panel', draw = function(options)
@@ -651,20 +647,16 @@ app = shell.New({
         { label = 'Tooltips', draw = function(options)
             if not widgets.Header('Chat Tooltips', true) then return end
             imgui.BeginDisabled(not options.enabled[1])
-            widgets.Label('Chat Tooltips')
-            if imgui.Checkbox('##chatbox.chatTooltips', options.chatTooltips) then app.save() end
-            Tip('Resting the mouse on an item, key item, auto-translate phrase, spell, ability, weapon skill, quest or place named in the log shows what it is. The shared Winxi tooltip settings (whether they show, the delay and the look) apply.')
-            if options.chatTooltips[1] then
-                widgets.Label('Tooltip Notes')
-                if imgui.Checkbox('##chatbox.tooltipNotes', options.tooltipNotes) then app.save() end
-                Tip('The dimmed lines of a tooltip: notes on what is uncertain, and a phrase\'s category and kind. Off, only the name and the facts.')
-                imgui.TextDisabled('Shown for:')
+            if widgets.Check('Chat Tooltips', 'Resting the mouse on an item, spell, quest, place or phrase named in the log shows what it is. The Winxi Theme\'s tooltip settings apply.', options.chatTooltips, '##chatbox.chatTooltips') then app.save() end
+            R.notes.parent, R.kind.parent = options.chatTooltips, options.chatTooltips
+            if widgets.Check('Tooltip Notes', 'Adds a tooltip\'s dim lines, what is uncertain and a phrase\'s category and kind. Off, only the name and the facts.', options.tooltipNotes, '##chatbox.tooltipNotes', R.notes) then app.save() end
+            if widgets.SubHeader('Shown For') then
                 for _, kind in ipairs(links.Kinds) do
-                    widgets.Label(kind.label)
-                    if imgui.Checkbox('##chatbox.tooltips.' .. kind.key, options.tooltipKinds[kind.key]) then app.save() end
-                    Tip(('Tooltips for %s in the log.'):format(kind.label))
+                    local row = R.KindRow(kind)
+                    if widgets.Check(kind.label, row.sentence, options.tooltipKinds[kind.key], row.id, R.kind) then app.save() end
                 end
             end
+            widgets.EndSub()
             imgui.EndDisabled()
         end },
     },

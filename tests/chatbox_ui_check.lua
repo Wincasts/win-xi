@@ -104,8 +104,50 @@ local themeFontDepth=0 -- the theme's font pushed round the end-of-frame tooltip
 package.loaded['winxi.fonts'] = {Push=function() themeFontDepth=themeFontDepth+1; return true end,Pop=function(pushed) if pushed then themeFontDepth=themeFontDepth-1 end end,
     Get=function(file) if file and file~='' then return 'font:'..file end end, Files=function() return {'arial.ttf'} end}
 local headers = {}
-package.loaded['winxi.widgets'] = {Header=function(name) return headers[name] end, Label=function() end, FontFile=function() return false end, FontSize=function() return false, false end,
-    Lock=function(box,id) return package.loaded.imgui.Checkbox(id,box) end}
+-- winxi.widgets stood in for: each row draws its imgui control with the row's id, greyed under a parent that is off,
+-- as the library's rows are
+do
+local function On(parent) if parent==nil or parent==true then return true end; if type(parent)=='table' then return parent[1] and true or false end; return parent and true or false end
+local function Begin(spec) if spec and spec.parent~=nil and not On(spec.parent) then package.loaded.imgui.BeginDisabled(true); return true end; return false end
+local function End(greyed) if greyed then package.loaded.imgui.EndDisabled() end end
+local W={}
+W.Header=function(name) return headers[name] end
+W.SubHeader=function() return true end
+W.EndSub=function() end; W.Gap=function() end; W.Note=function() end; W.Status=function() end
+W.Label=function() end; W.BeginLabels=function() end
+local rowGreyed=false
+W.BeginRow=function(_,_,spec) rowGreyed=Begin(spec) end
+W.EndRow=function() End(rowGreyed); rowGreyed=false end
+W.Check=function(name,sentence,box,id,spec) W.BeginRow(name,sentence,spec); local c=package.loaded.imgui.Checkbox(id,box); W.EndRow(); return c end
+W.Slider=function(name,sentence,box,low,high,id,spec)
+    local imgui=package.loaded.imgui; W.BeginRow(name,sentence,spec); local c
+    if spec and spec.float then c=imgui.SliderFloat(id,box,low,high,spec.format or '%.1f') else c=imgui.SliderInt(id,box,low,high,spec and spec.format or '%d') end
+    local done=imgui.IsItemDeactivatedAfterEdit and imgui.IsItemDeactivatedAfterEdit() and true or false
+    W.EndRow(); return c,done
+end
+W.Numbers=function(name,sentence,box,id,spec) W.BeginRow(name,sentence,spec); local c=package.loaded.imgui.InputInt2(id,box); W.EndRow(); return c end
+W.Color=function(name,sentence,color,id,spec) W.BeginRow(name,sentence,spec); local c=package.loaded.imgui.ColorEdit4(id,color,0); W.EndRow(); return c end
+W.Action=function(name,sentence,label,spec) W.BeginRow(name,sentence,spec); local c=package.loaded.imgui.Button(label); W.EndRow(); return c end
+W.Dropdown=function(name,sentence,choices,current,id,spec)
+    local imgui=package.loaded.imgui; W.BeginRow(name,sentence,spec); local chosen,shown
+    local function key(c) if type(c)=='table' then return c.key end; return c end
+    local function label(c) if type(c)=='table' then return c.label end; return c end
+    for _,c in ipairs(choices) do if key(c)==current then shown=label(c) end end
+    if imgui.BeginCombo(id,shown or tostring(current)) then
+        for _,c in ipairs(choices) do
+            local selected=key(c)==current
+            if imgui.Selectable(('%s%s.%s'):format(label(c),id,tostring(key(c))),selected) and not selected then chosen=key(c) end
+        end
+        imgui.EndCombo()
+    end
+    W.EndRow(); return chosen
+end
+W.FontFile=function(_,_,_,spec) W.BeginRow(spec and spec.label or 'Font',spec and spec.description or 'The font.',spec); W.EndRow(); return false end
+W.FontSize=function(_,_,_,spec) W.BeginRow(spec and spec.label or 'Font Size',spec and spec.description or 'Its size.',spec); W.EndRow(); return false,false end
+W.Lock=function(box,id,spec) return W.Check('Lock Window',spec and spec.description or 'Keeps the window where it is.',box,id,spec) end
+W.Pixels={format='%d px'}; W.Percent={format='%d%%'}; W.Seconds={format='%d s'}; W.Milliseconds={format='%d ms'}
+package.loaded['winxi.widgets']=W
+end
 local binding
 package.loaded['winxi.controller'] = {HighlightColor={0.23,0.67,0.91,1}, RepeatDelay=0.35, RepeatRate=0.08,
     Button={DpadUp=0,DpadDown=1,A=12}, Bind=function(spec) binding=spec; return spec end}
@@ -596,14 +638,17 @@ spec.drawSettings(app.options)
 assert(table.concat(opened,',')=='Chatbox,Look','Follow Game: the Chatbox and Look sections; no Layout or Activity')
 app.options.mode[1]='skin'
 -- Each control in its section: Layout the sizes and the expanded log's place, Activity each window's, Look the rest.
--- A window's Animate Resize, Resize Duration, Minimum Rows and Fade Duration are drawn only with their switch on,
--- Idle Time with either.
+-- A window's Animate Resize, Resize Duration, Minimum Rows and Fade Duration are rows under their switch, greyed
+-- while it is off; Idle Time is greyed while neither is on. The rows under Chat Tooltips are greyed with it off.
 do
-local controlGroups,currentGroup={},nil
+local controlGroups,controlGreyed,currentGroup={},{},nil
 local controlOrder={}
-local oldCheckbox,oldSliderInt,oldSliderFloat=imgui.Checkbox,imgui.SliderInt,imgui.SliderFloat
+local oldCheckbox,oldSliderInt,oldSliderFloat,oldBegin,oldEnd=imgui.Checkbox,imgui.SliderInt,imgui.SliderFloat,imgui.BeginDisabled,imgui.EndDisabled
+local stack={}
+imgui.BeginDisabled=function(off) stack[#stack+1]=off or stack[#stack] or false end
+imgui.EndDisabled=function() assert(#stack>0,'a greying ended that was begun'); table.remove(stack) end
 package.loaded['winxi.widgets'].Header=function(name) currentGroup=name; return headers[name] end
-local function recordControl(id) controlGroups[id]=currentGroup; controlOrder[#controlOrder+1]=id; return false end
+local function recordControl(id) controlGroups[id]=currentGroup; controlGreyed[id]=stack[#stack] or false; controlOrder[#controlOrder+1]=id; return false end
 imgui.Checkbox,imgui.SliderInt,imgui.SliderFloat=recordControl,recordControl,recordControl
 spec.drawSettings(app.options)
 assert(controlOrder[1]=='##chatbox.enabled' and controlOrder[2]=='##chatbox.replaceNativeChat' and controlOrder[3]=='##chatbox.autoTranslate',
@@ -616,38 +661,40 @@ headers['Chat Tooltips']=true
 spec.tabs[2].draw(app.options)
 assert(controlGroups['##chatbox.chatTooltips']=='Chat Tooltips' and controlGroups['##chatbox.tooltipNotes']=='Chat Tooltips','Chat Tooltips and Tooltip Notes in their own tab')
 for _,kind in ipairs(package.loaded.links.Kinds) do
-    assert(controlGroups['##chatbox.tooltips.'..kind.key]=='Chat Tooltips','a kind\'s switch under Chat Tooltips while it is on: '..kind.key)
+    assert(controlGroups['##chatbox.tooltips.'..kind.key]=='Chat Tooltips' and not controlGreyed['##chatbox.tooltips.'..kind.key],'a kind\'s switch under Chat Tooltips while it is on: '..kind.key)
 end
-app.options.chatTooltips[1]=false; controlGroups={}
+app.options.chatTooltips[1]=false; controlGroups,controlGreyed={},{}
 spec.tabs[2].draw(app.options)
-assert(controlGroups['##chatbox.chatTooltips']=='Chat Tooltips' and controlGroups['##chatbox.tooltips.items']==nil and controlGroups['##chatbox.tooltipNotes']==nil,'Chat Tooltips off: no kinds, no notes switch')
-app.options.chatTooltips[1]=true; controlGroups={}
+assert(controlGroups['##chatbox.chatTooltips']=='Chat Tooltips' and not controlGreyed['##chatbox.chatTooltips']
+    and controlGreyed['##chatbox.tooltips.items'] and controlGreyed['##chatbox.tooltipNotes'],'Chat Tooltips off: the kinds and the notes switch greyed under it')
+app.options.chatTooltips[1]=true; controlGroups,controlGreyed={},{}
 spec.drawSettings(app.options)
 for _,id in ipairs({'##chatbox.locked','##chatbox.width','##chatbox.window1Rows','##chatbox.window2Rows','##chatbox.expandInPlace','##chatbox.expandedHeight'}) do
-    assert(controlGroups[id]=='Layout','a Layout control: '..id)
+    assert(controlGroups[id]=='Layout' and not controlGreyed[id],'a Layout control: '..id)
 end
 for _,id in ipairs({'##chatbox.visibility.1.resize','##chatbox.visibility.2.resize','##chatbox.visibility.1.fade','##chatbox.visibility.2.fade'}) do
-    assert(controlGroups[id]=='Activity','an Activity switch: '..id)
+    assert(controlGroups[id]=='Activity' and not controlGreyed[id],'an Activity switch: '..id)
 end
 for _,id in ipairs({'##chatbox.visibility.1.animate','##chatbox.visibility.1.minimum','##chatbox.visibility.1.duration','##chatbox.visibility.1.idle','##chatbox.visibility.1.resizeDuration'}) do
-    assert(controlGroups[id]==nil,'drawn only with its switch on: '..id)
+    assert(controlGroups[id]=='Activity' and controlGreyed[id],'greyed with its switch off: '..id)
 end
 assert(controlGroups['##chatbox.topPadding']=='Look' and controlGroups['##chatbox.replaceExpanded']=='Look'
     and controlGroups['##chatbox.appearance.log.override']==nil and controlGroups['##chatbox.appearance.input.override']==nil,
     'Look retains paddings and Replace Expanded Log, without log/input colour overrides')
 assert(controlGroups['##chatbox.followNativeSettings']==nil and controlGroups['##chatbox.replaceTabs']==nil,'nothing of the settings before')
-app.options.visibility.window1.resize[1]=true; app.options.visibility.window2.fade[1]=true; controlGroups={}
+app.options.visibility.window1.resize[1]=true; app.options.visibility.window2.fade[1]=true; controlGroups,controlGreyed={},{}
 spec.drawSettings(app.options)
-assert(controlGroups['##chatbox.visibility.1.animate']=='Activity' and controlGroups['##chatbox.visibility.1.minimum']=='Activity' and controlGroups['##chatbox.visibility.1.idle']=='Activity'
-    and controlGroups['##chatbox.visibility.1.resizeDuration']==nil and controlGroups['##chatbox.visibility.1.duration']==nil,
+assert(not controlGreyed['##chatbox.visibility.1.animate'] and not controlGreyed['##chatbox.visibility.1.minimum'] and not controlGreyed['##chatbox.visibility.1.idle']
+    and controlGreyed['##chatbox.visibility.1.resizeDuration'] and controlGreyed['##chatbox.visibility.1.duration'],
     'Auto Resize on: Animate Resize, Minimum Rows and Idle Time; Resize Duration waits for Animate Resize')
-assert(controlGroups['##chatbox.visibility.2.duration']=='Activity' and controlGroups['##chatbox.visibility.2.idle']=='Activity' and controlGroups['##chatbox.visibility.2.animate']==nil,
+assert(not controlGreyed['##chatbox.visibility.2.duration'] and not controlGreyed['##chatbox.visibility.2.idle'] and controlGreyed['##chatbox.visibility.2.animate'],
     'Fade When Idle on: Fade Duration and Idle Time')
-app.options.visibility.window1.animate[1]=true; controlGroups={}
+app.options.visibility.window1.animate[1]=true; controlGreyed={}
 spec.drawSettings(app.options)
-assert(controlGroups['##chatbox.visibility.1.resizeDuration']=='Activity','Animate Resize on: Resize Duration')
+assert(not controlGreyed['##chatbox.visibility.1.resizeDuration'],'Animate Resize on: Resize Duration')
 app.options.visibility.window1.resize[1],app.options.visibility.window1.animate[1],app.options.visibility.window2.fade[1]=false,false,false
-imgui.Checkbox,imgui.SliderInt,imgui.SliderFloat=oldCheckbox,oldSliderInt,oldSliderFloat
+assert(#stack==0,'every greying ended')
+imgui.Checkbox,imgui.SliderInt,imgui.SliderFloat,imgui.BeginDisabled,imgui.EndDisabled=oldCheckbox,oldSliderInt,oldSliderFloat,oldBegin,oldEnd
 end
 -- Enable stays interactive; all other settings and both extra tabs are disabled.
 do
