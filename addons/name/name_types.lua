@@ -2,8 +2,6 @@
 -- once, and the per-type tables they were kept in let go of.
 local plates = require('winxi.nameplates');
 local controls = require('controls');
-local tips = require('winxi.tips');
-local imgui = require('imgui');
 local types = {};
 types.List = { 'playerNames', 'enemyNames', 'npcNames' };
 
@@ -54,22 +52,24 @@ function types.Key(category)
         or category == plates.Category.Npc and 'npcNames' or 'playerNames';
 end
 
+local combatSpec = {};
+local sizeSpec = {};
+
 function types.Draw(options)
     controls.Checkbox('Enabled', '##name.showHealthBar', options.showHealthBar,
-        tips.Get('name.health_bars.enabled'));
-    imgui.BeginDisabled(not options.showHealthBar[1]);
+        'A bar of health under names, pets, trusts and NPCs included. None at full health, unless a cast bar is shown.');
+    combatSpec.parent = options.showHealthBar;
     controls.Checkbox('Combat Only', '##name.healthBarsCombatOnly', options.healthBarsCombatOnly,
-        tips.Get('name.health_bars.combat_only'));
-    imgui.EndDisabled();
+        'Bars only on what is fighting and alive. Being targeted or claimed is not fighting.', combatSpec);
 end
 
+-- Shared by the health bars and the cast bars: greyed while neither is on
 function types.DrawSize(options)
-    imgui.BeginDisabled(not options.showHealthBar[1] and not options.showCastBar[1]);
-    controls.Input('Bar Width (px)', '##name.healthBarWidth', options.healthBarWidth, 12, 300,
-        tips.Get('name.health_bars.width'));
-    controls.Input('Bar Height (px)', '##name.healthBarHeight', options.healthBarHeight, 3, 40,
-        tips.Get('name.health_bars.height'));
-    imgui.EndDisabled();
+    sizeSpec.parent = (options.showHealthBar[1] or options.showCastBar[1]) and true or false;
+    controls.Input('Bar Width', '##name.healthBarWidth', options.healthBarWidth, 12, 300, '%d px',
+        'How wide the health and cast bars are, or the least they are with Fit To Name. They shrink with the name.', sizeSpec);
+    controls.Input('Bar Height', '##name.healthBarHeight', options.healthBarHeight, 3, 40, '%d px',
+        'How tall the health and cast bars are, border included. They shrink with the name.', sizeSpec);
 end
 
 return types;

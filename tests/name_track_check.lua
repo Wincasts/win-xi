@@ -190,23 +190,27 @@ H.print('settings of another shape are made good', options.trackedNm[1] == '', o
 -- the settings: the dropdown lists the area's, and the toggle is only there for one with placeholders
 levels.Set({ Names = { Jack = monster, Bomb = { Notorious = true } }, Indices = {} }, {}, nil, { Jack = { 2 } })
 local listed, boxes, saved, pick = {}, {}, 0, nil
-local realSlider = imgui.SliderInt
-imgui.SliderInt = function(id, ...) boxes[id] = true; return false end
+-- a row greyed under its parent (none tracked) is noted as such: the real widgets grey it with BeginDisabled
+local greyed, realSlider = false, imgui.SliderInt
+imgui.BeginDisabled = function(on) greyed = greyed or on == true end
+imgui.EndDisabled = function() greyed = false end
+imgui.SliderInt = function(id, ...) boxes[id] = greyed and 'greyed' or true; return false end
 AshitaCore.GetPluginManager = function() return { IsLoaded = function() return false end } end
 imgui.BeginCombo = function(id) return id == '##name.trackedNm' end
 imgui.EndCombo = function() end
-imgui.Selectable = function(label) listed[#listed + 1] = label; return label == pick end
+-- the dropdown's choices carry its id after their words
+imgui.Selectable = function(label) local shown = label:match('^(.-)##') or label; listed[#listed + 1] = shown; return shown == pick end
 local realCheckbox = imgui.Checkbox
-imgui.Checkbox = function(id, ...) boxes[id] = true; return false end
+imgui.Checkbox = function(id, ...) boxes[id] = greyed and 'greyed' or true; return false end
 customSettings.DrawTracking(options, function() saved = saved + 1 end)
-H.print('dropdown: None and the area\'s notorious monsters; none tracked, no scale', table.concat(listed, '|') == 'None|Bomb|Jack', boxes['##name.labelPlaceholders'] == nil, boxes['##name.huntScale'] == nil)
+H.print('dropdown: None and the area\'s notorious monsters; none tracked, the scale greyed', table.concat(listed, '|') == 'None|Bomb|Jack', boxes['##name.labelPlaceholders'] == nil, boxes['##name.huntScale'] == 'greyed')
 pick = 'Bomb'; customSettings.DrawTracking(options, function() saved = saved + 1 end)
 H.print('chosen and saved; one with no placeholders has no toggle', options.trackedNm[1] == 'Bomb', saved == 1, boxes['##name.labelPlaceholders'] == nil)
 pick = 'Jack'; customSettings.DrawTracking(options, function() saved = saved + 1 end)
 H.print('one with placeholders has the toggle, and any tracked the scale', options.trackedNm[1] == 'Jack', saved == 2, boxes['##name.labelPlaceholders'] == true, boxes['##name.huntScale'] == true)
 pick = 'None'; customSettings.DrawTracking(options, function() saved = saved + 1 end)
 H.print('None ends it', options.trackedNm[1] == '', saved == 3)
-imgui.Checkbox, imgui.SliderInt = realCheckbox, realSlider
+imgui.Checkbox, imgui.SliderInt, imgui.BeginDisabled, imgui.EndDisabled = realCheckbox, realSlider, nil, nil
 
 -- the bundled lots are of the bundled tables: the slot's name is the game's to give, read as the area is entered
 local zone = dofile('addons/libs/winxi/data/phoenix/placeholders/100.lua')

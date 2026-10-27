@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.86
+
+- The settings are described rows (winxi 65): every setting a name, a sentence under it saying what it does, and its control at the right; the (?) marks and their tooltips are gone, as are the radio buttons (Text Outline and Icon Outline are dropdowns, None to 3 px) and the tree nodes (Colour Overrides is a sub-section of each kind of name, collapsed to start, each state's tick and colour on one row; Format Tokens, under it, holds the token reference the (?) had). The Names tab's Appearance is three sub-sections, Font, Size and Outlines; each format's Reset is the row after it; sizes and distances are sliders with their unit. In Bars, Entity Types is a sub-section of Health Bars, Show Weaponskills and Cast Text are greyed under Enabled instead of hidden; in Statuses, Display's rows are greyed under Enabled too. Visibility is one section, Names Shown, with Players, Pets and NPCs & Monsters as sub-sections and Always Show Target after them, then Crowd Decluttering; NM Tracking's Label Placeholders is a row of Tracked Monster. Diagnostics stays a section of General, collapsed to start, its reports action rows. `tooltips/name.md` now feeds only the token reference.
+
 ## 1.85
 
 - The statuses over enemies: Sleep, bind, paralysis, blindness, silence, poison, gravity and flash wear off when the server says so: their message is 204, which only Dia, Bio and Slow's 206 was listened for. Bind ends with a blow, weapon skill, spell or additional effect that does damage, as sleep does, unless you cast it: the server tells the caster when it breaks, and one hit in twenty does not.

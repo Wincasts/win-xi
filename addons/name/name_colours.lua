@@ -3,7 +3,6 @@ local bit = require('bit');
 local plates = require('winxi.nameplates');
 local types = require('name_types');
 local controls = require('controls');
-local tips = require('winxi.tips');
 local widgets = require('winxi.widgets');
 local imgui = require('imgui');
 local colours = {};
@@ -160,24 +159,49 @@ function colours.Resolve(options, name, entities, partyIds, corpse, icons)
     end
     return picked(profile, 'normal');
 end
+-- What each state is, under its name in the settings
+local sentences = {
+    playerNames = { normal = 'Colours a player outside your party and alliance.', party = 'Colours a member of your own party.',
+        alliance = 'Colours a player of another party of your alliance.', seeking = 'Colours a player whose icon says they are looking for a party.',
+        dead = 'Colours a dead player.' },
+    enemyNames = { unclaimed = 'Colours a monster no one has claimed.', claimedParty = 'Colours a monster claimed by you, your party or your alliance.',
+        claimedOther = 'Colours a monster claimed by someone else.', callForHelp = 'Colours a monster a call for help was made on.',
+        dead = 'Colours a dead monster.' },
+    npcNames = { normal = 'Colours an NPC that is alive.', dead = 'Colours a dead NPC.' },
+};
+local ids = {}; -- key -> state -> the ids of its tick and its swatch; and the reset button's, under 'reset'
+local function Ids(key)
+    local own = ids[key];
+    if own == nil then
+        own = { reset = 'Use Game Colours##name.colours.reset.' .. key };
+        for _, state in ipairs(colours.States[key]) do
+            local id = '##name.colours.' .. key .. '.' .. state[1];
+            own[state[1]] = { enabled = id .. '.enabled', color = id .. '.color' };
+        end
+        ids[key] = own;
+    end
+    return own;
+end
+local swatchFlags = nil;
+-- Each state a row: its tick, and beside it the colour, greyed until ticked. The game default colours
+-- stand for the states not ticked.
 function colours.Draw(options, key)
-    local open = controls.More('Colour Overrides', '##name.colours.' .. key);
-    controls.Mark(tips.Get('name.colours.section'));
-    if not open then return; end
+    if not controls.Sub('Colour Overrides', false, true) then return; end
+    swatchFlags = swatchFlags or bit.bor(ImGuiColorEditFlags_NoInputs or 0, ImGuiColorEditFlags_NoAlpha or 0);
+    local own = Ids(key);
     for _, state in ipairs(colours.States[key]) do
         local entry = options.nameColours[key][state[1]];
-        local id = '##name.colours.' .. key .. '.' .. state[1];
-        controls.Checkbox(state[2] .. ' Override', id .. '.enabled', entry.enabled);
+        local id = own[state[1]];
+        widgets.BeginRow(state[2], sentences[key][state[1]]);
+        imgui.Checkbox(id.enabled, entry.enabled);
         imgui.SameLine();
         imgui.BeginDisabled(not entry.enabled[1]);
-        controls.Width();
-        imgui.ColorEdit4(id .. '.color', entry.color, ImGuiColorEditFlags_NoAlpha or 0);
+        imgui.ColorEdit4(id.color, entry.color, swatchFlags);
         imgui.EndDisabled();
-        controls.Mark(tips.Get('name.colours.state'));
+        widgets.EndRow();
     end
-    if imgui.Button('Use Game Colours##name.colours.reset.' .. key) then
+    if widgets.Action('Game Colours', 'Takes every override here off: the name, its letters and its bar fill keep the game default colours.', own.reset) then
         for _, state in ipairs(colours.States[key]) do options.nameColours[key][state[1]].enabled[1] = false; end
     end
-    imgui.TreePop();
 end
 return colours;

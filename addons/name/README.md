@@ -16,9 +16,10 @@ Shows and hides the names over characters' heads, by what they are over. A setti
 
 ## Settings
 
-Settings tooltip wording is editable in [`tooltips/name.md`](../../tooltips/name.md).
-See the [editing and build instructions](../../tooltips/README.md). The catalogue
-changes wording only, not controls, saved settings, or tooltip appearance.
+The format token reference under each kind of name's Format Tokens is editable in
+[`tooltips/name.md`](../../tooltips/name.md) (`name.format.*`); see the
+[editing and build instructions](../../tooltips/README.md). Every other sentence is written
+in the settings code itself.
 
 The preferred baseline is in `name_defaults.lua`, taken from the author's own settings.
 It uses **trebucbi.ttf**, not bold, maximum/minimum font sizes **30/10**, the sub-target's
@@ -33,8 +34,8 @@ Existing character settings take precedence over this baseline.
 
 Kept for each character. Each is on for names that are shown.
 
-The menus follow Trigger's layout: named sections, aligned controls, and visible
-`(?)` help marks with wrapped explanations.
+The settings are winxi's described rows: named sections, each setting a name with a
+sentence under it saying what it does, and its control at the right. No help marks or tooltips.
 
 The tabs are **General → Names → Bars → Check Details → Statuses → Visibility**, and
 **NM Tracking** after `/name dev`. Each part a name can have (health bars, cast bars, check details,
@@ -128,13 +129,13 @@ share the **Bars** tab.
   the chosen server's `vendors` set (winxi's data), by area and name, made from its NPC scripts by
   `tools/build_name_vendors.py`. The Vendor Icons setting of 1.66 and before becomes
   `[vendor: space=N]` (N its old spacing) before the NPC format once if it was on.
-- Each format has its **Reset** button on the same row, after the editor. Hover the
-  **(?)** for every token that kind of name can have, an example format and its
+- Each format has its **Reset** as the row after the editor. **Format Tokens**, a sub-section
+  collapsed to start, lists every token that kind of name can have, an example format and its
   result; the token options are under [Token options](#token-options). Player and NPC
   formats have `[name]`, `[icons]` and `[distance]`, players `[party]` too and NPCs `[vendor]`;
   enemy formats have `[name]`,
   `[level]`, `[aggro]`, `[checked]`, `[letters]` and `[distance]`. There are no Help /
-  Examples dropdowns: what they said is in the (?) beside the setting it is about.
+  Examples dropdowns: what they said is under Format Tokens.
 - **Bars**, one tab for health and cast bars. **Shared Bar Settings** comes first: **Bar Width/Height**
   for HP and cast rows alike, **Fit to Name** (both kinds as wide as the name) and **Preview** (every
   enabled bar shown under the names while the section is open). Then **Health Bars**: **Enabled**,
@@ -166,9 +167,7 @@ share the **Bars** tab.
 - **NM Tracking:** Tracked Monster and conditional Placeholder Options. The tab is
   shown only after `/name dev`, until the addon is reloaded; `/name dev` again hides it.
 
-Controls retain common widths and aligned `(?)` markers. Measurements exclude help
-and window width to prevent auto-size feedback. Format token references and examples
-live in the editor's tooltip; longer status/NM caveats remain in expandable help.
+Format token references and examples live under each kind of name's Format Tokens.
 Existing character settings are preserved.
 
 | Setting | Whose names |

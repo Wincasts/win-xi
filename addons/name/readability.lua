@@ -105,37 +105,38 @@ function readability.Distance(options, written, identity)
 end
 function readability.Diagnostics() return ('%d on-screen anchors; decluttering %s'):format(count,active and 'active' or 'inactive'); end
 -- Crowd Decluttering, at the bottom of the Visibility tab
+local crowdSpec, distanceSpec = {}, {};
 function readability.DrawCrowd(options)
-    local controls, tips = require('controls'), require('winxi.tips');
-    local imgui = require('imgui');
-    if controls.Section('Crowd Decluttering', '##name.crowdOptions') then
-        controls.Checkbox('Enabled', '##name.crowdDeclutter', options.crowdDeclutter, tips.Get('name.readability.crowd'));
-        imgui.BeginDisabled(not options.crowdDeclutter[1]);
-        controls.Input('Crowd Threshold (names)', '##name.crowdThreshold', options.crowdThreshold, 4, 200, tips.Get('name.readability.crowd_threshold'));
-        controls.Slider('Hold Time (ms)', '##name.crowdHold', options.crowdHold, 250, 3000, '%d ms', tips.Get('name.readability.crowd_hold'));
-        imgui.EndDisabled();
+    local controls = require('controls');
+    if controls.Section('Crowd Decluttering') then
+        controls.Checkbox('Enabled', '##name.crowdDeclutter', options.crowdDeclutter,
+            'In a crowd, ordinary names are cut to the name, spawn letter and aggro icon. You, your party, your pet, your target and anyone casting stay in full.');
+        crowdSpec.parent = options.crowdDeclutter;
+        controls.Input('Crowd Threshold', '##name.crowdThreshold', options.crowdThreshold, 4, 200, '%d names',
+            'How many names on screen make a crowd. It ends once there are three fewer.', crowdSpec);
+        controls.Slider('Hold Time', '##name.crowdHold', options.crowdHold, 250, 3000, '%d ms',
+            'How long a crowd lasts before details go, and how long it is gone before they return.', crowdSpec);
     end
-    controls.EndSection();
 end
 -- Distance Thresholds, in the Names tab
 function readability.DrawDistance(options)
-    local controls, tips = require('controls'), require('winxi.tips');
-    local imgui, widgets = require('imgui'), require('winxi.widgets');
-    if controls.Section('Distance Thresholds', '##name.distanceOptions') then
-        controls.Checkbox('Distance Colours', '##name.distanceColours', options.distanceColours, tips.Get('name.readability.distance'));
-        imgui.BeginDisabled(not options.distanceColours[1]);
-        if controls.Input('Warning Distance (y)', '##name.distanceWarning', options.distanceWarning, 1, 100, tips.Get('name.readability.distance_warning')) then
+    local controls = require('controls');
+    if controls.Section('Distance Thresholds') then
+        controls.Checkbox('Distance Colours', '##name.distanceColours', options.distanceColours,
+            'Colours the distance written in a name when something is far away. Off, it keeps its usual colour.');
+        distanceSpec.parent = options.distanceColours;
+        if controls.Input('Warning Distance', '##name.distanceWarning', options.distanceWarning, 1, 100, '%d yalms',
+                'Warning Colour from this far away, until Danger Distance.', distanceSpec) then
             options.distanceDanger[1]=math.max(options.distanceDanger[1],options.distanceWarning[1]);
         end
-        controls.Input('Danger Distance (y)', '##name.distanceDanger', options.distanceDanger, options.distanceWarning[1], 100, tips.Get('name.readability.distance_danger'));
-        controls.Input('Exit Margin (y)', '##name.distanceHysteresis', options.distanceHysteresis, 0, math.min(10,options.distanceWarning[1]-1), tips.Get('name.readability.distance_hysteresis'));
-        for _,entry in ipairs({{'Warning Colour','distanceWarningColor'},{'Danger Colour','distanceDangerColor'}}) do
-            widgets.Label(entry[1]);controls.Width();
-            imgui.ColorEdit4('##name.'..entry[2],options[entry[2]],ImGuiColorEditFlags_NoAlpha or 0);
-            controls.Mark(tips.Get('name.readability.distance_colors'));
-        end
-        imgui.EndDisabled();
+        controls.Input('Danger Distance', '##name.distanceDanger', options.distanceDanger, options.distanceWarning[1], 100, '%d yalms',
+            'Danger Colour from this far away.', distanceSpec);
+        controls.Input('Exit Margin', '##name.distanceHysteresis', options.distanceHysteresis, 0, math.min(10,options.distanceWarning[1]-1), '%d yalms',
+            'How far back within a distance something comes before its colour goes, so the colour does not flicker. 0 is none.', distanceSpec);
+        controls.Color('Warning Colour', '##name.distanceWarningColor', options.distanceWarningColor,
+            'The colour of the distance from Warning Distance.', distanceSpec);
+        controls.Color('Danger Colour', '##name.distanceDangerColor', options.distanceDangerColor,
+            'The colour of the distance from Danger Distance.', distanceSpec);
     end
-    controls.EndSection();
 end
 return readability;

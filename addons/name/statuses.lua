@@ -30,7 +30,6 @@ local debuffs     = require('winxi.debuffs');
 local partystatus = require('winxi.partystatus');
 local theme       = require('winxi.theme');
 local controls    = require('controls');
-local tips        = require('winxi.tips');
 local entityTypes = require('entity_types');
 
 local statuses = {};
@@ -381,62 +380,57 @@ local PLACES = { { key = 'above', label = 'Above' }, { key = 'below', label = 'B
 local ICONS = { { key = 'theme', label = 'Winxi Theme' }, { key = 'game', label = 'Game Icons' }, { key = 'custom', label = 'Custom Icons' } };
 local ALIGNMENTS = { { key = 'left', label = 'Left' }, { key = 'center', label = 'Center' }, { key = 'right', label = 'Right' } };
 
+local showSpec = {}; -- the rows that wait for Enabled
+
 function statuses.DrawSettings(options, save)
     Chosen(options);
     local changed = false;
 
-    controls.BeginLayout('statuses', 360, 'Y Offset (px)');
-    if (controls.Section('Display', '##name.statusOptions', true)) then
+    if (controls.Section('Display', true)) then
         if (controls.Checkbox('Enabled', '##name.showStatuses', options.showStatuses,
-                tips.Get('name.statuses.enabled'))) then
+                'Shows the ticked statuses over the names. Yours and your party\'s are the game\'s, and everyone else\'s are worked out from the battle messages.')) then
             changed = true;
         end
-        if (options.showStatuses[1]) then
-            if (controls.Choice('Icons', '##name.statusIcons', options.statusIcons, ICONS,
-                    tips.Get('name.statuses.icons'))) then
-                changed = true;
-            end
-            if (controls.Slider('Size (%)', '##name.statusSize', options.statusSize, 50, 300, '%d%%',
-                    tips.Get('name.statuses.size'))) then
-                changed = true;
-            end
-            if (controls.Choice('Position', '##name.statusPlace', options.statusPlace, PLACES,
-                    tips.Get('name.statuses.position'))) then
-                changed = true;
-            end
-            if (controls.Choice('Alignment', '##name.statusAlign', options.statusAlign, ALIGNMENTS,
-                    tips.Get('name.statuses.alignment'))) then
-                changed = true;
-            end
-            if (controls.Input('X Offset (px)', '##name.statusOffsetX', options.statusOffsetX, -MOST_OFFSET, MOST_OFFSET,
-                    tips.Get('name.statuses.offset_x'))) then
-                changed = true;
-            end
-            if (controls.Input('Y Offset (px)', '##name.statusOffsetY', options.statusOffsetY, -MOST_OFFSET, MOST_OFFSET,
-                    tips.Get('name.statuses.offset_y'))) then
-                changed = true;
-            end
-            controls.Checkbox('Preview', '##name.statusPreview', preview,
-                tips.Get('name.statuses.preview'));
-        end
-    end
-    controls.EndSection();
-
-    if (controls.Section('Entity Types', '##name.statusTypes')) then
-        imgui.BeginDisabled(not options.showStatuses[1]);
-        if (entityTypes.Draw('statusTypes', options.statusCategories, tips.Get('name.statuses.entity_types'))) then
+        showSpec.parent = options.showStatuses;
+        if (controls.Choice('Icons', '##name.statusIcons', options.statusIcons, ICONS,
+                'Which icons the statuses are drawn with: Winxi Theme as its Custom Icons setting says, Game Icons, or Custom Icons with the game\'s where the set has none.', showSpec)) then
             changed = true;
         end
-        imgui.EndDisabled();
+        if (controls.Slider('Size', '##name.statusSize', options.statusSize, 50, 300, '%d%%',
+                'How tall the status icons are, compared with the name.', showSpec)) then
+            changed = true;
+        end
+        if (controls.Choice('Position', '##name.statusPlace', options.statusPlace, PLACES,
+                'Above the name, over any mastery stars, or below it, under a checked monster\'s details.', showSpec)) then
+            changed = true;
+        end
+        if (controls.Choice('Alignment', '##name.statusAlign', options.statusAlign, ALIGNMENTS,
+                'Which side of the name the row lines up with: Left, Center or Right.', showSpec)) then
+            changed = true;
+        end
+        if (controls.Input('X Offset', '##name.statusOffsetX', options.statusOffsetX, -MOST_OFFSET, MOST_OFFSET, '%d px',
+                'Moves the row right. Below 0, left.', showSpec)) then
+            changed = true;
+        end
+        if (controls.Input('Y Offset', '##name.statusOffsetY', options.statusOffsetY, -MOST_OFFSET, MOST_OFFSET, '%d px',
+                'Moves the row down. Below 0, up.', showSpec)) then
+            changed = true;
+        end
+        controls.Checkbox('Preview', '##name.statusPreview', preview,
+            'Shows the first few ticked statuses over every name, to see how the row looks. Not saved.', showSpec);
     end
-    controls.EndSection();
 
-    if (controls.Section('Selected Statuses', '##name.statusChoice')) then
-        widgets.Label('Search');
-        controls.Width();
-        imgui.InputText('##name.statusSearch', search, 64);
-        controls.Mark(tips.Get('name.statuses.search'));
-        controls.Checkbox('Selected Only', '##name.statusChosenOnly', chosenOnly, tips.Get('name.statuses.selected_only'));
+    if (controls.Section('Entity Types')) then
+        showSpec.parent = options.showStatuses;
+        if (entityTypes.Draw('statusTypes', options.statusCategories, 'A row of statuses', showSpec)) then
+            changed = true;
+        end
+    end
+
+    if (controls.Section('Selected Statuses')) then
+        controls.Text('Search', '##name.statusSearch', search, 64,
+            'Part of a status\'s name, or its number, to find it in the list. Only a ticked status is drawn.');
+        controls.Checkbox('Selected Only', '##name.statusChosenOnly', chosenOnly, 'Lists only the ticked statuses.');
 
         local wanted = search[1]:lower();
         listSize[2] = imgui.GetFrameHeightWithSpacing() * LIST_ROWS;
@@ -450,6 +444,7 @@ function statuses.DrawSettings(options, save)
                     Choose(options, status.id, tick[1]);
                     changed = true;
                 end
+                -- the icon itself, as the mouse rests on a status: a picture, not help
                 if (imgui.IsItemHovered()) then
                     local icon, own = statusicons.Get(status.id, useOwn);
                     if (icon ~= nil) then
@@ -468,8 +463,6 @@ function statuses.DrawSettings(options, save)
         end
         imgui.EndChild();
     end
-    controls.EndSection();
-    controls.EndLayout();
 
     if (changed and save ~= nil) then
         save();
