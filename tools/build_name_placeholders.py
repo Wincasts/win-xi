@@ -5,19 +5,22 @@ A lottery NM is a member of one of its zone's slots (data/zones/<zone>/mobs.yaml
 with a chance and a cooldown, drawn from the slot's other members. Some NMs' scripts
 still list theirs instead, entity.phList = { [placeholder id] = NM id }: those are run
 in LuaJIT against stand-ins for the server's globals, with the zone's real IDs, and
-the lists read off. Both are taken.
+the lists read off. Both are taken. The zone data is as the modules patch it (the importer's
+load_zone, phoenix.modules.load_yaml); a module override of a zone's script that gives a list of
+its own (phList) stops the build (phoenix.modules.guard), for it is not read.
 Names are resolved by the MobDB importer (forks/addons/mobdb/mobdb/import_phoenix.py).
 Requires PyYAML and luajit. Reads the live branch of phoenixffxi/Phoenix, fetched from GitHub
 (tools/phoenix), and writes winxi's placeholders set (addons/libs/winxi/data/placeholders);
 tools/build_winxi_data.py runs it with the other sets.
 """
 import argparse
+import io
 import hashlib
 import re
 import subprocess
 import tempfile
 from pathlib import Path
-from phoenix import importer, lotteries, source
+from phoenix import importer, lotteries, modules, source
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / 'addons/libs/winxi/data/placeholders'
@@ -85,6 +88,8 @@ def build(server, output=OUTPUT, settings=()):
     output.mkdir(parents=True, exist_ok=True)
     for stale in output.glob('*.lua'):
         stale.unlink()
+    modules.guard(server, ('xi.zones.', 'xi.mob.'), lambda o: None if 'phList' in o.body else 'gives no placeholder list',
+                  out=io.StringIO())
     scripts = {squash(path.name): path for path in (server / 'scripts/zones').iterdir() if path.is_dir()}
     zone_count = nm_count = ph_count = 0
     problems = []
@@ -116,9 +121,9 @@ def build(server, output=OUTPUT, settings=()):
                     shown[int(mob_id)] = generator.client_name(zone_id, template_name, template, spawn, int(mob_id) & 0xFFF)[0]
             pairs = list(lotteries)
             if files:
-                npcs = server / 'data/zones' / zone / 'npcs.yaml'
-                if npcs.exists():  # IDs.lua looks NPCs up too; the scripts only need the lookups not to fail
-                    for npc_id, npc in sorted(((module.load_yaml(str(npcs)) or {}).get('npcs') or {}).items()):
+                npcs = modules.load_yaml(server, f'zones/{zone}/npcs')
+                if npcs is not None:  # IDs.lua looks NPCs up too; the scripts only need the lookups not to fail
+                    for npc_id, npc in sorted(((npcs or {}).get('npcs') or {}).items()):
                         name = (npc or {}).get('script')
                         if name:
                             by_template.setdefault(name, []).append(int(npc_id))

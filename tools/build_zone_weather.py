@@ -15,9 +15,12 @@ at day 0, or none.
 Writes addons/libs/winxi/infopanel/zone_weather.lua: the distinct day tables (one string of 2160
 bytes each, a byte a day, 33 + the index of the day's weather triple), each zone's table or its
 fixed weather, and which zones are cities (data/zones/<name>/zone.yaml types) for the fog rule.
-Reads the live branch of phoenixffxi/Phoenix, fetched from GitHub (tools/phoenix).
+Reads the live branch of phoenixffxi/Phoenix, fetched from GitHub (tools/phoenix), as live loads it:
+the zone.yaml types patched by the modules, and the build stops if module SQL ever touches
+zone_weather (none does) or a module's Lua sets a zone's weather (phoenix.modules.guard).
 """
 import argparse
+import io
 import re
 import sys
 from collections import Counter
@@ -25,7 +28,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from build_zone_kinds import zone_ids  # noqa: E402
-from phoenix import source  # noqa: E402
+from build_item_data import enabled_files  # noqa: E402
+from phoenix import modules, source  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 CYCLE = 2160
@@ -35,11 +39,19 @@ FIRST_BYTE = 33
 def is_city(server, name):
     """Whether the zone's types (data/zones/<name>/zone.yaml) include city, as the server's type mask has it."""
     folder = re.sub(r'[^a-z0-9_]', '', name.lower().replace('-', '_'))
-    path = server / 'data/zones' / folder / 'zone.yaml'
-    if not path.exists():
-        return False
-    match = re.search(r'^type:\s*\[([^\]]*)\]', path.read_text(encoding='utf-8'), re.M)
-    return match is not None and 'city' in [t.strip() for t in match.group(1).split(',')]
+    document = modules.load_yaml(server, f'zones/{folder}/zone')
+    return document is not None and 'city' in (document.get('type') or [])
+
+
+def check_modules(server):
+    """Stops the build where a module would change the weather: SQL over zone_weather, which this
+    does not replay, or Lua that sets a zone's weather."""
+    touching = [p.relative_to(server).as_posix() for p in enabled_files(server, '.sql')
+                if re.search(r'\bzone_weather\b', p.read_text(encoding='utf-8-sig'))]
+    if touching:
+        sys.exit('Module SQL changes zone_weather, which this build does not replay: ' + ', '.join(touching))
+    modules.guard(server, ('xi.zones.', 'xi.weather'), lambda o: None if 'setWeather' in o.body else 'leaves the weather',
+                  out=io.StringIO())
 
 
 def entries(blob):
@@ -78,6 +90,7 @@ def lua_string(indexes):
 
 
 def build(server, output):
+    check_modules(server)
     ids = zone_ids(server)
     text = (server / 'sql/zone_weather.sql').read_text(encoding='utf-8')
     rows = re.findall(r"\((\d+),(0x[0-9A-Fa-f]+|NULL)\)", text)

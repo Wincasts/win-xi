@@ -6,7 +6,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from build_action_data import binary_sql, blob_insert, overlay, lua_without_comments
+from build_action_data import binary_sql, blob_insert, lua_without_comments
+from phoenix.modules import merge_patch
 from build_client_data import HEADER, parse_dictionary, build
 from build_item_data import replay
 
@@ -58,7 +59,7 @@ class CatalogBuildTest(unittest.TestCase):
 
     def test_enum_overlay_preserves_sibling_ranks_and_caps(self):
         base = {'skills': {'ranks': {'sword': {'war': 'b', 'blu': 'a_plus'}}, 'caps': {1: {'a': 6}}}}
-        overlay(base, {'skills': {'ranks': {'sword': {'blu': 'a'}}}})
+        base = merge_patch(base, {'skills': {'ranks': {'sword': {'blu': 'a'}}}})
         self.assertEqual(base['skills']['ranks']['sword'], {'war': 'b', 'blu': 'a'})
         self.assertEqual(base['skills']['caps'][1]['a'], 6)
 

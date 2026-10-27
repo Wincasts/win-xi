@@ -10,19 +10,23 @@ are resolved by the MobDB importer (forks/addons/mobdb/mobdb/import_phoenix.py).
 The mob scripts are run in LuaJIT against stand-ins for the server's globals (as
 tools/build_name_placeholders.py runs them), for their placeholder lists, spawn
 points and respawn windows. What the placeholders' scripts and the modules say of
-the lottery is read off the text.
+the lottery is read off the text: the module files live loads with a module on in them
+(phoenix.modules.files_on_live), and every module override of a zone's script goes by
+phoenix.modules.guard. The zone data is as the modules patch it (the importer's load_zone and
+phoenix.modules.load_yaml).
 
 Requires PyYAML and luajit. Reads the live branch of phoenixffxi/Phoenix, fetched from GitHub
 (tools/phoenix).
 """
 import argparse
+import io
 import re
 import subprocess
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 
-from phoenix import importer, lotteries, source
+from phoenix import importer, lotteries, modules, source
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -305,9 +309,9 @@ class Builder:
             if generator.content_enabled(template.get('content')):
                 info.spawns[mob_id] = spawn
                 info.shown[mob_id] = generator.client_name(zone_id, spawn.get('template'), template, spawn, int(mob_id) & 0xFFF)[0]
-        regions = self.server / 'data/zones' / zone / 'regions.yaml'
-        if regions.exists():
-            for name, region in ((importer.load_yaml(str(regions)) or {}).get('regions') or {}).items():
+        regions = modules.load_yaml(self.server, f'zones/{zone}/regions')
+        if regions is not None:
+            for name, region in ((regions or {}).get('regions') or {}).items():
                 poly = (region or {}).get('poly') or []
                 if poly:
                     xs, ys, zs = [p[0] for p in poly], [p[1] for p in poly], [p[2] for p in poly]
@@ -320,9 +324,9 @@ class Builder:
                     info.regions[name] = {'at': [round((min(xs) + max(xs)) / 2, 1), round(sum(ys) / len(ys), 1), round((min(zs) + max(zs)) / 2, 1)],
                                           'reach': round(max(max(xs) - min(xs), max(zs) - min(zs)) / 2),
                                           'poly': [round(n) for point in outline for n in point]}
-        npcs = self.server / 'data/zones' / zone / 'npcs.yaml'
-        if npcs.exists():
-            for npc_id, npc in sorted(((importer.load_yaml(str(npcs)) or {}).get('npcs') or {}).items()):
+        npcs = modules.load_yaml(self.server, f'zones/{zone}/npcs')
+        if npcs is not None:
+            for npc_id, npc in sorted(((npcs or {}).get('npcs') or {}).items()):
                 name = (npc or {}).get('script')
                 if name:
                     info.by_script.setdefault(name, []).append(int(npc_id))
@@ -375,15 +379,9 @@ class Builder:
     # -- what the scripts' text says -------------------------------------------------------------
 
     def module_files(self):
-        """The Lua files of the modules the server loads, in the order it loads them."""
-        files = []
-        for entry in self.importer.read_init(str(self.server)):
-            path = self.server / 'modules' / entry
-            if path.is_dir():
-                files += sorted(path.rglob('*.lua'))
-            elif path.suffix == '.lua' and path.exists():
-                files.append(path)
-        return files
+        """The Lua files of the modules the server loads, in the order it loads them, but those whose
+        every module is off on live."""
+        return modules.files_on_live(self.server)
 
     def resolve_mob(self, expression, home, aliases):
         """A mob id from 'ID.mob.NAME', 'zones[xi.zone.ZONE].mob.NAME' or '<alias>.mob.NAME', with an offset if there is one."""
@@ -705,12 +703,98 @@ class Builder:
         lines.append('};\n')
         (self.output / 'maps.lua').write_text('\n'.join(lines))
 
+    # Module overrides read and decided on by hand, by module and target: what each does to what is
+    # exported here, and why it is let be. A change of target sends it back to be read.
+    DECIDED = {
+        ('pxi_timed_nm_respawn_persistence', 'xi.zones.*.mobs.*.onMobInitialize'):
+            'keeps a timed NM\'s pending respawn across a restart; its window is its script\'s',
+        ('pxi_timed_nm_respawn_persistence', 'xi.zones.*.mobs.*.onMobDespawn'):
+            'keeps a timed NM\'s pending respawn across a restart; its window is its script\'s',
+        ('pxi_timed_nm_respawn_persistence', 'xi.zones.*.Zone.onInitialize'):
+            'keeps a rescheduled NM\'s pending respawn across a restart',
+        # the NMs it treats one by one: each saves and restores the window its own script sets
+        **{('pxi_timed_nm_respawn_persistence', f'xi.zones.{zone}.mobs.{mob}.{event}'):
+           'keeps the window its own script sets across a restart'
+           for zone, mob, events in (('Misareaux_Coast', 'Odqan', ('onMobDespawn', 'onMobInitialize')),
+                                     ('Riverne-Site_A01', 'Carmine_Dobsonfly', ('onMobDespawn', 'onMobInitialize')),
+                                     ('Jugner_Forest', 'King_Arthro', ('onMobDespawn', 'onMobInitialize')),
+                                     ('Batallia_Downs', 'Lumber_Jack', ('onMobInitialize', 'onMobSpawn', 'onMobDespawn')))
+           for event in events},
+    }
+
+    def window_of(self, body):
+        """The respawn window an override writes, in seconds, (least, most), or None: a + math.random(p, q) * k,
+        math.random(least, most) of ten minutes or more, or setRespawnTime(n); None too where it writes
+        two that differ."""
+        found, rest = set(), body
+        for m in re.finditer(r'(\d+)\s*\+\s*math\.random(?:Int)?\(\s*(\d+)\s*,\s*(\d+)\s*\)\s*\*\s*(\d+)', body):
+            a, p, q, k = (int(g) for g in m.groups())
+            found.add((a + p * k, a + q * k))
+            rest = rest.replace(m.group(0), '')
+        for m in re.finditer(r'math\.random(?:Int)?\(\s*(\d+)\s*,\s*(\d+)\s*\)', rest):
+            if int(m.group(1)) >= 600:
+                found.add((int(m.group(1)), int(m.group(2))))
+        for m in re.finditer(r'setRespawnTime\(\s*(\d+)\s*\)', rest):
+            if int(m.group(1)):
+                found.add((int(m.group(1)),) * 2)
+        return found.pop() if len(found) == 1 else None
+
+    def check_modules(self):
+        """Every module override of a zone's script on live, for what of it this reads. The module
+        files' text is read for lotteries, spawn points and the tables of respawn windows a module
+        works through (read_lotteries); a respawn window an override writes itself is read here and
+        stands for the monster it is of and those it names; one that pops a monster from a ???
+        (read_forced reads the zones' own NPC scripts only), or says of respawns what is not read,
+        stops the build."""
+        def with_helpers(override):
+            """The override's code and that of the local functions of its file it calls."""
+            body = override.body
+            for name in set(re.findall(r'\b(\w+)\s*\(', override.body)):
+                definition = re.search(r'\blocal\s+function\s+' + name + r'\s*\(', override.text)
+                if definition:
+                    body += '\n' + modules.function_body(override.text, definition.start())
+            return body
+
+        def handle(override):
+            body, target = with_helpers(override), override.target
+            decided = self.DECIDED.get((override.module, target))
+            if decided:
+                return decided
+            if 'popFromQM' in body:
+                return None
+            if re.search(r'phOnDespawn|spawnPoints', body):
+                return 'read off its file\'s text'
+            if not re.search(r'setRespawnTime|[\'"]respawn[\'"]|phList|SpawnMob', body):
+                return 'nothing of lotteries, spawns or respawns'
+            if '*' in target and re.search(r"\{\s*'\w+'\s*,\s*'[\w\-]+'\s*,\s*\d+", override.text):
+                return 'read off its file\'s table'
+            if target.endswith('.Zone.onInitialize'):
+                return 'the first pop after a restart, not a respawn window'
+            match = re.match(r'xi\.zones\.([^.*]+)\.mobs\.([^.*]+)\.(onMobDespawn|onMobInitialize)$', target)
+            window = self.window_of(body)
+            if match is None or window is None:
+                return None
+            info = self.zones.get(self.by_squash.get(squash(match.group(1))))
+            if info is None:
+                return 'a zone not exported'
+            aliases = dict(re.findall(r'local\s+(\w+)\s*=\s*zones\[xi\.zone\.(\w+)\]', override.text))
+            mob_ids = set(info.by_script.get(match.group(2), []))
+            for named in re.findall(r'\b(\w+\.mob\.\w+)', body):
+                found_info, mob_id = self.resolve_mob(named, info.zone, aliases)
+                if found_info is info and mob_id is not None:
+                    mob_ids.add(mob_id)
+            for mob_id in mob_ids:
+                info.respawns[mob_id] = window
+            return f'respawns in {window[0]}-{window[1]} s, {len(mob_ids)} monster(s)'
+        modules.guard(self.server, ('xi.zones.', 'xi.mob.'), handle, out=io.StringIO())
+
     def run(self):
         with tempfile.TemporaryDirectory() as scratch:
             (Path(scratch) / 'reader.lua').write_text(READER)
             for path in sorted((self.server / 'data/zones').glob('*/mobs.yaml')):
                 self.read_zone(path.parent.name, scratch)
         self.read_lotteries()
+        self.check_modules()
         self.read_forced()
         total, zones = self.write()
         for note, count in sorted({note: self.notes.count(note) for note in self.notes}.items())[:40]:

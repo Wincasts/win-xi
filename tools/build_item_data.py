@@ -61,18 +61,8 @@ def translate(sql, variables):
 
 
 def enabled_files(server, suffix):
-    files = []
-    for line in (server / 'modules/init.txt').read_text().splitlines():
-        entry = line.split('#', 1)[0].strip()
-        if not entry:
-            continue
-        path = server / 'modules' / entry
-        candidates = sorted(path.rglob('*' + suffix)) if path.is_dir() else [path] if path.suffix == suffix and path.is_file() else []
-        for candidate in candidates:
-            # SQL dbtool ordering is init order, recursively sorted within each entry.
-            if candidate not in files:
-                files.append(candidate)
-    return files
+    """The module files init.txt loads (phoenix.modules.enabled_files), for the builders that import it here."""
+    return modules.enabled_files(server, suffix)
 
 
 def snapshot(db, table):
@@ -211,6 +201,9 @@ def build(server, output, settings=()):
     declarations = []
 
     def handle(override):
+        if override.target == '?':
+            # a target not written out: only one whose code is an item's would matter here
+            return None if re.search(r'\b(onItem)', override.body) else 'target not written out; not an item\'s code'
         name, _, callback = override.target.removeprefix('xi.items.').rpartition('.')
         key, _ = evidence(server / 'modules' / override.path)
         status = 'on live' if override.applies else f'gate not understood, taken as on: {override.condition}'
@@ -245,7 +238,7 @@ def build(server, output, settings=()):
         write_lua(output / f'script_{page}.lua', data)
     enums = {}
     for name in ('mod', 'latent', 'job', 'skill_type', 'element'):
-        enums[name] = yaml.safe_load((server / f'data/enums/{name}.yaml').read_text())['values']
+        enums[name] = modules.load_yaml(server, f'enums/{name}')['values']
     found = source.read(server)
     metadata = {
         'Schema': 1, 'Count': len(records), 'PageSize': PAGE_SIZE,

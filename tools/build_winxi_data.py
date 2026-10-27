@@ -17,12 +17,14 @@ folder to fill. Adding data for winxi is adding one here and a module to read it
 Requires PyYAML and luajit.
 """
 import argparse
+import io
+import re
 import shutil
 import sys
 import tempfile
 from pathlib import Path
 
-from phoenix import importer, source
+from phoenix import importer, modules, source
 import build_name_placeholders
 import build_item_data
 import build_action_data
@@ -33,7 +35,18 @@ DATA = ROOT / 'addons/libs/winxi/data'
 
 
 def build_mobs(server, output, settings):
-    """An area's monsters, as mobdb has them: levels, aggro, senses, links, family, drops, spells."""
+    """An area's monsters, as mobdb has them: levels, aggro, senses, links, family, drops, spells.
+
+    The importer reads the zone data as the modules patch it, and the module SQL. A monster's own
+    script is not read (what it does in a fight is not mobdb's), and so neither is a module's
+    override of one: those that change a monster's stats there are listed, not taken."""
+    def handle(override):
+        if re.search(r'\b(setMod|addMod|setMobMod|addImmunity|setMobLevel|setDropID|addStatusEffect)\s*\(', override.body):
+            return 'changes a monster in its script: listed, not in mobdb\'s data'
+        return 'nothing mobdb has'
+    changed = [o for o, what in modules.guard(server, ('xi.zones.',), handle, out=io.StringIO()) if what.startswith('changes')]
+    if changed:
+        print(f'  {len(changed)} module overrides change monsters in their scripts, which mobdb does not read')
     importer.generator(server, output, settings).run()
 
 

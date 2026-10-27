@@ -30,8 +30,10 @@ import argparse
 import collections
 import csv
 import re
+import sqlite3
 from pathlib import Path
 
+from build_item_data import enabled_files, replay
 from phoenix import modules, source
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -111,8 +113,14 @@ def main():
 
     # a monster's moves: a file for each name, which several moves can have
     moves = collections.defaultdict(list)
-    for m in re.finditer(r"INSERT INTO `mob_skills` VALUES \((\d+),\d+,'([^']*)'", (found.path / 'sql/mob_skills.sql').read_text()):
-        moves[m.group(2).lower()].append(int(m.group(1)))
+    # as live has them: the server's table with the module SQL over it
+    db = sqlite3.connect(':memory:')
+    replay(db, found.path / 'sql/mob_skills.sql', {}, tables=('mob_skills',))
+    for path in enabled_files(found.path, '.sql'):
+        replay(db, path, {}, True, tables=('mob_skills',))
+    for number, name in db.execute('SELECT mob_skill_id, mob_skill_name FROM mob_skills'):
+        moves[name.lower()].append(int(number))
+    db.close()
 
     def move_effects(text):
         """Each mobStatusEffectMove(mob, target, xi.effect.X, power, tick, duration) in text, and each
