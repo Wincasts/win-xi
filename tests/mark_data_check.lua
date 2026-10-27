@@ -3,6 +3,7 @@ package.path = 'addons/mark/?.lua;addons/libs/?.lua;' .. package.path
 addon = { path = 'addons/mark/' }
 ashita = { fs = { exists = function(path) local file = io.open(path, 'rb') if file then file:close() end return file ~= nil end } }
 AshitaCore = nil -- no game: the zones go by the data's own names
+require('winxi.gamedata').Root('addons/libs/winxi/data/') -- the server's marks set, from the repository's data
 local hunts = require('hunts')
 
 -- every monster listed has a record, and every record is of the shape the window expects

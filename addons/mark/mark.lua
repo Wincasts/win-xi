@@ -36,7 +36,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi';
 --   /mark ph 126          the placeholder of that ID died just now (/mark ph 126 2: two minutes ago;
 --                         /mark ph 126 clear: it is no longer timed)
 --
--- The data is in data/, written by tools/build_mark_data.py from the server's source. hunts.lua reads
+-- The data is the chosen server's marks set (winxi's data), written by tools/build_mark_data.py from its source; hunts.lua reads
 -- it and puts it into words, maps.lua knows the maps, and this file draws and watches the game.
 
 require('common');

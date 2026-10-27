@@ -1,7 +1,8 @@
 -- What mark knows of the notorious monsters, and how it is put into words. Nothing here draws.
 --
--- The data is the server's own, written out by tools/build_mark_data.py: data/index.lua lists every
--- zone with its monsters, and data/<zone id>.lua has each monster of a zone in full. A zone's file is
+-- The data is the server's own, written out by tools/build_mark_data.py as winxi's marks set (the
+-- chosen server's: index lists every zone with its monsters, and <zone id> has each monster of a zone
+-- in full). A zone's file is
 -- read the first time it is asked for.
 --
 --   hunts.Zones(showScripted)        the zones with something to list, each { id, name, monsters }
@@ -17,18 +18,13 @@ local index = nil;      -- data/index.lua, once read
 local zoneNames = {};   -- zone id -> the name it goes by
 local zoneFiles = {};   -- zone id -> its monsters, or false where there is no file
 
+local gamedata = require('winxi.gamedata');
+
+-- One file of the chosen server's marks set: index, or a zone's
 local function Read(name)
-    local path = ('%sdata/%s.lua'):format(addon.path, name);
-    if not ashita.fs.exists(path) then
-        return nil;
-    end
-    local chunk = loadfile(path);
-    if chunk == nil then
-        return nil;
-    end
-    local ok, result = pcall(chunk);
-    return ok and type(result) == 'table' and result or nil;
+    return gamedata.Read('marks', name);
 end
+gamedata.OnChange(function () index, zoneNames, zoneFiles = nil, {}, {}; end); -- another server's data chosen
 
 -- The game's own name for a zone, where it has one: the data's is the server's folder name tidied up
 local function ZoneName(id, fallback)

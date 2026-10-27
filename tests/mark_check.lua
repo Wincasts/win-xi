@@ -1,5 +1,6 @@
 -- mark: loads, shows a monster's record in words, takes a mark, watches the game for it, times its
 -- placeholders and its window, and draws its map
+require('winxi.gamedata').Root('addons/libs/winxi/data/') -- the server's sets, from the repository's data
 local realLoadfile = loadfile
 loadfile = function(path)
     local own = path:match('^C:\\ashita\\addons\\mark\\(.*)$')

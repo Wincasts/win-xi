@@ -1,4 +1,5 @@
 -- Database details stay above a fixed, separated search footer; long records scroll independently.
+require('winxi.gamedata').Root('addons/libs/winxi/data/') -- the server's sets, from the repository's data
 local function check(label, ok) assert(ok, label); H.print(label, true) end
 local imgui, hunts = require('imgui'), require('hunts')
 local record = { indices = { 295 }, level = { 1, 1 }, kinds = 't', respawn = { 300, 600 }, drops = {} }

@@ -1,4 +1,5 @@
 -- luajit tests/harness.lua mark addons/mark/mark.lua tests/mark_map_check.lua
+require('winxi.gamedata').Root('addons/libs/winxi/data/') -- the server's sets, from the repository's data
 local imgui, maps, hunts = require('imgui'), require('maps'), require('hunts')
 local function check(label, ok) assert(ok, label); H.print(label, true) end
 local function near(a, b) return math.abs(a - b) < .001 end

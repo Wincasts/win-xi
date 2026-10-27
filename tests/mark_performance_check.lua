@@ -1,5 +1,6 @@
 -- Regression checks for cached searches, per-poll snapshots, and batched persistence.
 -- luajit tests/harness.lua mark addons/mark/mark.lua tests/mark_performance_check.lua
+require('winxi.gamedata').Root('addons/libs/winxi/data/') -- the server's sets, from the repository's data
 local realLoadfile = loadfile
 loadfile = function(path)
     local own = path:match('^C:\\ashita\\addons\\mark\\(.*)$')

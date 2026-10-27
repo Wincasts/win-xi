@@ -1,5 +1,6 @@
 -- Saved placeholder death times survive settings reloads, logout and zoning, without stale sightings.
 -- luajit tests/harness.lua mark addons/mark/mark.lua tests/mark_persistence_check.lua
+require('winxi.gamedata').Root('addons/libs/winxi/data/') -- the server's sets, from the repository's data
 local realLoadfile = loadfile
 loadfile = function(path)
     local own = path:match('^C:\\ashita\\addons\\mark\\(.*)$')

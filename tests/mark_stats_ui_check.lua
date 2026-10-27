@@ -1,4 +1,5 @@
 -- Hunting database integration: polling + packets + settings persistence + simplified UI.
+require('winxi.gamedata').Root('addons/libs/winxi/data/') -- the server's sets, from the repository's data
 local function check(label, ok) assert(ok, label); H.print(label, true) end
 local now = 1700000000
 os.time = function() return now end
