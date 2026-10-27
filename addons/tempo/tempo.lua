@@ -97,6 +97,7 @@ local function Memory()
     return AshitaCore:GetMemoryManager()
 end
 
+local signetStatus, sigilStatus = 253, 268 -- under these the server restores more HP at rest
 local function Buffs()
     local found = {}
     local buffs = Memory():GetPlayer():GetBuffs()
@@ -156,7 +157,9 @@ local function Track(now)
         end
         if status == statusResting then
             local hp, mp, hpMax, mpMax = Vitals()
-            rest.Start(now, hp, mp, hpMax, mpMax, lastStatus == nil)
+            local buffs = Buffs()
+            rest.Start(now, hp, mp, hpMax, mpMax, lastStatus == nil, buffs[signetStatus] or buffs[sigilStatus],
+                Memory():GetPlayer():GetMainJobLevel())
         elseif lastStatus == statusResting then
             rest.Stop()
         end
@@ -191,6 +194,23 @@ local actionActor, actionCategory, actionWhat, actionFirstMessage = 40, 82, 86, 
 local castBegin, castBroken = 0x6163, 0x7073 -- 'ca' and 'sp', the low 16 bits of what a start is
 local castKinds = { [8] = 'spell', [9] = 'item', [12] = 'ranged' }
 
+-- How long an action holds the swing timer: its animation, as the server has it (winxi's spells,
+-- abilities and weapon skills), in seconds; nil where it is not known
+local holdKinds = { [3] = 'weaponskills', [6] = 'abilities', [4] = 'spells' }
+local holds = {}
+local function Hold(category, id)
+    local kind = holdKinds[category]
+    if kind == nil or id == nil or id == 0 then return nil end
+    local key = category * 65536 + id
+    if holds[key] == nil then
+        local ok, catalog = pcall(require, 'winxi.' .. kind)
+        local record = ok and catalog.Get(id) or nil
+        local ms = record and record.Data and record.Data.animationTime
+        holds[key] = (type(ms) == 'number' and ms > 0) and ms / 1000 or false
+    end
+    return holds[key] or nil
+end
+
 local function OnAction(e, now)
     local raw = e.data_raw or e.data
     if raw == nil or #e.data < 32 then return end
@@ -201,7 +221,7 @@ local function OnAction(e, now)
     if category == 1 then
         swing.Round(now, Delay())
     elseif category == 3 or category == 6 then
-        swing.Ability(now)
+        swing.Ability(now, Hold(category, what))
     elseif castKinds[category] ~= nil then
         if what == castBegin then
             swing.CastBegin(now, castKinds[category])
@@ -216,7 +236,7 @@ local function OnAction(e, now)
             swing.Paralyzed(now)
         end
     elseif category == 4 or category == 5 or category == 2 then
-        swing.CastEnd(now)
+        swing.CastEnd(now, Hold(category, what))
     end
 end
 

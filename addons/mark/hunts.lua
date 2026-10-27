@@ -120,9 +120,10 @@ function hunts.Find(words, showScripted, limit)
     return found;
 end
 
--- Treasure Hunter, as the server reckons it (scripts/combat/basic/treasure_hunter.lua): a roll's rate
--- puts it in one of seven brackets, and each level of Treasure Hunter has a rate for each bracket. A
--- roll that always drops, or never does, is left alone. Rates here are out of 10000.
+-- Treasure Hunter, as the server reckons it: a roll's rate puts it in one of seven brackets, and each
+-- level of Treasure Hunter has a rate for each bracket. A roll that always drops, or never does, is
+-- left alone. Rates are out of 10000. They are winxi.rules' (read from the server's
+-- scripts/combat/basic/treasure_hunter.lua); these, the same table, for when winxi's data is not installed.
 local thRates = {
     [0]  = { 2400, 1500, 1000,  500,  100,  50,  10 },
     [1]  = { 4800, 3000, 1200,  600,  150,  75,  20 },
@@ -143,6 +144,14 @@ local thRates = {
 local thBrackets = { 2400, 1500, 1000, 500, 100, 50, 0 };
 
 hunts.MaxTreasureHunter = 14;
+
+do
+    local ok, rules = pcall(require, 'winxi.rules');
+    local th = ok and rules.Get('treasureHunter') or nil;
+    if th ~= nil and th.Levels ~= nil and th.Brackets ~= nil then
+        thRates, thBrackets, hunts.MaxTreasureHunter = th.Levels, th.Brackets, th.MaxLevel or hunts.MaxTreasureHunter;
+    end
+end
 
 -- rate is the data's, in tenths of a percent. Returns the chance out of 10000.
 function hunts.Chance(th, rate)

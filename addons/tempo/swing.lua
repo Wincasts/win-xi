@@ -68,8 +68,30 @@ local hasteBuffs = {
 }
 local hundredFists = 46
 local magicCap, abilityCap = 0.4375, 0.25
--- Phoenix's main.DELAY_REDUCTION_CAP (the source's default is 0.80)
+-- the most delay haste can take off: the server's main.DELAY_REDUCTION_CAP
 local hasteCap = 0.93
+
+-- The server's (winxi.rules, read from its code) where winxi's data is installed: the caps, and what
+-- Haste, Spirit Surge and Hasso give; the numbers above are the same, for where it is not
+local HASTE_SPELL, HASTE_STATUS, SPIRIT_SURGE, HASSO = 57, 33, 126, 353
+local okRules, rules = pcall(require, 'winxi.rules')
+do
+    local caps = okRules and rules.Get('haste') or nil
+    if caps then
+        magicCap, abilityCap, hasteCap = caps.MagicCap or magicCap, caps.AbilityCap or abilityCap, caps.DelayReductionCap or hasteCap
+    end
+    local effects = okRules and rules.Get('hasteEffects') or nil
+    if effects then
+        local spell = effects.Spells and effects.Spells[HASTE_SPELL]
+        if spell then hasteBuffs[HASTE_STATUS] = { magic = spell } end
+        for status, symbol in pairs({ [SPIRIT_SURGE] = 'SPIRIT_SURGE', [HASSO] = 'HASSO' }) do
+            local fixed = effects.Fixed and effects.Fixed[symbol]
+            if fixed then
+                hasteBuffs[status] = { [fixed.Kind] = fixed.Haste, twoHandedOnly = fixed.TwoHanded or nil }
+            end
+        end
+    end
+end
 
 local function Ms(units)
     return math.floor(units * 1000 / 60)
@@ -154,9 +176,21 @@ end
 -- The timer
 ---------------------------------------------------------------------------------------------------
 
+-- The first round comes the server's engage wait, less the tick that takes a full tick off it; an
+-- action holds the timer for its own animation (passed to Ability and CastEnd, from winxi's sets),
+-- or for these where that is not known; a ranged attack for the server's weapon return, an item for a
+-- tick. The server's where winxi's data is installed (winxi.rules' swing).
 local firstRound = 2.8
 local abilityHold = 2.0
 local castHold = { spell = 2.0, ranged = 0.8, item = 0.4 }
+do
+    local timing = okRules and rules.Get('swing') or nil
+    if timing and timing.EngageDelay and timing.Tick then
+        firstRound = timing.EngageDelay - timing.Tick
+        castHold.ranged = timing.RangedHold or castHold.ranged
+        castHold.item = timing.Tick
+    end
+end
 local gapsToTrust, gapsKept, keysKept = 3, 6, 16
 local snapToEstimate = 0.04
 -- a gap longer than this many times the estimate had a pause that was not seen
@@ -257,10 +291,10 @@ function swing.Round(now, estimate, key)
     state.clean, state.stalled, state.reason = not state.stalled, false, nil
 end
 
--- A job ability or weapon skill went off
-function swing.Ability(now)
+-- A job ability or weapon skill went off; hold: its animation's seconds, where they are known
+function swing.Ability(now, hold)
     if not state.active then return end
-    state.next = now + math.max(state.next - now, 0) + abilityHold
+    state.next = now + math.max(state.next - now, 0) + (hold or abilityHold)
     state.clean, state.reason = false, nil
 end
 
@@ -281,9 +315,9 @@ function swing.CastBegin(now, kind)
     state.heldSince, state.heldBy, state.clean = now, kind, false
 end
 
-function swing.CastEnd(now)
+function swing.CastEnd(now, hold)
     if not state.active or state.heldSince == nil then return end
-    state.next = now + math.max(state.next - state.heldSince, 0) + castHold[state.heldBy]
+    state.next = now + math.max(state.next - state.heldSince, 0) + (hold or castHold[state.heldBy])
     state.heldSince, state.reason = nil, nil
     if state.stoppedSince ~= nil then state.stoppedSince = now end
 end

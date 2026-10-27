@@ -1,9 +1,11 @@
 -- The resting (/heal) ticks: when the next one lands, about what it restores, and about when HP and
 -- MP are full. A cut-down cadence (its core/resting.lua, by Kipling).
 --
--- The server's rules (LSB scripts/effects/healing.lua, which Phoenix runs as it is): resting ticks
--- every 10 s from the moment you sit, and tick k restores 10 + (k - 2) HP and 12 + (k - 2) MP, more
--- with gear that adds to them; the first tick restores nothing. The ticks run only on the zone's 3 s
+-- The server's rules (its scripts/effects/healing.lua, read by tools/build_rules.py into winxi.rules,
+-- with these as they are there for where winxi's data is not installed): resting ticks every 10 s
+-- from the moment you sit, and tick k restores 10 + (k - 2) HP and 12 + (k - 2) MP, more with gear
+-- that adds to them; the first tick restores nothing. Under Signet or Sigil, HP is
+-- 10 + 3 x (level / 10) + (k - 2) x (1 + max HP / 300), each division rounded down. The ticks run only on the zone's 3 s
 -- effect pass, so each lands up to 3.2 s after its 10 s mark, and the gaps run 9, 9, 12. The first
 -- that restores anything lands 20 to 23 s after you sit.
 --
@@ -13,6 +15,17 @@
 local rest = {}
 
 local period, pass = 10, 3
+local hpBase, mpBase = 10, 12
+local signetHp = { Base = 10, PerTenLevels = 3, Levels = 10, MaxHpPerTick = 300 }
+do
+    local ok, rules = pcall(require, 'winxi.rules')
+    local resting = ok and rules.Get('resting') or nil
+    if resting and resting.Tick and resting.EffectPass then
+        period, pass = resting.Tick, resting.EffectPass
+        hpBase, mpBase = resting.Hp.Base, resting.Mp.Base
+        signetHp = resting.HpSignet or signetHp
+    end
+end
 -- a tick lands this long after its mark, at the most; before the passes are known, it is put this
 -- long after
 local passLatest, passGuess = 3.2, 1.4
@@ -45,13 +58,20 @@ local function TickTime(k)
 end
 
 local function Gains(k)
-    return 10 + (k - 2) + state.bonusHp, 12 + (k - 2) + state.bonusMp
+    local hp = hpBase + (k - 2)
+    if state.signet then
+        hp = signetHp.Base + signetHp.PerTenLevels * math.floor((state.level or 1) / signetHp.Levels)
+            + (k - 2) * (1 + math.floor(state.hpMax / signetHp.MaxHpPerTick))
+    end
+    return hp + state.bonusHp, mpBase + (k - 2) + state.bonusMp
 end
 
 -- joined: resting began before tempo was there, so when is not known: the first tick seen tells it,
--- by how much it restored
-function rest.Start(now, hp, mp, hpMax, mpMax, joined)
+-- by how much it restored. signet: Signet or Sigil is on, which the server restores more HP under, by
+-- level (the main job's)
+function rest.Start(now, hp, mp, hpMax, mpMax, joined, signet, level)
     state.active, state.sat, state.passAt, state.tick = true, now - sitDelay, nil, 0
+    state.signet, state.level = signet == true, level
     state.joined = joined == true
     state.hp, state.mp, state.hpMax, state.mpMax = hp, mp, hpMax, mpMax
     state.lastHp, state.lastMp = nil, nil

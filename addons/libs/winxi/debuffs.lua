@@ -641,7 +641,13 @@ local Bleeds = {
     [3] = true, [128] = true, [129] = true, [130] = true, [131] = true, [132] = true, [133] = true,
     [134] = true, [135] = true, [192] = true,
 };
+-- the zone's effect pass, which DoT damage comes on: the server's (winxi.rules' resting.EffectPass)
 local TICK_SECONDS = 3;
+do
+    local ok, rules = pcall(require, 'winxi.rules');
+    local resting = ok and rules.Get('resting') or nil;
+    TICK_SECONDS = resting and resting.EffectPass or TICK_SECONDS;
+end
 
 local function Seconds(category, param, status)
     local by = (category == SPELL and durations.spells[param]) or (category == MOVE and durations.mobskills[param]) or nil;
