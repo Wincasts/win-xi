@@ -46,10 +46,10 @@ return {
         aggro = true,
         link = true,
         detects = { 'Sight' },
-        lottery = { chance = 10, cooldown = 1 },
+        lottery = { chance = 15, cooldown = 0 },
         kinds = 'l',
-        points = { { 60.7, 15.5, -118.9 } },
-        placeholders = { { index = 150, name = 'Bugbear Bondman noroam', level = { 43, 45 }, respawn = 840, points = { { -0.8, 12, -101.4 } } }, { index = 154, name = 'Bugbear Bondman noroam', level = { 43, 45 }, respawn = 840, points = { { 61.6, 15.5, -122.4 } } } },
+        points = { { -0.9, 11.5, -98.4 }, { 61.6, 15.5, -122.4 } },
+        placeholders = { { index = 150, name = 'Bugbear Bondman', level = { 43, 45 }, respawn = 840, points = { { -0.8, 12, -101.4 } } }, { index = 154, name = 'Bugbear Bondman', level = { 43, 45 }, respawn = 840, points = { { 61.6, 15.5, -122.4 } } } },
         drops = { { rate = 150, items = { { 15369, 10000 } } }, { rate = 100, items = { { 14334, 10000 } } }, { rate = 50, items = { { 1624, 10000 } } } },
     },
     ['Goblin Preceptor'] = {

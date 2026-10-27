@@ -9,7 +9,7 @@ return {
         aggro = true,
         link = true,
         detects = { 'Sight', 'Scent' },
-        lottery = { chance = 5, cooldown = 3600 },
+        lottery = { chance = 15, cooldown = 3600 },
         kinds = 'l',
         areas = { { at = { 11, -0.4, -24 }, reach = 37, poly = { -13, -55, -7, -61, 1, -53, 0, -48, 35, -17, 35, -5, 23, 11, 11, 11, 9, -1, 14, -2, 14, -9, -13, -41 } } },
         placeholders = { { index = 80, name = 'Orcish Grunt', level = { 14, 18 }, respawn = 480, areas = { { at = { 11, -0.4, -24 }, reach = 37, poly = { -13, -55, -7, -61, 1, -53, 0, -48, 35, -17, 35, -5, 23, 11, 11, 11, 9, -1, 14, -2, 14, -9, -13, -41 } } } }, { index = 81, name = 'Orcish Stonechucker', level = { 14, 18 }, respawn = 480, areas = { { at = { 11, -0.4, -24 }, reach = 37, poly = { -13, -55, -7, -61, 1, -53, 0, -48, 35, -17, 35, -5, 23, 11, 11, 11, 9, -1, 14, -2, 14, -9, -13, -41 } } } } },

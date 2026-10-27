@@ -62,7 +62,7 @@ return {
         aggro = true,
         link = true,
         detects = { 'Sound', 'Scent' },
-        lottery = { chance = 10, cooldown = 3600 },
+        lottery = { chance = 15, cooldown = 3600 },
         kinds = 'l',
         points = { { 133.8, 22.2, -208.7 } },
         placeholders = { { index = 180, name = 'Mountain Scolopendrid', level = { 78, 81 }, respawn = 300, areas = { { at = { 129, 22.9, -209 }, reach = 18, poly = { 111, -213, 111, -211, 123, -211, 123, -209, 133, -209, 133, -207, 143, -207, 143, -205, 147, -205, 145, -209, 137, -209, 137, -211, 131, -211, 131, -213 } } } } },

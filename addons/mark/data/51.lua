@@ -65,7 +65,7 @@ return {
     },
     ['Dark Rider'] = {
         indices = { 309 },
-        level = { 95, 95 },
+        level = { 99, 99 },
         family = 'Avatar',
         job = 8,
         detects = { 'Sight', 'Magic' },
@@ -200,7 +200,7 @@ return {
         family = 'Morbol',
         aggro = true,
         detects = { 'Sound' },
-        lottery = { chance = 10, cooldown = 7200 },
+        lottery = { chance = 15, cooldown = 7200 },
         kinds = 'l',
         areas = { { at = { -583, -9.5, -338 }, reach = 24, poly = { -607, -325, -605, -317, -565, -315, -559, -329, -561, -355, -571, -361, -583, -359, -589, -345 } } },
         placeholders = { { index = 265, name = 'Great Ameretat', level = { 73, 74 }, respawn = 300, areas = { { at = { -583, -9.5, -338 }, reach = 24, poly = { -607, -325, -605, -317, -565, -315, -559, -329, -561, -355, -571, -361, -583, -359, -589, -345 } } } } },

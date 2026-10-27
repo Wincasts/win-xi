@@ -234,7 +234,7 @@ return {
         aggro = true,
         link = true,
         detects = { 'Sound' },
-        lottery = { chance = 12, cooldown = 18000 },
+        lottery = { chance = 15, cooldown = 18000 },
         kinds = 'l',
         points = { { 59.8, -0.9, 22.3 } },
         placeholders = { { index = 4, name = 'Witch Hazel', level = { 62, 64 }, respawn = 960, points = { { 61.9, -1.2, -3.2 } } } },

@@ -21,18 +21,21 @@ the build, so the table is never missing a line without anyone knowing.
 Writes addons/libs/winxi/infopanel/transports.lua: the kinds of line, the lines (each place a ship
 leaves from and goes to, by the key the settings' whitelist knows it by) and each run's zone, labels,
 cycle and phase seconds and voyage zones; winxi.infopanel.schedule
-reads it. Reads the live branch of phoenixffxi/Phoenix, fetched from GitHub (tools/phoenix).
+reads it. Reads the live branch of phoenixffxi/Phoenix, fetched from GitHub (tools/phoenix), as live
+loads it: each zone.yaml patched by the modules (phoenix.modules.load_yaml), module SQL over
+zone_settings, and the Lua module overrides of the ship handler's scripts through phoenix.modules.guard
+(a transport's own script can hold a run or send it elsewhere).
 """
 import argparse
+import io
 import re
 import sys
 from pathlib import Path
 
-import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from build_zone_kinds import zone_ids  # noqa: E402
-from phoenix import source  # noqa: E402
+from phoenix import modules, source  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -86,7 +89,7 @@ def passenger_runs(server, ids):
     folders = {folder_of(name): zone for zone, name in ids.items()}
     runs = {}
     for path in sorted((server / 'data/zones').glob('*/zone.yaml')):
-        document = yaml.safe_load(path.read_text(encoding='utf-8')) or {}
+        document = modules.load_yaml(server, f'zones/{path.parent.name}/zone') or {}
         transport = document.get('transport')
         if not transport:
             continue
@@ -127,6 +130,10 @@ def passenger_runs(server, ids):
 
 
 def build(server, output):
+    # the runs are the zone data's; a module that rewrites the transport scripts is read before trusting them
+    modules.guard(server, ('xi.transport', 'xi.barge', 'xi.ferry', 'xi.airship'),
+                  lambda override: None if re.search(r'transport|barge|ferry|airship|Ship', override.body) else 'nothing of ships',
+                  out=io.StringIO())
     ids = zone_ids(server)
     runs = passenger_runs(server, ids)
     unnamed = sorted(set(runs) - set(RUNS))

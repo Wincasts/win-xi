@@ -46,7 +46,7 @@ return {
         aggro = true,
         link = true,
         detects = { 'Sound' },
-        lottery = { chance = 10, cooldown = 3600 },
+        lottery = { chance = 15, cooldown = 3600 },
         kinds = 'l',
         areas = { { at = { -379, 0, 739 }, reach = 8, poly = { -387, 731, -387, 747, -371, 747, -371, 731 } } },
         placeholders = { { index = 28, name = 'Stink Bats', level = { 15, 18 }, respawn = 480, areas = { { at = { -379, 0, 739 }, reach = 8, poly = { -387, 731, -387, 747, -371, 747, -371, 731 } } } } },

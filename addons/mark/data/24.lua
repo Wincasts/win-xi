@@ -158,7 +158,7 @@ return {
         family = 'Bugard',
         aggro = true,
         detects = { 'Sound' },
-        lottery = { chance = 10, cooldown = 3600 },
+        lottery = { chance = 15, cooldown = 3600 },
         kinds = 'l',
         areas = { { at = { -176, -8, 21 }, reach = 33, poly = { -209, 35, -207, 43, -183, 45, -167, 41, -153, 51, -145, 43, -145, 3, -157, -7, -179, -9, -193, 1, -195, 15 } } },
         placeholders = { { index = 191, name = 'Gigantobugard', level = { 40, 43 }, respawn = 300, areas = { { at = { -218, -15.7, 114 }, reach = 41, poly = { -255, 105, -255, 131, -239, 155, -197, 153, -181, 135, -197, 75, -201, 73, -229, 75, -239, 87, -243, 101 } } } }, { index = 200, name = 'Gigantobugard', level = { 40, 43 }, respawn = 300, areas = { { at = { -218, -15.7, 114 }, reach = 41, poly = { -255, 105, -255, 131, -239, 155, -197, 153, -181, 135, -197, 75, -201, 73, -229, 75, -239, 87, -243, 101 } } } }, { index = 219, name = 'Gigantobugard', level = { 40, 43 }, respawn = 300, areas = { { at = { -218, -15.7, 114 }, reach = 41, poly = { -255, 105, -255, 131, -239, 155, -197, 153, -181, 135, -197, 75, -201, 73, -229, 75, -239, 87, -243, 101 } } } } },

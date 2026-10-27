@@ -33,7 +33,7 @@ return {
         respawn = { 10800, 21600 },
         kinds = 't',
         points = { { 740, -0.5, -99 } },
-        drops = { { rate = 150, items = { { 1442, 10000 } } }, { rate = 100, items = { { 16838, 10000 } } } },
+        drops = { { rate = 1000, items = { { 1421, 10000 } } }, { rate = 150, items = { { 1442, 10000 } } }, { rate = 100, items = { { 16838, 10000 } } } },
     },
     ['Genbu'] = {
         indices = { 367 },
@@ -69,7 +69,7 @@ return {
         respawn = { 10800, 21600 },
         kinds = 't',
         areas = { { at = { 854, -99.8, -580 }, reach = 43, poly = { 819, -587, 819, -575, 827, -573, 829, -563, 859, -537, 869, -539, 889, -565, 885, -607, 867, -623, 855, -623 } } },
-        drops = { { rate = 150, items = { { 1441, 10000 } } }, { rate = 100, items = { { 17774, 10000 } } } },
+        drops = { { rate = 1000, items = { { 1419, 10000 } } }, { rate = 150, items = { { 1441, 10000 } } }, { rate = 100, items = { { 17774, 10000 } } } },
     },
     ['Olla Grande'] = {
         indices = { 365 },
@@ -80,7 +80,7 @@ return {
         detects = { 'Magic' },
         kinds = 's',
         points = { { 851, -1, 92 } },
-        drops = { { rate = 150, items = { { 1441, 10000 } } }, { rate = 100, items = { { 16956, 10000 } } }, { rate = 50, items = { { 1445, 10000 } } } },
+        drops = { { rate = 1000, items = { { 1425, 10000 } } }, { rate = 150, items = { { 1441, 10000 } } }, { rate = 100, items = { { 16956, 10000 } } }, { rate = 50, items = { { 1445, 10000 } } } },
     },
     ['Olla Media'] = {
         indices = { 364 },
@@ -171,7 +171,7 @@ return {
         forced = { { npc = '???', items = { 2388 }, at = { 740, -99.9, -580 } } },
         kinds = 'f',
         points = { { 739, -99, -581 } },
-        drops = { { rate = 150, items = { { 1442, 10000 } } }, { rate = 100, items = { { 18199, 10000 } } } },
+        drops = { { rate = 1000, items = { { 1423, 10000 } } }, { rate = 150, items = { { 1442, 10000 } } }, { rate = 100, items = { { 18199, 10000 } } } },
     },
     ['Xuan Wu'] = {
         indices = { 376, 381, 386 },

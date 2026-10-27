@@ -96,7 +96,7 @@ return {
         family = 'Hound',
         aggro = true,
         detects = { 'Sound', 'Low HP' },
-        lottery = { chance = 10, cooldown = 3600 },
+        lottery = { chance = 15, cooldown = 3600 },
         kinds = 'l',
         areas = { { at = { -60, 6.7, 78 }, reach = 23, poly = { -77, 59, -75, 55, -61, 55, -49, 73, -51, 92, -43, 101, -68, 86, -70, 67 } } },
         placeholders = { { index = 205, name = 'Nachzehrer', level = { 15, 18 }, respawn = 480, areas = { { at = { -60, 6.7, 78 }, reach = 23, poly = { -77, 59, -75, 55, -61, 55, -49, 73, -51, 92, -43, 101, -68, 86, -70, 67 } } } }, { index = 206, name = 'Nachzehrer', level = { 15, 18 }, respawn = 480, areas = { { at = { -60, 6.7, 78 }, reach = 23, poly = { -77, 59, -75, 55, -61, 55, -49, 73, -51, 92, -43, 101, -68, 86, -70, 67 } } } } },

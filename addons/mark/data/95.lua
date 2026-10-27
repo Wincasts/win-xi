@@ -116,7 +116,7 @@ return {
         family = 'Mandragora',
         job = 2,
         detects = { 'Sound' },
-        lottery = { chance = 10, cooldown = 3600 },
+        lottery = { chance = 15, cooldown = 3600 },
         kinds = 'l',
         points = { { 114.7, -1, -288.3 } },
         placeholders = { { index = 206, name = 'Tiny Lycopodium', level = { 10, 12 }, respawn = 300, areas = { { at = { 114, -1.1, -318 }, reach = 43, poly = { 89, -313, 99, -357, 103, -361, 119, -361, 125, -345, 139, -337, 139, -299, 128, -291, 127, -277, 117, -275, 113, -281, 101, -283, 95, -289 } } } } },

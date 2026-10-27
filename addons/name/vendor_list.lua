@@ -54,7 +54,7 @@ return {
     [242] = { ['Celebratory Chest'] = true }, -- Heavens_Tower
     [243] = { ['Dabih Jajalioh'] = true, ['Macchi Gazlitah'] = true }, -- RuLude_Gardens
     [244] = { ['Antonia'] = true, ['Areebah'] = true, ['Champalpieu'] = true, ['Coumuna'] = true, ['Deadly Minnow'] = true, ['Glyke'] = true, ['Khe Chalahko'] = true, ['Leillaine'] = true, ['Mejuone'] = true, ['Theraisie'] = true }, -- Upper_Jeuno
-    [245] = { ['Adelflete'] = true, ['Akamafula'] = true, ['Amalasanda'] = true, ['Chenokih'] = true, ['Chetak'] = true, ['Creepstix'] = true, ['Ghebi Damomohe'] = true, ['Hasim'] = true, ['Matoaka'] = true, ['Morefie'] = true, ['Pawkrix'] = true, ['Rhimonne'] = true, ['Stinknix'] = true, ['Susu'] = true, ['Yoskolo'] = true }, -- Lower_Jeuno
+    [245] = { ['Adelflete'] = true, ['Akamafula'] = true, ['Amalasanda'] = true, ['Chenokih'] = true, ['Chetak'] = true, ['Creepstix'] = true, ['Ghebi Damomohe'] = true, ['Hasim'] = true, ['Matoaka'] = true, ['Morefie'] = true, ['Pawkrix'] = true, ['Rhimonne'] = true, ['Stinknix'] = true, ['Susu'] = true, ['Taza'] = true, ['Yoskolo'] = true }, -- Lower_Jeuno
     [246] = { ['Challoux'] = true, ['Gekko'] = true, ['Kindlix'] = true, ['Leyla'] = true, ['Pyropox'] = true }, -- Port_Jeuno
     [247] = { ['Brave Ox'] = true, ['Brave Wolf'] = true, ['Generoit'] = true, ['Scamplix'] = true, ['Shiny Teeth'] = true }, -- Rabao
     [248] = { ['Chutarmire'] = true, ['Dohdjuma'] = true, ['Falgima'] = true, ['Gibol'] = true, ['Graegham'] = true, ['Herminia'] = true, ['Mendoline'] = true, ['Quelpia'] = true, ['Tilala'] = true, ['Torapiont'] = true }, -- Selbina

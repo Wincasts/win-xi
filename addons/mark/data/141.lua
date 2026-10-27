@@ -19,7 +19,7 @@ return {
         aggro = true,
         link = true,
         detects = { 'Sight', 'Scent' },
-        lottery = { chance = 10, cooldown = 3600 },
+        lottery = { chance = 15, cooldown = 3600 },
         kinds = 'l',
         areas = { { at = { -10, -28.1, -56 }, reach = 17, poly = { -27, -61, -25, -65, 5, -65, 7, -57, -1, -47, -17, -47, -27, -53 } } },
         placeholders = { { index = 73, name = 'Orcish Grappler', level = { 8, 10 }, respawn = 480, areas = { { at = { -10, -28.1, -56 }, reach = 17, poly = { -27, -61, -25, -65, 5, -65, 7, -57, -1, -47, -17, -47, -27, -53 } } } } },

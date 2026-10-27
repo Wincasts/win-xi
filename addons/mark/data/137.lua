@@ -99,7 +99,7 @@ return {
         job = 1,
         aggro = true,
         detects = { 'Sound' },
-        lottery = { chance = 10, cooldown = 3600 },
+        lottery = { chance = 15, cooldown = 3600 },
         kinds = 'l',
         points = { { 284, 0, -253 } },
         placeholders = { { index = 16, name = 'Dire Gargouille', level = { 78, 82 }, respawn = 300, points = { { 284.1, -1.3, -268.1 } } } },

@@ -5,6 +5,7 @@ Binary job arrays are preserved losslessly (not parsed as 176-bit SQL integers).
 Lua sources are evidence only; no server code is executed.
 """
 import hashlib
+import io
 import json
 import re
 import shutil
@@ -12,8 +13,7 @@ import sqlite3
 from collections import defaultdict
 from pathlib import Path
 
-import yaml
-from phoenix import source
+from phoenix import modules, source
 from build_item_data import enabled_files, replay, snapshot, lua
 
 CONFIG = {
@@ -90,7 +90,7 @@ def provenance(server):
 
 
 def enum(server, name):
-    return yaml.safe_load((server / f'data/enums/{name}.yaml').read_text())['values']
+    return modules.load_yaml(server, f'enums/{name}')['values']
 
 
 def publish(server, output, kind, records, metadata, scripts=None):
@@ -193,19 +193,29 @@ def build_actions(server, output, settings, kind):
                 by_target[target] = matching
                 for record in matching:
                     record.setdefault('Sources', []).append(key)
+        # every module override on live of an action's script, or of the shared functions the actions
+        # call (phoenix.modules: gates evaluated, overrides made in loops found), as evidence
         related = []
-        for path in enabled_files(server, '.lua'):
-            text = lua_without_comments(path.read_text(encoding='utf-8-sig'))
-            shared = {'spells': 'xi.spells.', 'abilities': 'xi.job_utils.', 'weaponskills': 'xi.weaponskills.'}[kind]
-            if 'xi.actions.' + folder + '.' not in text and shared not in text:
-                continue
-            key = evidence(path)
-            related.append(key)
-            for target in re.findall(r"\baddOverride(?:ByEra)?\s*\(\s*['\"](xi\.actions\." + folder + r"\.[^'\"]+)['\"]", text):
-                base, _, callback = target.rpartition('.')
-                declarations.append({'Path': key, 'Target': target, 'Status': 'declared; runtime gates not evaluated'})
-                for record in by_target.get(base, []):
-                    record.setdefault('Overrides', []).append(declarations[-1])
+        shared = {'spells': 'xi.spells.', 'abilities': 'xi.job_utils.', 'weaponskills': 'xi.weaponskills.'}[kind]
+        actions = 'xi.actions.' + folder + '.'
+
+        def handle(override):
+            if override.target == '?':
+                # a target not written out: only one whose code is an action's would matter here
+                return None if re.search(r'\b(onSpellCast|onUseAbility|onAbilityCheck|onUseWeaponSkill|onMagicCastingCheck)', override.body) else 'target not written out; not an action\'s code'
+            key = evidence(server / 'modules' / override.path)
+            if key not in related:
+                related.append(key)
+            status = 'on live' if override.applies else f'gate not understood, taken as on: {override.condition}'
+            declarations.append({'Path': key, 'Target': override.target, 'Status': status})
+            if not override.target.startswith(actions):
+                return 'a shared function the actions call: listed'
+            base = override.target.rpartition('.')[0]
+            for record in by_target.get(base, []):
+                record.setdefault('Overrides', []).append(declarations[-1])
+            return f'replaces {override.target.rpartition(".")[2]} of {len(by_target.get(base, []))} action(s)'
+
+        modules.guard(server, (actions, shared), handle, out=io.StringIO())
     else:
         related = []
     enums = {name: enum(server, name) for name in ('job', 'skill_type', 'element', 'mod')}
@@ -216,21 +226,12 @@ def build_actions(server, output, settings, kind):
                 'Limitations': [
                     'Presence and ForJob lists do not prove availability, unlocks, learned status or content access.',
                     'SQL is a clean import with enabled module SQL, not private live database edits.',
-                    'Lua declarations and literal references are source evidence; runtime gates and super chains are not evaluated.',
+                    'Lua overrides are listed with their module gates evaluated for live (expansions from WotG on taken as off); what they do, and their super chains, are not.',
                     'Shared globals, C++ rules and dynamic overrides are not fully associated with individual actions.',
                     'Client descriptions are presentation only. Modifier values retain server units.',
                 ]}
     publish(server, output, kind, records, metadata, scripts)
     db.close()
-
-
-def overlay(base, added):
-    for key, value in added.items():
-        if isinstance(value, dict) and isinstance(base.get(key), dict):
-            overlay(base[key], value)
-        else:
-            base[key] = value
-    return base
 
 
 def build_reference(server, output, settings, kind):
@@ -245,11 +246,9 @@ def build_reference(server, output, settings, kind):
             if int(ident) in records:
                 records[int(ident)].update({'Abbreviation': abbr, 'Name': name})
     if kind == 'skills':
-        skills = yaml.safe_load((server / 'data/skills.yaml').read_text())
-        for path in enabled_files(server, '.yaml'):
-            if path.name == 'skills.yaml':
-                overlay(skills, yaml.safe_load(path.read_text()))
-                metadata['Overlays'].append(str(path.relative_to(server)))
+        # as live loads it: the modules' skills.yaml merged in (RFC 7396)
+        skills = modules.load_yaml(server, 'skills')
+        metadata['Overlays'] = [path.relative_to(server).as_posix() for path in modules.data_patches(server, 'skills')]
         jobs = enum(server, 'job')
         for name, ident in values.items():
             records[ident]['Ranks'] = {jobs[job]: rank for job, rank in skills['skills']['ranks'].get(name, {}).items()}

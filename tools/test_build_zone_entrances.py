@@ -8,7 +8,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from build_zone_entrances import build  # noqa: E402
 
-SETTINGS = ("INSERT INTO `zone_settings` VALUES (100,'0',0,'West_Ronfaure');\n"
+SETTINGS = ("CREATE TABLE `zone_settings` (\n  `zoneid` smallint(3) unsigned NOT NULL DEFAULT '0',\n  `zoneip` tinytext NOT NULL,\n"
+            "  `zoneport` smallint(5) unsigned NOT NULL DEFAULT '0',\n  `name` tinytext NOT NULL,\n  PRIMARY KEY (`zoneid`)\n) ENGINE=Aria;\n"
+            "INSERT INTO `zone_settings` VALUES (100,'0',0,'West_Ronfaure');\n"
             "INSERT INTO `zone_settings` VALUES (167,'0',0,'Bostaunieux_Oubliette');\n"
             "INSERT INTO `zone_settings` VALUES (230,'0',0,'Southern_San_dOria');\n"
             "INSERT INTO `zone_settings` VALUES (139,'0',0,'Horlais_Peak');\n")

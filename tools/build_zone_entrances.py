@@ -17,7 +17,8 @@ feature of the map already names the way in, as Jeuno's bridges do) is left out.
 Names are the game's English zone names, from Boussole's zone table (references/boussole).
 
 Writes addons/zone/data/entrances.lua. Reads the live branch of phoenixffxi/Phoenix, fetched from
-GitHub (tools/phoenix).
+GitHub (tools/phoenix), as live loads it: module SQL over zone_settings and each zone.yaml patched by
+the modules (phoenix.modules.load_yaml).
 """
 import argparse
 import json
@@ -26,10 +27,10 @@ import re
 import sys
 from pathlib import Path
 
-import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from phoenix import source  # noqa: E402
+from phoenix import modules, source  # noqa: E402
+from build_zone_kinds import zone_rows  # noqa: E402
 from build_zone_ja import names as zone_names  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,14 +50,12 @@ def folder(name):
 
 def zones(server):
     """zone id -> (server name, type, zone lines)."""
-    text = (server / 'sql/zone_settings.sql').read_text(encoding='utf-8')
     found = {}
-    for match in re.finditer(r"INSERT INTO `zone_settings` VALUES \((\d+),'[^']*',\d+,'([^']+)'\)", text):
-        zone, name = int(match.group(1)), match.group(2)
-        path = server / 'data/zones' / folder(name) / 'zone.yaml'
-        if zone == 0 or not path.exists():
+    for zone, name in zone_rows(server, 'zoneid, name'):
+        zone = int(zone)
+        document = modules.load_yaml(server, f'zones/{folder(name)}/zone') if zone else None
+        if document is None:
             continue
-        document = yaml.safe_load(path.read_text(encoding='utf-8')) or {}
         types = document.get('type') or [None]
         found[zone] = (name, types[0], document.get('zonelines') or {})
     if not found:

@@ -73,9 +73,9 @@ return {
         kinds = 's',
         drops = { { rate = 150, items = { { 897, 10000 } } }, { rate = 100, items = { { 896, 10000 } } } },
     },
-    ['Amnaf BLU'] = {
-        indices = { 524 },
-        level = { 77, 79 },
+    ['Amnaf'] = {
+        indices = { 524, 525 },
+        level = { 77, 80 },
         family = 'Hume',
         job = 16,
         aggro = true,
@@ -83,19 +83,7 @@ return {
         truesight = true,
         detects = { 'Sight' },
         kinds = 's',
-        points = { { 500, -0.5, -540 } },
-        drops = {},
-    },
-    ['Amnaf Psycheflayer'] = {
-        indices = { 525 },
-        level = { 80, 80 },
-        family = 'Soulflayer',
-        job = 4,
-        aggro = true,
-        truesight = true,
-        detects = { 'Sound', 'Magic', 'Job Abilities', 'Scent' },
-        kinds = 's',
-        points = { { 459, 0.4, -434 } },
+        points = { { 500, -0.5, -540 }, { 459, 0.4, -434 } },
         drops = {},
     },
     ['Ancient Goobbue'] = {

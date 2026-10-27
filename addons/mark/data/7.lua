@@ -45,7 +45,7 @@ return {
         aggro = true,
         link = true,
         detects = { 'Sound', 'Low HP' },
-        lottery = { chance = 10, cooldown = 10800, cooldownMost = 21600, night = true },
+        lottery = { chance = 15, cooldown = 10800 },
         kinds = 'l',
         areas = { { at = { -355.3, -6.3, 38.4 }, reach = 47, poly = { -395, 41, -390, 40, -386, 29, -393, 20, -363, -6, -336, -9, -317, 1, -322, 84, -370, 85, -376, 71, -394, 68, -389, 62 } } },
         placeholders = { { index = 273, name = 'Corse', level = { 66, 67 }, respawn = 300, areas = { { at = { -355.3, -6.3, 38.4 }, reach = 47, poly = { -395, 41, -390, 40, -386, 29, -393, 20, -363, -6, -336, -9, -317, 1, -322, 84, -370, 85, -376, 71, -394, 68, -389, 62 } } } } },

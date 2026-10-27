@@ -21,7 +21,7 @@ return {
         forced = { { npc = '???', items = { 16575 }, at = { 0, -1.6, -281.4 } } },
         kinds = 'f',
         points = { { -1, -1, -283 } },
-        drops = { { rate = 240, items = { { 1441, 10000 } } } },
+        drops = { { rate = 1000, items = { { 1420, 10000 } } }, { rate = 240, items = { { 1441, 10000 } } } },
         steal = { 17622 },
     },
     ['Mimic'] = {
@@ -43,7 +43,7 @@ return {
         detects = { 'Magic' },
         kinds = 's',
         points = { { 317, -1, 361 } },
-        drops = { { rate = 150, items = { { 1441, 10000 } } }, { rate = 100, items = { { 17511, 10000 } } }, { rate = 50, items = { { 1445, 10000 } } } },
+        drops = { { rate = 1000, items = { { 1418, 10000 } } }, { rate = 150, items = { { 1441, 10000 } } }, { rate = 100, items = { { 17511, 10000 } } }, { rate = 50, items = { { 1445, 10000 } } } },
     },
     ['Trna'] = {
         indices = { 365, 368, 371 },
@@ -75,6 +75,6 @@ return {
         respawn = { 10800, 21600 },
         kinds = 't',
         points = { { -195, -0.5, 396 } },
-        drops = { { rate = 150, items = { { 1442, 10000 } } }, { rate = 100, items = { { 17804, 10000 } } } },
+        drops = { { rate = 1000, items = { { 1424, 10000 } } }, { rate = 150, items = { { 1442, 10000 } } }, { rate = 100, items = { { 17804, 10000 } } } },
     },
 };

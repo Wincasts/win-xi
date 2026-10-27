@@ -21,14 +21,14 @@ memory.GetParty = function() return party end
 memory.GetEntity = function() return manager end
 AshitaCore.GetMemoryManager = function() return memory end
 
--- the client's table of maps, fourteen bytes to a map: West Ronfaure's one map and two of Garlaige
--- Citadel's, each two and a half yalms to the unit with the middle of the zone at the middle of the map
+-- the client's table of maps, fourteen bytes to a map: West Ronfaure's one map and two of Kuftal
+-- Tunnel's, each two and a half yalms to the unit with the middle of the zone at the middle of the map
 local bytes, words, mapsReadable = {}, {}, false
 local function map(index, zoneId, floor)
     local base = 5000 + index * 14
     words[base], bytes[base + 2], bytes[base + 5], words[base + 10], words[base + 12] = zoneId, floor, 2, 65536 - 256, 65536 - 256
 end
-map(0, 100, 0); map(112, 200, 1); map(113, 200, 2)
+map(0, 100, 0); map(190, 174, 1); map(191, 174, 2)
 ashita.memory.find = function(_, _, signature) return mapsReadable and signature:sub(1, 4) == '8A0D' and 1000 or 0 end
 ashita.memory.read_uint32 = function(address) return address == 1000 + 0x1C and 5000 or 0 end
 ashita.memory.read_uint16 = function(address) return words[address] or 0 end
@@ -59,7 +59,7 @@ H.play(true); frames()
 H.print('nothing chosen: the first monster of the zone the player is in', o.viewZone == 100, o.viewName)
 
 o.viewName = 'Jaggedy-Eared Jack'; frames()
-H.print('how it appears', wrote('Lottery: a 9% chance'), wrote('closed for 40 min'))
+H.print('how it appears', wrote('Lottery: a 15% chance'), wrote('closed for 40 min'))
 H.print('a percent sign is written as it is, not as a format', H.calls.TextWrapped == nil)
 H.print('its placeholder and where, with no map to be read', wrote('Forest Hare'), wrote('Anywhere within about 120 yalms of (-341, -233)'), '| the placeholder\'s is the point alone', exactly('(-341, -233)'))
 H.print('its drops at each level', wrote('Item 13112'), wrote('No TH'), wrote('TH4'), wrote('TH5') == false, wrote('2.5%'))
@@ -176,10 +176,10 @@ H.command('/mark clear'); H.print('/mark clear:', H.printed[#H.printed], '|', #o
 
 o.viewZone, o.viewName = 127, 'King Behemoth'; frames()
 H.print('a trade to a ???', wrote('Forced: trade Item 3342 to the ??? at (-269, 74).'), '| a roll of several', wrote('One Of'), wrote('   Item 1334'))
-o.viewZone, o.viewName = 200, 'Serket'; frames()
-H.print('a timed spawn of many points', wrote('Timed: it respawns 21 hr to 24 hr after it dies.'), wrote('40 points, from'))
+o.viewZone, o.viewName = 174, 'Guivre'; frames()
+H.print('a timed spawn of many points', wrote('Timed: it respawns 18 hr to 24 hr after it dies.'), wrote('50 points, from'))
 H.command('/mark tod 60'); frames()
-H.print('with no mark, /mark tod is the monster on show\'s: a timed window', #o.tods == 2 and o.tods[2].name, wrote('Its window opens in 20:00:0') or wrote('Its window opens in 19:59:5'))
+H.print('with no mark, /mark tod is the monster on show\'s: a timed window', #o.tods == 2 and o.tods[2].name, wrote('Its window opens in 17:00:0') or wrote('Its window opens in 16:59:5'))
 o.tods[2].at = os.time() - 80000; frames(); H.print('inside the window', wrote('Its window is open, for 1:46:'))
 
 -- the map
@@ -193,10 +193,10 @@ H.print('under the mouse, the middle of the map', wrote('H-8 (0, 0)'))
 o.mapSize[1] = 256; frames(); H.print('a smaller map', true)
 
 -- a zone of several maps: one cannot be told from another outside it
-o.viewZone, o.viewName = 200, 'Serket'; frames(200)
-H.print('outside it: no squares, and the map says why', wrote('40 points, from'), wrote('40 points in') == false, wrote('can be told only in the zone'))
-zone = 200; local spots = drawn('AddCircleFilled'); frames(200); frames(1)
-H.print('inside it: squares, and its spots on the map its places are on', wrote('40 points in'), wrote('can be told only in the zone') == false, drawn('AddCircleFilled') > spots)
+o.viewZone, o.viewName = 174, 'Guivre'; frames(200)
+H.print('outside it: no squares, and the map says why', wrote('50 points, from'), wrote('50 points in') == false, wrote('can be told only in the zone'))
+zone = 174; local spots = drawn('AddCircleFilled'); frames(200); frames(1)
+H.print('inside it: squares, and its spots on the map its places are on', wrote('50 points in'), wrote('can be told only in the zone') == false, drawn('AddCircleFilled') > spots)
 o.viewZone, o.viewName = 127, 'King Behemoth'; frames(200)
 H.print('a zone whose map the client does not give up', wrote('could not be read'))
 H.command('/mark map')

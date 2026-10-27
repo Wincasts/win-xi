@@ -108,7 +108,7 @@ return {
         aggro = true,
         link = true,
         detects = { 'Sight', 'Scent' },
-        lottery = { chance = 10, cooldown = 7200 },
+        lottery = { chance = 15, cooldown = 7200 },
         kinds = 'l',
         areas = { { at = { 79.1, -8, -120.7 }, reach = 23, poly = { 56, -99, 57, -143, 101, -143, 102, -99 } } },
         placeholders = { { index = 206, name = 'Doom Demon', level = { 64, 66 }, respawn = 960, areas = { { at = { 66, -8, -119 }, reach = 22, poly = { 57, -141, 57, -99, 75, -97, 75, -109, 67, -115, 67, -123, 71, -129, 75, -129, 75, -141 } } } }, { index = 207, name = 'Abyssal Demon', level = { 64, 66 }, respawn = 960, areas = { { at = { 66, -8, -119 }, reach = 22, poly = { 57, -141, 57, -99, 75, -97, 75, -109, 67, -115, 67, -123, 71, -129, 75, -129, 75, -141 } } } } },

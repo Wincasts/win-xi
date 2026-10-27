@@ -18,10 +18,8 @@ return {
         family = 'Sea Monk',
         aggro = true,
         detects = { 'Sound' },
-        lottery = { chance = 20, cooldown = 1 },
-        kinds = 'l',
-        points = { { -0.2, -7.7, 2.9 } },
-        placeholders = { { index = 10, name = 'Sea Monk', level = { 21, 29 }, respawn = 300, areas = { { at = { 0.4, -7.2, 12.6 }, reach = 11, poly = { -7, 10, -7, 20, -3, 23, 4, 24, 8, 20, 8, 2, -7, 2 } } } } },
+        kinds = 's',
+        areas = { { at = { 0.4, -7.2, 12.6 }, reach = 11, poly = { -7, 10, -7, 20, -3, 23, 4, 24, 8, 20, 8, 2, -7, 2 } } },
         drops = { { rate = 240, items = { { 4484, 10000 } } }, { rate = 240, items = { { 4484, 10000 } } }, { rate = 240, items = { { 4484, 10000 } } }, { rate = 50, items = { { 14122, 10000 } } } },
     },
 };

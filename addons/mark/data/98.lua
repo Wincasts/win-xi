@@ -24,7 +24,7 @@ return {
         level = { 69, 75 },
         family = 'Coeurl',
         detects = { 'Sight', 'Scent' },
-        lottery = { chance = 10, cooldown = 3600 },
+        lottery = { chance = 15, cooldown = 3600 },
         kinds = 'l',
         points = { { 446.9, 23.8, 73 } },
         placeholders = { { index = 174, name = 'Lynx', level = { 47, 50 }, respawn = 300, areas = { { at = { 474, 16.1, -58 }, reach = 37, poly = { 461, -59, 461, -23, 483, -21, 487, -93, 463, -93, 467, -65 } } } } },

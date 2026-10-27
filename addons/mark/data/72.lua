@@ -61,7 +61,7 @@ return {
         detects = { 'Sight', 'Scent' },
         lottery = { chance = 15, cooldown = 3600 },
         kinds = 'l',
-        points = { { -105, -8, 94 } },
+        areas = { { at = { -102, -8, 100 }, reach = 15, poly = { -117, 95, -115, 115, -87, 113, -89, 85, -115, 85 } } },
         placeholders = { { index = 14, name = 'Qiqirn Goldsmith', level = { 76, 78 }, respawn = 960, areas = { { at = { -102, -8, 100 }, reach = 15, poly = { -117, 95, -115, 115, -87, 113, -89, 85, -115, 85 } } } }, { index = 20, name = 'Qiqirn Goldsmith', level = { 76, 78 }, respawn = 960, areas = { { at = { -102, -8, 100 }, reach = 15, poly = { -117, 95, -115, 115, -87, 113, -89, 85, -115, 85 } } } } },
         drops = { { rate = 100, items = { { 19233, 10000 } } } },
     },

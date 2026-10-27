@@ -132,7 +132,7 @@ return {
         kinds = 's',
         drops = {},
     },
-    ['SaJho Shieldbreaker'] = {
+    ['Sa\'Jho Shieldbreaker'] = {
         indices = { 602 },
         level = { 139, 139 },
         family = 'Quadav',

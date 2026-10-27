@@ -7,7 +7,7 @@ return {
         family = 'Ahriman',
         aggro = true,
         detects = { 'Sight', 'Sound' },
-        lottery = { chance = 10, cooldown = 3600 },
+        lottery = { chance = 15, cooldown = 3600 },
         kinds = 'l',
         areas = { { at = { -141, -5.3, -81 }, reach = 32, poly = { -173, -82, -171, -73, -161, -67, -117, -69, -109, -77, -111, -87, -127, -95, -163, -93, -171, -89 } } },
         placeholders = { { index = 48, name = 'Seeker Bats', level = { 25, 28 }, respawn = 600, areas = { { at = { -141, -5.3, -81 }, reach = 32, poly = { -173, -82, -171, -73, -161, -67, -117, -69, -109, -77, -111, -87, -127, -95, -163, -93, -171, -89 } } } } },

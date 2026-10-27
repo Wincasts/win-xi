@@ -3,30 +3,32 @@
 
 A vendor is an NPC whose script opens a shop: a gil shop (xi.shop.general, nation, generalGuild,
 celebratory, curioVendorMoogle, the regional and Valeriano shops, besieged's), a guild merchant
-(xi.guildShops.onTrigger) or a conquest outpost vendor (xi.conquest.vendorOnTrigger). The era module's
-overrides of an NPC's onTrigger count too, for an NPC whose own script has no shop. Each NPC in an
-area's data/zones/<area>/npcs.yaml names its script and the name the game shows (display_name); its
+(xi.guildShops.onTrigger) or a conquest outpost vendor (xi.conquest.vendorOnTrigger). A module's
+override of an NPC's script, on live (phoenix.modules.guard), counts as its script: one that opens a
+shop makes the NPC a vendor, one that replaces a shop's onTrigger without opening one (or handing it
+on to super) makes it none. Each NPC in an area's data/zones/<area>/npcs.yaml, as the modules patch
+it (phoenix.modules.load_yaml), names its script and the name the game shows (display_name); its
 area is the NPC id's (id >> 12).
 
 Requires PyYAML. Writes addons/name/vendor_list.lua. Reads the live branch of phoenixffxi/Phoenix, fetched from
 GitHub (tools/phoenix).
 """
 import argparse
+import io
 import re
 import sys
 from pathlib import Path
 
-import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from phoenix import source  # noqa: E402
+from phoenix import modules, source  # noqa: E402
 from build_zone_kinds import zone_ids  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / 'addons/name/vendor_list.lua'
 SHOP = re.compile(r'xi\.(?:shop\.(?:general|generalGuild|nation|celebratory|curioVendorMoogle|outpost|handleRegionalShop|handleValerianoShop)'
                   r'|guildShops\.onTrigger|conquest\.vendorOnTrigger|besieged\.shop)\(')
-OVERRIDE = re.compile(r"addOverride\('xi\.zones\.([^.']+)\.npcs\.([^.']+)\.")
+NPC_OVERRIDE = re.compile(r'xi\.zones\.([^.]+)\.npcs\.([^.]+)\.(\w+)$')
 
 
 def shop_scripts(server):
@@ -35,13 +37,21 @@ def shop_scripts(server):
     for path in (server / 'scripts/zones').glob('*/npcs/*.lua'):
         if SHOP.search(path.read_text(encoding='utf-8', errors='replace')):
             found.add((path.parent.parent.name, path.stem))
-    for path in (server / 'modules').rglob('*.lua'):
-        text = path.read_text(encoding='utf-8', errors='replace')
-        starts = list(OVERRIDE.finditer(text))
-        for i, match in enumerate(starts):
-            end = starts[i + 1].start() if i + 1 < len(starts) else len(text)
-            if SHOP.search(text, match.end(), end):
-                found.add((match.group(1), match.group(2)))
+
+    def handle(override):
+        match = NPC_OVERRIDE.match(override.target)
+        if match is None:
+            return 'not an NPC\'s'
+        npc = (match.group(1), match.group(2))
+        if SHOP.search(override.body):
+            found.add(npc)
+            return 'opens a shop'
+        if match.group(3) == 'onTrigger' and npc in found and not re.search(r'\bsuper\s*\(', override.body):
+            found.discard(npc)
+            return 'replaces a shop with no shop'
+        return 'no shop'
+
+    modules.guard(server, ('xi.zones.',), handle, out=io.StringIO())
     return found
 
 
@@ -50,7 +60,7 @@ def build(server, output):
     scripts = shop_scripts(server)
     vendors, used = {}, set()
     for path in sorted((server / 'data/zones').glob('*/npcs.yaml')):
-        document = yaml.load(path.read_text(encoding='utf-8'), Loader=getattr(yaml, 'CSafeLoader', yaml.SafeLoader)) or {}
+        document = modules.load_yaml(server, f'zones/{path.parent.name}/npcs') or {}
         for npc, entry in (document.get('npcs') or {}).items():
             script = str(entry.get('script') or '')
             shown = str(entry.get('display_name') or script)

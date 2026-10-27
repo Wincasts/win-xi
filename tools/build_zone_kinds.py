@@ -10,7 +10,8 @@ it as of no known kind and draws it with the general values.
 
 Writes addons/vis/zones.lua and addons/zone/data/zone_kinds.lua, the same table in each, for
 each addon is deployed without the other. Reads the live branch of phoenixffxi/Phoenix, fetched from
-GitHub (tools/phoenix).
+GitHub (tools/phoenix), as live loads it: module SQL over zone_settings and each zone.yaml
+patched by the modules (phoenix.modules.load_yaml).
 """
 import argparse
 import re
@@ -18,37 +19,47 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from phoenix import source  # noqa: E402
+from phoenix import modules, source  # noqa: E402
+from build_item_data import enabled_files, replay  # noqa: E402
+import sqlite3  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 KINDS = {'city': 'city', 'outdoors': 'outdoors', 'dungeon': 'dungeon', 'instanced': 'dungeon', 'dynamis': 'dungeon', None: 'dungeon'}
 
 
 def zone_ids(server):
-    """zone id -> the server's folder name for it, from zone_settings.sql."""
-    text = (server / 'sql/zone_settings.sql').read_text(encoding='utf-8')
+    """zone id -> the server's folder name for it, from zone_settings.sql and the module SQL over it."""
     found = {}
-    for match in re.finditer(r"INSERT INTO `zone_settings` VALUES \((\d+),'[^']*',\d+,'([^']+)'\)", text):
-        found[int(match.group(1))] = match.group(2)
+    for zone, name in zone_rows(server, 'zoneid, name'):
+        found[int(zone)] = name
     if not found:
         sys.exit('No zones found in sql/zone_settings.sql')
     return found
 
 
+def zone_rows(server, columns):
+    """The rows of zone_settings as live has them: the server's SQL and the module SQL over it."""
+    db = sqlite3.connect(':memory:')
+    variables = {}
+    replay(db, server / 'sql/zone_settings.sql', variables, tables=('zone_settings',))
+    for path in enabled_files(server, '.sql'):
+        replay(db, path, variables, True, tables=('zone_settings',))
+    rows = db.execute(f'SELECT {columns} FROM zone_settings').fetchall()
+    db.close()
+    return rows
+
+
 def zone_type(server, name):
     """The server's type for the zone, None for none, or False when there is no zone file."""
     folder = re.sub(r'[^a-z0-9_]', '', name.lower().replace('-', '_'))  # Dynamis-Xarcabard_[S] -> dynamis_xarcabard_s
-    path = server / 'data/zones' / folder / 'zone.yaml'
-    if not path.exists():
+    document = modules.load_yaml(server, f'zones/{folder}/zone')
+    if document is None:
         return False
-    match = re.search(r'^type:\s*\[([^\]]*)\]', path.read_text(encoding='utf-8'), re.M)
-    if match is None:
-        return None
-    types = [t.strip() for t in match.group(1).split(',') if t.strip()]
+    types = document.get('type') or []
     if not types:
         return None
     if types[0] not in KINDS:
-        sys.exit(f'{path}: unknown zone type {types[0]!r}')
+        sys.exit(f'zones/{folder}/zone.yaml: unknown zone type {types[0]!r}')
     return types[0]
 
 

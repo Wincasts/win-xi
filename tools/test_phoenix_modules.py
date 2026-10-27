@@ -13,17 +13,15 @@ TOOLS = Path(__file__).resolve().parent
 # Build scripts that read the server from before phoenix.modules. Each is to be taught its
 # overrides and taken off this list; a new build script is never put on it.
 NOT_YET_CHECKED = {
-    'build_action_data.py': 'reads action overrides its own way',
-    'build_mark_data.py': 'module SQL and YAML through mobdb\'s importer',
-    'build_name_vendors.py': 'reads NPC overrides its own way',
-    'build_name_placeholders.py': 'mobdb\'s importer',
-    'build_winxi_data.py': 'mobdb\'s importer',
-    'build_puppet_attachments.py': 'automaton attachments',
-    'build_transports.py': 'transport schedules',
-    'build_zone_entrances.py': 'zone lines',
-    'build_zone_kinds.py': 'zone types',
-    'build_zone_weather.py': 'weather tables',
+    'build_puppet_attachments.py': 'automaton attachments (another piece of work, not yet committed)',
 }
+
+# What a build script reads of the server, and what it must read it through to have it as live does
+READS = (
+    ('server Lua', r"scripts/|'scripts'|/ 'scripts", r'modules\.(guard|files_on_live)\('),
+    ('data YAML', r"data/zones|data/[\w{}/]+\.yaml|'data' /|/ 'data'", r'modules\.load_yaml\(|importer\.generator\(|generator\.load_zone\('),
+    ('server SQL', r"sql/|'sql'", r'enabled_files\(|zone_rows\(|zone_ids\(|importer\.generator\('),
+)
 
 
 def server(files):
@@ -101,19 +99,33 @@ class ModulesTest(unittest.TestCase):
 
 
 class EveryBuildScriptTest(unittest.TestCase):
-    def test_build_scripts_that_read_the_server_go_through_the_guard(self):
-        """A build script that reads Phoenix calls modules.guard, or is one of those from before it."""
-        unguarded = []
+    def test_build_scripts_read_the_server_as_live_does(self):
+        """A build script that reads Phoenix's Lua goes through modules.guard, its YAML through
+        modules.load_yaml (or the mobdb importer, which patches zones the same way), its SQL with the
+        module SQL replayed over it; or it is one of those from before phoenix.modules."""
+        missing = []
         for path in sorted(TOOLS.glob('build_*.py')):
             text = path.read_text()
             if not re.search(r'^\s*from phoenix import|^\s*import phoenix', text, re.M):
                 continue
-            if 'modules.guard(' in text:
-                self.assertNotIn(path.name, NOT_YET_CHECKED, f'{path.name} uses the guard now: take it off NOT_YET_CHECKED')
-            elif path.name not in NOT_YET_CHECKED:
-                unguarded.append(path.name)
-        self.assertEqual(unguarded, [], 'these read the Phoenix server without phoenix.modules.guard: '
-                         'have each hand the module overrides of what it reads to a handle function')
+            gaps = [what for what, reads, through in READS if re.search(reads, text) and not re.search(through, text)]
+            if path.name in NOT_YET_CHECKED:
+                self.assertTrue(gaps, f'{path.name} reads the server as live does now: take it off NOT_YET_CHECKED')
+            elif gaps:
+                missing.append(f'{path.name}: {", ".join(gaps)}')
+        self.assertEqual(missing, [], 'these read the Phoenix server without its modules')
+
+    def test_mobdb_importer_patches_zones_from_the_same_folders(self):
+        """The importer finds its zone overlays its own way; on live they are the data roots'."""
+        from phoenix import importer
+        cache = TOOLS.parent / '.cache/phoenix-live'
+        if not (cache / 'modules/init.txt').is_file():
+            self.skipTest('no fetched server')
+        generator = importer.generator(cache, tempfile.mkdtemp())
+        # it also counts module Lua folders named zones, which hold no YAML to patch with
+        theirs = sorted(Path(p).resolve() for p in generator.zone_overlay_dirs if any(Path(p).rglob('*.yaml')))
+        ours = sorted((root / 'zones').resolve() for root in modules.data_roots(cache) if (root / 'zones').is_dir())
+        self.assertEqual(theirs, ours)
 
 
 if __name__ == '__main__':
