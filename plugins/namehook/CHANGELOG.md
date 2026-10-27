@@ -1,5 +1,9 @@
 # Changelog
 
+## namehook 1.51 — help in plain words
+
+- `/namehook help`: othercalls and keepstates say what on and off do; showstars says it shows the stars again. An unknown or malformed command is answered in a sentence that points at the help. The load error for name-drawing code that was not found says what to unload.
+
 ## namehook 1.50 — edges grouped by texture
 
 - `/namehook perf` in Jeuno (2026-10-26): 0.61 ms a frame on average, 0.89 at worst, for 24 drawings, but 524 draw calls, about 22 a name. An edged name is put down as a shadow pass, eight halo passes and the quads themselves, each pass over the name's quads in order, so a name of letters and an icon or a badge changed texture, and so made a draw call, in every pass. The shadows and halo copies are now put down grouped by texture (`NameEdges.h`), the quads after them in their own order as before: for a badge, letters and an icon, 36 runs of edges become 3. What is drawn is the same: the copies are all the drawing's edge colour, and same-coloured layers blended over one another come out the same in any order; only where an icon's and a letter's copies overlap under a coloured (not dark) edge could they differ by a little.

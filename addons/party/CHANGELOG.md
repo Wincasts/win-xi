@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.4
+
+- The settings' tooltips reread for plain words: each says what its setting does, in a line or two. Far Range has one now. Priority Effects and Hidden Effects describe the picker, not a list of numbers; Near Range says what it dims; Automatic Positioning says where the windows go, not the pixel counts; the uihook section's say what the windows do in the game's place.
+
 ## 0.3.3
 
 - uihook's party block is read as plugins/ABI.md promises (winxi 57's `winxi.abi`): the same Version and at least the size this knows, so a newer uihook that adds to the block is still read. Requires winxi 57.

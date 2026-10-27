@@ -285,7 +285,7 @@ local function DrawGlobal(saved)
     if widgets.Header('Positioning', true) then
         widgets.Label('Automatic Positioning')
         if imgui.Checkbox('##party.automaticPositioning', saved.automaticPositioning) then Save() end
-        Tooltip('Main party: 15px from the right and bottom. Target: 5px above the main party.\nAlliance 2: right edge, with room reserved for full parties and a 35px gap above the fully expanded Target. Alliance 3 stays linked 5px below Alliance 2.\nSub-target and target of target are unchanged. Manual positions are preserved; disable to use them.\nDoes not resize frames. If the full layout cannot fit, windows are clamped to the screen and gaps may be smaller.')
+        Tooltip('Keeps the windows in their usual places: your party at the bottom right, the target just above it, Alliance 2 above that with room for full parties, and Alliance 3 just below Alliance 2. The sub-target and target-of-target windows stay where they are. Off, every window stays where you put it. Where it all cannot fit, the gaps are smaller.')
     end
 
     -- Only with uihook loaded: the windows can be drawn in the game's own place among its menus. Its
@@ -299,23 +299,23 @@ local function DrawGlobal(saved)
         if open then
             widgets.Label('Use uihook')
             if imgui.Checkbox('##party.nativeHook', saved.nativeHook) then Save() end
-            Help('The chosen windows take the place of the game\'s own, drawn among its menus. Unload hideparty first. Organize mode uses ordinary windows. /pt native status shows diagnostics.')
+            Help('The chosen windows are drawn in the game\'s own place, among its menus. Unload hideparty first. While organizing they are ordinary windows. /pt native status says how it is going.')
             if saved.nativeHook[1] then
                 widgets.Label('Party')
                 if imgui.Checkbox('##party.nativeParty', saved.nativeParty) then Save() end
-                Help('The three Party lists replace the game\'s, keeping its selection. Pets are drawn in the Party windows and go with them.')
+                Help('The three party lists in place of the game\'s, with its selection. Pets go with them.')
                 widgets.Label('Target')
                 if imgui.Checkbox('##party.nativeTarget', saved.nativeTarget) then Save() end
-                Help('Main, sub-target and target-of-target windows replace the stock target box together. The client still draws its own overhead target/subtarget arrows, with native positions and range colours. /pt native target on|off.')
+                Help('The target, sub-target and target-of-target windows in place of the game\'s target box, together. The game still draws its arrows over heads. /pt native target on|off does the same.')
                 widgets.Label('Follow Default UI Behavior')
                 if imgui.Checkbox('##party.nativeBehavior', saved.nativeBehavior) then Save() end
-                Help('For hooked windows only: follow whether the client draws the HUD instead of Party hide rules, use native party order, show the solo member when the client does, and skip addon idle/presence fading. Native menus still cover the frames and the original target arrows are preserved. Zoning, interface hiding and cutscenes are always guarded. Other windows keep their normal options. Styles, pet/buff choices and frame sizes are unchanged.')
+                Help('The windows drawn in the game\'s place behave as the game\'s own: shown whenever the game shows its HUD rather than by the Hide rules, in the game\'s party order, shown when you are solo as the game\'s is, and without idle fading. Their look, pets, buffs and sizes are unchanged; the other windows keep their own options.')
             end
         end
     end
 
     if widgets.Header('Mouse Interaction') then
-        widgets.Lock(saved.clickThrough, '##xiframes.clickThrough', { label = 'Clickthrough', tooltip = 'Clicks go through the windows to the game; hovering still shows their tooltips with Show Tooltips on. Off, a window is moved by holding Shift and dragging it. Ignored while organizing, so they can be dragged.' })
+        widgets.Lock(saved.clickThrough, '##xiframes.clickThrough', { label = 'Clickthrough', tooltip = 'Clicks go through the windows to the game; with Show Tooltips on, hovering still shows their tooltips. Off, a window is moved by holding Shift and dragging it. While organizing they can always be dragged.' })
         widgets.Label('Show Tooltips')
         Checkbox('##party.hoverDetails', saved.style.hoverDetails)
         Tooltip('Hovering the windows shows full names, jobs and pet owners, and each buff and debuff with its estimated time left.')

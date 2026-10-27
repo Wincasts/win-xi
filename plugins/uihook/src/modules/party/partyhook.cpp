@@ -444,12 +444,12 @@ public:
             Native.inputHooked=Take(InputDetour,static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage);
         Keys.shared=&KeysBlock; Keys.Clear(); KeysBlock.Supported=Native.inputHooked ? 1 : 0;
         core->GetChatManager()->Write(0,false, Shared.Hooked ?
-            (Shared.SupportedMask & 8 ? "[uihook:party] Party/target hooks ready (native arrows preserved). /pt native [target] on; unload hideparty first." :
-             "[uihook:party] Party hook ready; target/cursor signatures unavailable. /pt native on; unload hideparty first.") :
-            "[uihook:party] Client not recognised; native lists unchanged.");
+            (Shared.SupportedMask & 8 ? "[uihook:party] Ready to draw the party lists and target box in the game's place: /pt native [target] on, with hideparty unloaded." :
+             "[uihook:party] Ready to draw the party lists in the game's place, but not the target box: /pt native on, with hideparty unloaded.") :
+            "[uihook:party] This client was not recognised: the game's party lists are left as they are.");
         core->GetChatManager()->Write(0,false,Hud.SupportedMask==3 ?
-            "[uihook:hud] Clock/compass hooks ready. Unload hidecompass before clock replacement." :
-            "[uihook:hud] Clock/compass replacement unavailable or partial; unsupported HUD unchanged.");
+            "[uihook:hud] Ready to draw the clock and compass in the game's place. Unload hidecompass first." :
+            "[uihook:hud] The clock or compass was not recognised in this client: what was not is left as the game's.");
         return true;
     }
     void Stop() { for (unsigned i=0;i<6;i++) { drawings[i].Clear(); Forgive(i); } staging.Clear(); }
