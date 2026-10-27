@@ -1,8 +1,12 @@
 -- Run with: luajit tests/harness.lua inventory addons/inventory/inventory.lua tests/inventory_settings_check.lua
 local widgets = require('winxi.widgets')
 local imgui = require('imgui')
-local header, label, beginTab = widgets.Header, widgets.Label, imgui.BeginTabItem
-local headers, labels, tabs = {}, {}, {}
+local header, label, beginTab, checkbox = widgets.Header, widgets.Label, imgui.BeginTabItem, imgui.Checkbox
+local headers, labels, tabs, checks = {}, {}, {}, {}
+imgui.Checkbox = function(id, ...)
+    checks[id] = true
+    return checkbox(id, ...)
+end
 widgets.Header = function(text, ...)
     headers[#headers + 1] = text
     return header(text, ...)
@@ -24,7 +28,7 @@ local function hasLabel(text)
     return false
 end
 local function frame(tab)
-    headers, labels, tabs = {}, {}, {}
+    headers, labels, tabs, checks = {}, {}, {}, {}
     H.tab(tab); H.frames(1)
 end
 H.play(true)
@@ -32,10 +36,10 @@ local o = H.options()
 o.isVisible[1], o.fadeInOut[1], o.controller[1], o.treasurePool[1] = false, false, false, true
 H.command('/inv config')
 frame(1)
-check('settings tabs ordered General, Inventory, Treasure, Equipment', table.concat(tabs, ',') == 'General,Inventory,Treasure,Equipment')
-check('General sections ordered Window, Controller, Visibility', table.concat(headers, ',') == 'Window,Controller,Visibility')
-check('the Window section: shown, pinned, where, held still, fading', table.concat(labels, ',', 1, 5)
-    == 'Visible,Pin Inventory,Position,Lock,Fade In And Out')
+check('settings tabs ordered General, Inventory, Treasure, Equipment, Visibility', table.concat(tabs, ',') == 'General,Inventory,Treasure,Equipment,Visibility')
+check('General sections ordered Window, Controller; the hiding rules on the Visibility tab', table.concat(headers, ',') == 'Window,Controller')
+check('the Window section: shown, pinned, where (Lock a row of its own; fading on the Visibility tab)', table.concat(labels, ',', 1, 3)
+    == 'Visible,Pin Inventory,Position')
 check('the inventory window has its pin', hasLabel('Pin Inventory'))
 check('General excludes bag and treasure controls', not hasLabel('Rows') and not hasLabel('Pin Treasure Pool'))
 frame(2)
@@ -63,10 +67,10 @@ frame(4)
 check('Equipment has the monitor, how it looks, and its slots', table.concat(headers, ',') == 'Equipment Monitor,Display,Slots')
 check('Equipment contains enable, detach, pin, scale and ammo controls', hasLabel('Enable') and hasLabel('Detach From Inventory') and hasLabel('Pin Equipment')
     and hasLabel('Scale') and hasLabel('Show Ammo Count'))
-check('attached, the monitor has no lock or position of its own', not hasLabel('Lock') and not hasLabel('Position'))
+check('attached, the monitor has no lock or position of its own', not checks['##inv.equipment.lock'] and not hasLabel('Position'))
 o.equipment.detached[1] = true
 frame(4)
-check('detached, it has its lock and position', hasLabel('Lock') and hasLabel('Position'))
+check('detached, it has its lock and position', checks['##inv.equipment.lock'] == true and hasLabel('Position'))
 check('Equipment has independent decoration toggles', hasLabel('Quality Borders') and hasLabel('Wardrobe Markers'))
 check('Equipment excludes bag and treasure controls', not hasLabel('Rows') and not hasLabel('Pin Treasure Pool'))
 -- every setting's tooltip is in winxi's look (winxi.tooltip), none imgui's own

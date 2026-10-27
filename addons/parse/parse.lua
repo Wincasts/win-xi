@@ -265,7 +265,7 @@ app = shell.New({
         minimalRanks = T{ false }, minimalCompact = T{ false }, minimalMore = T{ true }, minimalHideEmpty = T{ false } },
     window = 'winxi.parse', title = 'Parse', resizable = true, configTitle = 'Parse Settings', command = '/parse',
     help = '/parse: minimal [on|off], clear, pause (toggle), resume, test [on|off|1-18], config, wsprofile <id> <base TP> <Store TP %> <attempts>|off, report [detail], capture <name|off>.',
-    drawSettings = DrawSettings, settingsLabel = 'General', hideHeader = 'Visibility', hideAppearance = true,
+    drawSettings = DrawSettings, settingsLabel = 'General', hideAppearance = true,
     tabs = {
         { label = 'Full View', draw = DrawFullSettings },
         { label = 'Minimal', draw = DrawMinimalSettings },

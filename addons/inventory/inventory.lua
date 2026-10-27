@@ -2045,7 +2045,6 @@ local app = shell.New({
         { label = 'Equipment', draw = equipment.DrawSettings },
     },
     hideAppearance = true,
-    hideHeader = 'Visibility',
     import = {
         tool = 'inv',
         keys = {

@@ -731,12 +731,11 @@ H.print('always names do not need the mouse', said('Marker Test'))
 
 -- Exercise the actual settings selections, not just the renderer's option values.
 local combo, selectable, radio = imgui.BeginCombo, imgui.Selectable, imgui.RadioButton
-imgui.BeginCombo = function(id) return id:find('Style', 1, true) ~= nil end
+imgui.BeginCombo = function(id) return id:find('Style', 1, true) ~= nil or id == '##atlas.names' end
 imgui.Selectable = function(label)
     return label == 'Chevron##atlas.playerStyle.chevron' or label == 'Numbered dot##atlas.partyStyle.numbered'
-        or label == 'Hollow circle##atlas.allianceStyle.hollow'
+        or label == 'Hollow circle##atlas.allianceStyle.hollow' or label == 'On Hover##atlas.names.hover'
 end
-imgui.RadioButton = function(label) return label == 'On Hover##atlas.namesHover' end
 H.command('/atlas config')
 H.frames(1)
 H.print('settings select player, party and alliance styles', o.playerStyle == 'chevron', o.partyStyle == 'numbered', o.allianceStyle == 'hollow')

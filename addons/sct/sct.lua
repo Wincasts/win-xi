@@ -1,6 +1,6 @@
 addon.name    = 'sct';
 addon.author  = 'win';
-addon.version = '0.8';
+addon.version = '0.9';
 addon.desc    = 'Scrolling text for statuses, received items and key items.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -369,97 +369,59 @@ end
 
 -- Settings
 
-local function Combo(id, value, choices)
-    local shown = choices[1].label;
-    for _, choice in ipairs(choices) do
-        if choice.key == value then shown = choice.label; end
-    end
-    local chosen = value;
-    if imgui.BeginCombo(id, shown) then
-        for _, choice in ipairs(choices) do
-            if imgui.Selectable(choice.label .. id, choice.key == value) then chosen = choice.key; end
-        end
-        imgui.EndCombo();
-    end
-    return chosen;
-end
-
-local Tip = require('winxi.tooltip').Hover;
+local dropsSpec = { tooltip = 'Items added to your main Inventory, and key items you gain. Items moved in from your other bags, wardrobes and the treasure pool are not shown.' };
+local iconSpec = { tooltip = 'Custom Icons, on the Winxi Theme tab, says whose icons they are.' };
+local speedSpec = { format = '%d px/s' };
+local lockSpec = { description = 'Keeps the box where it is, and lets clicks through it. Off, it can be dragged, and its edge is drawn so you can see it.' };
+local dropsLockSpec = { label = 'Lock Drops', description = 'Keeps the item box where it is, and lets clicks through it. Locked, it hides while empty.' };
+local dropsDependent, dropsLockDependent, dropsPositionDependent = {}, {}, {};
 
 local function DrawSettings(options)
-    if widgets.Header('Box', true) then
-        widgets.Label('Visible');
-        imgui.Checkbox('##sct.visible', options.isVisible);
-        Tip('Whether the text shows. /sct switches this.');
-        widgets.Lock(options.locked, '##sct.locked', { tooltip = 'Unlocked, the box can be dragged (its edge drawn, with Text Only and Show Outline). Locked, clicks go through it.' });
-        widgets.Label('Position');
-        if imgui.InputInt2('##sct.position', options.pos) then place = true; end
-        widgets.Label('Box Style');
-        options.boxStyle = Combo('##sct.boxStyle', options.boxStyle, boxStyles);
-        Tip('Text Only: the scrolling lines and nothing else, no background, border or shadow.\nFull Background: the theme\'s window behind the lines while they are moving.');
+    -- the rows under Separate Popup depend on it, and it on Show Received Items
+    dropsDependent.parent = options.showDrops;
+    dropsLockSpec.parent = options.showDrops;
+    dropsPositionDependent.parent = options.showDrops;
+
+    if widgets.Header('Window', true) then
+        widgets.Check('Visible', 'Shows the scrolling text. /sct switches it too.', options.isVisible, '##sct.visible');
+        widgets.Lock(options.locked, '##sct.locked', lockSpec);
+        if widgets.Numbers('Position', 'Where the box\'s corner is on the screen.', options.pos, '##sct.position') then place = true; end
+        local chosen = widgets.Dropdown('Box Style', 'Text Only is the lines alone. Full Background puts a window behind them while they move.', boxStyles, options.boxStyle, '##sct.boxStyle');
+        if chosen ~= nil then options.boxStyle = chosen; end
         if options.boxStyle ~= 'background' then
-            widgets.Label('Show Outline');
-            imgui.Checkbox('##sct.showOutline', options.showOutline);
-            Tip('Draws the box\'s edge while it is unlocked, to see where it is. Locked, the edge is never drawn.\nOff, the box can still be dragged where it is while unlocked.');
+            widgets.Check('Show Outline', 'Draws the box\'s edge while it is unlocked, so you can see where it is.', options.showOutline, '##sct.showOutline');
         end
-        widgets.PushControlWidth();
-        widgets.Label('Box Width');
-        imgui.SliderInt('##sct.width', options.width, 80, 800);
-        widgets.Label('Box Height');
-        imgui.SliderInt('##sct.height', options.height, 60, 1000);
-        widgets.Label('Scroll Speed');
-        imgui.SliderInt('##sct.speed', options.speed, 10, 600, '%d px/s');
-        Tip('How fast a line moves down the box, in pixels a second.');
-        widgets.Label('Line Spacing');
-        imgui.SliderInt('##sct.spacing', options.spacing, 0, 40, '%d px');
-        Tip('The gap between one line and the next, in pixels, when they come close together.');
-        widgets.PopControlWidth();
-        widgets.Label('Align');
-        options.align = Combo('##sct.align', options.align, aligns);
+        widgets.Slider('Box Width', 'How wide the box is.', options.width, 80, 800, '##sct.width', widgets.Pixels);
+        widgets.Slider('Box Height', 'How tall the box is.', options.height, 60, 1000, '##sct.height', widgets.Pixels);
+        widgets.Slider('Scroll Speed', 'How fast a line moves down the box.', options.speed, 10, 600, '##sct.speed', speedSpec);
+        widgets.Slider('Line Spacing', 'The gap between one line and the next when they come close together.', options.spacing, 0, 40, '##sct.spacing', widgets.Pixels);
+        chosen = widgets.Dropdown('Align', 'Where the lines sit across the box.', aligns, options.align, '##sct.align');
+        if chosen ~= nil then options.align = chosen; end
     end
 
     if widgets.Header('Received Items') then
-        widgets.Label('Show Received Items');
-        imgui.Checkbox('##sct.showDrops', options.showDrops);
-        Tip('Shows newly received items added to your main Inventory and key items you gain. Wardrobe/storage updates, treasure-pool entries and transfers from your other bags do not count.');
-        widgets.Label('Separate Popup');
-        if imgui.Checkbox('##sct.dropsSeparate', options.dropsSeparate) then place = true; end
-        Tip('Off: received items scroll with statuses. On: they have their own movable area, which disappears when empty while locked. New notifications use the selected area.');
+        widgets.Check('Show Received Items', 'A line with its picture as you get an item or a key item.', options.showDrops, '##sct.showDrops', dropsSpec);
+        if widgets.Check('Separate Popup', 'Items get a box of their own instead of scrolling with the statuses.', options.dropsSeparate, '##sct.dropsSeparate', dropsDependent) then place = true; end
         if options.dropsSeparate[1] then
-            widgets.Lock(options.dropsLocked, '##sct.dropsLocked', { tooltip = 'Unlock to move the item-drop area; lock to hide it when empty and let clicks through.' });
-            widgets.Label('Drop Position');
-            if imgui.InputInt2('##sct.dropsPos', options.dropsPos) then place = true; end
+            widgets.Lock(options.dropsLocked, '##sct.dropsLocked', dropsLockSpec);
+            if widgets.Numbers('Drop Position', 'Where the item box\'s corner is on the screen.', options.dropsPos, '##sct.dropsPos', dropsPositionDependent) then place = true; end
         end
-        widgets.Label('Drop Color');
-        imgui.ColorEdit4('##sct.dropColor', options.dropColor, ImGuiColorEditFlags_NoInputs);
-        if imgui.Button('Test Drop##sct.testDrop') then AddDrop(4096, 2); end
-        Tip('/sct testdrop also sends a sample drop. Both areas share size, speed, font and box style.');
+        widgets.Color('Drop Color', 'The colour items are written in.', options.dropColor, '##sct.dropColor', dropsDependent);
+        if widgets.Action('Test Drop', 'Sends a sample item down the box. /sct testdrop does the same.', 'Test##sct.testDrop') then AddDrop(4096, 2); end
     end
 
     if widgets.Header('Lines') then
-        widgets.Label('Show Gained');
-        imgui.Checkbox('##sct.showGained', options.showGained);
-        widgets.Label('Show Lost');
-        imgui.Checkbox('##sct.showLost', options.showLost);
-        widgets.Label('Buff Color');
-        imgui.ColorEdit4('##sct.buffColor', options.buffColor, ImGuiColorEditFlags_NoInputs);
-        widgets.Label('Enfeeble Color');
-        imgui.ColorEdit4('##sct.enfeebleColor', options.enfeebleColor, ImGuiColorEditFlags_NoInputs);
-        widgets.Label('Lost Color');
-        imgui.ColorEdit4('##sct.lostColor', options.lostColor, ImGuiColorEditFlags_NoInputs);
-        widgets.PushControlWidth();
-        widgets.Label('Icon Size');
-        imgui.SliderInt('##sct.iconSize', options.iconSize, 12, 64);
-        Tip('How tall an icon is, in pixels. Custom Icons (Winxi Theme) says whose icons they are.');
-        widgets.PopControlWidth();
-        widgets.FontFile(options, 'fontFile', '##sct.fontFile', { tooltip = 'The lines\' font: Theme Font follows Winxi Theme, or one of C:\\Windows\\Fonts.' });
-        widgets.PushControlWidth();
-        widgets.FontSize(options, 'fontSize', '##sct.fontSize', { tooltip = 'How large the lines are, in pixels; Theme Size (0) follows Winxi Theme.' });
-        widgets.PopControlWidth();
-        if imgui.Button('Test##sct.test') then
+        widgets.Check('Show Gained', 'A line as you gain a status.', options.showGained, '##sct.showGained');
+        widgets.Check('Show Lost', 'A line as you lose one.', options.showLost, '##sct.showLost');
+        widgets.Color('Buff Color', 'The colour of a helpful status gained.', options.buffColor, '##sct.buffColor');
+        widgets.Color('Enfeeble Color', 'The colour of a harmful status gained.', options.enfeebleColor, '##sct.enfeebleColor');
+        widgets.Color('Lost Color', 'The colour of a status lost.', options.lostColor, '##sct.lostColor');
+        widgets.Slider('Icon Size', 'How tall the status icons are.', options.iconSize, 12, 64, '##sct.iconSize', iconSpec);
+        widgets.FontFile(options, 'fontFile', '##sct.fontFile');
+        widgets.FontSize(options, 'fontSize', '##sct.fontSize');
+        if widgets.Action('Test Lines', 'Sends a status gained, a harmful one and a status lost down the box. /sct test does the same.', 'Test##sct.test') then
             Add(33, true); Add(4, true); Add(33, false);
         end
-        Tip('Sends a buff gained, an enfeeble gained and a buff lost down the box. /sct test does the same.');
     end
 end
 

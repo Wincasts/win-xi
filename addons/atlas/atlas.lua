@@ -1,6 +1,6 @@
 addon.name    = 'atlas';
 addon.author  = 'win';
-addon.version = '0.12';
+addon.version = '0.13';
 addon.desc    = 'The zone\'s map in a window: who is where, panned and zoomed.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -363,13 +363,14 @@ end
 
 -- Settings
 
-local function Show(label, key, colourKey, tip)
+-- Show <kind>: its checkbox and the colour of its markers, together at the right of one row
+local function Show(label, key, colourKey, sentence)
     local options = app.options;
-    widgets.Label(label);
+    widgets.BeginRow(label, sentence);
     imgui.Checkbox('##atlas.' .. key, options[key]);
-    if tip then tips.Hover(tip); end
     imgui.SameLine();
     imgui.ColorEdit4('##atlas.' .. colourKey, options[colourKey], ImGuiColorEditFlags_NoInputs);
+    widgets.EndRow();
 end
 
 local playerStyles = {
@@ -380,55 +381,48 @@ local memberStyles = {
     { key = 'dot', label = 'Dot' }, { key = 'triangle', label = 'Directional triangle' },
     { key = 'hollow', label = 'Hollow circle' }, { key = 'numbered', label = 'Numbered dot' },
 };
+local markerSpecs = {}; -- kind -> the specs of its rows, under its Show checkbox
 
-local function MarkerSettings(kind, label, styles)
+local function MarkerSettings(kind, label, showKey, styles)
     local options = app.options;
-    local key = kind .. 'Style';
-    local selected = styles[1].label;
-    for _, style in ipairs(styles) do if options[key] == style.key then selected = style.label; end end
-    widgets.PushControlWidth();
-    widgets.Label(label .. ' Style');
-    if imgui.BeginCombo('##atlas.' .. key, selected) then
-        for _, style in ipairs(styles) do
-            if imgui.Selectable(style.label .. '##atlas.' .. key .. '.' .. style.key, options[key] == style.key) then
-                options[key] = style.key;
-            end
-        end
-        imgui.EndCombo();
+    local specs = markerSpecs[kind];
+    if specs == nil then
+        specs = {
+            style = { tooltip = kind == 'player' and 'Every style shows which way you are facing.'
+                or 'Numbered dots carry the member\'s number. Directional triangles need a known facing; members far away are drawn as hollow dots.' },
+            size = { format = '%d px' },
+            outline = {},
+            names = { label .. ' Style', label .. ' Size', label .. ' Outline', '##atlas.' .. kind .. 'Style', '##atlas.' .. kind .. 'Size', '##atlas.' .. kind .. 'Outline' },
+        };
+        markerSpecs[kind] = specs;
     end
-    tips.Hover(kind == 'player' and 'Each player style shows your facing direction.'
-        or 'Numbered dots use member slots 1–18 and grow to fit the number.\nDirectional triangles need a known facing; distant members fall back to hollow dots.');
-    widgets.Label(label .. ' Size');
-    imgui.SliderInt('##atlas.' .. kind .. 'Size', options[kind .. 'Size'], 0, 24, '%d px');
-    tips.Hover('0 uses the shared Marker Size below. Set a separate size for ' .. label:lower() .. ' markers.');
-    widgets.PopControlWidth();
-    widgets.Label(label .. ' Outline');
-    imgui.Checkbox('##atlas.' .. kind .. 'Outline', options[kind .. 'Outline']);
-    tips.Hover('A dark outline around these markers. Out-of-range members remain hollow.');
+    specs.style.parent, specs.size.parent, specs.outline.parent = options[showKey], options[showKey], options[showKey];
+    local names = specs.names;
+    local key = kind .. 'Style';
+    local chosen = widgets.Dropdown(names[1], 'The shape of these markers.', styles, options[key], names[4], specs.style);
+    if chosen ~= nil then options[key] = chosen; end
+    widgets.Slider(names[2], 'How big these markers are. 0 uses Marker Size below.', options[kind .. 'Size'], 0, 24, names[5], specs.size);
+    widgets.Check(names[3], 'A dark edge round these markers.', options[kind .. 'Outline'], names[6], specs.outline);
 end
 
 local shapes = { { key = 'square', label = 'Square' }, { key = 'rounded', label = 'Rounded' }, { key = 'round', label = 'Round' } };
+local frameSentences = {}; -- mode -> the sentences of its rows, made once
+local heightSpec = { tooltip = 'At 1x the longer side shows the whole map across; pan for the rest.' };
 
--- A mode's frame: its width, height and shape
-local function Frame(mode, said)
+-- A mode's frame: its width, height and shape. when says when the mode is in use, for the sentences.
+local function Frame(mode, when)
     local options = app.options;
-    widgets.PushControlWidth();
-    widgets.Label('Width');
-    imgui.SliderInt('##atlas.' .. mode .. 'Width', options[mode .. 'Width'], 128, 1024, '%d px');
-    tips.Hover(said .. ': the map\'s width.');
-    widgets.Label('Height');
-    imgui.SliderInt('##atlas.' .. mode .. 'Height', options[mode .. 'Height'], 128, 1024, '%d px');
-    tips.Hover(said .. ': the map\'s height. At 1x the longer side shows the whole map across; pan for the rest.');
-    widgets.PopControlWidth();
-    widgets.Label('Shape');
-    local key = mode .. 'Shape';
-    for index, shape in ipairs(shapes) do
-        if index > 1 then imgui.SameLine(); end
-        if imgui.RadioButton(('%s##atlas.%s%d'):format(shape.label, key, index), options[key] == shape.key) then
-            options[key] = shape.key;
-        end
+    local sentences = frameSentences[mode];
+    if sentences == nil then
+        sentences = { ('How wide the map is %s.'):format(when), ('How tall the map is %s.'):format(when),
+            '##atlas.' .. mode .. 'Width', '##atlas.' .. mode .. 'Height', '##atlas.' .. mode .. 'Shape' };
+        frameSentences[mode] = sentences;
     end
-    tips.Hover(said .. ': Square; Rounded corners; or Round, a circle when Width and Height are the same and a pill when not.');
+    widgets.Slider('Width', sentences[1], options[mode .. 'Width'], 128, 1024, sentences[3], widgets.Pixels);
+    widgets.Slider('Height', sentences[2], options[mode .. 'Height'], 128, 1024, sentences[4], heightSpec);
+    local key = mode .. 'Shape';
+    local chosen = widgets.Dropdown('Shape', 'Square, rounded corners, or round: a circle when width and height match, a pill when not.', shapes, options[key], sentences[5]);
+    if chosen ~= nil then options[key] = chosen; end
 end
 
 local controllerTip = '/atlas browse (from a macro) gives the map the controller, as the game\'s own map has it:\n'
@@ -436,78 +430,63 @@ local controllerTip = '/atlas browse (from a macro) gives the map the controller
     .. 'Y puts a waypoint under the cursor, A locks the map to you, X shows the next floor, and B gives it back.\n'
     .. 'The right stick and the unused scrolling control stay the game\'s.';
 
+local nameChoices = { { key = 'always', label = 'Always' }, { key = 'hover', label = 'On Hover' }, { key = 'hidden', label = 'Hidden' } };
+local lockSpec = { description = 'Keeps the window where it is. The map can still be panned and zoomed.' };
+local passthroughSpec = { format = '%d%%', tooltip = 'At 0% the map is gone until you stop. The mouse over the map shows it whole.' };
+local askSpec = { tooltip = 'As the game\'s own map does while it is open, every few seconds.' };
+local stickSpec = {};
+
 local function DrawSettings(options)
-    if widgets.Header('Window') then
-        widgets.Label('Visible');
-        imgui.Checkbox('##atlas.visible', options.isVisible);
-        tips.Hover('Whether the map shows. /atlas switches this.');
-        widgets.Lock(options.locked, '##atlas.locked', { tooltip = 'Keeps the window where it is. The map can still be panned and zoomed.' });
+    if widgets.Header('Window', true) then
+        widgets.Check('Visible', 'Shows the map. /atlas switches it too.', options.isVisible, '##atlas.visible');
+        widgets.Lock(options.locked, '##atlas.locked', lockSpec);
     end
 
     if widgets.Header('Open') then
-        Frame('open', 'Open, browsing with the controller or shown by /atlas');
+        Frame('open', 'while it is open: shown by /atlas, or browsed with the controller');
     end
 
     if widgets.Header('Passthrough') then
-        Frame('passthrough', 'Passthrough, the last step of /atlas cycle');
-        widgets.PushControlWidth();
-        widgets.Label('Passthrough Opacity');
-        imgui.SliderInt('##atlas.passthroughOpacity', options.passthroughOpacity, 0, 100, '%d%%');
-        tips.Hover('In passthrough, the last step of /atlas cycle (the map shown, the controller left to the game), the map fades\nto this while you move and comes back as you stop. At 0% it is gone until you stop. The mouse over the map shows it whole.');
-        widgets.PopControlWidth();
+        Frame('passthrough', 'in passthrough, the last step of /atlas cycle, when the controller is left to the game');
+        widgets.Slider('Passthrough Opacity', 'How much of the map shows while you move in passthrough. It comes back as you stop.', options.passthroughOpacity, 0, 100, '##atlas.passthroughOpacity', passthroughSpec);
     end
 
     if widgets.Header('Markers') then
-        Show('Show Player', 'showPlayer', 'playerColor', 'You, with your selected marker and facing direction.');
-        MarkerSettings('player', 'Player', playerStyles);
+        Show('Show Player', 'showPlayer', 'playerColor', 'You, and which way you are facing.');
+        MarkerSettings('player', 'Player', 'showPlayer', playerStyles);
         widgets.Gap();
-        Show('Show Party', 'showParty', 'partyColor', 'Your party. One out of sight, placed by the server, is drawn hollow.');
-        MarkerSettings('party', 'Party', memberStyles);
+        Show('Show Party', 'showParty', 'partyColor', 'Your party. One out of sight is drawn hollow, where the server says it is.');
+        MarkerSettings('party', 'Party', 'showParty', memberStyles);
         widgets.Gap();
         Show('Show Alliance', 'showAlliance', 'allianceColor', 'The alliance\'s other parties.');
-        MarkerSettings('alliance', 'Alliance', memberStyles);
+        MarkerSettings('alliance', 'Alliance', 'showAlliance', memberStyles);
         widgets.Gap();
         Show('Show Target', 'showTarget', 'targetColor', 'What you have targeted.');
-        widgets.Label('Names');
-        if imgui.RadioButton('Always##atlas.namesAlways', options.showNames[1] and not options.namesOnHover[1]) then
-            options.showNames[1], options.namesOnHover[1] = true, false;
+        local names = not options.showNames[1] and 'hidden' or (options.namesOnHover[1] and 'hover' or 'always');
+        local chosen = widgets.Dropdown('Names', 'When names are written beside party, alliance and target markers.', nameChoices, names, '##atlas.names');
+        if chosen ~= nil then
+            options.showNames[1], options.namesOnHover[1] = chosen ~= 'hidden', chosen == 'hover';
         end
-        imgui.SameLine();
-        if imgui.RadioButton('On Hover##atlas.namesHover', options.showNames[1] and options.namesOnHover[1]) then
-            options.showNames[1], options.namesOnHover[1] = true, true;
-        end
-        imgui.SameLine();
-        if imgui.RadioButton('Hidden##atlas.namesHidden', not options.showNames[1]) then
-            options.showNames[1] = false;
-        end
-        tips.Hover('Names beside party, alliance and target markers: always, near the mouse, or hidden.');
-        widgets.PushControlWidth();
-        widgets.Label('Marker Size');
-        imgui.SliderInt('##atlas.markerSize', options.markerSize, 4, 24, '%d px');
-        widgets.PopControlWidth();
+        widgets.Slider('Marker Size', 'How big the markers are, unless a kind has a size of its own.', options.markerSize, 4, 24, '##atlas.markerSize', widgets.Pixels);
     end
 
     if widgets.Header('Party') then
-        widgets.Label('Party Across Zone');
-        imgui.Checkbox('##atlas.askServer', options.askServer);
-        tips.Hover('Asks the server where your party is while one of them is in the zone and out of sight, as the game\'s own map does while it is open, every few seconds.');
+        widgets.Check('Party Across Zone', 'Asks the server where party members out of sight are.', options.askServer, '##atlas.askServer', askSpec);
     end
 
     if widgets.Header('Controller') then
         shell.ControllerSettings(options, controllerTip);
-        widgets.Label('Analog Stick Control');
-        imgui.Checkbox('##atlas.analogStick', options.analogStick);
-        tips.Hover('Use the left stick to scroll the map while browsing. Turn off to use the D-pad instead.\nThe right stick and the unused scrolling control are left to the game.');
+        stickSpec.parent = options.controller;
+        widgets.Check('Analog Stick Control', 'The left stick scrolls the map while browsing. Off, the d-pad does.', options.analogStick, '##atlas.analogStick', stickSpec);
     end
 
-    imgui.TextWrapped(Status());
+    widgets.Status(Status());
 end
 
 app = shell.New({
     defaults = defaults,
     window = 'winxi.atlas',
     configTitle = 'Atlas Settings',
-    hideHeader = 'Visibility',
     command = '/atlas',
     help = '/atlas shows or hides the map; /atlas config opens the settings; /atlas status says which map is drawn; /atlas browse gives it the controller; /atlas cycle goes from hidden to open to passthrough.',
     drawSettings = DrawSettings,

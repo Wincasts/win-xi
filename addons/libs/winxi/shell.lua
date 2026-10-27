@@ -19,7 +19,7 @@
 --         drawSettings   = function(options) ... end,   -- the Settings tab, above the hiding rules
 --         drawAppearance = function(options) ... end,   -- optional: more for the Winxi Theme tab's Addon section
 --         hideAppearance = true,                 -- optional: omit the Winxi Theme tab
---         hideHeader  = 'Visibility',             -- optional: put the hiding rules under a section of this title
+--         visibility  = function(options) ... end,  -- optional: more for the Visibility tab, after Fade In And Out
 --         menuOnlyCommands = true,               -- optional: only the bare command opens the menu; other
 --                                                --   verbs say the help, but for those in commands
 --         bareOpensConfig = true,                -- optional: the bare command opens or closes the settings,
@@ -183,9 +183,10 @@ local function DrawTabs(tabs, options)
     end
 end
 
--- The settings window: the addon's Settings tab with the hiding rules under it, whatever tabs the
--- addon has of its own, and the Winxi Theme tab with winxi's Theme, Window and Styles sections and the addon's
--- own under Addon
+-- The settings window: the addon's Settings tab, whatever tabs the addon has of its own, a Visibility
+-- tab for an addon with a window (Fade In And Out, whatever the addon adds, and the rules for hiding
+-- under Hide Window), and the Winxi Theme tab with winxi's Theme, Window, Font and Styles sections and
+-- the addon's own under Addon. Every tab is a column of described rows (winxi.widgets).
 local function DrawConfigContent(app)
     local options = app.options;
     local spec = app.spec;
@@ -193,37 +194,36 @@ local function DrawConfigContent(app)
     imgui.PushStyleVar(ImGuiStyleVar_FramePadding, framePadding);
     if imgui.BeginTabBar(app.ids.tabs, ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
         DrawTabs(spec.leadingTabs, options);
-        if imgui.BeginTabItem(spec.settingsLabel or 'Settings') then
+        if spec.drawSettings ~= nil and imgui.BeginTabItem(spec.settingsLabel or 'Settings') then
             widgets.BeginLabels(app.ids.labels);
-            if spec.drawSettings ~= nil then
-                -- the addon's settings are set a little apart from the tabs over them, as from what is under them
-                widgets.Gap();
-                spec.drawSettings(options);
-                if spec.hideHeader == nil then
-                    widgets.Gap();
-                end
-            end
-            if spec.window ~= nil and (spec.hideHeader == nil or widgets.Header(spec.hideHeader)) then
-                widgets.Hide(options.hide, app.save);
-            end
+            -- the addon's settings are set a little apart from the tabs over them, as from what is under them
+            widgets.Gap();
+            spec.drawSettings(options);
+            widgets.Gap();
             imgui.EndTabItem();
         end
         -- the addon's own tabs, each with its own column of names
         DrawTabs(spec.tabs, options);
+        if spec.window ~= nil and imgui.BeginTabItem('Visibility') then
+            widgets.BeginLabels(app.ids.visibility);
+            widgets.Gap();
+            if widgets.Header('Window', true) then
+                widgets.Check('Fade In And Out', 'The window fades in as it appears and out as it goes, in place of popping.', options.fadeInOut, app.ids.fade);
+                if spec.visibility ~= nil then
+                    spec.visibility(options);
+                end
+            end
+            if widgets.Header('Hide Window') then
+                widgets.Hide(options.hide, app.save);
+            end
+            widgets.Gap();
+            imgui.EndTabItem();
+        end
         if spec.hideAppearance ~= true and widgets.BeginThemeTab() then
             widgets.Appearance(app.appearanceHooks);
 
-            if (spec.window ~= nil or spec.drawAppearance ~= nil) and widgets.Header('Addon') then
-                if spec.window ~= nil then
-                    widgets.Label('Fade In And Out');
-                    imgui.Checkbox(app.ids.fade, options.fadeInOut);
-                    if imgui.IsItemHovered() then
-                        tips.Show('The window fades in as it is shown and out as it is hidden, in place of appearing and going at once.');
-                    end
-                end
-                if spec.drawAppearance ~= nil then
-                    spec.drawAppearance(options);
-                end
+            if spec.drawAppearance ~= nil and widgets.Header('Addon') then
+                spec.drawAppearance(options);
             end
             widgets.EndThemeTab();
         end
@@ -305,6 +305,8 @@ end
 -- between, if given, draws the addon's own controller settings after the sounds. The settings are
 -- controller and controllerSounds (tables holding true or false) and controllerType (a layout's key).
 local controllerIds = nil; -- the hidden labels of the controls below: made once
+local controllerSoundsSpec = { parent = true, tooltip = 'The sounds are the wav files in libs\\winxi\\sounds: put others of the same names there to change them.' };
+local controllerTypeSpec = { parent = true, tooltip = 'On a DirectInput controller the buttons are read by position: the bottom face button is A, the right one B.' };
 
 function shell.ControllerSettings(options, tooltip, between)
     local controller = require('winxi.controller');
@@ -313,11 +315,8 @@ function shell.ControllerSettings(options, tooltip, between)
         ids = {
             controller = ('##%s.controller'):format(addon.name),
             sounds = ('##%s.controllerSounds'):format(addon.name),
-            layouts = {},
+            type = ('##%s.controllerType'):format(addon.name),
         };
-        for index, layout in ipairs(controller.Layouts) do
-            ids.layouts[index] = ('%s##%s.controllerType'):format(layout.label, addon.name);
-        end
         controllerIds = ids;
     end
 
@@ -328,39 +327,24 @@ function shell.ControllerSettings(options, tooltip, between)
         options.controllerSounds = T{ false };
     end
 
-    widgets.Label('Controller Navigation', true);
-    imgui.Checkbox(ids.controller, options.controller);
-    if tooltip ~= nil and imgui.IsItemHovered() then
-        tips.Show(tooltip);
-    end
+    ids.spec = ids.spec or { experimental = true, tooltip = tooltip };
+    ids.spec.tooltip = tooltip;
+    widgets.Check('Controller Navigation', 'Use a controller to move about this window.', options.controller, ids.controller, ids.spec);
     if not options.controller[1] then
         return;
     end
 
-    widgets.Label('Controller Sounds');
-    imgui.Checkbox(ids.sounds, options.controllerSounds);
-    if imgui.IsItemHovered() then
-        tips.Show('Plays a sound as the window takes the controller, the highlight moves, a menu opens, a choice is made or backed out of.\nThe sounds are the wav files in libs\\winxi\\sounds: put others of the same names there to change them.');
-    end
+    widgets.Check('Controller Sounds', 'A sound as the highlight moves or a choice is made.', options.controllerSounds, ids.sounds,
+        controllerSoundsSpec);
 
     if between ~= nil then
         between(options);
     end
 
-    widgets.Label('Controller Type');
-    local current = controller.GetLayout();
-    local column = imgui.GetCursorPosX();
-    for index, layout in ipairs(controller.Layouts) do
-        if index > 1 then
-            -- one to a line, under the first
-            imgui.SetCursorPosX(column);
-        end
-        if imgui.RadioButton(ids.layouts[index], current == layout.key) then
-            options.controllerType = layout.key;
-        end
-    end
-    if imgui.IsItemHovered() then
-        tips.Show('XInput is an Xbox controller, or one set to behave as one. DirectInput is anything else: pick the make whose buttons match.\nOn a DirectInput controller the buttons are read by position: the bottom face button is A, the right one B.');
+    local chosen = widgets.Dropdown('Controller Type', 'XInput is an Xbox controller, or one set up to act as one. DirectInput is any other: pick the make whose buttons match yours.',
+        controller.Layouts, controller.GetLayout(), ids.type, controllerTypeSpec);
+    if chosen ~= nil then
+        options.controllerType = chosen;
     end
     -- the game reads one kind of controller: with the other chosen, no button is taken
     if controller.LayoutMismatch() then
@@ -397,6 +381,7 @@ function shell.New(spec)
             config = spec.configTitle or (addon.name .. ' Settings'),
             tabs = ('##%s.config'):format(addon.name),
             labels = ('%s.settings'):format(addon.name),
+            visibility = ('%s.visibility'):format(addon.name),
             fade = ('##%s.fadeInOut'):format(addon.name),
         },
     }, App);

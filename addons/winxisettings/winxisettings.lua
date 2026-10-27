@@ -1,6 +1,6 @@
 addon.name    = 'winxisettings'
 addon.author  = 'win'
-addon.version = '1.0'
+addon.version = '1.1'
 addon.desc    = 'The look shared by every winxi addon, in one settings window of its own.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -32,7 +32,6 @@ require('common')
 local imgui = require('imgui')
 local shell = require('winxi.shell')
 local widgets = require('winxi.widgets')
-local tooltip = require('winxi.tooltip')
 local layouts = require('winxi.layouts')
 
 local function Say(text)
@@ -44,63 +43,75 @@ local kept = nil
 local automatic = { true }
 local removing = nil
 
+local automaticSpec = { tooltip = 'The settings as they were are kept as the layout for the old resolution. winxisettings has to be loaded as the game starts (in scripts\\default.txt) for this.' }
+local saveSentences = {} -- resolution -> the Save Layout row's sentence
+local useSpec = { tooltip = 'At the title screen or character select that is at once; with a character logged in, the next time the game starts, since each addon writes its settings back as it closes.' }
+local rowIds = {} -- a layout's name -> its buttons' labels
+
 local function DrawLayouts()
     kept = kept or layouts.List()
     local resolution = layouts.Resolution() or '?'
     widgets.BeginLabels('winxisettings.layouts')
 
     if widgets.Header('Layouts', true) then
-        widgets.Label('Resolution')
+        widgets.BeginRow('Resolution', 'The size of the game\'s window now. A layout is kept under the resolution it is for.')
+        imgui.AlignTextToFramePadding()
         imgui.Text(resolution)
-        tooltip.Hover('The size of the game\'s window now. A layout is kept under the resolution it is for.')
+        widgets.EndRow()
 
-        widgets.Label('Switch With Resolution')
         automatic[1] = layouts.IsAutomatic()
-        if imgui.Checkbox('##winxisettings.automatic', automatic) then
+        if widgets.Check('Switch With Resolution', 'Starting the game at another resolution puts in the layout kept for it, if there is one.', automatic, '##winxisettings.automatic', automaticSpec) then
             layouts.SetAutomatic(automatic[1])
         end
-        tooltip.Hover('On, starting the game at another resolution than last time keeps every addon\'s settings as the layout for the old one, then uses the layout kept for the new one, if there is one. winxisettings has to be loaded as the game starts (in scripts\\default.txt) for this.')
 
         local pending = layouts.Pending()
         if pending ~= nil then
-            widgets.Label('Next Start')
+            widgets.BeginRow('Next Start', 'This layout is used the next time the game starts, before a character logs in.')
+            imgui.AlignTextToFramePadding()
             imgui.Text(pending)
             imgui.SameLine()
             if imgui.Button('Cancel##winxisettings.cancelPending') then
                 layouts.CancelPending()
             end
-            tooltip.Hover('This layout is used the next time the game starts, before a character logs in.')
+            widgets.EndRow()
         end
 
         widgets.Gap()
-        if imgui.Button(('Save Layout for %s'):format(resolution)) and resolution ~= '?' then
+        local sentence = saveSentences[resolution]
+        if sentence == nil then
+            sentence = ('Keeps every addon\'s settings and the Winxi Theme as they are now, as the layout for %s.'):format(resolution)
+            saveSentences[resolution] = sentence
+        end
+        if widgets.Action('Save Layout', sentence, 'Save Layout##winxisettings.save') and resolution ~= '?' then
             Say(('Kept %d settings files as the layout for %s.'):format(layouts.Save(resolution), resolution))
             kept = nil
         end
-        tooltip.Hover('Keeps every addon\'s settings and the shared Winxi Theme as they are now as the layout for this resolution, in place of any kept before.')
     end
 
     if widgets.Header('Saved Layouts') then
         if #(kept or {}) == 0 then
-            imgui.TextDisabled('None yet.')
+            widgets.Note('None yet.')
         end
         for _, name in ipairs(kept or {}) do
-            imgui.AlignTextToFramePadding()
-            imgui.Text(name == resolution and (name .. ' (this resolution)') or name)
-            imgui.SameLine()
-            if imgui.Button('Use##winxisettings.use.' .. name) then
+            local ids = rowIds[name]
+            if ids == nil then
+                ids = { name .. ' (this resolution)', 'Use##winxisettings.use.' .. name, 'Remove##winxisettings.remove.' .. name }
+                rowIds[name] = ids
+            end
+            widgets.BeginRow(name == resolution and ids[1] or name, nil, useSpec)
+            if imgui.Button(ids[2]) then
                 if layouts.Use(name) == 'now' then
                     Say(('Using the layout for %s.'):format(name))
                 else
                     Say(('The layout for %s is used the next time the game starts.'):format(name))
                 end
             end
-            tooltip.Hover('Puts this layout in place of every addon\'s settings. At the title screen or character select that is at once; with a character logged in, the next time the game starts, since each addon writes its settings back as it closes.')
             imgui.SameLine()
-            if imgui.Button('Remove##winxisettings.remove.' .. name) then
+            if imgui.Button(ids[3]) then
                 removing = name
                 imgui.OpenPopup('Remove Layout?##winxisettings.remove')
             end
+            widgets.EndRow()
         end
 
         if imgui.BeginPopup('Remove Layout?##winxisettings.remove') then

@@ -1,5 +1,5 @@
 -- The inventory's own tabs of the settings: General (the window, the controller; the shell adds
--- Visibility after them) and Inventory (the grid, which tabs it has, and the currencies under it). Treasure and Equipment are
+-- the hiding rules on the shell's Visibility tab) and Inventory (the grid, which tabs it has, and the currencies under it). Treasure and Equipment are
 -- pool.DrawSettings and equipment.DrawSettings, laid out the same way: what turns them on, whether they
 -- are attached to the inventory window, their pin, where they are, then how they look.
 --
@@ -57,9 +57,6 @@ function config.General(options)
             imgui.SetWindowPos(windowName, options.pos)
         end
         widgets.Lock(options.lockMovement, '##inv.lockMovement', { label = 'Lock', tooltip = 'Prevent dragging the inventory window. The Position fields can still move it.\nWhile it is locked, items can be dragged with the mouse: onto another item to swap their places, or onto another tab\'s name to move them to that tab\'s bags.' })
-        widgets.Label('Fade In And Out')
-        imgui.Checkbox('##inv.fade', options.fadeInOut)
-        tooltip.Hover('The window fades in as it is shown and out as it is hidden, in place of appearing and going at once. The treasure pool and equipment monitor fade with it.')
     end
 
     if widgets.Header('Controller') then
