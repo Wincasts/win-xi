@@ -18,4 +18,4 @@ each fetch moves it to the branch's newest commit and throws away anything chang
 is never a place to work. A script's --server still reads another checkout, for trying something
 against a server change that is not on GitHub yet.
 """
-from . import source, importer, lotteries, modules  # noqa: F401
+from . import source, importer, lotteries, modules, profiles  # noqa: F401

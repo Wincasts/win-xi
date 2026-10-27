@@ -15,6 +15,7 @@ function catalog.New(kind)
     function api.Clear()
         index, pages, scripts = nil, {}, {};
     end
+    gamedata.OnChange(function () api.Clear(); end); -- another server's data chosen
 
     function api.Index()
         index = index or gamedata.Read(kind, 'index') or {};

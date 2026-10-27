@@ -49,7 +49,7 @@ RELEASES = {
     'lens': {'kind': 'plugin'},
     # Phoenix's monsters for ThornyFFXI's MobDB as it is: the data folder alone, versioned by the date it was made
     # the data is winxi's mobs set, the same files mobdb reads as data/<zone>.lua
-    'mobdb': {'kind': 'data', 'source': 'forks/addons/mobdb/mobdb', 'from': 'addons/libs/winxi/data/mobs', 'data': 'data',
+    'mobdb': {'kind': 'data', 'source': 'forks/addons/mobdb/mobdb', 'from': 'addons/libs/winxi/data/phoenix/mobs', 'data': 'data',
               'changelog': 'forks/addons/mobdb/DATA_CHANGELOG.md',
               'title': 'mobdb data for Phoenix'},
     'parse': {},

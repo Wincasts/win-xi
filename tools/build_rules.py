@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""winxi's rules set (addons/libs/winxi/data/rules): the server's game rules that the addons work
+"""winxi's rules set (addons/libs/winxi/data/<server>/rules): the server's game rules that the addons work
 out what will happen with, read from its code as live runs it, for winxi.rules.
 
 Each rule is read from the one place the server keeps it: a Lua table, a settings value (as
@@ -550,4 +550,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
     found = source.from_arguments(args)
     print(f'Server: {found.describe()}')
-    build(found.path, Path(__file__).resolve().parents[1] / 'addons/libs/winxi/data/rules')
+    build(found.path, Path(__file__).resolve().parents[1] / 'addons/libs/winxi/data' / source.KEY / 'rules')

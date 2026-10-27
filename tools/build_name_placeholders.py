@@ -10,7 +10,7 @@ load_zone, phoenix.modules.load_yaml); a module override of a zone's script that
 its own (phList) stops the build (phoenix.modules.guard), for it is not read.
 Names are resolved by the MobDB importer (forks/addons/mobdb/mobdb/import_phoenix.py).
 Requires PyYAML and luajit. Reads the live branch of phoenixffxi/Phoenix, fetched from GitHub
-(tools/phoenix), and writes winxi's placeholders set (addons/libs/winxi/data/placeholders);
+(tools/phoenix), and writes winxi's placeholders set (addons/libs/winxi/data/<server>/placeholders);
 tools/build_winxi_data.py runs it with the other sets.
 """
 import argparse
@@ -23,7 +23,7 @@ from pathlib import Path
 from phoenix import importer, lotteries, modules, source
 
 ROOT = Path(__file__).resolve().parents[1]
-OUTPUT = ROOT / 'addons/libs/winxi/data/placeholders'
+OUTPUT = ROOT / 'addons/libs/winxi/data/phoenix/placeholders'  # build_winxi_data passes the server's own
 
 # Prints "placeholder id<TAB>NM id" for every phList entry of a zone's mob scripts.
 READER = r'''

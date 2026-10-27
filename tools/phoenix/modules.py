@@ -45,6 +45,8 @@ import re
 import sys
 from pathlib import Path
 
+# The server's assumptions below are the active profile's (phoenix.profiles.use sets them; these are
+# Phoenix's, the default's, for code that reads modules before a profile is chosen).
 DATA_PATCH = True  # modules/temp_patch/lsb-yaml.patch is taken to be applied on live
 # Live's settings are not in the repository (only settings/default); values known or taken to differ
 # from the defaults, by 'file.NAME'. Each is an assumption, and says where it came from.
