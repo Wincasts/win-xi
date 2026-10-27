@@ -12,9 +12,7 @@ TOOLS = Path(__file__).resolve().parent
 
 # Build scripts that read the server from before phoenix.modules. Each is to be taught its
 # overrides and taken off this list; a new build script is never put on it.
-NOT_YET_CHECKED = {
-    'build_puppet_attachments.py': 'automaton attachments (another piece of work, not yet committed)',
-}
+NOT_YET_CHECKED = {}
 
 # What a build script reads of the server, and what it must read it through to have it as live does
 READS = (
