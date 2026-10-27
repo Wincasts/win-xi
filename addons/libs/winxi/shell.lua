@@ -62,6 +62,7 @@ local fade = require('winxi.fade');
 local game = require('winxi.game');
 local legacy = require('winxi.legacy');
 local tips = require('winxi.tooltip');
+pcall(require, 'winxi.perf');   -- the addon's handlers timed for the perf addon; before any is registered
 
 local shell = {};
 

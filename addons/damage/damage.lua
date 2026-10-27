@@ -15,6 +15,7 @@ do
 end
 
 require('common');
+pcall(require, 'winxi.perf');   -- the handlers timed for the perf addon; before any is registered
 local bit = require('bit');
 local imgui = require('imgui');
 local fonts = require('winxi.fonts');

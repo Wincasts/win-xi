@@ -30,6 +30,8 @@ run mark       addons/mark/mark.lua     mark_stats_ui_check.lua
 run mark       addons/mark/mark.lua     mark_database_check.lua
 luajit tests/mark_stats_check.lua
 luajit tests/winxi_version_check.lua
+luajit tests/winxi_perf_check.lua || exit 1
+run perf       addons/perf/perf.lua     perf_check.lua
 luajit tests/winxi_presence_check.lua || exit 1
 luajit tests/winxi_abi_check.lua || exit 1
 luajit tests/winxi_camera_check.lua || exit 1

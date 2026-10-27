@@ -4,6 +4,7 @@ addon.version = '1.5';
 addon.desc    = 'FFXII style target lines';
 
 require('common');
+pcall(require, 'winxi.perf');   -- the handlers timed for the perf addon; before any is registered
 
 local arcRenderer = require('drawArc');
 local drawArc  = arcRenderer.draw;
