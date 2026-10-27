@@ -26,31 +26,37 @@ member by the party list, anyone else by the area's entities.
 
 ## Settings
 
-Every section collapses with its [-]/[+].
+`/mobcast` opens them: described rows, each a name, a line saying what it does and its control at the
+right, in sections that collapse with their [-]/[+]. While the settings are open the box shows a
+sample line of each kind when it has nothing to say, so that it can be dragged where it is wanted.
 
-**Enemies**
+**Settings**
+
+*Window*
+
+- **Lock Window** holds the box where it is and lets the mouse through it to the game. Off, it can be
+  dragged.
+- **Position** is where the top of the box is on the screen, at the side it grows from. Dragging the
+  box sets it too.
+- **Grow From** is the side that stays where it is as the lines get longer or shorter, Left, Center or
+  Right. The lines are set to that side too.
+- **Font Size** is the lines' size in pixels; Theme Size follows Winxi Theme.
+
+*Enemies*
 
 - **Show Spells**, **Show Weaponskills**, **Show Abilities** switch each kind of line on and off.
 - **Show Targets** says whom a spell or weaponskill is aimed at. Off, the lines say only what is coming.
 - **Only My Target** keeps the box to the enemy you have targeted. Off, every enemy about you.
 
-**Box**
+*Lines*
 
 - **Duration** is how long a line stays, 1 to 30 seconds. A line said again starts its time over.
 - **Max Lines** is how many the box holds at once, 1 to 10; past that the oldest goes.
-- **Grow From** is the side that stays where it is as the lines get longer or shorter, Left, Center or
-  Right. The lines are set to that side too.
 - **Newest Line** is where a new line goes. Bottom, the lines are in the order they were said, the
   oldest at the top; Top, the newest is always at the top, just under the box's edge, and the older
   ones are pushed down. A line that changes, as `starts casting` becoming `casts`, keeps its place.
-- **Lock Window** holds the box where it is and lets the mouse through it to the game. Off, it can be
-  dragged.
-- **Font Size** is the lines' size in pixels; Theme Size (0) follows Winxi Theme.
 - **Spell Color**, **Weaponskill Color** and **Ability Color** are the colours of each kind of line.
 - **Test** says a line of each kind, as `/mobcast test` does.
-
-While the settings are open the box shows a sample line of each kind when it has nothing to say, so
-that it can be dragged where it is wanted.
 
 **Visibility**
 

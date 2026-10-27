@@ -1,6 +1,6 @@
 addon.name    = 'mobcast'
 addon.author  = 'win'
-addon.version = '0.3'
+addon.version = '0.4'
 addon.desc    = 'Says in a small window what the enemies about you are casting, readying and using.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -17,7 +17,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 30
+local winxiNeeded = 65 -- winxi.widgets' described rows
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -31,7 +31,6 @@ end
 require('common')
 local imgui = require('imgui')
 local widgets = require('winxi.widgets')
-local tooltip = require('winxi.tooltip')
 local shell = require('winxi.shell')
 local shared = require('shared')
 local box = require('box')
@@ -75,112 +74,101 @@ local function Save()
     shared.app:Save()
 end
 
-local function Check(label, id, setting, tip)
-    widgets.Label(label)
-    if imgui.Checkbox(id, setting) then Save() end
-    tooltip.Hover(tip)
+local function Check(name, sentence, setting, id)
+    if widgets.Check(name, sentence, setting, id) then Save() end
 end
 
-local growIds = { } -- a side the box grows from -> its button's label
-for _, grow in ipairs(box.Grows) do
-    growIds[grow] = grow .. '##mobcast.grow'
+local lockSpec = { onChanged = Save }
+local fontSizeSpec = { description = 'How big the lines are. Theme Size follows the Winxi Theme.' }
+
+local colorChanged = false -- a colour has been changed since it was last saved
+local kindSentences = { } -- a kind of line -> the sentence of its colour's row
+for _, kind in ipairs(shared.kinds) do
+    kindSentences[kind.key] = ('The colour of the lines about %s.'):format(kind.label:lower())
 end
 
-local newestIds = { } -- where the newest line is -> its button's label
-for _, newest in ipairs(box.Newests) do
-    newestIds[newest] = newest .. '##mobcast.newest'
+local function DrawWindow(options)
+    widgets.Lock(options.locked, '##mobcast.locked', lockSpec)
+    if widgets.Numbers('Position', 'Where the top of the box is on the screen. Dragging the box sets it too.', options.pos, '##mobcast.position') then
+        box.Move(options)
+        Save()
+    end
+    local grow = widgets.Dropdown('Grow From', 'The side of the box that stays put as its lines change length.',
+        box.Grows, options.grow, '##mobcast.grow')
+    if grow ~= nil then
+        options.grow = grow
+        Save()
+    end
+    local _, done = widgets.FontSize(options, 'fontSize', '##mobcast.fontSize', fontSizeSpec)
+    if done then Save() end
 end
 
 local function DrawEnemies(options)
-    Check('Show Spells', '##mobcast.showSpells', options.showSpells,
-        'A spell an enemy begins, with whom it is cast on; the line becomes the spell cast, or the casting interrupted.')
-    Check('Show Weaponskills', '##mobcast.showSkills', options.showSkills,
-        'A weaponskill an enemy readies, with whom it is aimed at; the line becomes the weaponskill used, or interrupted.')
-    Check('Show Abilities', '##mobcast.showAbilities', options.showAbilities,
-        'An ability an enemy uses, which comes with no warning.')
-    Check('Show Targets', '##mobcast.showTargets', options.showTargets,
-        'Says whom a spell or weaponskill is aimed at, as the chat log does. Off, the lines say only what is coming.')
-    Check('Only My Target', '##mobcast.onlyTarget', options.onlyTarget,
-        'Only what the enemy you have targeted does. Off, every enemy about you.')
+    Check('Show Spells', 'Shows a spell an enemy begins casting, then whether it was cast or interrupted.',
+        options.showSpells, '##mobcast.showSpells')
+    Check('Show Weaponskills', 'Shows a weaponskill an enemy readies, then whether it was used or interrupted.',
+        options.showSkills, '##mobcast.showSkills')
+    Check('Show Abilities', 'Shows an ability an enemy uses.',
+        options.showAbilities, '##mobcast.showAbilities')
+    Check('Show Targets', 'Names who a spell or weaponskill is aimed at. Off, the lines say only what is coming.',
+        options.showTargets, '##mobcast.showTargets')
+    Check('Only My Target', 'Shows only what your target does. Off, every enemy near you.',
+        options.onlyTarget, '##mobcast.onlyTarget')
 end
 
-local function DrawBox(options)
-    widgets.PushControlWidth()
-    widgets.Label('Duration')
-    imgui.SliderInt('##mobcast.seconds', options.seconds, 1, 30, '%d s')
-    if imgui.IsItemDeactivatedAfterEdit() then Save() end
-    tooltip.Hover('How long a line stays in the box, in seconds. A line said again starts its time over.')
-
-    widgets.Label('Max Lines')
-    imgui.SliderInt('##mobcast.maxLines', options.maxLines, 1, 10)
-    if imgui.IsItemDeactivatedAfterEdit() then Save() end
-    tooltip.Hover('How many lines the box holds at once. When there are more, the oldest goes.')
-    widgets.PopControlWidth()
-
-    widgets.Label('Grow From')
-    for index, grow in ipairs(box.Grows) do
-        if index > 1 then
-            imgui.SameLine()
-        end
-        if imgui.RadioButton(growIds[grow], options.grow == grow) and options.grow ~= grow then
-            options.grow = grow
-            Save()
-        end
-    end
-    tooltip.Hover('The side of the box that stays where it is as what it says gets longer or shorter. Its lines are set to that side too.')
-
-    widgets.Label('Newest Line')
-    for index, newest in ipairs(box.Newests) do
-        if index > 1 then
-            imgui.SameLine()
-        end
-        if imgui.RadioButton(newestIds[newest], options.newest == newest) and options.newest ~= newest then
-            options.newest = newest
-            Save()
-        end
-    end
-    tooltip.Hover('Where a new line goes. Bottom, the lines are in the order they were said, the oldest at the top. Top, the newest is always at the top and the older ones are pushed down.')
-
-    widgets.Lock(options.locked, '##mobcast.locked', { onChanged = Save })
-
-    widgets.PushControlWidth()
-    local _, done = widgets.FontSize(options, 'fontSize', '##mobcast.fontSize',
-        { tooltip = 'How large the lines are, in pixels; Theme Size (0) follows Winxi Theme.' })
+local function DrawLines(options)
+    local _, done = widgets.Slider('Duration', 'How long a line stays. A line said again starts its time over.',
+        options.seconds, 1, 30, '##mobcast.seconds', widgets.Seconds)
     if done then Save() end
-    widgets.PopControlWidth()
-
-    for _, kind in ipairs(shared.kinds) do
-        widgets.Label(kind.single .. ' Color')
-        imgui.ColorEdit4('##mobcast.' .. kind.color, options[kind.color], ImGuiColorEditFlags_NoInputs)
-        if imgui.IsItemDeactivatedAfterEdit() then Save() end
-        tooltip.Hover(('The colour of the lines about %s.'):format(kind.label:lower()))
+    _, done = widgets.Slider('Max Lines', 'How many lines the box holds at once. Past that, the oldest goes.',
+        options.maxLines, 1, 10, '##mobcast.maxLines')
+    if done then Save() end
+    local newest = widgets.Dropdown('Newest Line', 'Where a new line goes, at the top or the bottom of the box.',
+        box.Newests, options.newest, '##mobcast.newest')
+    if newest ~= nil then
+        options.newest = newest
+        Save()
     end
 
-    widgets.Label('Test')
-    if imgui.Button('Test##mobcast.test') then
+    widgets.Gap()
+    for _, kind in ipairs(shared.kinds) do
+        if widgets.Color(kind.single .. ' Color', kindSentences[kind.key], options[kind.color], '##mobcast.' .. kind.color) then
+            colorChanged = true
+        end
+    end
+    -- a colour is saved once the mouse is up: the picker is a popup of its own, not the swatch
+    if colorChanged and not imgui.IsMouseDown(0) then
+        colorChanged = false
+        Save()
+    end
+
+    widgets.Gap()
+    if widgets.Action('Test', 'Says a line of each kind, as if an enemy had done it. /mobcast test does the same.', 'Test##mobcast.test') then
         box.Test()
     end
-    tooltip.Hover('Says a line of each kind, as if an enemy had done it. /mobcast test does the same.')
 end
 
+-- The shell gives a Visibility tab only to an addon with a window of its own; the box is drawn here,
+-- so the tab is this addon's, laid out as the shell's is
 local function DrawVisibility(options)
-    widgets.Label('Fade In And Out')
-    if imgui.Checkbox('##mobcast.fadeInOut', options.fadeInOut) then Save() end
-    tooltip.Hover('The box fades in as it appears and out as it goes.')
-    widgets.Hide(options.hide, Save)
+    if widgets.Header('Visibility', true) then
+        Check('Fade In And Out', 'The box fades in as it appears and out as it goes.', options.fadeInOut, '##mobcast.fadeInOut')
+        widgets.Gap()
+        widgets.Hide(options.hide, Save)
+    end
 end
 
 local function DrawSettings(options)
     -- the box is shown while the settings are, to put it where it is wanted
     box.sample = true
-    if widgets.Header('Enemies', true) then
+    if widgets.Header('Window', true) then
+        DrawWindow(options)
+    end
+    if widgets.Header('Enemies') then
         DrawEnemies(options)
     end
-    if widgets.Header('Box') then
-        DrawBox(options)
-    end
-    if widgets.Header('Visibility') then
-        DrawVisibility(options)
+    if widgets.Header('Lines') then
+        DrawLines(options)
     end
 end
 
@@ -224,6 +212,7 @@ shared.app = shell.New({
     command = '/mobcast',
     help = '/mobcast opens or closes the settings; /mobcast test says a line of each kind.',
     drawSettings = DrawSettings,
+    tabs = { { label = 'Visibility', draw = DrawVisibility } },
     hideAppearance = true,
     onSettings = Complete,
     commands = { test = box.Test },
