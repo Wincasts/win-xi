@@ -11,7 +11,8 @@
 --
 --     { frame = 0x20, attachments = { [162] = true }, overdrive = false }
 --
--- The server's rules, as Phoenix runs them: an automaton starts with 35 of each element, and loses one
+-- The server's rules (winxi.rules' burden, read from its code; the figures here for where winxi's data
+-- is not installed): an automaton starts with 35 of each element, and loses one
 -- of each every three seconds, two with a Heatsink fitted. A maneuver adds between 14 and 20 to its
 -- element, by how the master's stat for it stands against the automaton's; a Dark one 14, or 8 on a
 -- Valoredge or Sharpshot frame. Past 30 a maneuver may overload: the chance in a hundred is the burden
@@ -43,6 +44,22 @@ local overloadPast = 30    -- with more than this, a maneuver may overload
 local chanceLess = 25      -- and the chance is the burden less this
 local costUnseen = 20      -- what a maneuver is taken to add until it has been seen: the most it can
 local costLeast, costMost = 14, 20
+local darkCost, darkCostSmallFrames = 14, 8
+local cooldownKeeps = 0.5  -- the part of the burden Cooldown leaves
+
+-- The server's (winxi.rules' burden, read from its code) where winxi's data is installed; the numbers
+-- above are the same, for where it is not
+do
+    local ok, rules = pcall(require, 'winxi.rules')
+    local rule = ok and rules.Get('burden') or nil
+    if rule ~= nil and rule.Spawn ~= nil then
+        spawnedWith, tickSeconds = rule.Spawn, rule.Pass
+        overloadPast, chanceLess = rule.OverloadPast, rule.OverloadPast - rule.ChanceOffset
+        costLeast, costMost, costUnseen = rule.StatLeast, rule.StatMost, rule.StatMost
+        darkCost, darkCostSmallFrames = rule.Dark, rule.DarkSmallFrames
+        cooldownKeeps = 1 - rule.CooldownPercent / 100
+    end
+end
 
 -- element -> { value, at, sure }: the burden when it was last reckoned, and whether that was the
 -- server's own figure (or follows from one) rather than a guess
@@ -56,7 +73,7 @@ end
 
 local function Cost(element, state)
     if element == elementDark then
-        return (state.frame == frameValoredge or state.frame == frameSharpshot) and 8 or 14
+        return (state.frame == frameValoredge or state.frame == frameSharpshot) and darkCostSmallFrames or darkCost
     end
     return costs[element] or costUnseen
 end
@@ -149,7 +166,7 @@ function burden.Action(action, state, now)
         for element = 1, #burden.Elements do
             local value = burden.Get(element, state, now)
             if value ~= nil then
-                Set(element, value / 2, known[element].sure, now)
+                Set(element, value * cooldownKeeps, known[element].sure, now)
             end
         end
     elseif ability >= abilityFireManeuver and ability < abilityFireManeuver + #burden.Elements then

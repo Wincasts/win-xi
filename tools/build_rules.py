@@ -17,6 +17,15 @@ core patch that names the constant, stops it too (phoenix.modules.guard, cpp_mod
     resting          the healing tick and the effect pass, and what each tick restores, with and without
                      Signet or Sigil (map settings, zone_entities.cpp, scripts/effects/healing.lua)
     bind             the chance a damaging hit breaks bind (battleutils.cpp)
+    burden           an automaton's burden: what it spawns with, what a maneuver adds, when it may
+                     overload and the chance, how fast it falls, what Cooldown takes off
+                     (scripts/globals/automaton.lua, pets/automaton.lua, automaton_entity.cpp,
+                     job_utils/puppetmaster.lua)
+    automaton        what an automaton casts and uses: each spell's magic skill and the heads that cast it
+                     (automaton_spells, module SQL over it), each frame's weapon skills with the skill
+                     they need and the element whose maneuvers bring them on (its pet's skill list,
+                     mob_skills, the skill's own script), and each head's magic timers (the era
+                     module's on live, pets/automaton.lua's otherwise)
 
 Run by tools/build_winxi_data.py as its 'rules' set.
 """
@@ -164,6 +173,114 @@ def bind(server):
     return {'BreakChance': int(m.group(1)) / 1000, 'Source': path}
 
 
+def burden(server):
+    def handle(override):
+        # what is read here, rewritten by a module, is read again before it is trusted
+        if re.search(r'[Bb]urden', override.body):
+            return None
+        return 'nothing of burden'
+    modules.guard(server, ('xi.automaton.', 'xi.pets.automaton.', 'xi.job_utils.puppetmaster.'), handle, out=io.StringIO())
+    untouched(server, 'burdenTick', 'addBurden', 'overloadChance', 'OVERLOAD_THRESH')
+    spawn = find(server, 'scripts/globals/pets/automaton.lua', r'for element = 0, 7 do\s*master:addBurden\(element,\s*(\d+)\)', 'the burden it spawns with')
+    automaton = 'scripts/globals/automaton.lua'
+    dark = find(server, automaton, r'VALOREDGE\s+or\s+frameEquipped == xi\.automaton\.frame\.SHARPSHOT\s+then\s+return (\d+)\s+end\s+return (\d+)',
+                'a Dark maneuver\'s burden')
+    stat = find(server, automaton, r'if statDifference >= (\d+) then\s+return (\d+)\s+elseif statDifference >= 0 then\s+return (\d+) - statDifference\s+else\s+return (\d+)',
+                'a maneuver\'s burden by the stat')
+    entity = 'src/map/entities/automaton_entity.cpp'
+    thresh = find(server, entity, r'const int16 thresh = (\d+) \+ PMaster->getMod\(xi::Mod::OVERLOAD_THRESH\);\s*if \(burden_\[element\] > thresh\)', 'the overload threshold')
+    offset = find(server, entity, r'GetRandomNumber\(100\) < \(burden_\[element\] - thresh \+ (\d+)\)', 'the overload chance')
+    find(server, entity, r'burden -= std::clamp<uint8>\(1 \+ PMaster->getMod\(xi::Mod::BURDEN_DECAY\) \+ this->getMod\(xi::Mod::BURDEN_DECAY\)', 'the burden\'s fall')
+    find(server, 'src/map/status_effect_container.cpp', r'PAutomaton->burdenTick\(\)', 'the fall on the master\'s regen pass')
+    cooldown = find(server, 'scripts/globals/job_utils/puppetmaster.lua', r'onAbilityUseCooldown = function.*?player:reduceBurden\((\d+)', 'what Cooldown takes off', re.S)
+    passes = find(server, 'src/map/zone_entities.cpp', r'm_EffectCheckTime\s*=\s*m_EffectCheckTime\s*\+\s*(\d+)s', 'the effect pass')
+    return {'Spawn': int(spawn.group(1)), 'DarkSmallFrames': int(dark.group(1)), 'Dark': int(dark.group(2)),
+            'StatLeast': int(stat.group(2)), 'StatEven': int(stat.group(3)), 'StatMost': int(stat.group(4)), 'StatAhead': int(stat.group(1)),
+            'OverloadPast': int(thresh.group(1)), 'ChanceOffset': int(offset.group(1)),
+            'FallPerPass': 1, 'Pass': int(passes.group(1)), 'CooldownPercent': int(cooldown.group(1))}
+
+
+def head_tables(text):
+    """{ [xi.automaton.head.X] = { key = n, ... } } as { X = { key: n } }."""
+    return {head: {k: int(v) for k, v in re.findall(r'(\w+)\s*=\s*(\d+)', body)}
+            for head, body in re.findall(r'\[xi\.automaton\.head\.(\w+)\s*\]\s*=\s*\{([^{}]*)\}', text)}
+
+
+def automaton(server):
+    import sqlite3
+    from build_item_data import enabled_files, replay
+    enum = read(server, 'scripts/enum/automaton.lua')
+    heads = {k: int(v, 0) for k, v in re.findall(r'(\w+)\s*=\s*(0x[0-9A-Fa-f]+|\d+)', find(server, 'scripts/enum/automaton.lua', r'xi\.automaton\.head\s*=\s*\{([^}]*)\}', 'the heads').group(1))}
+    frames = {k: int(v, 0) for k, v in re.findall(r'(\w+)\s*=\s*(0x[0-9A-Fa-f]+|\d+)', find(server, 'scripts/enum/automaton.lua', r'xi\.automaton\.frame\s*=\s*\{([^}]*)\}', 'the frames').group(1))}
+
+    # the tables as live has them: the server's SQL and the module SQL over it
+    db = sqlite3.connect(':memory:')
+    tables = ('automaton_spells', 'mob_skill_lists', 'mob_skills', 'pet_list')
+    variables = {}
+    for table in tables:
+        replay(db, Path(server) / f'sql/{table}.sql', variables, tables=tables)
+    pool_changes = []
+    for path in enabled_files(server, '.sql'):
+        replay(db, path, variables, True, tables=tables)
+        pool_changes += [(path, statement) for statement in re.findall(r'[^;]*\bmob_pools\b[^;]*;', path.read_text(encoding='utf-8-sig'))]
+    spells = {sid: {'Skill': skill, 'Heads': heads_mask, 'Enfeeble': enfeeble}
+              for sid, skill, heads_mask, enfeeble in db.execute('SELECT spellid, skilllevel, heads, enfeeble FROM automaton_spells')}
+
+    # each frame's pet, its pool's skill list (mob_pools: two columns by name), the skills on it
+    petids = find(server, 'src/map/utils/petutils.h', r'PETID_HARLEQUINFRAME\s*=\s*(\d+)', 'the first frame\'s pet')
+    pools_text = (Path(server) / 'sql/mob_pools.sql').read_text(encoding='utf-8-sig')
+    columns = re.findall(r'^\s*`(\w+)`', pools_text[pools_text.index('CREATE TABLE'):pools_text.index(') ENGINE')], re.M)
+    pool_skill_list = {}
+    for row in re.finditer(r'^INSERT INTO `mob_pools` VALUES \((.*)\);', pools_text, re.M):
+        values = [v.strip() for v in re.findall(r"'(?:[^'\\]|\\.)*'|[^,]+", row.group(1))]
+        pool_skill_list[int(values[columns.index('poolid')])] = int(values[columns.index('skill_list_id')])
+    # module SQL over mob_pools is not replayed here: it must leave the frames' pools alone
+    frame_pools = {db.execute('SELECT poolid FROM pet_list WHERE petid = ?', (int(petids.group(1)) + offset,)).fetchone()[0] for offset in range(4)}
+    for path, statement in pool_changes:
+        if any(re.search(r'\b' + str(pool) + r'\b', statement) for pool in frame_pools) or 'Frame' in statement:
+            sys.exit(f'{path}: module SQL changes an automaton frame\'s mob_pools row, which is read here as the server\'s file has it')
+    weaponskills = {}
+    for name in ('HARLEQUIN', 'VALOREDGE', 'SHARPSHOT', 'STORMWAKER'):
+        petid = int(petids.group(1)) + frames[name] - frames['HARLEQUIN']
+        pool = db.execute('SELECT poolid FROM pet_list WHERE petid = ?', (petid,)).fetchone()
+        if pool is None or pool[0] not in pool_skill_list:
+            sys.exit(f'no skill list for the {name} frame\'s pet {petid}')
+        skills = []
+        for skill_id, skill_name, param in db.execute(
+                'SELECT s.mob_skill_id, s.mob_skill_name, s.mob_skill_param FROM mob_skill_lists l JOIN mob_skills s ON s.mob_skill_id = l.mob_skill_id '
+                'WHERE l.skill_list_id = ? ORDER BY s.mob_skill_id', (pool_skill_list[pool[0]],)):
+            script = Path(server) / f'scripts/actions/abilities/pets/automaton/{skill_name}.lua'
+            text = modules.blank_comments(script.read_text()) if script.is_file() else ''
+            check = re.search(r'onAutomatonAbilityCheck\s*=\s*', text)
+            element = re.search(r'xi\.effect\.(\w+)_MANEUVER', modules.function_body(text, check.end())) if check else None
+            if element is None:
+                sys.exit(f'{script}: the maneuver its check counts is not as it was')
+            skills.append({'Id': skill_id, 'Name': skill_name.replace('_', ' ').title(), 'Skill': param,
+                           'Element': element.group(1).lower(), 'Usable': param != 999 and param != -1})
+        weaponskills[frames[name]] = skills
+
+    # each head's magic timers: the module's onServerStart on live that puts its own in place, or the server's
+    cooldowns = head_tables(find(server, 'scripts/globals/pets/automaton.lua', r'xi\.pets\.automaton\.magicCooldowns\s*=\s*\{(.*?)\n\}', 'magicCooldowns', re.S).group(1))
+    source = 'scripts/globals/pets/automaton.lua'
+    for override in modules.overrides(server):
+        if override.applies and override.target == 'xi.server.onServerStart':
+            text = override.text
+            for name in re.findall(r'xi\.pets\.automaton\.magicCooldowns\[\w+\]\s*=\s*\w+', text):
+                pass
+            assigner = re.search(r'local function (\w+)\(\)\s*for head, cooldowns in pairs\((\w+)\) do\s*xi\.pets\.automaton\.magicCooldowns\[head\] = cooldowns', text)
+            if assigner and any(re.search(r'\b' + assigner.group(1) + r'\(\)', body) for _, body in override.cases()):
+                table = re.search(r'local\s+' + assigner.group(2) + r'\s*=\s*\{(.*?)\n\}', text, re.S)
+                cooldowns.update(head_tables(table.group(1)))
+                source = override.path
+            elif 'magicCooldowns' in text and 'magicCooldowns' in override.body:
+                sys.exit(f'{override.path}: changes the automaton\'s magic timers in a way not read here')
+    kinds = {'global': 'magic', 'healing': 'heal', 'enfeebling': 'enfeeble', 'elemental': 'elemental',
+             'enhancing': 'enhance', 'statusRemoval': 'status'}
+    timers = {heads[head]: {kinds.get(k, k): v for k, v in values.items()} for head, values in cooldowns.items()}
+    return {'Spells': spells, 'WeaponSkills': weaponskills, 'MagicTimers': timers, 'MagicTimersSource': source,
+            'Heads': {v: k.title() for k, v in heads.items()}, 'Frames': {v: k.title() for k, v in frames.items()}}
+
+
 def build(server, output, settings=()):
     server, output = Path(server), Path(output)
     from build_debuff_durations import enum_block
@@ -176,6 +293,8 @@ def build(server, output, settings=()):
         'swing': swing(server),
         'resting': resting(server),
         'bind': bind(server),
+        'burden': burden(server),
+        'automaton': automaton(server),
     }
     output.mkdir(parents=True, exist_ok=True)
     write_data(output / 'index.lua', {'Schema': 1, 'Source': provenance(server), 'Settings': list(settings),
