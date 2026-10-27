@@ -379,7 +379,7 @@ function Updater:Initialize(element, binding)
         self.BuffCheck = CheckMeteor;
     elseif (bit.band(bit.rshift(self.Resource.Requirements, 3), 1) == 1) then
         self.BuffCheck = CheckTabula;
-    elseif (T{ 736, 737, 738, 739, 740, 741, 742, 743, 744, 745, 746, 747, 748749, 750, 751, 752, 753 }:contains(self.Resource.Index)) then
+    elseif (T{ 736, 737, 738, 739, 740, 741, 742, 743, 744, 745, 746, 747, 748, 749, 750, 751, 752, 753 }:contains(self.Resource.Index)) then
         self.BuffCheck = CheckUnbridled;
     end
 end

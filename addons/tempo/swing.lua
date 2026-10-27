@@ -22,8 +22,10 @@ local skillH2H = 1
 local twoHanded = { [4] = true, [6] = true, [7] = true, [8] = true, [10] = true, [12] = true }
 local dualWieldable = { [2] = true, [3] = true, [5] = true, [9] = true, [11] = true }
 
--- Trait ranks as { level, value }, highest first (sql/traits.sql, the era's rows): the best of the
--- main and sub job's
+-- Trait ranks as { level, value }, highest first, by job: the best of the main and sub job's. They
+-- are the server's (winxi.traits, made from its traits table); these are its era's rows, for when
+-- winxi's data is not installed.
+local MARTIAL_ARTS, DUAL_WIELD = 23, 18 -- the server's trait numbers
 local martialArts = {
     [2] = { { 75, 180 }, { 61, 160 }, { 46, 140 }, { 31, 120 }, { 16, 100 }, { 1, 80 } }, -- MNK
     [18] = { { 75, 120 }, { 50, 100 }, { 25, 80 } },                                     -- PUP
@@ -31,6 +33,27 @@ local martialArts = {
 local dualWield = {
     [13] = { { 65, 30 }, { 45, 25 }, { 25, 15 }, { 10, 10 } },                           -- NIN
 }
+
+-- A trait's ranks from winxi.traits, or nil where there are none to be had
+local function RanksOf(id)
+    local ok, traits = pcall(require, 'winxi.traits')
+    local rows = ok and traits and traits.Rows(id) or {}
+    if #rows == 0 then
+        return nil
+    end
+    local ranks = {}
+    for _, row in ipairs(rows) do
+        local list = ranks[row.job] or {}
+        ranks[row.job] = list
+        list[#list + 1] = { row.level, row.value }
+    end
+    for _, list in pairs(ranks) do
+        table.sort(list, function (a, b) return a[1] > b[1] end)
+    end
+    return ranks
+end
+martialArts = RanksOf(MARTIAL_ARTS) or martialArts
+dualWield = RanksOf(DUAL_WIELD) or dualWield
 
 -- Buffs the client can see, and how much delay each takes off; negative adds it. guessed: its
 -- strength changes from one cast to the next, so what was learned with it is not kept.

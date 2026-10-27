@@ -1,6 +1,6 @@
 addon.name    = 'tempo'
 addon.author  = 'win'
-addon.version = '0.2'
+addon.version = '0.2.1'
 addon.desc    = 'Bars for when your next auto attack comes and when your next resting tick lands.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 

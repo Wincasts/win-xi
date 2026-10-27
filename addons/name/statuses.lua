@@ -42,7 +42,7 @@ local MOST         = 12;   -- icons over one name
 local GAP          = 1;    -- pixels between one icon and the next
 local RISE         = 3;    -- pixels between the row and what is under it
 local PARTY_OTHERS = 5;    -- the others of the player's party, whose statuses the game keeps
-local LAST_STATUS  = 635;  -- the highest number the server has a status for
+local LAST_STATUS  = 1023; -- the highest a status's number can be, for when the server's list is not to be had
 local LIST_ROWS    = 14;   -- rows of the settings' list to be seen at once
 local PREVIEW_MOST = 4;    -- icons over each name while previewing
 local MOST_OFFSET  = 200;  -- screen pixels the row can be moved each way
@@ -336,6 +336,14 @@ local listSize = { 0, 0 };
 local previewSize, previewA, previewB = { 36, 48 }, { 0, 0 }, { 1, 1 }; -- filled in from the set as it is drawn
 local gameSize, gameA, gameB = { 48, 48 }, { 0, 0 }, { 1, 1 };
 
+-- The numbers of the statuses the server has (winxi.statuses, made from its data), or nil where
+-- winxi's data is not installed: then every number the game names is offered, but these
+local function ServerStatuses()
+    local ok, found = pcall(require, 'winxi.statuses');
+    local ids = ok and found and found.Ids() or nil;
+    return (ids ~= nil and #ids > 0) and ids or nil;
+end
+
 -- Numbers the server has no status for, which the game still names: no name is ever under them
 local UNUSED = { [24] = true, [25] = true, [26] = true, [27] = true, [224] = true, [225] = true, [226] = true,
     [372] = true, [373] = true, [374] = true, [514] = true, [520] = true, [521] = true };
@@ -348,9 +356,14 @@ local function Known()
     end
     known = {};
     local resources = AshitaCore:GetResourceManager();
-    for id = 1, LAST_STATUS do
-        local name = resources:GetString('buffs.names', id);
-        if (type(name) == 'string' and name ~= '' and not UNUSED[id] and name:match('^%(.*%)$') == nil) then
+    local ids, unused = ServerStatuses(), {};
+    if (ids == nil) then
+        ids, unused = {}, UNUSED;
+        for id = 1, LAST_STATUS do ids[id] = id; end
+    end
+    for _, id in ipairs(ids) do
+        local name = id > 0 and resources:GetString('buffs.names', id) or nil;
+        if (type(name) == 'string' and name ~= '' and not unused[id] and name:match('^%(.*%)$') == nil) then
             name = name:sub(1, 1):upper() .. name:sub(2);
             known[#known + 1] = { id = id, lower = name:lower(), label = ('%s (%d)##name.status.%d'):format(name, id, id) };
         end
