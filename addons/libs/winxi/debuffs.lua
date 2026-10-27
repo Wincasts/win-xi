@@ -84,455 +84,384 @@ local StatusType = {
     Threnody = 'threnody',
 };
 
--- Action category (4 is a spell finishing) -> spell -> the debuff it leaves, how long for in seconds
--- when the server's scripts do not say (winxi.debuff_durations is taken first), the kind it takes the
--- place of, and the messages that mean it took hold
+-- Action category (4 is a spell finishing) -> spell -> the debuff it leaves, the kind it takes the
+-- place of, and the messages that mean it took hold. How long it lasts is the server's
+-- (winxi.debuff_durations): the spell's, or failing that the status's usual one, or DEFAULT_SECONDS.
 local ActionMap = {
     [  4] = {
         [ 23] = {
             name = 'Dia',
-            dur = 60,
             type = StatusType.Dia,
             over = StatusType.Bio,
             msg = { 2, 264, 252 },
         },
         [ 24] = {
             name = 'Dia II',
-            dur = 120,
             type = StatusType.Dia,
             over = StatusType.Bio,
             msg = { 2, 264, 252 },
         },
         [ 25] = {
             name = 'Dia III',
-            dur = 150,
             type = StatusType.Dia,
             over = StatusType.Bio,
             msg = { 2, 264, 252 },
         },
         [ 33] = {
             name = 'Diaga',
-            dur = 60,
             type = StatusType.Dia,
             over = StatusType.Bio,
             msg = { 2, 264, 252 },
         },
         [ 34] = {
             name = 'Diaga II',
-            dur = 120,
             type = StatusType.Dia,
             over = StatusType.Bio,
             msg = { 2, 264, 252 },
         },
         [230] = {
             name = 'Bio',
-            dur = 60,
             type = StatusType.Bio,
             over = StatusType.Dia,
             msg = { 2, 264, 252 },
         },
         [231] = {
             name = 'Bio II',
-            dur = 120,
             type = StatusType.Bio,
             over = StatusType.Dia,
             msg = { 2, 264, 252 },
         },
         [232] = {
             name = 'Bio III',
-            dur = 150,
             type = StatusType.Bio,
             over = StatusType.Dia,
             msg = { 2, 264, 252 },
         },
         [ 58] = {
             name = 'Paralyze',
-            dur = 120,
             type = StatusType.Paralyze,
             msg = { 236, 277, 268, 271 },
         },
         [ 80] = {
             name = 'Paralyze II',
-            dur = 120,
             type = StatusType.Paralyze,
             msg = { 236, 277, 268, 271 },
         },
         [356] = {
             name = 'Paralyzega',
-            dur = 120,
             type = StatusType.Paralyze,
             msg = { 236, 277, 268, 271 },
         },
         [341] = {
             name = 'Jubaku: Ichi',
-            dur = 180,
             type = StatusType.Paralyze,
             msg = { 237, 267, 278 },
         },
         [342] = {
             name = 'Jubaku: Ni',
-            dur = 300,
             type = StatusType.Paralyze,
             msg = { 237, 267, 278 },
         },
         [343] = {
             name = 'Jubaku: San',
-            dur = 420,
             type = StatusType.Paralyze,
             msg = { 237, 267, 278 },
         },
         [ 56] = {
             name = 'Slow',
-            dur = 180,
             type = StatusType.Slow,
             msg = { 236, 277, 268, 271 },
         },
         [ 79] = {
             name = 'Slow II',
-            dur = 180,
             type = StatusType.Slow,
             msg = { 236, 277, 268, 271 },
         },
         [357] = {
             name = 'Slowga',
-            dur = 180,
             type = StatusType.Slow,
             msg = { 236, 277, 268, 271 },
         },
         [344] = {
             name = 'Hojo: Ichi',
-            dur = 180,
             type = StatusType.Slow,
             msg = { 236, 277, 268, 271 },
         },
         [345] = {
             name = 'Hojo: Ni',
-            dur = 300,
             type = StatusType.Slow,
             msg = { 236, 277, 268, 271 },
         },
         [346] = {
             name = 'Hojo: San',
-            dur = 420,
             type = StatusType.Slow,
             msg = { 236, 277, 268, 271 },
         },
         [254] = {
             name = 'Blind',
-            dur = 180,
             type = StatusType.Blind,
             msg = { 236, 277, 268, 271 },
         },
         [276] = {
             name = 'Blind II',
-            dur = 180,
             type = StatusType.Blind,
             msg = { 236, 277, 268, 271 },
         },
         [361] = {
             name = 'Blindga',
-            dur = 180,
             type = StatusType.Blind,
             msg = { 236, 277, 268, 271 },
         },
         [347] = {
             name = 'Kurayami: Ichi',
-            dur = 180,
             type = StatusType.Blind,
             msg = { 236, 277, 268, 271 },
         },
         [348] = {
             name = 'Kurayami: Ni',
-            dur = 300,
             type = StatusType.Blind,
             msg = { 236, 277, 268, 271 },
         },
         [349] = {
             name = 'Kurayami: San',
-            dur = 420,
             type = StatusType.Blind,
             msg = { 236, 277, 268, 271 },
         },
         [216] = {
             name = 'Gravity',
-            dur = 120,
             type = StatusType.Gravity,
             msg = { 236, 277, 268, 271 },
         },
         [217] = {
             name = 'Gravity II',
-            dur = 180,
             type = StatusType.Gravity,
             msg = { 236, 277, 268, 271 },
         },
         [112] = {
             name = 'Flash',
-            dur = 12,
             type = StatusType.Flash,
             msg = { 236, 277, 268, 271 },
         },
         [ 59] = {
             name = 'Silence',
-            dur = 120,
             type = StatusType.Silence,
             msg = { 236, 277, 268, 271 },
         },
         [359] = {
             name = 'Silencega',
-            dur = 120,
             type = StatusType.Silence,
             msg = { 236, 277, 268, 271 },
         },
         [253] = {
             name = 'Sleep',
-            dur = 60,
             type = StatusType.Sleep,
             msg = { 236, 277, 268, 271 },
         },
         [259] = {
             name = 'Sleep II',
-            dur = 90,
             type = StatusType.Sleep,
             msg = { 236, 277, 268, 271 },
         },
         [273] = {
             name = 'Sleepga',
-            dur = 60,
             type = StatusType.Sleep,
             msg = { 236, 277, 268, 271 },
         },
         [274] = {
             name = 'Sleepga II',
-            dur = 90,
             type = StatusType.Sleep,
             msg = { 236, 277, 268, 271 },
         },
         [463] = {
             name = 'Foe Lullaby',
-            dur = 60,
             type = StatusType.Sleep,
             msg = { 237, 267, 278 },
         },
         [376] = {
             name = 'Horde Lullaby',
-            dur = 60,
             type = StatusType.Sleep,
             msg = { 237, 267, 278 },
         },
         [258] = {
             name = 'Bind',
-            dur = 60,
             type = StatusType.Bind,
             msg = { 236, 277, 268, 271 },
         },
         [362] = {
             name = 'Bindga',
-            dur = 60,
             type = StatusType.Bind,
             msg = { 236, 277, 268, 271 },
         },
         [252] = {
             name = 'Stun',
-            dur = 5,
             type = StatusType.Stun,
             msg = { 236, 277, 268, 271 },
         },
         [220] = {
             name = 'Poison',
-            dur = 30,
             type = StatusType.Poison,
             msg = { 236, 277, 268, 271 },
         },
         [221] = {
             name = 'Poison II',
-            dur = 120,
             type = StatusType.Poison,
             msg = { 236, 277, 268, 271 },
         },
         [225] = {
             name = 'Poisonga',
-            dur = 60,
             type = StatusType.Poison,
             msg = { 236, 277, 268, 271 },
         },
         [226] = {
             name = 'Poisonga II',
-            dur = 120,
             type = StatusType.Poison,
             msg = { 236, 277, 268, 271 },
         },
         [350] = {
             name = 'Dokumori: Ichi',
-            dur = 60,
             type = StatusType.Poison,
             msg = { 237, 267, 278 },
         },
         [351] = {
             name = 'Dokumori: Ni',
-            dur = 120,
             type = StatusType.Poison,
             msg = { 237, 267, 278 },
         },
         [352] = {
             name = 'Dokumori: San',
-            dur = 360,
             type = StatusType.Poison,
             msg = { 237, 267, 278 },
         },
         [239] = {
             name = 'Shock',
-            dur = 120,
             type = StatusType.Shock,
             over = StatusType.Drown,
             msg = { 237, 267, 278 },
         },
         [238] = {
             name = 'Rasp',
-            dur = 120,
             type = StatusType.Rasp,
             over = StatusType.Shock,
             msg = { 237, 267, 278 },
         },
         [237] = {
             name = 'Choke',
-            dur = 120,
             type = StatusType.Choke,
             over = StatusType.Rasp,
             msg = { 237, 267, 278 },
         },
         [236] = {
             name = 'Frost',
-            dur = 120,
             type = StatusType.Frost,
             over = StatusType.Choke,
             msg = { 237, 267, 278 },
         },
         [235] = {
             name = 'Burn',
-            dur = 120,
             type = StatusType.Burn,
             over = StatusType.Frost,
             msg = { 237, 267, 278 },
         },
         [240] = {
             name = 'Drown',
-            dur = 120,
             type = StatusType.Drown,
             over = StatusType.Burn,
             msg = { 237, 267, 278 },
         },
         [421] = {
             name = 'Battlefield Elegy',
-            dur = 150,
             type = StatusType.Elegy,
             msg = { 237, 267, 278 },
         },
         [422] = {
             name = 'Carnage Elegy',
-            dur = 250,
             type = StatusType.Elegy,
             msg = { 237, 267, 278 },
         },
         [423] = {
-            name = 'Massacre Elegy',
-            dur = 350, -- ???
+            name = 'Massacre Elegy', -- ???
             type = StatusType.Elegy,
             msg = { 237, 267, 278 },
         },
         [368] = {
             name = 'Foe Requiem',
-            dur = 100,
             type = StatusType.Requiem,
             msg = { 237, 267, 278 },
         },
         [369] = {
             name = 'Foe Requiem II',
-            dur = 150,
             type = StatusType.Requiem,
             msg = { 237, 267, 278 },
         },
         [370] = {
             name = 'Foe Requiem III',
-            dur = 200,
             type = StatusType.Requiem,
             msg = { 237, 267, 278 },
         },
         [371] = {
             name = 'Foe Requiem IV',
-            dur = 250,
             type = StatusType.Requiem,
             msg = { 237, 267, 278 },
         },
         [372] = {
             name = 'Foe Requiem V',
-            dur = 300,
             type = StatusType.Requiem,
             msg = { 237, 267, 278 },
         },
         [373] = {
             name = 'Foe Requiem VI',
-            dur = 350,
             type = StatusType.Requiem,
             msg = { 237, 267, 278 },
         },
         [374] = {
             name = 'Foe Requiem VII',
-            dur = 400,
             type = StatusType.Requiem,
             msg = { 237, 267, 278 },
         },
         [454] = {
             name = 'Fire Threnody',
-            dur = 120,
             type = StatusType.Threnody,
             msg = { 237, 267, 278 },
             ele = 'fire',
         },
         [455] = {
             name = 'Ice Threnody',
-            dur = 120,
             type = StatusType.Threnody,
             msg = { 237, 267, 278 },
             ele = 'ice',
         },
         [456] = {
             name = 'Wind Threnody',
-            dur = 120,
             type = StatusType.Threnody,
             msg = { 237, 267, 278 },
             ele = 'wind',
         },
         [457] = {
             name = 'Earth Threnody',
-            dur = 120,
             type = StatusType.Threnody,
             msg = { 237, 267, 278 },
             ele = 'earth',
         },
         [458] = {
             name = 'Lightning Threnody',
-            dur = 120,
             type = StatusType.Threnody,
             msg = { 237, 267, 278 },
             ele = 'lightning',
         },
         [459] = {
             name = 'Water Threnody',
-            dur = 120,
             type = StatusType.Threnody,
             msg = { 237, 267, 278 },
             ele = 'water',
         },
         [460] = {
             name = 'Light Threnody',
-            dur = 120,
             type = StatusType.Threnody,
             msg = { 237, 267, 278 },
             ele = 'light',
         },
         [461] = {
             name = 'Dark Threnody',
-            dur = 120,
             type = StatusType.Threnody,
             msg = { 237, 267, 278 },
             ele = 'dark',
@@ -801,10 +730,10 @@ function debuffs.Action(action)
         return;
     end
 
-    -- the server's base duration for it where its scripts have one, this file's own where they have not
+    -- the server's base duration for it, or its status's usual one, or DEFAULT_SECONDS
     local status = debuffs.StatusIds[spell.type];
     local byServer = durations.spells[action.param];
-    local seconds = (byServer and byServer[status]) or spell.dur;
+    local seconds = (byServer and byServer[status]) or durations.statuses[status] or DEFAULT_SECONDS;
     local expires = os.time() + seconds;
     for _, target in pairs(action.targets) do
         for _, result in pairs(target.actions) do

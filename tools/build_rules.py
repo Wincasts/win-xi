@@ -24,6 +24,9 @@ core patch that names the constant, stops it too (phoenix.modules.guard, cpp_mod
     era              the expansions in the order they came, and the latest whose content live has on
                      (phoenix.modules.LATEST_ENABLED, inferred from what init.txt loads), with the
                      server's name: for what an addon shows of later content
+    corsairRolls     each roll's lucky and unlucky number, by its ability: where its power peaks and falls
+                     among 1 to 10, from job_utils/corsair.lua's rollData with the era modules' powers on
+                     live put over it in the order they apply
     weaponskillTp    the TP a weapon skill's extra hits return, each, before Store TP (scripts/globals/weaponskills.lua)
     automaton        what an automaton casts and uses: each spell's magic skill and the heads that cast it
                      (automaton_spells, module SQL over it), each frame's weapon skills with the skill
@@ -301,6 +304,57 @@ def era(server):
             'Inferred': True}
 
 
+def corsair_rolls(server):
+    path = 'scripts/globals/job_utils/corsair.lua'
+    abilities = {k: int(v) for k, v in re.findall(r'^\s*(\w+)\s*=\s*(\d+),', read(server, 'scripts/enum/job_ability.lua'), re.M)}
+    text = read(server, path)
+    block = find(server, path, r'xi\.job_utils\.corsair\.rollData\s*=\s*\{(.*?)\n\}', 'rollData', re.S).group(1)
+    powers = {}
+    for name, body in re.findall(r'\[xi\.jobAbility\.(\w+)\]\s*=\s*\{(.*?)\n    \}', block, re.S):
+        m = re.search(r'powers\s*=\s*\{([^}]*)\}', body)
+        if m:
+            powers[name] = [int(v) for v in m.group(1).split(',')]
+    if len(powers) < 20:
+        sys.exit(f'{path}: rollData has only {len(powers)} rolls with powers: read it again')
+    # a module on live that sets rolls' powers in onServerStart: each case that applies, the oldest era
+    # last (it wraps the rest, calling super first)
+    for override in modules.overrides(server):
+        if not (override.applies and override.target == 'xi.server.onServerStart' and 'corsair.rollData' in override.body):
+            continue
+        cases = override.cases()
+        cases.sort(key=lambda case: -modules.EXPANSIONS.index(case[0]) if case[0] else 0)
+        for era, body in cases:
+            table = re.search(r'for abilityId, data in pairs\((\w+)\) do\s*local rollInfo\s*=\s*\w+\[abilityId\]\s*rollInfo\.powers\s*=\s*data\.powers', body)
+            if table is None:
+                if 'rollData' in body:
+                    sys.exit(f'{override.path}: changes rollData in a way not read here')
+                continue
+            data = re.search(r'local\s+' + table.group(1) + r'\s*=\s*\{(.*?)\n\}', override.text, re.S).group(1)
+            for name, values in re.findall(r'\[xi\.jobAbility\.(\w+)\]\s*=\s*\{\s*powers\s*=\s*\{([^}]*)\}', data):
+                powers[name] = [int(v) for v in values.split(',')]
+    rolls = {}
+    for name, values in powers.items():
+        if name not in abilities:
+            sys.exit(f'{path}: xi.jobAbility.{name} is not in the enum')
+        first = values[:10]
+        if all(v <= 0 for v in first):
+            first = [-v for v in first]  # a roll that takes away (Blitzer's): its best is its least
+        best, worst = max(first), min(first)
+        if first.count(best) == 1 and first.count(worst) == 1 and first.index(best) < 9:
+            lucky, unlucky, how = first.index(best) + 1, first.index(worst) + 1, 'powers'
+        else:
+            # the powers do not say (one that only rises, or two alike at the top): the roll's own script
+            script = Path(server) / f'scripts/actions/abilities/{name.lower()}.lua'
+            header = script.read_text() if script.is_file() else ''  # its header comment says them
+            said = re.search(r'Lucky Number:\s*(\d+)', header)
+            unsaid = re.search(r'Unlucky Number:\s*(\d+)', header)
+            if not said or not unsaid:
+                sys.exit(f'{name}: its powers do not say its lucky number, nor does its script')
+            lucky, unlucky, how = int(said.group(1)), int(unsaid.group(1)), 'script'
+        rolls[abilities[name]] = {'Name': name.replace('_', ' ').title(), 'Lucky': lucky, 'Unlucky': unlucky, 'From': how}
+    return rolls
+
+
 def build(server, output, settings=()):
     server, output = Path(server), Path(output)
     from build_debuff_durations import enum_block
@@ -317,6 +371,7 @@ def build(server, output, settings=()):
         'automaton': automaton(server),
         'weaponskillTp': weaponskill_tp(server),
         'era': era(server),
+        'corsairRolls': corsair_rolls(server),
     }
     output.mkdir(parents=True, exist_ok=True)
     write_data(output / 'index.lua', {'Schema': 1, 'Source': provenance(server), 'Settings': list(settings),
