@@ -1,6 +1,6 @@
 -- Made by tools/build_debuff_durations.py from the server's scripts and the modules live loads over them:
 -- https://github.com/phoenixffxi/Phoenix.git live at 9a4494d50 (2026-10-18T12:38:17-06:00). Run it again, do not edit.
--- How long a status usually lasts, in seconds, for winxi.debuffs.
+-- How long a status usually lasts, in seconds, for winxi.debuffs (its durations set).
 return {
     -- spell number -> status -> seconds
     spells = {

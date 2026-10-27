@@ -40,15 +40,36 @@ local function Load(path)
     return ok and type(result) == 'table' and result or nil;
 end
 
+-- An addon released with its own winxi (addons\<addon>\winxi) carries its own data beside it: that
+-- folder, or nil for the shared winxi in addons\libs
+local function OwnData()
+    local info = debug.getinfo(1, 'S');
+    local file = info and info.source and info.source:match('^@(.*)$') or nil;
+    if (file == nil) then
+        return nil;
+    end
+    local folder = file:match('^(.*[/\\])gamedata%.lua$');
+    if (folder == nil or folder:lower():match('[/\\]libs[/\\]winxi[/\\]$') or not folder:lower():match('[/\\]winxi[/\\]$')) then
+        return nil;
+    end
+    return folder .. 'data\\';
+end
+
+local Changed;
+
 function gamedata.Root(path)
     if (path ~= nil) then
+        local before = root;
         root, chosen, chosenAt, datasets = path, nil, nil, nil;
+        if (before ~= path and Changed ~= nil) then
+            Changed(); -- what was read is another folder's: the readers read again
+        end
     end
     -- away from Ashita (a check run on its own) there is no install, and so no data: nothing is read
     if (root == nil and AshitaCore == nil) then
         return '';
     end
-    root = root or ('%s\\addons\\libs\\winxi\\data\\'):format(AshitaCore:GetInstallPath());
+    root = root or OwnData() or ('%s\\addons\\libs\\winxi\\data\\'):format(AshitaCore:GetInstallPath());
     return root;
 end
 
@@ -78,7 +99,7 @@ local function Known(key)
 end
 
 local manifest = nil;
-local function Changed()
+function Changed()
     manifest = nil;
     for _, fn in ipairs(listeners) do
         pcall(fn);

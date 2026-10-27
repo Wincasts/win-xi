@@ -127,7 +127,7 @@ of an existing clock panel.
   keeps a table of 2160 Vana'diel days for each zone, three weathers a day; every 3 to 30 Earth minutes
   it rolls again, the rare weather 15% of the time, the common 35%, the normal the rest (from 2:00 to
   7:00, outside cities, a roll that gives a clear sky is fog instead, which the tooltip leaves unsaid);
-  a zone with one entry or none never changes. The tables are `winxi/infopanel/zone_weather.lua`, built from the server's
+  a zone with one entry or none never changes. The tables are winxi's `weather` set (`data/<server>/weather`), built from the server's
   `sql/zone_weather.sql` and zone types by `tools/build_zone_weather.py`.
 - Hover the `{time}`, `{day}`, `{date}` or `{moon}` words for the **Vana'diel calendar**: the month,
   its thirty days in weeks of eight under the Icon Set's day pictures (or the days' names), today
@@ -146,7 +146,7 @@ of an existing clock panel.
   `data/zones/<name>/zone.yaml` (`src/map/transports/ship_handler.cpp`): the seconds into the cycle
   are the raw game time less the run's offset, modulo its length, the door open through the docked
   phase and the riders put ashore at the run's disembark second. The runs are
-  `winxi/infopanel/transports.lua`, built by `tools/build_transports.py`; the Aht Urhgan ferries run
+  winxi's `transports` set (`data/<server>/transports`), built by `tools/build_transports.py`; the Aht Urhgan ferries run
   only where the server has `ENABLE_TOAU` on, as the live branch does. Both automatically placed icons and `{dayicon}` / `{weathericon}` tokens support
   this, including panel-only mode when the logs are empty. Tooltips use the shared Winxi tooltip
   enable switch, delay and styling, but not its width: each is as wide as its longest line, so the

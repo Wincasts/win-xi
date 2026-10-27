@@ -1,4 +1,5 @@
 -- winxi.debuffs on its own: what is on an enemy, from the spells seen to land on it
+require('winxi.gamedata').Root('addons/libs/winxi/data/') -- the server's durations set, from the repository's data
 local debuffs = require('winxi.debuffs')
 local now = 1000
 os.time = function() return now end

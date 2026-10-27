@@ -8,7 +8,7 @@ The optional map grid uses native HUD data or `grid.Read()` (the game's own grid
 Neither fallback requires the clock to render, and neither claims or stops a HUD slot.
 `panel`, `fields`, `exp`, `icons` and `panel_settings` are also used by the legacy clock addon
 through compatibility imports. Each addon still has its own Lua state, settings and EXP tracker.
-`forecast` gives the zone's weather odds as the Phoenix server rolls them, from `zone_weather.lua`
+`forecast` gives the zone's weather odds as the server rolls them, from its `weather` set
 (built by `tools/build_zone_weather.py` from the server's `sql/zone_weather.sql` and zone types);
 `calendar` builds and draws the Vana'diel month for the tooltip over the time, day, date and moon;
 `schedule` builds and draws the ships' and airships' timetable (the next four to leave, of the lines the host

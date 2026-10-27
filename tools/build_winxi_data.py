@@ -30,6 +30,9 @@ import build_item_data
 import build_action_data
 import build_quest_data
 import build_rules
+import build_zone_weather
+import build_transports
+import build_debuff_durations
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / 'addons/libs/winxi/data'
@@ -62,6 +65,11 @@ SETS = {
     **{kind: (f'Phoenix {kind}: definitions and source evidence (winxi.{kind})', build_action_data.builder(kind))
        for kind in ('spells', 'abilities', 'weaponskills', 'traits', 'jobs', 'skills', 'elements')},
     'statuses': ('Every status effect the server has: name, flags, element (winxi.statuses)', build_action_data.build_statuses),
+    'durations': ('How long each status a spell or monster\'s move puts on lasts (winxi.debuffs)', build_debuff_durations.build),
+    'weather': ('Each zone\'s weather table and the rare and common chances (winxi.infopanel.forecast)',
+                lambda server, output, settings: build_zone_weather.build(Path(server), output / 'index.lua')),
+    'transports': ('The ships\' and airships\' timetable (winxi.infopanel.schedule)',
+                   lambda server, output, settings: build_transports.build(Path(server), output / 'index.lua')),
     'rules': ('The server\'s game rules read from its code: Treasure Hunter, haste, swing, resting, bind (winxi.rules)', build_rules.build),
     'mobs': ('An area\'s monsters, as mobdb has them (winxi.mobs.Zone)', build_mobs),
     'placeholders': ('Each notorious monster\'s placeholders (winxi.mobs.Placeholders)', build_placeholders),

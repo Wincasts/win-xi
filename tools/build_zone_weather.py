@@ -12,7 +12,7 @@ to 7:00, outside cities, a roll that gives a clear sky (none, sunshine, clouds o
 instead. A zone with one entry or none never rolls: its weather is the common weather of the entry
 at day 0, or none.
 
-Writes addons/libs/winxi/infopanel/zone_weather.lua: the distinct day tables (one string of 2160
+Writes winxi's weather set (addons/libs/winxi/data/<server>/weather/index.lua; a set of build_winxi_data): the distinct day tables (one string of 2160
 bytes each, a byte a day, 33 + the index of the day's weather triple), each zone's table or its
 fixed weather, and which zones are cities (data/zones/<name>/zone.yaml types) for the fog rule.
 Reads the live branch of phoenixffxi/Phoenix, fetched from GitHub (tools/phoenix), as live loads it:
@@ -164,9 +164,11 @@ def build(server, output):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     source.add_arguments(parser)
-    parser.add_argument('--output', type=Path, default=ROOT / 'addons/libs/winxi/infopanel/zone_weather.lua')
+    parser.add_argument('--output', type=Path, default=None, help='Where to write it; default data/<server>/weather/index.lua.')
     args = parser.parse_args()
     found = source.from_arguments(args)
+    args.output = args.output or ROOT / 'addons/libs/winxi/data' / source.KEY / 'weather' / 'index.lua'
+    args.output.parent.mkdir(parents=True, exist_ok=True)
     print(f'Server: {found.describe()}')
     rolling, fixed, patterns, triples, cities = build(found.path, args.output)
     print(f'Wrote {args.output}: {rolling} rolling zones over {patterns} patterns of {triples} triples, '

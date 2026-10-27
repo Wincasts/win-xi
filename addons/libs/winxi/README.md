@@ -13,7 +13,7 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 | `winxi.nativehistory` | `new()` → `Request()`, `Lines()` (once served: the game's first log window's last 100 lines, oldest first, each `{ text, mode, serial, flags, extra }`, text as the game was given it), `Status()`. Independent history ABI 1 in uihook 0.6; read only. |
 | `winxi.gamekeys` | `new()` → `Hold(keys)` (virtual keys to keep from the game's chat editor this frame, `{ [vk] = true }`; named again each frame), `Ready()`, `Status()`. The editor reads keys in the game's message loop before Ashita's `key` event, so blocking that event keeps nothing from it; uihook keeps each named key's press, repeats, character and release. Independent keys ABI 1 in uihook 1.61. |
 | `winxi.frame` | A themed frame attachment on the current window's captured draw list: `Draw(rect, draw, options)` with explicit `{left,top,width,height}` bounds; background, border art and captured shadow, without an extra ImGui window or layout item. `chatbox` uses it for its Info Panel. |
-| `winxi.infopanel.*` | Shared info-panel layout/fields, EXP tracking, icon sets and settings. `infopanel.chat` owns chat attachment selection/sampling/rendering; its source never claims a native HUD slot. Bundled icons live in `infopanel/icons`. `clock` compatibility modules delegate here. Winxi 21. `infopanel.forecast` (the zone's weather odds from the Phoenix tables in `infopanel/zone_weather.lua`) and `infopanel.calendar` (the Vana'diel month, built and drawn) Winxi 31. |
+| `winxi.infopanel.*` | Shared info-panel layout/fields, EXP tracking, icon sets and settings. `infopanel.chat` owns chat attachment selection/sampling/rendering; its source never claims a native HUD slot. Bundled icons live in `infopanel/icons`. `clock` compatibility modules delegate here. Winxi 21. `infopanel.forecast` (the zone's weather odds from the server's `weather` set) and `infopanel.calendar` (the Vana'diel month, built and drawn) Winxi 31. |
 | `winxi.shadow` | The drop shadow, drawn inside a window |
 | `winxi.text` | Text with a dark edge all round it: how anything written over a bar, an image or the game itself is written |
 | `winxi.fade` | Fading an addon's windows out while the player is idle, from settings the addon keeps (`widgets.Fade` draws their controls) |
@@ -24,7 +24,7 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 | `winxi.sound` | The small sounds a menu makes, off until an addon turns them on |
 | `winxi.game` | What is asked of the game itself: the menu on top, whether the map is open or an event running, bag access, and the rules for when windows hide |
 | `winxi.packets` | The packets addons send and read, set out once |
-| `winxi.debuffs` | Which statuses are on each enemy (or anyone) and for how long yet, worked out from what the server says took hold and wore off; durations from `winxi.debuff_durations`, made by `tools/build_debuff_durations.py` from the server's scripts |
+| `winxi.debuffs` | Which statuses are on each enemy (or anyone) and for how long yet, worked out from what the server says took hold and wore off; durations from the server's `durations` set, made by `tools/build_debuff_durations.py` from its scripts |
 | `winxi.abi` | How every plugin block is accepted, as `plugins/ABI.md` promises until 2.0: `Accepts(block, ctype, version)` (this Version and at least the addon's size, so a newer plugin's grown block is still read) and `Has(block, ctype, field)` (the plugin is new enough for a field). WinXI 57. |
 | `winxi.perf` | Every event handler the addon registers after it is timed, and the sums (calls, time, longest call, by kind of event) go into shared memory one row an addon, for the [perf](../../perf) addon to show: `Rows()`, `Events`, `ResetMax()`, `Seconds()`. `winxi.shell` requires it, so every shell addon is timed; the others add one `require`. WinXI 63. |
 | `winxi.layers` | Drawing into the world through namehook 1.46: an addon takes one of four layers (`Take(owner, order)`), and each frame `Begin`s it, anchors drawings `AtEntity` (its name point, offset in the world) or `AtWorld` (a point), fills them with `Quad` as `nameplates.Quad`, and `End`s each; `SetTexture` 0 to 31; `Release` on unload. Each drawing is placed and hidden as a name is, under lens too; layers are drawn by order, lowest first. WinXI 62. |
@@ -440,7 +440,7 @@ debuffs.StatusRemaining(serverId, status);            -- seconds left, or nil wh
 ```
 
 How long each lasts is the server's base duration for the spell or monster's move that put it there,
-or the usual one for the status, from `winxi.debuff_durations` (`tools/build_debuff_durations.py`
+or the usual one for the status, from the server's `durations` set (`tools/build_debuff_durations.py`
 makes it from the Phoenix server's live branch on GitHub), or 180 seconds where nothing says. Merits, gear and partial
 resists are not known.
 

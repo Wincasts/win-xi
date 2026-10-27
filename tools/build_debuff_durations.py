@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Write addons/libs/winxi/debuff_durations.lua: how long a status put on something usually lasts,
+"""Write winxi's durations set (addons/libs/winxi/data/<server>/durations/index.lua; a set of
+build_winxi_data): how long a status put on something usually lasts,
 for winxi.debuffs, which is told that a status took hold but never for how long.
 
 Read from the server as live runs it: the live branch of phoenixffxi/Phoenix, fetched from GitHub
@@ -65,13 +66,9 @@ def enum_block(text, name):
     return {m.group(1): int(m.group(2)) for m in re.finditer(r'(\w+)\s*=\s*(\d+)', found.group(1))} if found else {}
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    source.add_arguments(parser)
-    parser.add_argument('--out', type=Path, default=ROOT / 'addons/libs/winxi/debuff_durations.lua')
-    args = parser.parse_args()
-    found = source.from_arguments(args)
-    print(f'Server: {found.describe()}')
+def build(server, output, settings=()):
+    """The durations set: output/index.lua, for the server's checkout at server."""
+    found = source.read(server)
     scripts = found.path / 'scripts'
 
     numbers = status_numbers(ROOT / 'tools/status_icons.csv')
@@ -304,7 +301,7 @@ def main():
 
     out = ['-- Made by tools/build_debuff_durations.py from the server\'s scripts and the modules live loads over them:',
            f'-- {found.describe()}. Run it again, do not edit.',
-           '-- How long a status usually lasts, in seconds, for winxi.debuffs.', 'return {']
+           '-- How long a status usually lasts, in seconds, for winxi.debuffs (its durations set).', 'return {']
     out += table('spells', spells, 'spell number -> status -> seconds')
     out += table('mobskills', mobskills, 'a monster\'s move -> status -> seconds')
     out += ['    -- status -> its usual seconds, whatever put it there', '    statuses = {']
@@ -319,12 +316,22 @@ def main():
                 out.append(f'            [{number}] = {{ {inner} }},')
         out += ['        },']
     out += ['    },', '};', '']
-    args.out.write_text('\n'.join(out))
+    output.mkdir(parents=True, exist_ok=True)
+    (output / 'index.lua').write_text('\n'.join(out))
 
-    print(f'{len(spells)} spells, {len(mobskills)} monster moves and {len(statuses)} statuses, in {args.out}')
-    print(f'Server: {found.describe()}')
+    print(f'{len(spells)} spells, {len(mobskills)} monster moves and {len(statuses)} statuses, in {output}')
     for name, count in unmatched.most_common():
         print(f'  no status called {name} ({count})')
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    source.add_arguments(parser)
+    parser.add_argument('--out', type=Path, default=None, help='The set\'s folder; default data/<server>/durations.')
+    args = parser.parse_args()
+    found = source.from_arguments(args)
+    print(f'Server: {found.describe()}')
+    build(found.path, args.out or ROOT / 'addons/libs/winxi/data' / source.KEY / 'durations')
 
 
 if __name__ == '__main__':

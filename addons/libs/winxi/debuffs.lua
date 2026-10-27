@@ -24,7 +24,7 @@
 --
 -- category and param are the action's that put it there (4 and the spell's number for a spell). How long
 -- it lasts is the server's base duration for that spell or monster's move, or failing that the usual
--- one for the status (winxi.debuff_durations, made from the server's scripts), or failing that
+-- one for the status (the server's durations set, made from its scripts), or failing that
 -- DEFAULT_SECONDS; the server saying it wore off, or was taken off, ends it before that.
 -- A blow, weapon skill, spell or additional effect that does damage ends sleep, and bind but for one
 -- the player put there, which waits for the server to say it broke. Damage over time wakes a sleeper
@@ -42,13 +42,19 @@
 -- unless the server says it wore off first. All is forgotten on a change of area. The kinds come
 -- from spells alone.
 local packets = require('winxi.packets');
-local found, durations = pcall(require, 'winxi.debuff_durations');
-if not found or type(durations) ~= 'table' then
-    durations = {};
+local gamedata = require('winxi.gamedata');
+-- How long each status lasts, as the chosen server's data has it (its durations set), read again when
+-- another server's is chosen; none known where there is no data
+local durations = {};
+local function LoadDurations()
+    local found = gamedata.Read('durations', 'index');
+    durations = type(found) == 'table' and found or {};
+    durations.spells = durations.spells or {};
+    durations.mobskills = durations.mobskills or {};
+    durations.statuses = durations.statuses or {};
 end
-durations.spells = durations.spells or {};
-durations.mobskills = durations.mobskills or {};
-durations.statuses = durations.statuses or {};
+LoadDurations();
+gamedata.OnChange(LoadDurations);
 
 local debuffs = {};
 
@@ -86,7 +92,7 @@ local StatusType = {
 
 -- Action category (4 is a spell finishing) -> spell -> the debuff it leaves, the kind it takes the
 -- place of, and the messages that mean it took hold. How long it lasts is the server's
--- (winxi.debuff_durations): the spell's, or failing that the status's usual one, or DEFAULT_SECONDS.
+-- (its durations set): the spell's, or failing that the status's usual one, or DEFAULT_SECONDS.
 local ActionMap = {
     [  4] = {
         [ 23] = {
