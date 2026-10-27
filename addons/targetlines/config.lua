@@ -1,7 +1,7 @@
-local imgui = require('imgui');
 local chat = require('chat');
 local settings = require('settings');
-local tips = require('winxi.tooltip');
+local window = require('winxi.window');
+local widgets = require('winxi.widgets');
 
 local defaultSettings = T {
     filter = 'All', -- /targetlines filters: All, Alliance or Party
@@ -123,25 +123,16 @@ local preview = setmetatable({}, {
 local minNameplateRaise, maxNameplateRaise = -30, 30;
 local minNameplateInset, maxNameplateInset = 0, 50;
 
--- The kinds of line the addon draws, in the order they are listed in the config window
+-- The kinds of line the addon draws, in the order their colours are listed in the settings window
 local lineTypes = T {
-    { key = 'player', label = 'Player' },                 -- a player acting on an enemy
-    { key = 'enemy', label = 'Enemy' },                   -- an enemy acting on a player
-    { key = 'playerFriendly', label = 'Friendly' },       -- a player helping a player
-    { key = 'pet', label = 'Pet' },                       -- your pet's target
-    { key = 'enemyFriendly', label = 'Other' }            -- an enemy acting on an enemy
+    { key = 'player', label = 'Player', id = '##color.player', sentence = 'A player\'s line to the enemy it acts on.' },
+    { key = 'enemy', label = 'Enemy', id = '##color.enemy', sentence = 'An enemy\'s line to the player it acts on.' },
+    { key = 'playerFriendly', label = 'Friendly', id = '##color.playerFriendly', sentence = 'A player\'s line to another player it helps.' },
+    { key = 'pet', label = 'Pet', id = '##color.pet', sentence = 'Your pet\'s line to what it is attacking.' },
+    { key = 'enemyFriendly', label = 'Other', id = '##color.enemyFriendly', sentence = 'An enemy\'s line to another enemy it acts on.' }
 };
 local maxTransparency = 90; -- 100 would make the lines invisible
 local config = T {};
-
--- A control's title drawn to its left, on the same line, in place of ImGui's label on the right
-local function leftLabel(text)
-    if (imgui.AlignTextToFramePadding) then
-        imgui.AlignTextToFramePadding();
-    end
-    imgui.Text(text);
-    imgui.SameLine();
-end
 
 -- Whether the test line is on, and the settings to draw by while it is
 config.isTesting = function()
@@ -152,209 +143,151 @@ config.preview = function()
     return preview;
 end
 
+-- The settings window: described rows (winxi 65) in sections, in a settings window of winxi's.
+-- Every control shows what is pending where there is anything, and stages what is chosen; the Save
+-- Settings row applies and writes it all.
+
+-- A control's value on its way in and out: one table a setting, made once
+local boxes = {};
+
+local function box(key, value)
+    local held = boxes[key];
+    if (held == nil) then
+        held = { value };
+        boxes[key] = held;
+    else
+        held[1] = value;
+    end
+    return held;
+end
+
+-- Stages a checkbox's new value when it was ticked or unticked
+local function stagedCheck(name, sentence, key, id, spec)
+    local held = box(key, shown(key) and true or false);
+    if (widgets.Check(name, sentence, held, id, spec)) then
+        stage(key, held[1]);
+    end
+end
+
+local function stagedSlider(name, sentence, key, default, low, high, id, spec)
+    local held = box(key, tonumber(shown(key)) or default);
+    if (widgets.Slider(name, sentence, held, low, high, id, spec)) then
+        stage(key, held[1]);
+    end
+end
+
+local experimentalSpec = { experimental = true };
+local anchorSpec = { parent = false }; -- Anchor Height and Anchor Gap, under Anchor To Nameplate
+local pickedColors = {}; -- by line type: the swatch's colour this frame, the picker's changes read from it
+local configStyle = { kind = window.Settings };
+local configFlags = nil;
+
+local function drawLines()
+    if (widgets.Header('Lines', true)) then
+        local chosen = widgets.Dropdown('Filters', 'Draws everyone\'s lines, or only those tied to your party or alliance. /targetlines filters sets it too.',
+            filters, shown('filter'), '##filters');
+        if (chosen ~= nil) then
+            stage('filter', chosen);
+        end
+        stagedCheck('Quiet Mode', 'Draws only the lines to or from you, your pet and your target. /targetlines quietmode switches it too.',
+            'quietMode', '##quietmode');
+
+        -- Stored as its opposite: mobBrief is true when mob lines are not persistent
+        local persistentMob = box('persistentMob', not shown('mobBrief'));
+        if (widgets.Check('Persistent Enemy Targets', 'Keeps a mob\'s line up for as long as it applies. Off, it shows for a few seconds.',
+                persistentMob, '##persistentenemy')) then
+            stage('mobBrief', not persistentMob[1]);
+        end
+        stagedCheck('Show Pet Enmity', 'Draws a line from your pet to whatever it is attacking. /targetlines petenmity switches it too.',
+            'petLine', '##petenmity');
+        stagedCheck('Enmity Mode', 'Draws a mob\'s line to whoever it is fighting. Off, only when it acts.',
+            'mobThreat', '##enmitymode', experimentalSpec);
+        widgets.Gap();
+        stagedCheck('Enmity Alert Sound', 'Plays a sound when a mob turns on you or your pet, or someone starts helping you.',
+            'aggroSound', '##alertsound');
+    end
+end
+
+local function drawLook()
+    if (widgets.Header('Look')) then
+        -- the test line's own box, not a setting: nothing to stage
+        widgets.Check('Show Test Line', 'Draws a line from you to your target, using the settings as they are here.',
+            testLine, '##testline');
+
+        -- Shown as opacity (80% by default); stored as its complement, transparency
+        local opacity = box('opacity', 100 - (tonumber(shown('transparency')) or 20));
+        if (widgets.Slider('Opacity', 'How solid the lines are.', opacity, 100 - maxTransparency, 100, '##opacity', widgets.Percent)) then
+            stage('transparency', 100 - opacity[1]);
+        end
+        stagedSlider('Curve', 'How far each line bows out. 100 is the usual curve.',
+            'curve', 100, minCurve, maxCurve, '##curve', widgets.Percent);
+        stagedSlider('Orb Size', 'How big the orb at the tip of a line is while it draws in.',
+            'orbScale', 80, minOrbScale, maxOrbScale, '##orbscale', widgets.Percent);
+        widgets.Gap();
+        stagedCheck('Anchor To Nameplate', 'Starts and ends each line at the character\'s name instead of its body.',
+            'nameplateAnchor', '##nameplateanchor', experimentalSpec);
+        anchorSpec.parent = shown('nameplateAnchor') and true or false;
+        stagedSlider('Anchor Height', 'How far above the name each line starts and ends. Below 0 is under it.',
+            'nameplateRaise', 0, minNameplateRaise, maxNameplateRaise, '##nameplateraise', anchorSpec);
+        stagedSlider('Anchor Gap', 'How far short of each name a line stops. 0 runs it the whole way.',
+            'nameplateInset', 5, minNameplateInset, maxNameplateInset, '##nameplateinset', anchorSpec);
+        stagedCheck('Hide Behind Objects', 'Hides any part of a line that is behind a wall, the ground or a character.',
+            'occlude', '##occlude', experimentalSpec);
+    end
+end
+
+local function drawColours()
+    if (widgets.Header('Colours')) then
+        -- One swatch per kind of line; the picker opens on it
+        local savedColors = type(s.colors) == 'table' and s.colors or {};
+        for _, lineType in ipairs(lineTypes) do
+            local key = lineType.key;
+            local current = pendingColors[key] or savedColors[key] or defaultSettings.colors[key];
+            local picked = pickedColors[key];
+            if (picked == nil) then
+                picked = { 0, 0, 0, 1 };
+                pickedColors[key] = picked;
+            end
+            picked[1], picked[2], picked[3], picked[4] = current[1], current[2], current[3], 1;
+            if (widgets.Color(lineType.label, lineType.sentence, picked, lineType.id)) then
+                pendingColors[key] = { picked[1], picked[2], picked[3], 1 };
+            end
+        end
+        if (widgets.Action('Reset Colours', 'Puts every line colour back to its default.', 'Reset##resetcolours')) then
+            for _, lineType in ipairs(lineTypes) do
+                local default = defaultSettings.colors[lineType.key];
+                pendingColors[lineType.key] = { default[1], default[2], default[3], 1 };
+            end
+        end
+    end
+end
+
+local function drawSaving()
+    if (widgets.Header('Saving')) then
+        if (widgets.Action('Save Settings', 'Applies and saves the changes made here. /targetlines save does the same.', 'Save##save')) then
+            saveSettings();
+        end
+    end
+end
+
+local function drawContent()
+    drawLines();
+    drawLook();
+    drawColours();
+    drawSaving();
+    if (not hasPending()) then
+        widgets.Status('Everything here is saved.');
+    elseif (testLine[1]) then
+        widgets.Status('Unsaved changes. The lines are drawn with them while the test line is on.');
+    else
+        widgets.Status('Unsaved changes. Nothing changed here takes effect until it is saved.');
+    end
+end
+
 config.drawWindow = function()
     if (showConfig[1]) then
-        imgui.PushStyleColor(ImGuiCol_WindowBg, { 0, 0.06, .16, .9 });
-        imgui.PushStyleColor(ImGuiCol_TitleBg, { 0, 0.06, .16, .7 });
-        imgui.PushStyleColor(ImGuiCol_TitleBgActive, { 0, 0.06, .16, .9 });
-        imgui.PushStyleColor(ImGuiCol_TitleBgCollapsed, { 0, 0.06, .16, .5 });
-        imgui.PushStyleColor(ImGuiCol_Header, { 0, 0.06, .16, .7 });
-        imgui.PushStyleColor(ImGuiCol_HeaderHovered, { 0, 0.06, .16, .9 });
-        imgui.PushStyleColor(ImGuiCol_HeaderActive, { 0, 0.06, .16, 1 });
-        imgui.PushStyleColor(ImGuiCol_FrameBg, { 0, 0.06, .16, 1 });
-        imgui.SetNextWindowSize({ 400, 640 }, ImGuiCond_FirstUseEver);
-
-        if (imgui.Begin(('Targetlines Config'):fmt(addon.version), showConfig, bit.bor(ImGuiWindowFlags_NoSavedSettings))) then
-            if (imgui.Button('Save Settings')) then
-                saveSettings();
-            end
-            tips.Hover('Applies the changes made in this window and writes them to disk.\nNothing changed here takes effect until it is saved.\n/targetlines save');
-            if (hasPending()) then
-                imgui.SameLine();
-                imgui.TextColored({ 1, 1, 0, 1 }, 'Unsaved changes');
-            end
-
-            imgui.BeginChild("Config Options", { 0, 0 }, ImGuiChildFlags_Borders or ImGuiChildFlags_Border or true);
-
-            if (imgui.CollapsingHeader('Behaviour', ImGuiTreeNodeFlags_DefaultOpen)) then
-                leftLabel('Filters');
-                imgui.PushItemWidth(-1);
-                local filter = shown('filter');
-                local filtersOpen = imgui.BeginCombo('##filters', filter);
-                imgui.PopItemWidth();
-                tips.Hover('Whose lines are drawn: everyone\'s, or only those connected to your alliance or party.\n/targetlines filters|f [all|alliance|party]');
-                if (filtersOpen) then
-                    for i = 1, 3 do
-                        local isSelected = filters[i] == filter;
-
-                        if (imgui.Selectable(filters[i], isSelected) and not isSelected) then
-                            stage('filter', filters[i]);
-                        end
-
-                        if (isSelected) then
-                            imgui.SetItemDefaultFocus();
-                        end
-                    end
-                    imgui.EndCombo();
-                end
-
-                local quietMode = { shown('quietMode') and true or false };
-                if (imgui.Checkbox('Quiet Mode', quietMode)) then
-                    stage('quietMode', quietMode[1]);
-                end
-                tips.Hover('Draws only the lines to or from you and your pet, and the line from the mob you are targeting.\n/targetlines quietmode|q [on|off]');
-
-                local persistentMob = { not shown('mobBrief') };
-                if (imgui.Checkbox('Persistent Enemy Targets', persistentMob)) then
-                    stage('mobBrief', not persistentMob[1]);
-                end
-                tips.Hover('On keeps a mob\'s line up for as long as it applies.\nOff shows it for a few seconds when the mob changes target, like player lines.\n/targetlines persistentenemy|pe [on|off]');
-
-                local petLine = { shown('petLine') and true or false };
-                if (imgui.Checkbox('Show Pet Enmity', petLine)) then
-                    stage('petLine', petLine[1]);
-                end
-                tips.Hover('Draws a line from your pet to whatever it is attacking.\n/targetlines petenmity|p [on|off]');
-
-                -- "[Experimental] Enmity Mode", with the tag in yellow, so the label is drawn in pieces
-                local newThreatMode = { shown('mobThreat') and true or false };
-                if (imgui.Checkbox('##enmitymode', newThreatMode)) then
-                    stage('mobThreat', newThreatMode[1]);
-                end
-                local enmityHovered = imgui.IsItemHovered();
-                imgui.SameLine();
-                imgui.TextColored({ 1, 1, 0, 1 }, '[Experimental]');
-                enmityHovered = enmityHovered or imgui.IsItemHovered();
-                imgui.SameLine();
-                imgui.Text('Enmity Mode');
-                enmityHovered = enmityHovered or imgui.IsItemHovered();
-                if (enmityHovered) then
-                    tips.Show('On draws mob lines to whoever the mob is judged to be on while it stays engaged.\nOff draws them only when the mob takes an action.\n/targetlines enmitymode|em [on|off]');
-                end
-            end
-
-            if (imgui.CollapsingHeader('Appearance', ImGuiTreeNodeFlags_DefaultOpen)) then
-                local showTest = { testLine[1] };
-                if (imgui.Checkbox('Show Test Line', showTest)) then
-                    testLine[1] = showTest[1];
-                end
-                tips.Hover('Draws a line from you to your target, over and over, to set the look of the lines by. While it is on, every line is drawn as this window has it, before saving.\nIt is not saved, and goes off when the addon is reloaded.\n/targetlines test|t [on|off]');
-
-                -- Shown as opacity (90% by default); stored as its complement, transparency
-                local opacity = { 100 - (tonumber(shown('transparency')) or 20) };
-                leftLabel('Opacity');
-                imgui.PushItemWidth(-1);
-                local opacityChanged = imgui.SliderInt('##opacity', opacity, 100 - maxTransparency, 100, '%d%%');
-                imgui.PopItemWidth();
-                if (opacityChanged) then
-                    stage('transparency', 100 - opacity[1]);
-                end
-                tips.Hover('How solid the lines are. 100%% is fully solid.\n/targetlines opacity|o <10-100>');
-
-                local curve = { tonumber(shown('curve')) or 100 };
-                leftLabel('Curve');
-                imgui.PushItemWidth(-1);
-                local curveChanged = imgui.SliderInt('##curve', curve, minCurve, maxCurve, '%d%%');
-                imgui.PopItemWidth();
-                if (curveChanged) then
-                    stage('curve', curve[1]);
-                end
-                tips.Hover('How far each line bows out from the straight way between its ends. 100%% is the normal curve; less is flatter, more is rounder.\n/targetlines curve|c <' .. minCurve .. '-' .. maxCurve .. '>');
-
-                local orbScale = { tonumber(shown('orbScale')) or 80 };
-                leftLabel('Orb Size');
-                imgui.PushItemWidth(-1);
-                local orbScaleChanged = imgui.SliderInt('##orbscale', orbScale, minOrbScale, maxOrbScale, '%d%%');
-                imgui.PopItemWidth();
-                if (orbScaleChanged) then
-                    stage('orbScale', orbScale[1]);
-                end
-                tips.Hover('Size of the orb at the tip of a line while it draws in. 100%% is the normal size.\n/targetlines orbsize|os <' .. minOrbScale .. '-' .. maxOrbScale .. '>');
-
-                -- "[Experimental] Anchor To Nameplate", with the tag in yellow, so the label is drawn in pieces
-                local nameplateAnchor = { shown('nameplateAnchor') and true or false };
-                if (imgui.Checkbox('##nameplateanchor', nameplateAnchor)) then
-                    stage('nameplateAnchor', nameplateAnchor[1]);
-                end
-                local nameplateHovered = imgui.IsItemHovered();
-                imgui.SameLine();
-                imgui.TextColored({ 1, 1, 0, 1 }, '[Experimental]');
-                nameplateHovered = nameplateHovered or imgui.IsItemHovered();
-                imgui.SameLine();
-                imgui.Text('Anchor To Nameplate');
-                nameplateHovered = nameplateHovered or imgui.IsItemHovered();
-                if (nameplateHovered) then
-                    tips.Show('Starts and ends each line where the game puts the name of the character at that end, in place of the middle of the body, and stops the line a little short of each end.\nTicking it shows the Anchor Height and Anchor Gap options.\n/targetlines nameplate|n [on|off]');
-                end
-
-                -- Only offered while the nameplate anchor is ticked, saved or not
-                if (shown('nameplateAnchor')) then
-                    local nameplateRaise = { tonumber(shown('nameplateRaise')) or 0 };
-                    leftLabel('Anchor Height');
-                    imgui.PushItemWidth(-1);
-                    local nameplateRaiseChanged = imgui.SliderInt('##nameplateraise', nameplateRaise, minNameplateRaise, maxNameplateRaise, '%d');
-                    imgui.PopItemWidth();
-                    if (nameplateRaiseChanged) then
-                        stage('nameplateRaise', nameplateRaise[1]);
-                    end
-                    tips.Hover('How far above the name each line starts and ends, or below it for less than 0. Each step is a tenth of a yalm.\n0 is where the game puts the name, whatever the size of the character.\n/targetlines anchorheight|ah <' .. minNameplateRaise .. ' to ' .. maxNameplateRaise .. '>');
-
-                    local nameplateInset = { tonumber(shown('nameplateInset')) or 5 };
-                    leftLabel('Anchor Gap');
-                    imgui.PushItemWidth(-1);
-                    local nameplateInsetChanged = imgui.SliderInt('##nameplateinset', nameplateInset, minNameplateInset, maxNameplateInset, '%d');
-                    imgui.PopItemWidth();
-                    if (nameplateInsetChanged) then
-                        stage('nameplateInset', nameplateInset[1]);
-                    end
-                    tips.Hover('How far short of each anchor a line starts and ends. Each step is a tenth of a yalm.\n0 runs the line the whole way. Higher values make it shorter, by at most a tenth of its length at each end.\n/targetlines anchorgap|ag <' .. minNameplateInset .. '-' .. maxNameplateInset .. '>');
-                end
-
-                -- "[Experimental] Hide Behind Objects", with the tag in yellow, so the label is drawn in pieces
-                local occlude = { shown('occlude') and true or false };
-                if (imgui.Checkbox('##occlude', occlude)) then
-                    stage('occlude', occlude[1]);
-                end
-                local occludeHovered = imgui.IsItemHovered();
-                imgui.SameLine();
-                imgui.TextColored({ 1, 1, 0, 1 }, '[Experimental]');
-                occludeHovered = occludeHovered or imgui.IsItemHovered();
-                imgui.SameLine();
-                imgui.Text('Hide Behind Objects');
-                occludeHovered = occludeHovered or imgui.IsItemHovered();
-                if (occludeHovered) then
-                    tips.Show('Hides each part of a line that has a wall, the ground or a character in front of it, as if the line were in the game world.\n/targetlines occlude|oc [on|off]');
-                end
-
-                -- One colour swatch per kind of line. Click a swatch to pick a colour.
-                local savedColors = type(s.colors) == 'table' and s.colors or {};
-                local colorFlags = bit.bor(ImGuiColorEditFlags_NoAlpha or 0, ImGuiColorEditFlags_NoInputs or 0);
-                for _, lineType in ipairs(lineTypes) do
-                    local current = pendingColors[lineType.key] or savedColors[lineType.key] or defaultSettings.colors[lineType.key];
-                    local picked = { current[1], current[2], current[3], 1 };
-                    if (imgui.ColorEdit4(lineType.label, picked, colorFlags)) then
-                        pendingColors[lineType.key] = picked;
-                    end
-                end
-                if (imgui.Button('Reset colours')) then
-                    for _, lineType in ipairs(lineTypes) do
-                        local default = defaultSettings.colors[lineType.key];
-                        pendingColors[lineType.key] = { default[1], default[2], default[3], 1 };
-                    end
-                end
-            end
-
-            if (imgui.CollapsingHeader('Sound', ImGuiTreeNodeFlags_DefaultOpen)) then
-                local aggroSound = { shown('aggroSound') and true or false };
-                if (imgui.Checkbox('Enmity Alert Sound', aggroSound)) then
-                    stage('aggroSound', aggroSound[1]);
-                end
-                tips.Hover('Plays a sound when a mob turns on you or your pet, and when someone else newly switches to you or your pet with a green line (a heal or buff).\nAt most once a second.\n/targetlines alertsound|as [on|off]');
-            end
-            imgui.EndChild();
-        end
-        imgui.PopStyleColor(8);
-        imgui.End();
+        configFlags = configFlags or ImGuiWindowFlags_NoSavedSettings;
+        window.Full('Targetlines Settings', showConfig, configFlags, drawContent, configStyle);
     end
 end
 

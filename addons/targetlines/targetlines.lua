@@ -1,6 +1,6 @@
 addon.name    = 'targetlines';
 addon.author  = 'Jyouya, win';
-addon.version = '1.5';
+addon.version = '1.6';
 addon.desc    = 'FFXII style target lines';
 
 require('common');
