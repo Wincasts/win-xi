@@ -15,7 +15,7 @@ local party = setmetatable({}, { __index = function(_, key)
         return 0
     end
 end })
-local player = setmetatable({ GetBuffs = function() return { 0, 40, 255, 513 } end, GetMainJob = function() return 18 end,
+local player = setmetatable({ GetStatusIcons = function() return { 0, 40, 255, 513 } end, GetMainJob = function() return 18 end,
     GetPetMPPercent = function() return 50 end, GetPetTP = function() return 100 end,
 }, { __index = function() return function() return 0 end end })
 local targets = setmetatable({}, { __index = function() return function() return 0 end end })

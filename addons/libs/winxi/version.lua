@@ -116,6 +116,7 @@
 --     SetTexture (0 to 31) and Release
 -- 63: perf, every event handler of an addon timed into shared memory for the perf addon: Events, Rows,
 --     ResetMax, Seconds; required by shell, so every shell addon is timed
+-- 64: partystatus, the player's and the party's statuses as the game keeps them: Own, Member, Party
 return {
-    Number = 63,
+    Number = 64,
 };

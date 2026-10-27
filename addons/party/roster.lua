@@ -20,6 +20,7 @@ local bit = require('bit')
 local ffi = require('ffi')
 local d3d8 = require('d3d8')
 local statusicons = require('winxi.statusicons')
+local partystatus = require('winxi.partystatus')
 local d3d8_device = d3d8.get_device()
 local game = require('game')
 local perf = require('perf')
@@ -106,77 +107,10 @@ local function CreateTexture(statusId, icon)
     end
 end
 
-local ptrStatusIcons = AshitaCore:GetPointerManager():Get('party.statusicons')
-
 -- Empties a list, to be filled again
 local function Clear(list)
     for index = #list, 1, -1 do
         list[index] = nil
-    end
-end
-
--- A member's entry in the game's list of party buffs, 0x30 bytes, as a table of them from 1; or nil
--- where they cannot be had in one read, to be read a byte at a time instead
-local entrySize = 0x30
-
-local function ReadEntry(address)
-    local read = ashita.memory.read_array
-    if read == nil then
-        return nil
-    end
-    local ok, bytes = pcall(read, address, entrySize)
-    if not ok or type(bytes) ~= 'table' or #bytes < entrySize or type(bytes[1]) ~= 'number' then
-        return nil
-    end
-    return bytes
-end
-
--- The buffs of another member of the player's own party, read into buffs. The game keeps them for
--- the five other members of that party, and for nobody in the other two.
-local function ReadMemberBuffs(buffs, serverId)
-    if ptrStatusIcons == nil or ptrStatusIcons == 0 then
-        return
-    end
-    local ptrPartyBuffs = ashita.memory.read_uint32(ptrStatusIcons)
-    if ptrPartyBuffs == nil or ptrPartyBuffs == 0 then
-        return
-    end
-    for memberIndex = 0, 4 do
-        local memberPtr = ptrPartyBuffs + (0x30 * memberIndex)
-        local playerId = ashita.memory.read_uint32(memberPtr)
-
-        if playerId == serverId then
-            -- the member's whole entry in one read, where that can be had: eight bytes of high bits
-            -- from 8, then the thirty-two low bytes from 16. Otherwise a byte at a time.
-            local entry = ReadEntry(memberPtr)
-            -- each byte of high bits serves four buffs, so it is read once for the four
-            local highByte = 0
-            for buffIndex = 0, 31 do
-                local fMod = math.fmod(buffIndex, 4) * 2
-                if fMod == 0 then
-                    local at = 8 + math.floor(buffIndex / 4)
-                    highByte = entry and entry[at + 1] or ashita.memory.read_uint8(memberPtr + at)
-                end
-
-                local lowBits = entry and entry[16 + buffIndex + 1] or ashita.memory.read_uint8(memberPtr + 16 + buffIndex)
-                local highBits = bit.lshift(bit.band(bit.rshift(highByte, fMod), 0x03), 8)
-                local buff = highBits + lowBits
-
-                if buff ~= 255 and buff > 0 then
-                    buffs[#buffs + 1] = buff
-                end
-            end
-            return
-        end
-    end
-end
-
--- The player's own buffs, read into buffs
-local function ReadOwnBuffs(buffs)
-    for _, buff in ipairs(AshitaCore:GetMemoryManager():GetPlayer():GetBuffs()) do
-        if buff ~= nil and buff > 0 and buff ~= 255 then
-            buffs[#buffs + 1] = buff
-        end
     end
 end
 
@@ -278,12 +212,12 @@ local function ReadMember(place, party)
 
     -- buffs are shown for the player's own party alone
     local buffs = member.statusIds
-    Clear(buffs)
     if place == 0 then
-        ReadOwnBuffs(buffs)
-    elseif place <= 5 and serverId ~= 0 then
-        -- an empty place (id 0) would match the empty entries in the game's list of buffs
-        ReadMemberBuffs(buffs, serverId)
+        partystatus.Own(buffs)
+    elseif place <= 5 then
+        partystatus.Member(serverId, buffs)
+    else
+        Clear(buffs)
     end
 
     return member
