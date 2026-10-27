@@ -760,25 +760,27 @@ window PushClipRect (0,0) (1920,1080) false
 window AddText (383,193) #F0E6C2FF Target
 window PopClipRect
 imgui End
-## filled with sample data, the settings open (bare): 649 calls
+## filled with sample data, the settings open (bare): 651 calls
 imgui Begin Party Settings
+window PushClipRect (100,17) (400,39) false
+window AddRectFilled (100,17) (400,39) #B0ADC738
+window AddRectFilled (100,37) (400,39) #B0ADC766
+window PopClipRect
 imgui TextColored (1,0.75,0.55,1) Positioning
 imgui SameLine 0 0
 imgui TextColored (1,0.75,0.55,1) [-]
-window PushClipRect (100,22) (400,24) false
-window AddRectFilled (100,22) (400,24) #B0ADC766
-window PopClipRect
-imgui Dummy (0,6)
+imgui Dummy (0,7)
 imgui Text Automatic Positioning:
 imgui SameLine 22
 imgui NewLine
+window PushClipRect (100,17) (400,39) false
+window AddRectFilled (100,17) (400,39) #B0ADC738
+window AddRectFilled (100,37) (400,39) #B0ADC766
+window PopClipRect
 imgui TextColored (1,0.75,0.55,1) Mouse Interaction
 imgui SameLine 0 0
 imgui TextColored (1,0.75,0.55,1) [-]
-window PushClipRect (100,22) (400,24) false
-window AddRectFilled (100,22) (400,24) #B0ADC766
-window PopClipRect
-imgui Dummy (0,6)
+imgui Dummy (0,7)
 imgui Text Clickthrough
 imgui SetCursorPosY 5
 imgui Dummy (0,3)
