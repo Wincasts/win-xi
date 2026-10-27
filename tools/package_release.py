@@ -54,7 +54,9 @@ RELEASES = {
               'title': 'mobdb data for Phoenix'},
     'parse': {},
     'sct': {},
-    'vis': {'standalone': True},
+    # Released for people who use no other winxi addon: its own winxi, for the zones' kinds and the rules
+    'vis': {'standalone': True, 'private_winxi': True,
+            'checks': [('vis', 'addons/vis/vis.lua', 'vis_check.lua'), ('vis', 'addons/vis/vis.lua', 'vis_game_check.lua')]},
     'inventory': {},
     'name': {'plugin': 'namehook'},
     'occlusionfix': {'standalone': True},
@@ -73,7 +75,7 @@ RELEASES = {
 }
 # MIT, as the repository's LICENSE says: each is given a copy of it. The others keep their own terms.
 MIT = {'addons/libs/winxi', 'addons/winxisettings', 'addons/buff', 'addons/name', 'addons/occlusionfix',
-       'addons/trigger', 'addons/zone', 'addons/zone/winxi', 'addons/chatbox', 'addons/parse', 'addons/sct', 'addons/vis'}
+       'addons/trigger', 'addons/zone', 'addons/zone/winxi', 'addons/vis/winxi', 'addons/chatbox', 'addons/parse', 'addons/sct', 'addons/vis'}
 # The art a winxi module draws, which goes with it into an addon's own copy
 WINXI_ART = {'backgrounds': 'assets/backgrounds', 'borders': 'assets/borders', 'bars': 'assets/bars'}
 # The terms each plugin is under: namehook is a fork of GPL code, the others this repository's own
@@ -159,14 +161,50 @@ def winxi_modules(tree, addon):
     return sorted(found), [found[name] for name in sorted(found)]
 
 
+def data_sets(text):
+    """The sets of winxi's data a file reads by name: gamedata.Read('items', ...), gamedata.Lookup('zonekinds')
+    and catalog.New('statuses'), however winxi.gamedata or winxi.catalog is reached."""
+    sets = set(re.findall(r"\b(?:Read|Lookup)\(\s*['\"](\w+)['\"]", text))
+    sets.update(re.findall(r"catalog['\"]?\)?\.New\(\s*['\"](\w+)['\"]", text))
+    return sets
+
+
+def winxi_data(tree, addon, paths):
+    """What of libs/winxi/data an addon's own winxi carries, as paths under libs/winxi: each set it or the
+    winxi modules it loads read, from every server's folder that has it (and data's own, for the sets that
+    are no server's), with the list of servers and each server's manifest."""
+    winxi = tree / 'addons/libs/winxi'
+    data = winxi / 'data'
+    wanted = set()
+    for source in [*(tree / 'addons' / addon).rglob('*.lua'), *(winxi / path for path in paths)]:
+        wanted |= data_sets(source.read_text(encoding='utf-8', errors='replace'))
+    servers = sorted(path.parent for path in data.glob('*/manifest.lua'))
+    found = [data / 'datasets.lua'] + [server / 'manifest.lua' for server in servers]
+    for name in sorted(wanted):
+        folders = [folder / name for folder in [*servers, data] if (folder / name).is_dir()]
+        if not folders:
+            raise FileNotFoundError(f'{addon} reads the {name} set of winxi\'s data, which no server\'s folder has')
+        found += folders
+    return sorted(wanted), [path.relative_to(winxi) for path in found]
+
+
 def private_winxi(addon, tree, staging):
-    """The addon's own copy of what it needs of winxi, in addons/<addon>/winxi."""
+    """The addon's own copy of what it needs of winxi, in addons/<addon>/winxi: its data sets too."""
     winxi = tree / 'addons/libs/winxi'
     names, paths = winxi_modules(tree, addon)
     target = staging / 'addons' / addon / 'winxi'
     for path in paths:
         (target / path).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(winxi / path, target / path)
+    sets, data = winxi_data(tree, addon, paths)
+    for path in data:
+        (target / path).parent.mkdir(parents=True, exist_ok=True)
+        if (winxi / path).is_dir():
+            shutil.copytree(winxi / path, target / path, dirs_exist_ok=True)
+        else:
+            shutil.copy2(winxi / path, target / path)
+    if sets:
+        print(f"  {addon}'s own winxi carries the data sets {', '.join(sets)}")
     for name, art in WINXI_ART.items():
         if name in names:
             shutil.copytree(winxi / art, target / art, ignore=shutil.ignore_patterns(*LEFT_OUT))
@@ -175,7 +213,9 @@ def private_winxi(addon, tree, staging):
         f'The parts of winxi {number} that {addon} uses, and their art: its own copy, used by {addon} alone.\n'
         f'Ashita looks in addons/{addon} before addons/libs, so a winxi installed by another addon is left\n'
         f'to that addon. The look follows the shared theme (config/addons/winxi) where winxisettings has\n'
-        f'set one, and winxi\'s own otherwise. winxi is at https://github.com/{REPOSITORY}/tree/main/addons/libs/winxi\n')
+        f'set one, and winxi\'s own otherwise. Its data (data/<server>/<set>) is the sets {addon} reads, for each\n'
+        f'server there is data for: the server whose data is used is chosen in winxisettings, for every winxi addon.\n'
+        f'winxi is at https://github.com/{REPOSITORY}/tree/main/addons/libs/winxi\n')
     return names
 
 
@@ -187,7 +227,7 @@ def check_private(addon, extras, staging):
         shutil.copytree(staging / 'addons', root / 'addons')
         if (root / 'addons/libs/winxi').exists():
             raise RuntimeError('addons/libs/winxi got into a release that carries its own')
-        for name, target, check in extras['checks']:
+        for name, target, check in extras.get('checks', []):
             # the addon's folder searched from the start, as Ashita has it, and before addons/libs
             run = subprocess.run(['luajit', 'tests/harness.lua', name, target, f'tests/{check}'], cwd=root,
                                  capture_output=True, text=True, env={**os.environ, 'LUA_PATH': f'addons/{addon}/?.lua;;'})

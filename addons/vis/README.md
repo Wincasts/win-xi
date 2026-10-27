@@ -7,7 +7,8 @@ and dungeons can each have a preset, and a zone values of its own, applied as yo
 replaces the stock `drawdistance` addon: unload that one and take its lines out of your startup
 script.
 
-It needs nothing else.
+It needs nothing else: its release carries its own copy of the parts of winxi it uses (the server data it
+reads, the kind of each zone, among them).
 
 vis was called drawscale until 2.1, and its `terrain` setting `vis`. The first time vis loads for a
 character it copies their drawscale settings, says so, and reads a saved `vis` as `terrain`. Take
