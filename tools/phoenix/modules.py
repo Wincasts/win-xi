@@ -46,6 +46,12 @@ import sys
 from pathlib import Path
 
 DATA_PATCH = True  # modules/temp_patch/lsb-yaml.patch is taken to be applied on live
+# Live's settings are not in the repository (only settings/default); values known or taken to differ
+# from the defaults, by 'file.NAME'. Each is an assumption, and says where it came from.
+LIVE_SETTINGS = {
+    # ToAU's 93% cap rather than the default's retail 80%: tempo's note of Phoenix's value, not confirmed
+    'main.DELAY_REDUCTION_CAP': 0.93,
+}
 EXPANSIONS = ('ROTZ', 'COP', 'TOAU', 'WOTG', 'ACP', 'AMK', 'ASA', 'ABYSSEA', 'VOIDWATCH', 'SOA', 'ROV', 'TVR')
 LATEST_ENABLED = 'TOAU'
 
@@ -455,3 +461,35 @@ def load_yaml(server, name):
     for path in data_patches(server, name):
         document = merge_patch(document, yaml.load(path.read_text(encoding='utf-8-sig'), Loader=loader))
     return document
+
+
+def setting(server, name):
+    """A server setting as live is taken to have it: LIVE_SETTINGS where it says, otherwise
+    settings/default/<file>.lua's value (a number, true/false or a string). Stops where there is none."""
+    if name in LIVE_SETTINGS:
+        return LIVE_SETTINGS[name]
+    file, _, key = name.partition('.')
+    text = blank_comments((Path(server) / 'settings/default' / f'{file}.lua').read_text(encoding='utf-8-sig'))
+    m = re.search(r'^\s*' + re.escape(key) + r'\s*=\s*([^,\n]+)', text, re.M)
+    if m is None:
+        sys.exit(f'settings/default/{file}.lua has no {key}')
+    value = m.group(1).strip()
+    if value in ('true', 'false'):
+        return value == 'true'
+    try:
+        return int(value) if re.fullmatch(r'-?\d+', value) else float(value)
+    except ValueError:
+        return value.strip('\'"')
+
+
+def cpp_modules_mentioning(server, *words):
+    """The C++ module files init.txt builds in, and the core patches, that mention any of words: they
+    can change what the core's code does without an override to see."""
+    found = []
+    # the core's own code patched (modules/temp_patch) counts as well
+    patches = sorted((Path(server) / 'modules/temp_patch').glob('*.patch')) if DATA_PATCH else []
+    for path in enabled_files(server, '.cpp') + patches:
+        text = path.read_text(encoding='utf-8', errors='replace')
+        if any(word in text for word in words):
+            found.append(path.relative_to(Path(server)).as_posix())
+    return found

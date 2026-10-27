@@ -19,6 +19,10 @@ function gamedata.Root(path)
     if (path ~= nil) then
         root = path;
     end
+    -- away from Ashita (a check run on its own) there is no install, and so no data: nothing is read
+    if (root == nil and AshitaCore == nil) then
+        return '';
+    end
     root = root or ('%s\\addons\\libs\\winxi\\data\\'):format(AshitaCore:GetInstallPath());
     return root;
 end
@@ -38,7 +42,11 @@ function gamedata.Read(set, key)
     if (type(set) ~= 'string' or not set:match('^[%w_]+$') or key == nil or not tostring(key):match('^[%w_]+$')) then
         return nil;
     end
-    return Load(('%s%s/%s.lua'):format(gamedata.Root(), set, tostring(key))); -- Windows takes / as well as \
+    local base = gamedata.Root();
+    if (base == '') then
+        return nil;
+    end
+    return Load(('%s%s/%s.lua'):format(base, set, tostring(key))); -- Windows takes / as well as \
 end
 
 local manifest = nil;

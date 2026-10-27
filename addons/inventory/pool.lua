@@ -30,7 +30,14 @@ local title = 'Treasure'
 local gold = { 1.0, 215/255, 0.0, 1.0 }
 local red = { 0.95, 0.20, 0.20, 1.0 }
 local framePadding = { 4, 1 }
-local poolTime = 300 -- seconds an item stays in the pool
+-- seconds an item stays in the pool: the server's (winxi.rules, from its treasure_pool.cpp), or its
+-- five minutes where winxi's data is not installed
+local poolTime = 300
+do
+    local ok, rules = pcall(require, 'winxi.rules')
+    local pool = ok and rules.Get('treasurePool') or nil
+    poolTime = pool and pool.Seconds or poolTime
+end
 
 -- The sample treasure: one the player is winning, one lotted and losing, one others have lotted, one
 -- nobody has, one passed on. left is how many seconds it starts with.
