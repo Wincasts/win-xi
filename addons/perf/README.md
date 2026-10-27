@@ -1,4 +1,4 @@
-# perf 0.1
+# perf 0.2
 
 What each addon costs a frame, live: the time its event handlers take, one row an addon, so a change
 of settings can be seen for what it is. Every winxi addon reports (winxi 63's `winxi.perf`, which
@@ -25,7 +25,8 @@ first:
 - Total: all of it.
 
 To weigh a setting: `/perf mark before`, change the setting, wait a Sample Window or two, and read
-Change. Settings: Sample Window (1 to 10 s), Show Idle Addons, Show Packet Columns, Lock Window.
+Change. Settings: Visible, Lock Window and Position under Window; Sample Window (1 to 10 s), Show Idle Addons
+and Show Packet Columns under Readings.
 
 It is CPU time inside the handlers. What an addon draws is drawn by Ashita after the handlers, and
 the GPU's share is in the frame but in no row; a setting that draws more shows up in the frame time

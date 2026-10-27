@@ -1,9 +1,9 @@
 addon.name    = 'perf';
 addon.author  = 'win';
-addon.version = '0.1';
+addon.version = '0.2';
 addon.desc    = 'What each addon costs a frame: the time its event handlers take, live, with a mark to compare a change of settings against.';
 
-local winxiNeeded = 63;
+local winxiNeeded = 65; -- winxi.widgets' described rows
 do
     local ok, found = pcall(require, 'winxi.version');
     local number = ok and type(found) == 'table' and found.Number or 0;
@@ -163,21 +163,30 @@ end
 
 local function Save() app:Save(); end
 
+local lockSpec = { onChanged = Save };
+
 local function DrawSettings(options)
-    if widgets.Header('Readings', true) then
-        widgets.PushControlWidth();
-        widgets.Label('Sample Window');
-        imgui.SliderInt('##perf.sampleWindow', options.sampleWindow, 1, 10, '%d s');
-        if imgui.IsItemDeactivatedAfterEdit() then Save(); end
-        tooltip.Hover('How many seconds each reading covers. Longer is steadier; shorter follows a change of settings sooner.');
-        widgets.PopControlWidth();
-        widgets.Label('Show Idle Addons');
-        if imgui.Checkbox('##perf.showIdle', options.showIdle) then Save(); end
-        tooltip.Hover('Addons that cost nothing in the window, or have not run a handler for three seconds.');
-        widgets.Label('Show Packet Columns');
-        if imgui.Checkbox('##perf.showPackets', options.showPackets) then Save(); end
-        tooltip.Hover('The time spent on packets a frame, and how many packets a second.');
-        widgets.Lock(options.locked, '##perf.locked', { onChanged = Save });
+    if widgets.Header('Window', true) then
+        widgets.Check('Visible', 'Shows the table of readings. /perf switches it too.', options.isVisible, '##perf.visible');
+        widgets.Lock(options.locked, '##perf.locked', lockSpec);
+        if widgets.Numbers('Position', 'Where the window\'s corner is on the screen.', options.pos, '##perf.position') then
+            imgui.SetWindowPos('perf.window', options.pos);
+            Save();
+        end
+    end
+    if widgets.Header('Readings') then
+        local _, done = widgets.Slider('Sample Window', 'How many seconds each reading covers. Longer is steadier, shorter follows a change sooner.',
+            options.sampleWindow, 1, 10, '##perf.sampleWindow', widgets.Seconds);
+        if done then Save(); end
+        if widgets.Check('Show Idle Addons', 'Lists addons that cost nothing, or have done nothing for three seconds.', options.showIdle, '##perf.showIdle') then Save(); end
+        if widgets.Check('Show Packet Columns', 'Adds the time spent on packets a frame, and how many packets a second.', options.showPackets, '##perf.showPackets') then Save(); end
+    end
+    if next(readings) == nil then
+        widgets.Status('Nothing read yet. The first reading comes after the Sample Window.');
+    elseif mark then
+        widgets.Status(('%d addons read, compared with %s.'):format(#order, markLabel));
+    else
+        widgets.Status(('%d addons read.'):format(#order));
     end
 end
 

@@ -16,6 +16,19 @@ H.command('/perf mark clear')
 H.print('mark forgotten:', tostring(H.printed[#H.printed]:find('forgotten', 1, true) ~= nil))
 H.command('/perf reset')
 H.print('longest reset:', tostring(H.printed[#H.printed]:find('start over', 1, true) ~= nil))
+-- the settings: described rows (winxi 65), Window first, every row with a sentence
+local widgets = require('winxi.widgets')
+local rows, sections, realRow, realHeader = {}, {}, widgets.BeginRow, widgets.Header
+widgets.BeginRow = function(name, sentence, spec) rows[#rows + 1] = { name = name, sentence = sentence }; return realRow(name, sentence, spec) end
+widgets.Header = function(text, first, collapsed) sections[#sections + 1] = text; return realHeader(text, first, collapsed) end
 H.command('/perf config')
 H.frames(2)
 H.print('settings drawn:', tostring((H.calls.SliderInt or 0) > 0 and (H.calls.Checkbox or 0) >= 2))
+local names = {}
+for _, row in ipairs(rows) do names[row.name] = row.sentence end
+local described = #rows > 0
+for _, row in ipairs(rows) do if type(row.sentence) ~= 'string' or row.sentence == '' then described = false end end
+H.print('every row has a sentence:', tostring(described))
+H.print('Window section first, then Readings:', tostring(sections[1] == 'Window' and sections[2] == 'Readings'))
+H.print('the Window rows:', tostring(names['Visible'] ~= nil and names['Lock Window'] ~= nil and names['Position'] ~= nil))
+H.print('the Readings rows:', tostring(names['Sample Window'] ~= nil and names['Show Idle Addons'] ~= nil and names['Show Packet Columns'] ~= nil))
