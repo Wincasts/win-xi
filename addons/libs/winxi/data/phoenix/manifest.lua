@@ -7,7 +7,7 @@ return {
         Branch = 'live',
         Commit = '9a4494d5056429d0e75922dc9fa47d419142cf68',
         Committed = '2026-10-18T12:38:17-06:00',
-        Built = '2026-10-27T18:27:16+00:00',
+        Built = '2026-10-27T18:42:23+00:00',
         Settings = { },
     },
     Sets = {
@@ -32,6 +32,7 @@ return {
         entrances = { Files = 1, About = 'Each zone\'s dungeon and town entrances (zone)' },
         regions = { Files = 1, About = 'Each region\'s zones, as the server places them (zone)' },
         rules = { Files = 1, About = 'The server\'s game rules read from its code: Treasure Hunter, haste, swing, resting, bind (winxi.rules)' },
+        attachments = { Files = 1, About = 'The automaton\'s attachments: element, modifiers by maneuvers, Repair Kit and Mana Tank formulas, frame divisors (puppet)' },
         mobs = { Files = 239, About = 'An area\'s monsters, as mobdb has them (winxi.mobs.Zone)' },
         placeholders = { Files = 105, About = 'Each notorious monster\'s placeholders (winxi.mobs.Placeholders)' },
     },

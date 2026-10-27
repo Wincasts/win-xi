@@ -4,6 +4,7 @@ local tracker = require('winxi.automaton.tracker')
 local packets = require('winxi.packets')
 local recasts = {}
 local petId, ownerId
+local recentActions = {}
 local spellTimers = {
     { kind = 'magic', name = 'Magic' },
     { kind = 'heal', name = 'Healing', element = 'light' },
@@ -17,19 +18,30 @@ local elements = { [300] = 'fire', [301] = 'ice', [302] = 'wind', [303] = 'earth
 function recasts.Clear()
     tracker.Clear()
     petId, ownerId = nil, nil
+    recentActions = {}
 end
 
 local function Pet()
     local memory = AshitaCore:GetMemoryManager()
     local owner = memory:GetParty():GetMemberServerId(0)
     local pet
-    if memory:GetPlayer():GetMainJob() == 18 and type(GetEntity) == 'function' then
-        local me = GetEntity(memory:GetParty():GetMemberTargetIndex(0))
-        if me and me.PetTargetIndex and me.PetTargetIndex ~= 0 then pet = GetEntity(me.PetTargetIndex) end
+    local player = memory:GetPlayer()
+    if player:GetMainJob() == 18 or player:GetSubJob() == 18 then
+        -- Read the owner/pet link directly; do not depend on a global entity helper being loaded.
+        local entities = memory:GetEntity()
+        local index = memory:GetParty():GetMemberTargetIndex(0)
+        local petIndex = index and index ~= 0 and entities:GetPetTargetIndex(index) or 0
+        if petIndex and petIndex ~= 0 then
+            local serverId = entities:GetServerId(petIndex)
+            if serverId and serverId ~= 0 then
+                pet = { ServerId = serverId, HPPercent = entities:GetHPPercent(petIndex) }
+            end
+        end
     end
     local id = pet and pet.ServerId
     if owner ~= ownerId or id ~= petId then
         tracker.Clear()
+        recentActions = {}
         ownerId, petId = owner, id
     end
     return pet
@@ -58,7 +70,14 @@ function recasts.Packet(e, parts)
     elseif pet and e.id == packets.inbound.action.id and e.data_raw ~= nil then
         -- The action bit parser requires Ashita's raw packet buffer, not data/data_modified strings.
         local action = packets.inbound.action.parse(e.data_raw)
-        if action then tracker.Action(action, pet.ServerId) end
+        if action then
+            if action.actor_id == pet.ServerId then
+                recentActions[#recentActions + 1] = { category = action.category, param = action.param,
+                    at = os.clock() }
+                if #recentActions > 10 then table.remove(recentActions, 1) end
+            end
+            tracker.Action(action, pet.ServerId)
+        end
     end
     return false
 end
@@ -94,6 +113,21 @@ function recasts.Timers(parts)
         end
     end
     return timers
+end
+
+-- Include unrecognized actions: these are precisely what missing-timer diagnostics need.
+function recasts.Debug(parts)
+    local pet = Pet()
+    local lines = { ('Pet=%s head=%s frame=%s'):format(tostring(pet and pet.ServerId),
+        tostring(parts.head), tostring(parts.frame)) }
+    local since = tracker.Since('ranged')
+    lines[#lines + 1] = since and ('Shot last observed %.1fs ago'):format(since) or 'Shot not observed'
+    if #recentActions == 0 then lines[#lines + 1] = 'No pet actions received since reset.' end
+    for _, action in ipairs(recentActions) do
+        lines[#lines + 1] = ('Pet action: category=%s param=%s age=%.1fs'):format(
+            tostring(action.category), tostring(action.param), os.clock() - action.at)
+    end
+    return lines
 end
 
 function recasts.Samples()

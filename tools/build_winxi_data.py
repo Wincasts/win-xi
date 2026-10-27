@@ -40,6 +40,7 @@ import build_name_vendors
 import build_zone_weather
 import build_transports
 import build_debuff_durations
+import build_puppet_attachments
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / 'addons/libs/winxi/data'
@@ -89,6 +90,8 @@ SETS = {
     'regions': ('Each region\'s zones, as the server places them (zone)',
                 lambda server, output, settings: (output.mkdir(parents=True, exist_ok=True), build_zone_regions.build(Path(server), output / 'index.lua'))),
     'rules': ('The server\'s game rules read from its code: Treasure Hunter, haste, swing, resting, bind (winxi.rules)', build_rules.build),
+    'attachments': ('The automaton\'s attachments: element, modifiers by maneuvers, Repair Kit and Mana Tank formulas, frame divisors (puppet)',
+                    build_puppet_attachments.build_set),
     'mobs': ('An area\'s monsters, as mobdb has them (winxi.mobs.Zone)', build_mobs),
     'placeholders': ('Each notorious monster\'s placeholders (winxi.mobs.Placeholders)', build_placeholders),
 }

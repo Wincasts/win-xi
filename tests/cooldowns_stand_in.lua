@@ -21,6 +21,11 @@ party.GetMemberServerId = function() return game.owner end
 party.GetMemberTargetIndex = function() return 1 end
 memory.GetPlayer = function() return player end
 memory.GetParty = function() return party end
+memory.GetEntity = function() return {
+    GetPetTargetIndex = function(_, index) return index == 1 and game.pet or 0 end,
+    GetServerId = function(_, index) return index == game.pet and game.pet or 0 end,
+    GetHPPercent = function() return 100 end,
+} end
 memory.GetRecast = function() return {
     GetAbilityTimerId = function(_, slot) return slot == 1 and 210 or 0 end,
     GetAbilityTimer = function(_, slot) return slot == 1 and game.playerTimer or 0 end,
