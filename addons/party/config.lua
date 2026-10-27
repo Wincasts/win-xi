@@ -1,14 +1,15 @@
--- config: the settings window. Its first tab and its last are winxi's doing (when the windows hide;
--- the Winxi Theme tab, with fading under it); those between are drawn from the lists of entries in
+-- config: the settings window. Its first tab is the addon's behaviour and its last is when the windows
+-- hide and how they fade (winxi's rows for both); those between are drawn from the lists of entries in
 -- options.lua, one tab a list.
 --
 --     config.Draw(saved)         the window, if it is open; saves the settings when it is closed
 --     config.Toggle(saved)       opens or closes it
---     config.Tabs                every tab, in order: { name, draw, theme }, draw taking the settings, and
---                                theme true for the Winxi Theme tab
+--     config.Tabs                every tab, in order: { name, draw }, draw taking the settings
 --
--- Each setting's name is to the left of its control and followed by a colon, with every word
--- capitalised, and one family of settings is set a little apart from the next (see winxi.widgets).
+-- Every setting is a described row (winxi 65): its name, a sentence under the name saying what it
+-- does, and its control at the right (winxi.widgets). An entry's sentence is its own; a setting that
+-- means nothing while another is off (entry.under, or Show Statuses for the status settings) is greyed
+-- under it.
 require('common')
 local imgui = require('imgui')
 local settings = require('settings')
@@ -26,11 +27,8 @@ local function Save()
     settings.save()
 end
 
-local Tooltip = require('winxi.tooltip').Hover
-
 -- The controls of the kinds of entry. Each control's hidden label is made once, and kept on the entry.
 local box = { 0 }             -- a number on its way in and out of a slider
-local offsetSliderWidth = 130
 
 local function Id(entry, suffix)
     local ids = entry.ids
@@ -46,219 +44,177 @@ local function Id(entry, suffix)
     return id
 end
 
+-- An entry's row spec, made once and kept on the entry: its format, and whether it is greyed (parent, a
+-- box set each draw from entry.under, and from Show Statuses for a status setting)
+local function Spec(entry, saved)
+    local spec = entry.spec
+    if spec == nil then
+        spec = { format = entry.format, experimental = entry.experimental }
+        if entry.displayDivisor then
+            spec.float, spec.format = true, '%.2f m'
+        elseif entry.kind == 'font' then
+            spec.label, spec.description = entry.label, entry.sentence
+        elseif entry.kind == 'place' then
+            spec.indent = false -- held by Automatic Positioning, on another tab: greyed, not indented
+        end
+        entry.spec = spec
+    end
+    if entry.under ~= nil or entry.statuses then
+        local gate = entry.gate
+        if gate == nil then
+            gate = { true }
+            entry.gate = gate
+        end
+        gate[1] = (entry.under == nil or entry.under(saved)) and (not entry.statuses or saved.style.showStatuses[1]) and true or false
+        spec.parent = gate
+    end
+    return spec
+end
+
+-- Puts a control of the given width against the right edge of the row's control column, as the
+-- library's own rows do
+local function AtRight(width)
+    local column = imgui.CalcItemWidth ~= nil and imgui.CalcItemWidth() or nil
+    if type(column) == 'number' and type(width) == 'number' and column > width then
+        imgui.SetCursorPosX((imgui.GetCursorPosX() or 0) + column - width)
+    end
+end
+
+local function FrameHeight()
+    if imgui.GetFrameHeight ~= nil then
+        local height = imgui.GetFrameHeight()
+        if type(height) == 'number' then return height end
+    end
+    local style = imgui.GetStyle()
+    local _, text = imgui.CalcTextSize('A')
+    return (text or 14) + 2 * ((style and style.FramePadding and style.FramePadding.y) or 2)
+end
+
 local controls = { }
 
-function controls.text(entry, value)
+function controls.text(entry, value, section, saved, spec)
+    widgets.BeginRow(entry.label, entry.sentence, spec)
     imgui.InputText(Id(entry), value, 8192)
-    Tooltip(entry.tooltip)
+    widgets.EndRow()
 end
 
-function controls.statuslist(entry, value)
+function controls.statuslist(entry, value, section, saved, spec)
+    widgets.BeginRow(entry.label, entry.sentence, spec)
     statuspicker.Draw(entry.key, value, entry.ordered)
-    Tooltip(entry.tooltip)
+    widgets.EndRow()
 end
 
-function controls.check(entry, value)
-    imgui.Checkbox(Id(entry), value)
-    Tooltip(entry.tooltip)
+function controls.check(entry, value, section, saved, spec)
+    widgets.Check(entry.label, entry.sentence, value, Id(entry), spec)
 end
 
-function controls.slider(entry, value)
+function controls.slider(entry, value, section, saved, spec)
     if entry.displayDivisor then
         -- Preserve centimeter storage while exposing meters, including the existing 20.79m default.
-        box[1] = value[1] / entry.displayDivisor
-        if imgui.SliderFloat(Id(entry), box, entry.min / entry.displayDivisor, entry.max / entry.displayDivisor, '%.2f m') then
-            value[1] = math.max(entry.min, math.min(entry.max, math.floor(box[1] * entry.displayDivisor + 0.5)))
+        local divisor = entry.displayDivisor
+        box[1] = value[1] / divisor
+        if widgets.Slider(entry.label, entry.sentence, box, entry.min / divisor, entry.max / divisor, Id(entry), spec) then
+            value[1] = math.max(entry.min, math.min(entry.max, math.floor(box[1] * divisor + 0.5)))
         end
-    elseif entry.format ~= nil then
-        imgui.SliderInt(Id(entry), value, entry.min, entry.max, entry.format)
     else
-        imgui.SliderInt(Id(entry), value, entry.min, entry.max)
+        widgets.Slider(entry.label, entry.sentence, value, entry.min, entry.max, Id(entry), spec)
     end
-    Tooltip(entry.tooltip)
 end
 
--- two sliders side by side, across and down
-function controls.offset(entry, value)
+-- two sliders, across and down, a row each
+local axisNames = { 'X', 'Y' }
+function controls.offset(entry, value, section, saved, spec)
+    local names = entry.axisLabels
+    if names == nil then
+        names = { entry.label .. ' X', entry.label .. ' Y' }
+        entry.axisLabels = names
+    end
     for axis = 1, 2 do
-        if axis == 2 then
-            imgui.SameLine()
-        end
         box[1] = tonumber(value[axis]) or 0
-        imgui.PushItemWidth(offsetSliderWidth)
         -- reach: how far either way, or { across, down } where the two differ
         local reach = type(entry.reach) == 'table' and entry.reach[axis] or entry.reach
-        if imgui.SliderInt(Id(entry, axis == 1 and 'X' or 'Y'), box, -reach, reach, axis == 1 and 'X %d' or 'Y %d') then
+        if widgets.Slider(names[axis], entry.sentences[axis], box, -reach, reach, Id(entry, axisNames[axis]), spec) then
             value[axis] = box[1]
         end
-        imgui.PopItemWidth()
-        Tooltip(entry.tooltip)
     end
 end
 
--- a colour, its swatch opening the picker
-function controls.color(entry, value)
-    imgui.ColorEdit4(Id(entry), value, ImGuiColorEditFlags_NoInputs + ImGuiColorEditFlags_NoAlpha)
-    Tooltip(entry.tooltip)
+-- a colour, its swatch opening the picker, with no alpha to set
+local colorFlags = nil
+function controls.color(entry, value, section, saved, spec)
+    colorFlags = colorFlags or (ImGuiColorEditFlags_NoInputs + ImGuiColorEditFlags_NoAlpha)
+    widgets.BeginRow(entry.label, entry.sentence, spec)
+    AtRight(FrameHeight())
+    imgui.ColorEdit4(Id(entry), value, colorFlags)
+    widgets.EndRow()
 end
 
--- radio buttons, two to a line; the first is the one chosen when none is
-function controls.choice(entry, value, section)
-    local column = imgui.GetCursorPosX()
-    for index, choice in ipairs(entry.choices) do
-        if index % 2 == 0 then
-            imgui.SameLine()
-        elseif index > 1 then
-            imgui.SetCursorPosX(column)
-        end
-        local labels = entry.choiceLabels
-        if labels == nil then
-            labels = { }
-            entry.choiceLabels = labels
-        end
-        labels[index] = labels[index] or ('%s%s'):format(choice.label, Id(entry))
-        if imgui.RadioButton(labels[index], value == choice.key or (index == 1 and value == nil)) then
-            section[entry.key] = choice.key
-        end
-        Tooltip(entry.tooltip)
+-- one of several: a dropdown, the first chosen when none is. Display labels, but keep the existing
+-- string keys in saved settings.
+function controls.choice(entry, value, section, saved, spec)
+    local chosen = widgets.Dropdown(entry.label, entry.sentence, entry.choices, value, Id(entry), spec)
+    if chosen ~= nil then
+        section[entry.key] = chosen
     end
 end
-
--- Style selectors: display labels, but keep the existing string keys in saved settings.
-function controls.dropdown(entry, value, section)
-    local chosen = entry.choices[1]
-    for _, choice in ipairs(entry.choices) do
-        if choice.key == value then chosen = choice; break end
-    end
-    local opened = imgui.BeginCombo(Id(entry), chosen.label)
-    Tooltip(entry.tooltip)
-    if opened then
-        local labels = entry.dropdownLabels
-        if labels == nil then
-            labels = { }
-            entry.dropdownLabels = labels
-        end
-        for index, choice in ipairs(entry.choices) do
-            labels[index] = labels[index] or (choice.label .. Id(entry, index))
-            local selected = choice.key == chosen.key
-            if imgui.Selectable(labels[index], selected) then
-                section[entry.key] = choice.key
-            end
-            if selected then imgui.SetItemDefaultFocus() end
-        end
-        imgui.EndCombo()
-    end
-end
+controls.dropdown = controls.choice
 
 -- a font of C:\Windows\Fonts, or '' for the theme's
-function controls.font(entry, value, section)
-    widgets.FontFile(section, entry.key, Id(entry), { label = false, tooltip = entry.tooltip })
+function controls.font(entry, value, section, saved, spec)
+    widgets.FontFile(section, entry.key, Id(entry), spec)
 end
 
--- where a window is: typed in, the window goes there, and stays there if it was held by a corner
+-- where a window is: typed in, the window goes there, and stays there if it was held by a corner.
+-- A window placed for it (Automatic Positioning) has its place shown greyed.
 local disabledPosition = { 0, 0 }
-function controls.place(entry, value, section, saved)
-    local defaultManaged=nativePlacement.Enabled(saved,entry.window)
-    local managed=defaultManaged or (saved.automaticPositioning[1] and not nativePlacement.ManualOverride(saved,entry.window)
+local placeHeld = { false }
+local placeSentences = { default = 'Where the game default puts it.', managed = 'Placed by Automatic Positioning, on the Behavior tab.' }
+function controls.place(entry, value, section, saved, spec)
+    local defaultManaged = nativePlacement.Enabled(saved, entry.window)
+    local managed = defaultManaged or (saved.automaticPositioning[1] and not nativePlacement.ManualOverride(saved, entry.window)
         and entry.window ~= 'sub' and entry.window ~= 'tot')
+    -- greyed while it is placed for it, a plain row otherwise
+    spec.parent = managed and placeHeld or nil
     if managed then
+        -- a copy as well as the greying, so neither missing bindings nor test stubs can edit it
         disabledPosition[1], disabledPosition[2] = value[1], value[2]
-        if imgui.BeginDisabled then
-            imgui.BeginDisabled(true)
-            imgui.InputInt2(Id(entry), disabledPosition)
-            imgui.EndDisabled()
-        else
-            imgui.TextDisabled(('%d, %d'):format(value[1], value[2]))
-        end
-        imgui.SameLine()
-        imgui.TextDisabled(defaultManaged and 'Default UI location' or 'Managed automatically')
-    elseif imgui.InputInt2(Id(entry), value) then
+        widgets.Numbers(entry.label, defaultManaged and placeSentences.default or placeSentences.managed, disabledPosition, Id(entry), spec)
+    elseif widgets.Numbers(entry.label, entry.sentence, value, Id(entry), spec) then
         local which = windows.List[entry.window]
         imgui.SetWindowPos(which.name, value)
         windows.ForgetCorner(which)
     end
-    Tooltip(entry.tooltip)
 end
 
-local disabledCheck = { false }
-local function Checkbox(label, value, disabled)
-    if not disabled then return imgui.Checkbox(label, value) end
-    -- Use a copy as well as native disabling, so neither missing bindings nor test stubs can edit it.
-    disabledCheck[1] = value[1]
-    if imgui.BeginDisabled then
-        imgui.BeginDisabled(true)
-        imgui.Checkbox(label, disabledCheck)
-        imgui.EndDisabled()
-    else
-        imgui.TextDisabled((value[1] and '[x] ' or '[ ] ') .. label:gsub('##.*', ''))
-    end
-    return false
-end
-
-local targetRows = {
-    { 'Target', 'showMain', 'mainDebuffs' },
-    { 'Sub-target', 'showSub', 'subDebuffs' },
-    { 'Target of target', 'showTot', 'totDebuffs' },
-}
-local function DrawTargetRows(saved)
-    if imgui.BeginTable('##party.targetFrames', 3, ImGuiTableFlags_SizingFixedFit) then
-        imgui.TableSetupColumn('Frame')
-        imgui.TableSetupColumn('Show')
-        imgui.TableSetupColumn('Show debuffs')
-        imgui.TableHeadersRow()
-        for _, row in ipairs(targetRows) do
-            imgui.TableNextRow()
-            imgui.TableSetColumnIndex(0)
-            imgui.Text(row[1])
-            imgui.TableSetColumnIndex(1)
-            Checkbox('##xiframes.target.' .. row[2], saved.target[row[2]], not saved.target.enabled[1])
-            imgui.TableSetColumnIndex(2)
-            Checkbox('##xiframes.target.' .. row[3], saved.target[row[3]],
-                not saved.target.enabled[1] or not saved.target[row[2]][1])
-        end
-        imgui.EndTable()
-    end
-    imgui.TextDisabled('Enable a frame to configure its debuffs. Hidden frames retain their settings.')
+-- The status numbers typed in by hand, under Advanced: Status IDs
+local statusIdsSpec = { parent = { true } }
+local function DrawStatusIds(saved)
+    statusIdsSpec.parent[1] = saved.style.showStatuses[1] and true or false
+    widgets.BeginRow('Priority Status IDs', 'The numbers of the statuses shown first, in this order, separated by commas.', statusIdsSpec)
+    imgui.InputText('##party.priorityStatusIds', saved.style.priorityStatuses, 8192)
+    widgets.EndRow()
+    widgets.BeginRow('Hidden Status IDs', 'The numbers of the statuses never shown, separated by commas. These win over the priority list.', statusIdsSpec)
+    imgui.InputText('##party.hiddenStatusIds', saved.style.hiddenStatuses, 8192)
+    widgets.EndRow()
 end
 
 local function DrawEntries(tab, saved)
     widgets.BeginLabels(tab.labels)
     local open, first = true, true
     for _, entry in ipairs(tab.entries) do
-        -- with Show Statuses off, every status setting is drawn greyed and cannot be changed
-        local greyed = entry.statuses and not saved.style.showStatuses[1] and imgui.BeginDisabled ~= nil
         if entry.kind == 'header' then
             open = widgets.Header(entry.label, first, entry.defaultCollapsed)
             first = false
-            if greyed and open then imgui.BeginDisabled(true) end
-            if open and tab.name == 'Style' and entry.label == 'Appearance' then
-                imgui.TextWrapped('Shared colors, borders, backgrounds, bar textures and status icon artwork are configured in winxisettings (/wxi).')
-            elseif open and tab.name == 'Style' and entry.label == 'Advanced: Status IDs' then
-                widgets.Label('Priority Status IDs')
-                imgui.InputText('##party.priorityStatusIds', saved.style.priorityStatuses, 8192)
-                widgets.Label('Hidden Status IDs')
-                imgui.InputText('##party.hiddenStatusIds', saved.style.hiddenStatuses, 8192)
-                imgui.TextDisabled('Comma-separated IDs. Priority order follows the list; hidden IDs take precedence.')
+            if open and tab.name == 'Style' and entry.label == 'Advanced: Status IDs' then
+                DrawStatusIds(saved)
             end
-            if greyed and open then imgui.EndDisabled() end
         elseif entry.kind == 'gap' then
             if open then widgets.Gap() end
-        elseif open and not entry.targetRow and (entry.when == nil or entry.when(saved)) then
+        elseif open and (entry.when == nil or entry.when(saved)) then
             local section = saved[entry.section]
-            if greyed then imgui.BeginDisabled(true) end
-            widgets.Label(entry.label, entry.experimental)
-            controls[entry.kind](entry, section[entry.key], section, saved)
-            if greyed then imgui.EndDisabled() end
-            if tab.name == 'Target' and entry.key == 'enabled' then DrawTargetRows(saved) end
+            controls[entry.kind](entry, section[entry.key], section, saved, Spec(entry, saved))
         end
     end
-end
-
--- A setting's explanation, as winxi gives one: a greyed (?) after its control, the text in its tooltip
-local function Help(text)
-    imgui.SameLine()
-    imgui.TextDisabled('(?)')
-    Tooltip(text)
 end
 
 -- [uihook 1.60 found], in green after the uihook section's title: the plugin's name and version,
@@ -280,12 +236,15 @@ local function Found(manager, name)
 end
 
 -- Where the windows are placed, uihook, and whether the mouse goes through them
+local nativeSpec = { }
+local lockSpec = { label = 'Lock Windows',
+    description = 'Clicks go through the windows to the game. Off, a window is moved by holding Shift and dragging it.' }
 local function DrawGlobal(saved)
     widgets.BeginLabels('xiframes.global')
     if widgets.Header('Positioning', true) then
-        widgets.Label('Automatic Positioning')
-        if imgui.Checkbox('##party.automaticPositioning', saved.automaticPositioning) then Save() end
-        Tooltip('Keeps the windows in their usual places: your party at the bottom right, the target just above it, Alliance 2 above that with room for full parties, and Alliance 3 just below Alliance 2. The sub-target and target-of-target windows stay where they are. Off, every window stays where you put it. Where it all cannot fit, the gaps are smaller.')
+        if widgets.Check('Automatic Positioning',
+            'Puts the windows in their usual places, your party at the bottom right and the target above it. Off, each window stays where you put it.',
+            saved.automaticPositioning, '##party.automaticPositioning') then Save() end
     end
 
     -- Only with uihook loaded: the windows can be drawn in the game's own place among its menus. Its
@@ -297,32 +256,36 @@ local function DrawGlobal(saved)
         imgui.SameLine()
         imgui.TextColored(foundColor, Found(manager, plugin))
         if open then
-            widgets.Label('Use uihook')
-            if imgui.Checkbox('##party.nativeHook', saved.nativeHook) then Save() end
-            Help('The chosen windows are drawn in the game\'s own place, among its menus. Unload hideparty first. While organizing they are ordinary windows. /pt native status says how it is going.')
-            if saved.nativeHook[1] then
-                widgets.Label('Party')
-                if imgui.Checkbox('##party.nativeParty', saved.nativeParty) then Save() end
-                Help('The three party lists in place of the game\'s, with its selection. Pets go with them.')
-                widgets.Label('Target')
-                if imgui.Checkbox('##party.nativeTarget', saved.nativeTarget) then Save() end
-                Help('The target, sub-target and target-of-target windows in place of the game\'s target box, together. The game still draws its arrows over heads. /pt native target on|off does the same.')
-                widgets.Label('Follow Default UI Behavior')
-                if imgui.Checkbox('##party.nativeBehavior', saved.nativeBehavior) then Save() end
-                Help('The windows drawn in the game\'s place behave as the game\'s own: shown whenever the game shows its HUD rather than by the Hide rules, in the game\'s party order, shown when you are solo as the game\'s is, and without idle fading. Their look, pets, buffs and sizes are unchanged; the other windows keep their own options.')
-            end
+            if widgets.Check('Use uihook',
+                'Draws the chosen windows where the game draws its own, among its menus. /pt native status says how it is going.',
+                saved.nativeHook, '##party.nativeHook') then Save() end
+            nativeSpec.parent = saved.nativeHook
+            if widgets.Check('Party',
+                'The three party lists instead of the game default ones, with its selection. Pets go with them.',
+                saved.nativeParty, '##party.nativeParty', nativeSpec) then Save() end
+            if widgets.Check('Target',
+                'The target windows instead of the game default target box. /pt native target on|off does the same.',
+                saved.nativeTarget, '##party.nativeTarget', nativeSpec) then Save() end
+            if widgets.Check('Follow Default UI Behavior',
+                'The windows in the game\'s place show and hide with its interface, in its order, solo too, and never fade.',
+                saved.nativeBehavior, '##party.nativeBehavior', nativeSpec) then Save() end
         end
     end
 
     if widgets.Header('Mouse Interaction') then
-        widgets.Lock(saved.clickThrough, '##xiframes.clickThrough', { label = 'Clickthrough', tooltip = 'Clicks go through the windows to the game; with Show Tooltips on, hovering still shows their tooltips. Off, a window is moved by holding Shift and dragging it. While organizing they can always be dragged.' })
-        widgets.Label('Show Tooltips')
-        Checkbox('##party.hoverDetails', saved.style.hoverDetails)
-        Tooltip('Hovering the windows shows full names, jobs and pet owners, and each buff and debuff with its estimated time left.')
+        widgets.Lock(saved.clickThrough, '##xiframes.clickThrough', lockSpec)
+        widgets.Check('Show Tooltips',
+            'Hovering a window shows full names, jobs and pet owners, and each buff and debuff with its time left.',
+            saved.style.hoverDetails, '##party.hoverDetails')
     end
 end
 
 -- When the windows are hidden, and how they fade while idle
+local fadedSpec = { parent = true } -- indented under Fade When Idle, as the fade's own rows are
+local fadeSentences = {
+    party = 'The party and alliance lists fade while you are idle, and fade in and out as they appear and go.',
+    target = 'The target windows fade while you are idle, and fade in and out as a target is taken and dropped.',
+}
 local function DrawVisibility(saved)
     widgets.BeginLabels('xiframes.visibility')
     if widgets.Header('Hide Windows', true) then
@@ -330,23 +293,18 @@ local function DrawVisibility(saved)
     end
 
     if widgets.Header('Fading') then
-        imgui.Indent()
-        widgets.PushControlWidth()
         local fade = saved.fade
         widgets.Fade(fade, Save, true)
 
         -- A chosen window fades out while idle, and fades in and out as it appears and goes (the target
         -- window as a target is taken and dropped)
-        if fade.Enabled and widgets.Header('Affected Windows') then
+        if fade.Enabled and widgets.SubHeader('Affected Windows') then
             for _, group in ipairs(windows.Groups) do
-                widgets.Label(group.label)
                 group.id = group.id or ('##xiframes.fade.%s'):format(group.key)
-                if imgui.Checkbox(group.id, fade.windows[group.key]) then Save() end
-                Tooltip('Fades out while you are idle, and fades in and out as it appears and goes.')
+                if widgets.Check(group.label, fadeSentences[group.key] or '', fade.windows[group.key], group.id, fadedSpec) then Save() end
             end
         end
-        widgets.PopControlWidth()
-        imgui.Unindent()
+        widgets.EndSub()
     end
 end
 
@@ -359,9 +317,8 @@ for _, tab in ipairs(options.Tabs) do
 end
 table.insert(config.Tabs, { name = 'Visibility', draw = DrawVisibility })
 
--- The window is never narrower than this, so it does not jump about as the tabs are switched. It has
--- the theme's settings window values, apart from the game windows' that are set in it.
-local minSize, maxSize = { 780, 0 }, { 10000, 10000 }
+-- The window has the theme's settings window values, apart from the game windows' that are set in it;
+-- winxi.window fits it to its rows, which are the same width on every tab.
 local framePadding = { 4, 2 }
 local style = { kind = window.Settings }
 local flags = nil
@@ -393,7 +350,6 @@ function config.Toggle(saved)
 end
 
 function config.Draw(saved)
-    -- only while the window is showing: the constraint goes to whichever window is drawn next
     if not saved.showConfig[1] then
         return
     end
@@ -401,7 +357,6 @@ function config.Draw(saved)
     -- a settings window: winxi.window fits it to its content, or keeps the size it is resized to
     flags = flags or ImGuiWindowFlags_NoSavedSettings
     drawing = saved
-    imgui.SetNextWindowSizeConstraints(minSize, maxSize)
     imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, windows.ItemSpacing)
     window.Full('Party Settings', saved.showConfig, flags, DrawContent, style)
     imgui.PopStyleVar()

@@ -74,14 +74,14 @@ calls per category; averages and maxima cover the full interval.
   not action-specific range guarantees.
 - **Style → Appearance → Bar Shadows**: Off, Simple (one layer), or Full (two layers). This is
   independent of Winxi window shadows.
-- **Behavior → Mouse Interaction → Show Tooltips**, beside Clickthrough, is off by default. On, hovering
+- **Behavior → Mouse Interaction → Show Tooltips**, beside Lock Windows, is off by default. On, hovering
   the windows shows Winxi tooltips: full names, jobs and pet owners on the members, and each buff and
   debuff (icons and a target's letters) with its estimated time left. Off, there are none.
-- **Clickthrough** lets clicks through to the game, but the windows are still hovered: with Show Tooltips
+- **Lock Windows** (clickthrough) lets clicks through to the game, but the windows are still hovered: with Show Tooltips
   on, their tooltips show either way. Another window drawn over them, wanting the mouse, keeps them from showing.
-- **Shift+drag** moves a window when **Clickthrough** is off: hold Shift as you click it, and the drag goes
+- **Shift+drag** moves a window when **Lock Windows** is off: hold Shift as you click it, and the drag goes
   on until the mouse is let go. Without Shift the windows stay put, so a click on them does not move them.
-  With Clickthrough on they cannot be dragged except while organizing. A window placed by Automatic
+  With Lock Windows on they cannot be dragged except while organizing. A window placed by Automatic
   Positioning or by uihook, or linked to another, is not moved this way (Organize unlinks it).
   Tooltips follow **winxisettings → Tooltips**, including visibility, delay and appearance.
   Enemy duration tooltips explicitly describe estimates, not exact server timers.
@@ -235,7 +235,7 @@ Unload Party and partyhook before replacing the DLL; keep hideparty unloaded.
 - **Behavior → uihook**, between Positioning and Mouse Interaction, shown only while uihook (or partyhook) is loaded, its title followed in green by the plugin found
   and its version, e.g. `[uihook 1.60 found]`. **Use uihook** turns the
   hooking on or off as a whole; while it is on, **Party** and **Target** choose which windows the plugin
-  draws in the game's place, and **Follow Default UI Behavior** sits with them; each one's explanation is in the tooltip of the (?) after it. Pets are rows of the
+  draws in the game's place, and **Follow Default UI Behavior** sits with them, greyed until Use uihook is on; each row's sentence says what it does. Pets are rows of the
   Party windows and go with Party. The choices are kept while the plugin is not loaded. `/pt native on` turns Use uihook on too; `/pt native status` says how the hooking is doing.
 
 While a fish is on the line, party mode lets through what the game's own party list draws outside the list,
@@ -326,7 +326,7 @@ preserved, and disabling Automatic Positioning returns to the manual layout. Tur
 the managed frames to custom positions.
 
 With this option off, positions remain absolute pixels. Use **Organize**, or Shift+drag with
-Clickthrough off, to place frames manually. The original defaults include positions beyond a 1920-wide output. Oversized frames
+Lock Windows off, to place frames manually. The original defaults include positions beyond a 1920-wide output. Oversized frames
 cannot fit completely on small screens, and buff icons extending outside a window may still reach
 the screen edge; this is basic adaptation, not a full responsive layout system.
 
