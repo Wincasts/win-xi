@@ -141,6 +141,33 @@ def blank_comments(text):
     return ''.join(out)
 
 
+def blank_cpp_comments(text):
+    """C++ source with its // and /* */ comments turned to spaces, strings and line numbers kept."""
+    out, i, n = [], 0, len(text)
+    while i < n:
+        c = text[i]
+        if c in '\'"':
+            j = i + 1
+            while j < n and text[j] != c and text[j] != '\n':
+                j += 2 if text[j] == '\\' else 1
+            out.append(text[i:j + 1])
+            i = j + 1
+        elif text.startswith('//', i):
+            end = text.find('\n', i)
+            end = n if end < 0 else end
+            out.append(' ' * (end - i))
+            i = end
+        elif text.startswith('/*', i):
+            end = text.find('*/', i + 2)
+            end = n if end < 0 else end + 2
+            out.append(re.sub(r'[^\n]', ' ', text[i:end]))
+            i = end
+        else:
+            out.append(c)
+            i += 1
+    return ''.join(out)
+
+
 def closing(text, start):
     """Where the bracket opened at start closes (comments already blanked), or len(text)."""
     pairs = {'(': ')', '{': '}', '[': ']'}

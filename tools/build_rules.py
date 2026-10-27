@@ -27,6 +27,9 @@ core patch that names the constant, stops it too (phoenix.modules.guard, cpp_mod
     corsairRolls     each roll's lucky and unlucky number, by its ability: where its power peaks and falls
                      among 1 to 10, from job_utils/corsair.lua's rollData with the era modules' powers on
                      live put over it in the order they apply
+    preventAction    the statuses that stop a player acting, auto-attacks among it (status_effect_container.cpp's
+                     HasPreventActionEffect, as the player's AI asks it, charm aside), by number
+    merits           the limit points a merit point is (merit.cpp's MAX_LIMIT_POINTS)
     weaponskillTp    the TP a weapon skill's extra hits return, each, before Store TP (scripts/globals/weaponskills.lua)
     automaton        what an automaton casts and uses: each spell's magic skill and the heads that cast it
                      (automaton_spells, module SQL over it), each frame's weapon skills with the skill
@@ -46,7 +49,10 @@ from phoenix import modules
 
 
 def read(server, path):
-    return modules.blank_comments((Path(server) / path).read_text(encoding='utf-8-sig'))
+    text = (Path(server) / path).read_text(encoding='utf-8-sig')
+    if path.endswith(('.cpp', '.h')):
+        return modules.blank_cpp_comments(text)
+    return modules.blank_comments(text)
 
 
 def find(server, path, pattern, what, flags=0):
@@ -355,6 +361,30 @@ def corsair_rolls(server):
     return rolls
 
 
+def merits(server):
+    untouched(server, 'MAX_LIMIT_POINTS')
+    m = find(server, 'src/map/merit.cpp', r'#define MAX_LIMIT_POINTS (\d+)', 'MAX_LIMIT_POINTS')
+    return {'LimitPointsPerMerit': int(m.group(1)), 'Source': 'src/map/merit.cpp'}
+
+
+def prevent_action(server):
+    untouched(server, 'HasPreventActionEffect')
+    path = 'src/map/status_effect_container.cpp'
+    m = find(server, path, r'bool CStatusEffectContainer::HasPreventActionEffect\(bool ignoreCharm\)\s*\{\s*if \(ignoreCharm\)\s*\{\s*return HasStatusEffect\(\s*\{([^}]*)\}',
+             'the statuses that prevent acting')
+    find(server, 'src/map/ai/ai_container.cpp', r'HasPreventActionEffect\(true\)', 'the AI asking it with charm aside')
+    def squash(text):
+        return re.sub(r'[^a-z0-9]', '', text.lower())
+    numbers = {squash(key): entry['id'] for key, entry in modules.load_yaml(server, 'status_effects')['status_effects'].items()
+               if isinstance(entry, dict) and 'id' in entry}
+    statuses = []
+    for name in re.findall(r'xi::StatusEffect::(\w+)', m.group(1)):
+        if squash(name) not in numbers:
+            sys.exit(f'{path}: StatusEffect::{name} is not in data/status_effects.yaml')
+        statuses.append(numbers[squash(name)])
+    return {'Statuses': statuses, 'Source': path}
+
+
 def build(server, output, settings=()):
     server, output = Path(server), Path(output)
     from build_debuff_durations import enum_block
@@ -372,6 +402,8 @@ def build(server, output, settings=()):
         'weaponskillTp': weaponskill_tp(server),
         'era': era(server),
         'corsairRolls': corsair_rolls(server),
+        'merits': merits(server),
+        'preventAction': prevent_action(server),
     }
     output.mkdir(parents=True, exist_ok=True)
     write_data(output / 'index.lua', {'Schema': 1, 'Source': provenance(server), 'Settings': list(settings),

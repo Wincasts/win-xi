@@ -89,8 +89,21 @@ def lua_string(indexes):
     return '"' + ''.join(out) + '"'
 
 
+def chances(server):
+    """The rare and common weather's chances out of 100 (zone.cpp's UpdateWeather)."""
+    found = modules.cpp_modules_mentioning(server, 'WeatherChance', 'UpdateWeather')
+    if found:
+        sys.exit(f'{", ".join(found)} name UpdateWeather: read what they change first')
+    code = modules.blank_cpp_comments((server / 'src/map/zone.cpp').read_text())
+    m = re.search(r'if \(WeatherChance < (\d+)\)\s*\{\s*selectedWeather = weatherType\.rare;\s*\}\s*else if \(WeatherChance < (\d+)\)\s*\{\s*selectedWeather = weatherType\.common;', code)
+    if m is None:
+        sys.exit('src/map/zone.cpp: the rare and common weather\'s chances are not as they were written')
+    return int(m.group(1)), int(m.group(2)) - int(m.group(1))
+
+
 def build(server, output):
     check_modules(server)
+    rare, common = chances(server)
     ids = zone_ids(server)
     text = (server / 'sql/zone_weather.sql').read_text(encoding='utf-8')
     rows = re.findall(r"\((\d+),(0x[0-9A-Fa-f]+|NULL)\)", text)
@@ -122,6 +135,7 @@ def build(server, output):
              '-- zones the fog rule leaves alone.',
              'return {',
              '    cycle = %d,' % CYCLE,
+             '    rareChance = %d, commonChance = %d, -- of 100 (zone.cpp\'s UpdateWeather); the normal weather takes the rest' % (rare, common),
              '    triples = {']
     for triple in triples:
         lines.append('        { %d, %d, %d },' % triple)
