@@ -42,10 +42,11 @@ M.Count = 4
 M.Empty = 'No lines are shown: tick some in the Timetable tab of the Info Panel settings.'
 
 local data = nil
+require('winxi.gamedata').OnChange(function () data = nil end) -- another server's data chosen
 local function Data()
     if data == nil then
-        local ok, found = pcall(require, 'winxi.infopanel.transports')
-        data = ok and type(found) == 'table' and type(found.runs) == 'table' and found or false
+        local found = require('winxi.gamedata').Read('transports', 'index') -- the chosen server's transports set
+        data = type(found) == 'table' and type(found.runs) == 'table' and found or false
     end
     return data or nil
 end

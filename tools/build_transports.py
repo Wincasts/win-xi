@@ -18,7 +18,7 @@ out. Each passenger run is named here with its kind, where it leaves from and wh
 the data holds only the server's run names; a run the server adds that is not named here stops
 the build, so the table is never missing a line without anyone knowing.
 
-Writes addons/libs/winxi/infopanel/transports.lua: the kinds of line, the lines (each place a ship
+Writes winxi's transports set (addons/libs/winxi/data/<server>/transports/index.lua; a set of build_winxi_data): the kinds of line, the lines (each place a ship
 leaves from and goes to, by the key the settings' whitelist knows it by) and each run's zone, labels,
 cycle and phase seconds and voyage zones; winxi.infopanel.schedule
 reads it. Reads the live branch of phoenixffxi/Phoenix, fetched from GitHub (tools/phoenix), as live
@@ -187,9 +187,11 @@ def lua_string(text):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     source.add_arguments(parser)
-    parser.add_argument('--output', type=Path, default=ROOT / 'addons/libs/winxi/infopanel/transports.lua')
+    parser.add_argument('--output', type=Path, default=None, help='Where to write it; default data/<server>/transports/index.lua.')
     args = parser.parse_args()
     found = source.from_arguments(args)
+    args.output = args.output or ROOT / 'addons/libs/winxi/data' / source.KEY / 'transports' / 'index.lua'
+    args.output.parent.mkdir(parents=True, exist_ok=True)
     print(f'Server: {found.describe()}')
     count, zones = build(found.path, args.output)
     print(f'Wrote {args.output}: {count} passenger runs from {zones} zones')

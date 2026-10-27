@@ -1,7 +1,8 @@
--- The info panel's tooltips over its words: the zone's forecast as the Phoenix server rolls the weather,
+-- The info panel's tooltips over its words: the zone's forecast as the server rolls the weather,
 -- the calendar of the Vana'diel month and the ships' and airships' timetable as the server runs them; and
 -- the words' tooltips carried through the segments.
 package.path = 'addons/libs/?.lua;' .. package.path
+require('winxi.gamedata').Root('addons/libs/winxi/data/') -- the server's weather and transports sets, from the repository's data
 local forecast = require('winxi.infopanel.forecast')
 local calendar = require('winxi.infopanel.calendar')
 local schedule = require('winxi.infopanel.schedule')
@@ -18,7 +19,7 @@ p('day of the cycle', forecast.Day(0) == 0, forecast.Day(3455) == 0, forecast.Da
     forecast.Day(2160 * 3456) == 0, forecast.Day(2161 * 3456 + 5) == 1, forecast.Day('x') == nil, forecast.Day(-1) == nil)
 
 -- the generated tables: every pattern 2160 bytes, every byte a triple of weathers, the zones mapped
-local tables = require('winxi.infopanel.zone_weather')
+local tables = dofile('addons/libs/winxi/data/phoenix/weather/index.lua')
 local patterns, zones = 0, 0
 for _, pattern in ipairs(tables.patterns) do
     assert(#pattern == tables.cycle, 'a pattern of 2160 days')
@@ -219,7 +220,7 @@ options.tooltip = nil; mouse.x, mouse.y = 30, 30; panel.Draw(pp, drawn, { left =
 p('without a tooltip function (the legacy clock): nothing asked', #tips == 1)
 
 -- the timetable: the generated runs whole, then the server's cycle on runs of this check's own
-local transports = require('winxi.infopanel.transports')
+local transports = dofile('addons/libs/winxi/data/phoenix/transports/index.lua')
 local runs, zonesWithRuns, groupKeys, lineKeys = 0, {}, {}, {}
 for _, g in ipairs(transports.groups) do groupKeys[g.key] = true end
 for _, line in ipairs(transports.lines) do assert(groupKeys[line.group] and not lineKeys[line.key], 'a line in a known group, once'); lineKeys[line.key] = true end

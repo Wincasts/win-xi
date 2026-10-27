@@ -1,5 +1,5 @@
 -- The zone's weather forecast, as the Phoenix server rolls it (src/map/zone.cpp, UpdateWeather; the
--- tables in zone_weather.lua, built by tools/build_zone_weather.py from sql/zone_weather.sql).
+-- tables in the chosen server's weather set, built by tools/build_zone_weather.py from sql/zone_weather.sql).
 --
 --   forecast.Names[id]                  the weather by id, 0 to 19: Clear skies, Sunshine, ... Darkness
 --   forecast.Day(raw)                   the day of the 2160-day cycle the raw game time is in: the
@@ -22,15 +22,16 @@ M.Names = { [0] = 'Clear skies', 'Sunshine', 'Clouds', 'Fog', 'Hot spells', 'Hea
 
 M.SecondsPerDay = 3456 -- Earth seconds in a Vana'diel day: the raw game time counts them
 M.RareChance, M.CommonChance = 15, 35 -- of 100; the normal weather takes the rest: the server's, from
--- zone_weather.lua (tools/build_zone_weather.py reads them from its zone.cpp), these where it has none
+-- its weather set (tools/build_zone_weather.py reads them from its zone.cpp), these where it has none
 
 local days = { 'Firesday', 'Earthsday', 'Watersday', 'Windsday', 'Iceday', 'Lightningday', 'Lightsday', 'Darksday' }
 
 local data = nil
+require('winxi.gamedata').OnChange(function () data = nil end) -- another server's data chosen
 local function Data()
     if data == nil then
-        local ok, found = pcall(require, 'winxi.infopanel.zone_weather')
-        data = ok and type(found) == 'table' and found or false
+        local found = require('winxi.gamedata').Read('weather', 'index') -- the chosen server's weather set
+        data = type(found) == 'table' and found or false
         if data and data.rareChance and data.commonChance then
             M.RareChance, M.CommonChance = data.rareChance, data.commonChance
         end
