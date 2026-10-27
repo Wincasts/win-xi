@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.1
+
+- An enfeeble is what winxi's one list of harmful statuses says (`winxi.statuses.Harmful`, the server's flags and the harms that cannot be cancelled), as party and simplelog have it. Level Restriction, SJ Restriction, Medicine, Provoke and Penalty are drawn in the buff colour now, as statuses the server has no harm in; the numbers it has no status for are gone from it.
+
 ## 0.9
 
 - The settings are described rows (winxi 65): each setting's name, a plain sentence under it saying what it does, and its control at the right, in Window, Received Items and Lines sections; the rules for hiding and Fade In And Out are on a Visibility tab of their own. The rows under Separate Popup are greyed while it is off. Requires winxi 65.

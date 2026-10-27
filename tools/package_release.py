@@ -48,7 +48,9 @@ RELEASES = {
     'chatbox': {'plugin': 'uihook'},
     'lens': {'kind': 'plugin'},
     # Phoenix's monsters for ThornyFFXI's MobDB as it is: the data folder alone, versioned by the date it was made
-    'mobdb': {'kind': 'data', 'source': 'forks/addons/mobdb/mobdb', 'data': 'data', 'changelog': 'forks/addons/mobdb/DATA_CHANGELOG.md',
+    # the data is winxi's mobs set, the same files mobdb reads as data/<zone>.lua
+    'mobdb': {'kind': 'data', 'source': 'forks/addons/mobdb/mobdb', 'from': 'addons/libs/winxi/data/mobs', 'data': 'data',
+              'changelog': 'forks/addons/mobdb/DATA_CHANGELOG.md',
               'title': 'mobdb data for Phoenix'},
     'parse': {},
     'sct': {},
@@ -353,7 +355,8 @@ def package_data(addon, output):
     """An addon's data alone, as the folder it reads it from: for the addon as its author releases it."""
     extras = RELEASES[addon]
     commit = git('rev-parse', 'HEAD')
-    source = f"{extras['source']}/{extras['data']}"
+    # where the data is in the repository: its own folder, or a set of winxi's ('from')
+    source = extras.get('from') or f"{extras['source']}/{extras['data']}"
     changelog = ROOT / extras['changelog']
     dirty = git('status', '--porcelain', '--', source, extras['changelog'])
     if dirty:
@@ -382,7 +385,8 @@ def package_data(addon, output):
             f'(/addon unload {addon}), empty addons/{addon}/{extras["data"]}, then extract the zip into your Ashita folder\n'
             f'(the one holding addons, plugins and config). Emptying the folder first matters: a zone with no\n'
             f'monsters on the server would otherwise keep its old file. Then /addon load {addon}.\n\n'
-            f'Made with import_phoenix.py, at https://github.com/{REPOSITORY}/tree/{commit}/{extras["source"]}\n')
+            f'Made with import_phoenix.py, at https://github.com/{REPOSITORY}/tree/{commit}/{extras["source"]}\n'
+            f'(through tools/build_winxi_data.py, which writes it as {source})\n')
         write_zip(staging, archive, output)
     finish(name, f'{extras["title"]} {version}', archive, release_notes + f'\nThe data alone ({count} zones), for {addon} '
            f'as you have it. Empty addons/{addon}/{extras["data"]} first, then extract into your Ashita folder; '

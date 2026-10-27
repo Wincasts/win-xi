@@ -2,6 +2,7 @@
 
 ## 0.3.6
 
+- Debuffs First orders by winxi's one list of harmful statuses (`winxi.statuses.Harmful`: what Erase or a waltz removes on the server, and the harms that cannot be cancelled), which sct and simplelog read too. Drain, Aspir and Haste Daze count now.
 - A target's debuffs: Sleep, bind, paralysis, blindness, silence, poison, gravity and flash wear off when the server says so: their message is 204, which only Dia, Bio and Slow's 206 was listened for. Bind ends with a blow, weapon skill, spell or additional effect that does damage, as sleep does, unless you cast it: the server tells the caster when it breaks, and one hit in twenty does not.
 
 ## 0.3.5

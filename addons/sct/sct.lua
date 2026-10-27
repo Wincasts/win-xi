@@ -1,6 +1,6 @@
 addon.name    = 'sct';
 addon.author  = 'win';
-addon.version = '0.9';
+addon.version = '0.9.1';
 addon.desc    = 'Scrolling text for statuses, received items and key items.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
