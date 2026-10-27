@@ -1,25 +1,56 @@
--- Player packet channels and NPC text-log channels use separate settings keys.
+-- The channels a bubble can come by: the game's chat packet modes (player chat, in and out) and the
+-- text channels an NPC's words come by. Player packet channels and NPC text-log channels use separate
+-- settings keys ('0'..'35', 'npc:150'..). Each entry is a row of the settings' Chat Modes tab: its name,
+-- its sentence, and the group (a sub-section) it is read under.
 local M = { All = {}, Outgoing = {
     [0] = true, [1] = true, [4] = true, [5] = true, [8] = true,
     [26] = true, [27] = true, [33] = true, [34] = true, [35] = true,
 } };
-local labels = {
-    [0] = 'Say', [1] = 'Shout', [2] = 'Unknown 2', [3] = 'Tell', [4] = 'Party / Alliance',
-    [5] = 'Linkshell 1', [6] = 'System 1', [7] = 'System 2', [8] = 'Emote',
-    [12] = 'GM prompt', [13] = 'Say (no speaker object)', [14] = 'Shout (no speaker object)',
-    [15] = 'Party (no speaker object)', [16] = 'Linkshell 1 (no speaker object)',
-    [26] = 'Yell', [27] = 'Linkshell 2', [28] = 'Linkshell 2 (no speaker object)',
-    [29] = 'System 3', [30] = 'Linkshell 3 (reserved)', [31] = 'Linkshell 3 (no speaker object)',
-    [33] = 'Unity', [34] = 'Assist (Japanese)', [35] = 'Assist (English)',
+-- The player chat groups, in the order they are read; a mode named in none is Unknown
+M.Groups = { 'Chat', 'Without A Speaker', 'System', 'Unknown' };
+local named = {
+    [0] = { 'Say', 'What is said nearby, by you and others. On to begin with.', 'Chat' },
+    [1] = { 'Shout', 'Shouts, heard across the area.', 'Chat' },
+    [3] = { 'Tell', 'Private messages sent to you, and yours back.', 'Chat' },
+    [4] = { 'Party / Alliance', 'What your party and alliance say.', 'Chat' },
+    [5] = { 'Linkshell 1', 'Your first linkshell\'s chat.', 'Chat' },
+    [8] = { 'Emote', 'Emotes, done nearby.', 'Chat' },
+    [26] = { 'Yell', 'Yells, heard across the whole region.', 'Chat' },
+    [27] = { 'Linkshell 2', 'Your second linkshell\'s chat.', 'Chat' },
+    [30] = { 'Linkshell 3', 'A third linkshell, kept by the game for later.', 'Chat' },
+    [33] = { 'Unity', 'Unity chat.', 'Chat' },
+    [34] = { 'Japanese Assist', 'The assist channel, in Japanese.', 'Chat' },
+    [35] = { 'English Assist', 'The assist channel, in English.', 'Chat' },
+    [13] = { 'Say', 'Say with no one named as speaking.', 'Without A Speaker' },
+    [14] = { 'Shout', 'Shout with no one named as speaking.', 'Without A Speaker' },
+    [15] = { 'Party', 'Party chat with no one named as speaking.', 'Without A Speaker' },
+    [16] = { 'Linkshell 1', 'Linkshell 1 with no one named as speaking.', 'Without A Speaker' },
+    [28] = { 'Linkshell 2', 'Linkshell 2 with no one named as speaking.', 'Without A Speaker' },
+    [31] = { 'Linkshell 3', 'Linkshell 3 with no one named as speaking.', 'Without A Speaker' },
+    [6] = { 'System 1', 'The game\'s first channel of system messages.', 'System' },
+    [7] = { 'System 2', 'Its second channel of system messages.', 'System' },
+    [29] = { 'System 3', 'Its third channel of system messages.', 'System' },
+    [12] = { 'GM Prompt', 'What a game master sends you.', 'System' },
 };
 for id = 0, 35 do
-    M.All[#M.All + 1] = { id = id, key = tostring(id), label = labels[id] or ('Unknown / reserved ' .. id), default = id == 0 };
+    local entry = named[id];
+    M.All[#M.All + 1] = { id = id, key = tostring(id), default = id == 0,
+        label = entry and entry[1] or ('Unknown ' .. id),
+        sentence = entry and entry[2] or 'A channel the game is not known to use.',
+        group = entry and entry[3] or 'Unknown' };
 end
 M.Npc = { [142] = true, [144] = true, [150] = true, [151] = true, [152] = true, [210] = true };
+local npcNamed = {
+    [150] = { 'Dialogue 150', 'What an NPC says to you. On to begin with.' },
+    [151] = { 'Dialogue 151', 'More of what an NPC says, by its second channel. On to begin with.' },
+    [152] = { 'Prompts And Menus 152', 'NPC lines that carry a prompt or a menu as well.' },
+    [142] = { 'System Text 142', 'System lines said by an NPC.' },
+    [144] = { 'System Text 144', 'System lines said by an NPC, by its second channel.' },
+    [210] = { 'Party And Trust 210', 'What a trust or a party\'s NPC says.' },
+};
 for _, id in ipairs({ 150, 151, 152, 142, 144, 210 }) do
-    local label = (id == 150 or id == 151) and 'NPC dialogue (text channel)'
-        or id == 152 and 'NPC prompt / dialogue (text channel)'
-        or id == 210 and 'Party / trust NPC text' or 'NPC system text';
-    M.All[#M.All + 1] = { id = id, key = 'npc:' .. id, label = label, source = 'text', default = id == 150 or id == 151 };
+    local entry = npcNamed[id];
+    M.All[#M.All + 1] = { id = id, key = 'npc:' .. id, label = entry[1], sentence = entry[2],
+        source = 'text', default = id == 150 or id == 151 };
 end
 return M;

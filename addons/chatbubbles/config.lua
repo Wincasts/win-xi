@@ -16,7 +16,6 @@
 --   config.DrawModes(options)         the Chat Modes tab
 local imgui = require('imgui');
 local widgets = require('winxi.widgets');
-local tooltip = require('winxi.tooltip');
 local modes = require('modes');
 local skin = require('skin');
 
@@ -126,143 +125,118 @@ function config.Parchment()
     Save();
 end
 
--- The controls, each named on the left in line with winxi's, with a mark at its end that says what it
--- is for when hovered
-local function Mark(text)
-    imgui.SameLine();
-    imgui.TextDisabled('(?)');
-    tooltip.Hover(text);
-end
-
-local function Checkbox(label, id, value, help)
-    widgets.Label(label);
-    local changed = imgui.Checkbox(id, value);
+-- The rows: each setting is one described row (winxi.widgets), its name, a sentence under it, and the
+-- control at the right. A colour, a dropdown and a checkbox are saved as they change; a slider when it
+-- is let go. The spec tables are made once here, never a new one per frame.
+local function Checkbox(name, sentence, id, value, spec)
+    local changed = widgets.Check(name, sentence, value, id, spec);
     if (changed) then Save(); end
-    Mark(help);
     return changed;
 end
 
-local function Colour(label, id, value, help)
-    widgets.Label(label);
-    widgets.PushControlWidth();
-    imgui.ColorEdit4(id, value);
-    widgets.PopControlWidth();
-    if (imgui.IsItemDeactivatedAfterEdit()) then Save(); end
-    Mark(help);
+-- A colour is saved once the mouse is up after a change: a picker's popup is not the swatch that opened it
+local colourChanged = false;
+
+local function Colour(name, sentence, id, value)
+    if (widgets.Color(name, sentence, value, id)) then colourChanged = true; end
 end
 
-local function Number(label, id, value, low, high, help)
-    widgets.Label(label);
-    imgui.SetNextItemWidth(widgets.NumberWidth(1, 3));
-    if (imgui.InputInt(id, value)) then
-        value[1] = math.max(low, math.min(high, value[1]));
+local function SaveColours()
+    if (colourChanged and not imgui.IsMouseDown(0)) then
+        colourChanged = false;
         Save();
     end
-    Mark(help);
 end
 
--- One of choices ({ key, label } each, or keys with labels apart) as a dropdown, value[1] the chosen key
-local function Choice(label, id, value, choices, labels, help)
-    widgets.Label(label);
-    widgets.PushControlWidth();
-    if (imgui.BeginCombo(id, labels[value[1]] or value[1])) then
-        for _, choice in ipairs(choices) do
-            local key = type(choice) == 'table' and choice.key or choice;
-            if (imgui.Selectable((labels[key] or key) .. id .. '.' .. key, value[1] == key) and value[1] ~= key) then
-                value[1] = key;
-                Save();
-            end
-        end
-        imgui.EndCombo();
+-- One of choices ({ key, label } each, or plain keys) as a dropdown, value[1] the chosen key
+local function Choice(name, sentence, id, value, choices)
+    local chosen = widgets.Dropdown(name, sentence, choices, value[1], id);
+    if (chosen ~= nil) then
+        value[1] = chosen;
+        Save();
     end
-    widgets.PopControlWidth();
-    Mark(help);
 end
+
+local fontSpec = { theme = 'Default', description = 'The font the bubbles are written in.' };
+local sizeSpec = { theme = 'Default Size', max = 72, description = 'How big the text is.' };
 
 function config.DrawAppearance(options)
     local appearance = options.appearance;
-    widgets.BeginLabels('chatbubbles.appearance');
     if (widgets.Header('Bubbles', true)) then
-        Checkbox('Enable Bubbles', '##chatbubbles.enabled', options.enabled, 'Whether any bubble is drawn. Off clears those there are.');
-        widgets.Label('Preset');
-        if (imgui.Button('White##chatbubbles.preset.white')) then config.Preset(true); end
-        imgui.SameLine();
-        if (imgui.Button('Dark##chatbubbles.preset.dark')) then config.Preset(false); end
-        imgui.SameLine();
-        if (imgui.Button('Parchment##chatbubbles.preset.parchment')) then config.Parchment(); end
-        Mark('A premade look: White and Dark are the plain skin in those colours with no border; Parchment is the parchment skin with the FFXI-inspired border and dark text. Font, size, padding and the channels are left as they are.');
-        widgets.Label('Preview');
-        if (imgui.Button((config.preview[1] and 'Stop Preview' or 'Preview') .. '##chatbubbles.preview')) then config.preview[1] = not config.preview[1]; end
-        Mark('A sample bubble over your character while these settings are open, drawn as they say, with the click-through arrow if it is on. It goes with the settings window.');
+        Checkbox('Show Bubbles', 'Shows a bubble over whoever speaks. /chatbubbles on and off switch it too.', '##chatbubbles.enabled', options.enabled);
+        widgets.Check('Preview', 'Shows a sample bubble over you while this window is open.', config.preview, '##chatbubbles.preview');
+    end
+    if (widgets.Header('Presets')) then
+        if (widgets.Action('White', 'White bubbles with dark text and no border.', 'Apply##chatbubbles.preset.white')) then config.Preset(true); end
+        if (widgets.Action('Dark', 'Dark bubbles with white text and no border.', 'Apply##chatbubbles.preset.dark')) then config.Preset(false); end
+        if (widgets.Action('Parchment', 'Parchment bubbles with the FFXI-inspired border and dark text.', 'Apply##chatbubbles.preset.parchment')) then config.Parchment(); end
     end
     if (widgets.Header('Skin')) then
-        Choice('Skin', '##chatbubbles.skin', appearance.skin, skin.Keys, skin.Labels,
-            'Plain is a rounded rectangle in the Background colour. Parchment is winxi\'s FFXI-inspired window look round the bubble, lighter: a gradient from Skin Top to Skin Bottom with the fine dark lines over it.');
+        Choice('Skin', 'Plain is one colour. Parchment shades from Skin Top to Skin Bottom.', '##chatbubbles.skin', appearance.skin, skin.Keys);
         if (appearance.skin[1] == 'parchment') then
-            Colour('Skin Top', '##chatbubbles.skinTop', appearance.skinTop, 'The parchment\'s colour at the top of the bubble.');
-            Colour('Skin Bottom', '##chatbubbles.skinBottom', appearance.skinBottom, 'And at the bottom.');
+            Colour('Skin Top', 'The parchment\'s colour at the top of the bubble.', '##chatbubbles.skinTop', appearance.skinTop);
+            Colour('Skin Bottom', 'Its colour at the bottom of the bubble.', '##chatbubbles.skinBottom', appearance.skinBottom);
         else
-            Colour('Background', '##chatbubbles.background', appearance.background, 'The plain skin\'s colour, opacity and all.');
+            Colour('Background', 'The plain skin\'s colour.', '##chatbubbles.background', appearance.background);
         end
-        Choice('Border', '##chatbubbles.border', appearance.border, skin.Borders, skin.BorderLabels,
-            'One of the theme\'s border arts round the bubble, a plain line of a pixel, or none. With either skin.');
+        Choice('Border', 'A Winxi Theme border round the bubble, a thin line, or none.', '##chatbubbles.border', appearance.border, skin.Borders);
         if (appearance.border[1] ~= 'none') then
-            Colour('Border Colour', '##chatbubbles.borderColor', appearance.borderColor, 'The art\'s tint (white is the art as it is), or the plain line\'s colour.');
+            Colour('Border Colour', 'The tint on the border art, white for the art as it is, or the plain line\'s colour.', '##chatbubbles.borderColor', appearance.borderColor);
         end
     end
     if (widgets.Header('Text')) then
-        Checkbox('Match Game Text Colours', '##chatbubbles.gameTextColors', appearance.gameTextColors,
-            'The text in the colour the game gives that chat channel, as FFXI Config > Font Colors has it, changing as it changes. A game colour over a light bubble gets a dark edge.');
-        Colour('Text Colour', '##chatbubbles.text', appearance.text,
-            'The text\'s colour when the game\'s is not matched, for local tests, or when the game\'s cannot be read. Its opacity applies either way.');
-        widgets.PushControlWidth();
-        if (widgets.FontFile(appearance, 'font', '##chatbubbles.font', { theme = 'Default',
-                tooltip = 'A font of Windows\' own, by its file in C:\\Windows\\Fonts. Default is the font everything else is written in.' })) then Save(); end
-        local _, done = widgets.FontSize(appearance, 'fontSize', '##chatbubbles.fontSize', { theme = 'Default Size', max = 72,
-            tooltip = 'The text\'s size in pixels. Default Size is the size everything else is.' });
+        Checkbox('Match Game Text Colours', 'Writes the text in the colour the game gives that channel.', '##chatbubbles.gameTextColors', appearance.gameTextColors);
+        Colour('Text Colour', 'The text\'s colour when the game\'s colours are not matched.', '##chatbubbles.text', appearance.text);
+        if (widgets.FontFile(appearance, 'font', '##chatbubbles.font', fontSpec)) then Save(); end
+        local _, done = widgets.FontSize(appearance, 'fontSize', '##chatbubbles.fontSize', sizeSpec);
         if (done) then Save(); end
-        widgets.PopControlWidth();
-        Number('Padding (px)', '##chatbubbles.padding', appearance.padding, 0, 40, 'The room between the text and the bubble\'s edge.');
+        local _, let = widgets.Slider('Padding', 'The room between the text and the bubble\'s edge.', appearance.padding, 0, 40, '##chatbubbles.padding', widgets.Pixels);
+        if (let) then Save(); end
     end
     if (widgets.Header('Behaviour')) then
-        Checkbox('Click-Through Arrow', '##chatbubbles.arrow', appearance.arrow,
-            'A small arrow in the bubble\'s bottom right, flashing as the game\'s dialogue cursor does, on an NPC\'s line that waits for you to press a key. The bubble stays while it waits.');
-        Checkbox('Draw On Screen', '##chatbubbles.onScreen', appearance.onScreen,
-            'Off: bubbles are drawn in the world by namehook, where walls and characters in front hide them, as names are. On: over everything on the screen, at one size whatever the distance.');
+        Checkbox('Click-Through Arrow', 'A small flashing arrow on an NPC line that waits for a key.', '##chatbubbles.arrow', appearance.arrow);
+        Checkbox('Draw On Screen', 'Draws the bubbles over everything on the screen, at one size. Off, they sit in the world, where walls hide them.', '##chatbubbles.onScreen', appearance.onScreen);
     end
+    SaveColours();
 end
 
-local function DrawModeList(options, source)
-    for _, mode in ipairs(modes.All) do
-        if (mode.source == source) then
-            widgets.Label(mode.label);
-            if (imgui.Checkbox(('##chatbubbles.mode.%s'):format(mode.key), options.modes[mode.key])) then Save(); end
-        end
+-- The Chat Modes tab: a row for each channel, from modes.lua, the player chat ones under the
+-- sub-section their group names
+local modeIds = {}; -- key -> the control's id, made once
+
+local function ModeRow(options, mode)
+    local id = modeIds[mode.key];
+    if (id == nil) then
+        id = ('##chatbubbles.mode.%s'):format(mode.key);
+        modeIds[mode.key] = id;
     end
+    Checkbox(mode.label, mode.sentence, id, options.modes[mode.key]);
+end
+
+local function SetAll(options, on)
+    for _, mode in ipairs(modes.All) do options.modes[mode.key][1] = on; end
+    Save();
 end
 
 function config.DrawModes(options)
-    widgets.BeginLabels('chatbubbles.modes');
     if (widgets.Header('Channels', true)) then
-        widgets.Label('All Channels');
-        if (imgui.Button('Enable All##chatbubbles.modes.all')) then
-            for _, mode in ipairs(modes.All) do options.modes[mode.key][1] = true; end
-            Save();
-        end
-        imgui.SameLine();
-        if (imgui.Button('Disable All##chatbubbles.modes.none')) then
-            for _, mode in ipairs(modes.All) do options.modes[mode.key][1] = false; end
-            Save();
-        end
-        Mark('Only the channels ticked make bubbles. A speaker still needs a name namehook lists. Local tests pass these switches.');
+        if (widgets.Action('Enable All', 'Turns on bubbles for every channel.', 'Enable##chatbubbles.modes.all')) then SetAll(options, true); end
+        if (widgets.Action('Disable All', 'Turns off bubbles for every channel.', 'Disable##chatbubbles.modes.none')) then SetAll(options, false); end
     end
     if (widgets.Header('Player Chat')) then
-        imgui.TextWrapped('The game\'s chat packet modes, incoming and outgoing. Say is on to begin with.');
-        DrawModeList(options, nil);
+        for _, group in ipairs(modes.Groups) do
+            if (widgets.SubHeader(group, false, group == 'Unknown')) then -- the unknown ones collapsed to start
+                for _, mode in ipairs(modes.All) do
+                    if (mode.source == nil and mode.group == group) then ModeRow(options, mode); end
+                end
+            end
+        end
+        widgets.EndSub();
     end
     if (widgets.Header('NPC Text')) then
-        imgui.TextWrapped('The text channels an NPC\'s words come by, apart from the packet modes above. Dialogue, 150 and 151, is on to begin with; 152 carries prompts and menus as well. Narration with no speaker is skipped.');
-        DrawModeList(options, 'text');
+        for _, mode in ipairs(modes.All) do
+            if (mode.source == 'text') then ModeRow(options, mode); end
+        end
     end
 end
 

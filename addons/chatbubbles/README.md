@@ -52,56 +52,63 @@ The test's fixed label is intentionally still a UI overlay; speech bubbles are n
 ## Settings
 
 Open `/chatbubbles`. The settings window is winxi's (`winxi.shell`), in the shared
-theme, with two tabs, **Appearance** and **Chat Modes**, each section of which
-collapses with its `[-]`; every control is named on its left and has a `(?)` at
-its end that says what it is for. Settings are saved per character, including the
-enable switch, colours and individual channel switches. No DLL change is needed
-for these settings if namehook 1.24+ is already installed. The addon needs winxi 30.
+theme, with two tabs, **Appearance** and **Chat Modes**, laid out as winxi's
+described rows (winxi 65): each section collapses with its `[-]`, and every setting
+is a row, its name, a sentence under it saying what it does, and its control at
+the right. There is no other help. Settings are saved per character, including the
+Show Bubbles switch, colours and individual channel switches. No DLL change is needed
+for these settings if namehook 1.24+ is already installed. The addon needs winxi 59.
 
-- **Appearance:** White bubbles and Dark bubbles presets, a Background RGBA
-  picker, and **Match in-game chat text colors** (on by default). Real chat uses
-  the colors currently selected in **FFXI Config → Font Colors**, including NPC
-  dialogue. Text RGBA is the manual/fallback color when matching is off, for
-  local test bubbles, or when the client lookup cannot be resolved. Its opacity
-  applies even when using game RGB colors. Changes apply to active bubbles.
+- **Appearance:**
+  **Bubbles** has **Show Bubbles** (`/chatbubbles on` and `off` switch it too) and
+  **Preview**, a sample bubble over your character while the settings are open,
+  drawn as they say, with the click-through arrow if it is on; it goes with the
+  settings window.
+  **Presets** are three rows, **White**, **Dark** and **Parchment**, each with an
+  Apply button: White and Dark are the plain skin in those colours with no border,
+  Parchment the parchment skin with the FFXI-inspired border and dark text. A
+  preset leaves the font, size, padding, channels and game-colour matching as they are.
   **Skin** chooses the bubble's look: **Plain**, the rounded rectangle in the
-  Background colour, or **Parchment**, winxi's FFXI-inspired window look made
+  **Background** colour, or **Parchment**, winxi's FFXI-inspired window look made
   lighter: a gradient from **Skin Top** to **Skin Bottom** (a parchment beige to a
-  browner shade to begin with) with the theme's fine dark lines over it, and the
-  FFXI-inspired border round it, in the world and on the screen alike. The
-  **Parchment bubbles** preset chooses it with dark text. The art is winxi's own
-  (`libs\winxi\assets`), so `libs/winxi` has to be deployed with it.
+  browner shade to begin with) with the theme's fine dark lines over it, in the
+  world and on the screen alike. The art is winxi's own (`libs\winxi\assets`), so
+  `libs/winxi` has to be deployed with it. The colour rows that go with the other
+  skin are not shown.
   **Border** puts one of the theme's border arts round the bubble (Brushed Silver,
   Bronze, FFXI-inspired, Crystal, Royal Gold, Obsidian, Plain Obsidian, Royal Silver, Royal
   Platinum, Mythril, Adaman, Jade or Amethyst), tinted **Border Colour**, or a
   **Plain Line** of a pixel in that colour, or **None**. It goes with either skin;
-  the Parchment preset chooses the FFXI-inspired art, the others none.
-  **Font** is a font of Windows' own, by its file in `C:\Windows\Fonts`, or Default,
-  the font everything else is written in; **Font Size (px)** its size, or 0 for the
-  size everything else is. **Padding (px)** is the room between the text and the
-  bubble's edge, 10 to begin with.
-  **Click-Through Arrow** (on by default) puts a small arrow in the bubble's bottom
-  right, flashing as the game's dialogue cursor does, on an NPC's line that waits
-  for you to press a key: one the game sends with its prompt escape (DEL `1`) while
-  an event is running. The bubble stays while the game waits, and goes a second
-  after the event ends or the next line comes.
-  **Preview**, beside Skin, keeps a sample bubble over your character while the
-  settings are open, drawn as they say, with the click-through arrow if it is on;
-  it goes with the settings window, or with Stop Preview.
-  **Draw On Screen** (off by default) draws the bubbles with imgui over everything
-  on the screen, at one size whatever the distance, instead of in the world where
-  walls and characters in front hide them. The same colours, wrapping and fade
-  apply; a bubble that would not fit above the speaker is not drawn. namehook is
-  still needed for the speaker's place on the screen.
-  Presets change manual colors but do not turn game-color matching on/off.
-  Game-colored text gets a thin dark outline on light backgrounds, preserving
-  the selected RGB while keeping white text readable on white bubbles.
-- **Chat Modes:** individual switches for all 36 catalogued incoming chat packet
-  modes (0–35), including Say, Shout, Tell, Party/Alliance, Linkshell 1/2, Yell,
-  Emote, Unity, Assist channels, no-speaker variants, system and reserved modes.
-  It also lists **NPC text channels 150, 151, 152, 142, 144 and 210**, using
-  separate settings keys from player packet channels. Enable All / Disable All
-  buttons apply to both groups. **Say and NPC dialogue 150/151 are enabled by
+  the Parchment preset chooses the FFXI-inspired art, the others none. Border
+  Colour is shown while there is a border.
+  **Text** has **Match Game Text Colours** (on by default): real chat uses the
+  colours currently selected in **FFXI Config → Font Colors**, including NPC
+  dialogue, and a game colour over a light bubble gets a thin dark edge. **Text
+  Colour** is the colour when matching is off, for local test bubbles, or when the
+  client lookup cannot be resolved; its opacity applies either way. **Font** is a
+  font of Windows' own, by its file in `C:\Windows\Fonts`, or Default, the font
+  everything else is written in; **Font Size** its size in pixels, or Default Size,
+  the size everything else is. **Padding** is the room between the text and the
+  bubble's edge, 10 px to begin with.
+  **Behaviour** has **Click-Through Arrow** (on by default), a small arrow in the
+  bubble's bottom right, flashing as the game's dialogue cursor does, on an NPC's
+  line that waits for you to press a key: one the game sends with its prompt escape
+  (DEL `1`) while an event is running. The bubble stays while the game waits, and
+  goes a second after the event ends or the next line comes. **Draw On Screen**
+  (off by default) draws the bubbles with imgui over everything on the screen, at
+  one size whatever the distance, instead of in the world where walls and
+  characters in front hide them. The same colours, wrapping and fade apply; a
+  bubble that would not fit above the speaker is not drawn. namehook is still
+  needed for the speaker's place on the screen.
+- **Chat Modes:** a row for each channel, with its sentence. **Channels** has
+  **Enable All** and **Disable All**, which apply to both groups. **Player Chat**
+  lists all 36 catalogued incoming chat packet modes (0–35) under four
+  sub-sections: **Chat** (Say, Shout, Tell, Party / Alliance, Linkshell 1, 2 and 3,
+  Emote, Yell, Unity and the two Assist channels), **Without A Speaker** (the
+  no-speaker variants), **System** (the system channels and GM Prompt) and
+  **Unknown** (the reserved modes, collapsed to start). **NPC Text** lists the NPC
+  text channels **150, 151, 152, 142, 144 and 210**, using separate settings keys
+  from player packet channels. **Say and NPC dialogue 150/151 are enabled by
   default**; other channels are opt-in, especially private channels such as Tell.
   Channel 152 includes prompt traffic and is opt-in to avoid menu noise.
 

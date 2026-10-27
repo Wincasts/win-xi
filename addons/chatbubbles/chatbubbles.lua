@@ -1,6 +1,6 @@
 addon.name = 'chatbubbles';
 addon.author = 'win';
-addon.version = '0.97';
+addon.version = '0.98';
 addon.desc = 'Configurable chat bubbles anchored by namehook, in the world or on the screen.';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
