@@ -82,10 +82,23 @@ local app
 
 local statusEngaged, statusResting = 1, 33
 
--- What stops your attacks, and what the bar says for it (cadence's list): sleep, petrification,
--- stun, Sleep II, terror, penalty and Lullaby
+-- What stops your attacks, and what the bar says for it: the server's (winxi.rules' preventAction, from
+-- its HasPreventActionEffect): sleep, petrification, stun, Sleep II, terror, penalty and Lullaby; this
+-- list, the same, where winxi's data is not installed
 local stoppedBy = { { 2, 'Asleep' }, { 7, 'Petrified' }, { 10, 'Stunned' }, { 19, 'Asleep' }, { 28, 'Terror' },
     { 159, 'Penalty' }, { 193, 'Asleep' } }
+do
+    local said = {}
+    for _, entry in ipairs(stoppedBy) do said[entry[1]] = entry[2] end
+    local ok, rules = pcall(require, 'winxi.rules')
+    local prevent = ok and rules.Get('preventAction') or nil
+    if prevent and prevent.Statuses then
+        stoppedBy = {}
+        for _, id in ipairs(prevent.Statuses) do
+            stoppedBy[#stoppedBy + 1] = { id, said[id] or 'Stopped' }
+        end
+    end
+end
 
 -- 0x029 messages for a round that cannot happen
 local cantAttack = { [4] = 'Too Far', [5] = 'Not Facing' }

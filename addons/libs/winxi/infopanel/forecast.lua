@@ -21,7 +21,8 @@ M.Names = { [0] = 'Clear skies', 'Sunshine', 'Clouds', 'Fog', 'Hot spells', 'Hea
     'Thunder', 'Thunderstorms', 'Auroras', 'Stellar glare', 'Gloom', 'Darkness' }
 
 M.SecondsPerDay = 3456 -- Earth seconds in a Vana'diel day: the raw game time counts them
-M.RareChance, M.CommonChance = 15, 35 -- of 100; the normal weather takes the rest
+M.RareChance, M.CommonChance = 15, 35 -- of 100; the normal weather takes the rest: the server's, from
+-- zone_weather.lua (tools/build_zone_weather.py reads them from its zone.cpp), these where it has none
 
 local days = { 'Firesday', 'Earthsday', 'Watersday', 'Windsday', 'Iceday', 'Lightningday', 'Lightsday', 'Darksday' }
 
@@ -30,6 +31,9 @@ local function Data()
     if data == nil then
         local ok, found = pcall(require, 'winxi.infopanel.zone_weather')
         data = ok and type(found) == 'table' and found or false
+        if data and data.rareChance and data.commonChance then
+            M.RareChance, M.CommonChance = data.rareChance, data.commonChance
+        end
     end
     return data or nil
 end

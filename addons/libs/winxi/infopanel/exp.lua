@@ -17,6 +17,11 @@
 local exp = {}
 
 exp.PointsPerMerit = 10000
+do -- the server's (winxi.rules' merits, from its merit.cpp), the same where winxi's data is not installed
+    local ok, rules = pcall(require, 'winxi.rules')
+    local merits = ok and rules.Get('merits') or nil
+    exp.PointsPerMerit = merits and merits.LimitPointsPerMerit or exp.PointsPerMerit
+end
 local MESSAGES = { [8] = 'exp', [253] = 'exp', [371] = 'limit', [372] = 'limit' }
 local MIN_SPAN = 60
 

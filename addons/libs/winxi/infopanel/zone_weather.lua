@@ -6,6 +6,7 @@
 -- zones the fog rule leaves alone.
 return {
     cycle = 2160,
+    rareChance = 15, commonChance = 35, -- of 100 (zone.cpp's UpdateWeather); the normal weather takes the rest
     triples = {
         { 1, 1, 1 },
         { 1, 2, 2 },

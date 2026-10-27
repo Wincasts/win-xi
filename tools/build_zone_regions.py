@@ -47,7 +47,7 @@ def build(server, output=OUTPUT):
     server_regions = {name: int(value) for name, value in re.findall(r'^\s+(\w+)\s*=\s*(\d+),', enum, re.M)}
     zone_ids = {squash(name): number for name, number in modules.load_yaml(server, 'enums/zone')['values'].items()}
 
-    code = modules.blank_comments((server / 'src/map/utils/zoneutils.cpp').read_text())
+    code = modules.blank_cpp_comments((server / 'src/map/utils/zoneutils.cpp').read_text())
     start = code.index('auto GetCurrentRegion(const xi::ZoneId zoneId) -> REGION_TYPE')
     body = code[start:code.index('return REGION_TYPE::UNKNOWN;', start)]
     region_of, cases = {}, []
