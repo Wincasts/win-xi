@@ -106,6 +106,8 @@ def replay(db, path, variables, module=False, tables=None, transform=None):
             if transform:
                 translated = transform(translated, table)
             translated = re.sub(r'^INSERT IGNORE', 'INSERT OR IGNORE', translated, flags=re.I)
+            # MySQL takes VALUE for VALUES; sqlite does not
+            translated = re.sub(r'^((?:INSERT(?: OR IGNORE)?|REPLACE) INTO\s+`?\w+`?\s+)VALUE\s*\(', r'\1VALUES (', translated, flags=re.I)
             try:
                 db.execute(translated)
             except sqlite3.Error as error:

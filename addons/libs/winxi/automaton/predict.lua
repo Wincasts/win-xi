@@ -45,17 +45,29 @@ local castingFrames = { [0x20] = true, [0x23] = true } -- Harlequin, Stormwaker
 
 -- kind: the debuff it leaves. skill: the magic skill it needs. unless: a debuff it will not be cast over.
 -- element: the maneuver that brings the spell forward, which the window colours its name with
-local BioII    = { name = 'Bio II',   kind = 'bio',     skill = 111, unless = 'dia', element = 'dark' }
-local DiaII    = { name = 'Dia II',   kind = 'dia',     skill =  96, unless = 'bio', element = 'light' }
-local Bio      = { name = 'Bio',      kind = 'bio',     skill =  33, unless = 'dia', element = 'dark' }
-local Dia      = { name = 'Dia',      kind = 'dia',     skill =   0, unless = 'bio', element = 'light' }
-local Poison   = { name = 'Poison',   kind = 'poison',  skill =  18, element = 'water' }
-local Silence  = { name = 'Silence',  kind = 'silence', skill =  57, element = 'wind' }
-local Slow     = { name = 'Slow',     kind = 'slow',    skill =  42, element = 'earth' }
-local Blind    = { name = 'Blind',    kind = 'blind',   skill =  27, element = 'dark' }
-local Paralyze = { name = 'Paralyze', kind = 'para',    skill =  21, element = 'ice' }
-local Aspir    = { name = 'Aspir',    skill = 78, element = 'dark' }
-local Drain    = { name = 'Drain',    skill = 45, element = 'dark' }
+local BioII    = { name = 'Bio II', id = 231,   kind = 'bio',     skill = 111, unless = 'dia', element = 'dark' }
+local DiaII    = { name = 'Dia II', id = 24,   kind = 'dia',     skill =  96, unless = 'bio', element = 'light' }
+local Bio      = { name = 'Bio', id = 230,      kind = 'bio',     skill =  33, unless = 'dia', element = 'dark' }
+local Dia      = { name = 'Dia', id = 23,      kind = 'dia',     skill =   0, unless = 'bio', element = 'light' }
+local Poison   = { name = 'Poison', id = 220,   kind = 'poison',  skill =  18, element = 'water' }
+local Silence  = { name = 'Silence', id = 59,  kind = 'silence', skill =  57, element = 'wind' }
+local Slow     = { name = 'Slow', id = 56,     kind = 'slow',    skill =  42, element = 'earth' }
+local Blind    = { name = 'Blind', id = 254,    kind = 'blind',   skill =  27, element = 'dark' }
+local Paralyze = { name = 'Paralyze', id = 58, kind = 'para',    skill =  21, element = 'ice' }
+local Aspir    = { name = 'Aspir', id = 247,    skill = 78, element = 'dark' }
+local Drain    = { name = 'Drain', id = 245,    skill = 45, element = 'dark' }
+
+-- The server's (winxi.rules' automaton, read from its automaton_spells with the module SQL over it):
+-- each spell's magic skill; a spell no automaton can cast there (skill 999) is never offered. The
+-- figures above are the same, for where winxi's data is not installed.
+local okRules, rules = pcall(require, 'winxi.rules')
+local automatonRule = okRules and rules.Get('automaton') or nil
+if automatonRule and automatonRule.Spells then
+    for _, spell in ipairs({ BioII, DiaII, Bio, Dia, Poison, Silence, Slow, Blind, Paralyze, Aspir, Drain }) do
+        local row = automatonRule.Spells[spell.id]
+        if row then spell.skill = row.Skill end
+    end
+end
 
 -- The element a spell answers to, by its name: for the window
 predict.SpellElements = {}
@@ -180,6 +192,20 @@ local weaponskills = {
     },
     [0x23] = harlequinSkills, -- a Stormwaker has the Harlequin's
 }
+-- each frame's, as the server lists them where winxi's data is installed (its pet's skill list, the
+-- skill each needs from mob_skills, the element its own check counts): those no automaton has there
+-- (a skill of 999) are left out
+if automatonRule and automatonRule.WeaponSkills then
+    for frame, skills in pairs(automatonRule.WeaponSkills) do
+        local list = {}
+        for _, skill in ipairs(skills) do
+            if skill.Usable then
+                list[#list + 1] = { name = skill.Name, skill = skill.Skill, element = skill.Element, id = skill.Id }
+            end
+        end
+        weaponskills[frame] = list
+    end
+end
 
 -- Returns the weapon skill's name and the element whose maneuvers it answers to
 function predict.Weaponskill(state)
@@ -245,7 +271,7 @@ end
 -- timers are disclosed with unknown confidence. A WS without enough TP and without a measured
 -- rate is never selected merely as a fallback. Silence, zero MP and Amnesia gate known actions.
 
-local cooldowns = { -- by head: between any two spells, and between two of a kind
+local cooldowns = { -- by head: between any two spells, and between two of a kind (the era's, as live has them)
     [1] = { magic = 30, heal = 20, enfeeble = 20 },
     [2] = { magic = 45, heal = 30 },
     [3] = { magic = 45, heal = 30, enfeeble = 30 },
@@ -253,6 +279,19 @@ local cooldowns = { -- by head: between any two spells, and between two of a kin
     [5] = { magic = 25, heal = 15, enfeeble = 30, status = 15 },
     [6] = { magic = 25, enfeeble = 45, elemental = 15 },
 }
+
+-- the server's timers by head where winxi's data is installed (its pets/automaton.lua, or the era
+-- module's in their place on live), the kinds this knows
+if automatonRule and automatonRule.MagicTimers then
+    local known = { magic = true, heal = true, enfeeble = true, elemental = true, status = true }
+    for head, timers in pairs(automatonRule.MagicTimers) do
+        local kept = {}
+        for kind, seconds in pairs(timers) do
+            if known[kind] then kept[kind] = seconds end
+        end
+        cooldowns[head] = kept
+    end
+end
 
 local rangedCooldown = { [1] = 25, [3] = 20 } -- by head, on a Sharpshot frame: 36 for any other
 local rangedLeast = { [3] = 5 }               -- and the least it can be brought down to: 10 for any other
