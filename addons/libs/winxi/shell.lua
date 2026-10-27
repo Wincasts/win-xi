@@ -178,6 +178,7 @@ local function DrawTabs(tabs, options)
             widgets.BeginLabels(tab.label);
             imgui.Dummy(tabAir);
             tab.draw(options);
+            widgets.EndSub();
             imgui.Dummy(tabAir);
             imgui.EndTabItem();
         end
@@ -200,6 +201,7 @@ local function DrawConfigContent(app)
             -- the addon's settings are set a little apart from the tabs over them, as from what is under them
             imgui.Dummy(tabAir);
             spec.drawSettings(options);
+            widgets.EndSub();
             imgui.Dummy(tabAir);
             imgui.EndTabItem();
         end
@@ -217,6 +219,7 @@ local function DrawConfigContent(app)
             if widgets.Header('Hide Window') then
                 widgets.Hide(options.hide, app.save);
             end
+            widgets.EndSub();
             imgui.Dummy(tabAir);
             imgui.EndTabItem();
         end
@@ -225,6 +228,7 @@ local function DrawConfigContent(app)
 
             if spec.drawAppearance ~= nil and widgets.Header('Addon') then
                 spec.drawAppearance(options);
+                widgets.EndSub();
             end
             widgets.EndThemeTab();
         end

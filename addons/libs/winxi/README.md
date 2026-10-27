@@ -564,7 +564,11 @@ someone who has set one addon up knows every other. The rules, in the order a wi
    The first section of a tab is `Header(name, true)`, flush with the tab bar. A header sets itself apart
    from the section above: never a `Gap` before one. `Gap` goes only between families of settings inside
    a section, and draws a faint rule across the window with a little air either side, so the families
-   can be told apart at a glance. The first section of the Settings tab is **Window**, where there is a
+   can be told apart at a glance. A section with many families is split into sub-sections instead
+   (`widgets.SubHeader`): each a title indented a step under the section, collapsible as a section is,
+   with its rows a step further in. The next sub-section or section ends it; a row after the last
+   sub-section calls `widgets.EndSub()` first. The theme's Styles is one: Border And Background, Titles,
+   Bars and Icons. The first section of the Settings tab is **Window**, where there is a
    window: Visible, Lock Window, Position, and whatever else is about the window itself, under those
    names in every addon.
 3. **Rows.** Every setting is a described row: its name, a sentence under the name saying what it does,

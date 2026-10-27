@@ -450,22 +450,28 @@ local function DrawSettings(options)
     end
 
     if widgets.Header('Markers') then
-        Show('Show Player', 'showPlayer', 'playerColor', 'You, and which way you are facing.');
-        MarkerSettings('player', 'Player', 'showPlayer', playerStyles);
-        widgets.Gap();
-        Show('Show Party', 'showParty', 'partyColor', 'Your party. One out of sight is drawn hollow, where the server says it is.');
-        MarkerSettings('party', 'Party', 'showParty', memberStyles);
-        widgets.Gap();
-        Show('Show Alliance', 'showAlliance', 'allianceColor', 'The alliance\'s other parties.');
-        MarkerSettings('alliance', 'Alliance', 'showAlliance', memberStyles);
-        widgets.Gap();
-        Show('Show Target', 'showTarget', 'targetColor', 'What you have targeted.');
+        widgets.Slider('Marker Size', 'How big the markers are, unless a kind below has its own size.', options.markerSize, 4, 24, '##atlas.markerSize', widgets.Pixels);
         local names = not options.showNames[1] and 'hidden' or (options.namesOnHover[1] and 'hover' or 'always');
         local chosen = widgets.Dropdown('Names', 'When names are written beside party, alliance and target markers.', nameChoices, names, '##atlas.names');
         if chosen ~= nil then
             options.showNames[1], options.namesOnHover[1] = chosen ~= 'hidden', chosen == 'hover';
         end
-        widgets.Slider('Marker Size', 'How big the markers are, unless a kind has a size of its own.', options.markerSize, 4, 24, '##atlas.markerSize', widgets.Pixels);
+        if widgets.SubHeader('Player') then
+            Show('Show Player', 'showPlayer', 'playerColor', 'You, and which way you are facing.');
+            MarkerSettings('player', 'Player', 'showPlayer', playerStyles);
+        end
+        if widgets.SubHeader('Party') then
+            Show('Show Party', 'showParty', 'partyColor', 'Your party. One out of sight is drawn hollow, where the server says it is.');
+            MarkerSettings('party', 'Party', 'showParty', memberStyles);
+        end
+        if widgets.SubHeader('Alliance') then
+            Show('Show Alliance', 'showAlliance', 'allianceColor', 'The alliance\'s other parties.');
+            MarkerSettings('alliance', 'Alliance', 'showAlliance', memberStyles);
+        end
+        if widgets.SubHeader('Target') then
+            Show('Show Target', 'showTarget', 'targetColor', 'What you have targeted.');
+        end
+        widgets.EndSub();
     end
 
     if widgets.Header('Party') then
