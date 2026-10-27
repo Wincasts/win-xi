@@ -574,9 +574,10 @@ someone who has set one addon up knows every other. The rules, in the order a wi
 4. **The sentence.** One short line, written for someone who does not know the game's insides: what
    happens when the setting is on, or what the number is. Plain words, no keys, no addon names where
    "this window" will do, no "whether": "Shows the bar while you are under a status", not "Whether the
-   window is visible". Where a command does the same, say so at the end: "/buff switches it too." The
-   long note, where one is needed, goes behind a (?) after the sentence (`spec.tooltip`) and is the only
-   tooltip a settings window has; explanatory lines between controls are gone.
+   window is visible". Where a command does the same, say so at the end: "/buff switches it too." There
+   is no other help: no tooltips, no (?) marks, no explanatory lines between controls. What the sentence
+   cannot say in one line is left out. Say "game default" for what the game has by itself and "Winxi
+   Theme" for what the theme gives, never "the game's own" or "winxi's own".
 5. **Names.** Each word capitalised: "Shadow Opacity", "Fade When Idle". No unit in the name: the unit
    goes in the value, with `widgets.Pixels`, `Percent`, `Seconds` and `Milliseconds` or a `format` of the
    addon's own ("%d px/s"). An experimental setting has `[Experimental]`, in yellow, before its name

@@ -43,9 +43,7 @@ local kept = nil
 local automatic = { true }
 local removing = nil
 
-local automaticSpec = { tooltip = 'The settings as they were are kept as the layout for the old resolution. winxisettings has to be loaded as the game starts (in scripts\\default.txt) for this.' }
 local saveSentences = {} -- resolution -> the Save Layout row's sentence
-local useSpec = { tooltip = 'At the title screen or character select that is at once; with a character logged in, the next time the game starts, since each addon writes its settings back as it closes.' }
 local rowIds = {} -- a layout's name -> its buttons' labels
 
 local function DrawLayouts()
@@ -60,7 +58,7 @@ local function DrawLayouts()
         widgets.EndRow()
 
         automatic[1] = layouts.IsAutomatic()
-        if widgets.Check('Switch With Resolution', 'Starting the game at another resolution puts in the layout kept for it, if there is one.', automatic, '##winxisettings.automatic', automaticSpec) then
+        if widgets.Check('Switch With Resolution', 'Starting the game at another resolution puts in the layout kept for it, if there is one.', automatic, '##winxisettings.automatic') then
             layouts.SetAutomatic(automatic[1])
         end
 
@@ -98,7 +96,7 @@ local function DrawLayouts()
                 ids = { name .. ' (this resolution)', 'Use##winxisettings.use.' .. name, 'Remove##winxisettings.remove.' .. name }
                 rowIds[name] = ids
             end
-            widgets.BeginRow(name == resolution and ids[1] or name, nil, useSpec)
+            widgets.BeginRow(name == resolution and ids[1] or name, nil)
             if imgui.Button(ids[2]) then
                 if layouts.Use(name) == 'now' then
                     Say(('Using the layout for %s.'):format(name))

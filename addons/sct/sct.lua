@@ -369,8 +369,6 @@ end
 
 -- Settings
 
-local dropsSpec = { tooltip = 'Items added to your main Inventory, and key items you gain. Items moved in from your other bags, wardrobes and the treasure pool are not shown.' };
-local iconSpec = { tooltip = 'Custom Icons, on the Winxi Theme tab, says whose icons they are.' };
 local speedSpec = { format = '%d px/s' };
 local lockSpec = { description = 'Keeps the box where it is, and lets clicks through it. Off, it can be dragged, and its edge is drawn so you can see it.' };
 local dropsLockSpec = { label = 'Lock Drops', description = 'Keeps the item box where it is, and lets clicks through it. Locked, it hides while empty.' };
@@ -400,8 +398,8 @@ local function DrawSettings(options)
     end
 
     if widgets.Header('Received Items') then
-        widgets.Check('Show Received Items', 'A line with its picture as you get an item or a key item.', options.showDrops, '##sct.showDrops', dropsSpec);
-        if widgets.Check('Separate Popup', 'Items get a box of their own instead of scrolling with the statuses.', options.dropsSeparate, '##sct.dropsSeparate', dropsDependent) then place = true; end
+        widgets.Check('Show Received Items', 'A line with its picture as you get an item or a key item.', options.showDrops, '##sct.showDrops');
+        if widgets.Check('Separate Popup', 'Items get their own box instead of scrolling with the statuses.', options.dropsSeparate, '##sct.dropsSeparate', dropsDependent) then place = true; end
         if options.dropsSeparate[1] then
             widgets.Lock(options.dropsLocked, '##sct.dropsLocked', dropsLockSpec);
             if widgets.Numbers('Drop Position', 'Where the item box\'s corner is on the screen.', options.dropsPos, '##sct.dropsPos', dropsPositionDependent) then place = true; end
@@ -416,7 +414,7 @@ local function DrawSettings(options)
         widgets.Color('Buff Color', 'The colour of a helpful status gained.', options.buffColor, '##sct.buffColor');
         widgets.Color('Enfeeble Color', 'The colour of a harmful status gained.', options.enfeebleColor, '##sct.enfeebleColor');
         widgets.Color('Lost Color', 'The colour of a status lost.', options.lostColor, '##sct.lostColor');
-        widgets.Slider('Icon Size', 'How tall the status icons are.', options.iconSize, 12, 64, '##sct.iconSize', iconSpec);
+        widgets.Slider('Icon Size', 'How tall the status icons are.', options.iconSize, 12, 64, '##sct.iconSize', widgets.Pixels);
         widgets.FontFile(options, 'fontFile', '##sct.fontFile');
         widgets.FontSize(options, 'fontSize', '##sct.fontSize');
         if widgets.Action('Test Lines', 'Sends a status gained, a harmful one and a status lost down the box. /sct test does the same.', 'Test##sct.test') then

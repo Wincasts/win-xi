@@ -2,8 +2,9 @@
 --
 -- Every setting is a described row (winxi 65): its name, a plain sentence under the name saying what
 -- it does, and its control at the right. The sentence is for someone who does not know the game's
--- insides: one short line, no jargon, no settings named by their keys. A long note goes in a (?) after
--- the sentence (spec.tooltip), and only where the sentence cannot say it.
+-- insides: one short line, no jargon, no settings named by their keys. There is no other help: what
+-- the sentence cannot say is left out. "Game default" is what the game has by itself, "Winxi Theme"
+-- what the theme gives; never "the game's own" or "winxi's own".
 --
 --   widgets.Check(name, sentence, box, id, spec)              a checkbox; returns whether it changed
 --   widgets.Slider(name, sentence, box, low, high, id, spec)  a slider of whole numbers (spec.float for
@@ -35,7 +36,6 @@
 --   experimental   true: [Experimental], in yellow, goes before the name
 --   parent         the box of the setting this one depends on: the row is indented under it, and greyed
 --                  while it is off. parent = true indents without greying; indent = false never indents
---   tooltip        a longer note, behind a (?) after the sentence
 --   description    where a widget writes its own sentence (Lock, FontFile): one of the addon's own
 --
 -- The theme's own sections, drawn this way:
@@ -216,11 +216,6 @@ function widgets.BeginRow(name, sentence, spec)
         imgui.PushTextWrapPos(left + description);
         imgui.TextDisabled(Escaped(sentence));
         imgui.PopTextWrapPos();
-    end
-    if spec.tooltip ~= nil then
-        if sentence ~= nil and sentence ~= '' then imgui.SameLine(); end
-        imgui.TextDisabled('(?)');
-        Tooltip(spec.tooltip);
     end
     imgui.EndGroup();
     row.bottom = imgui.GetCursorPosY();
@@ -555,7 +550,7 @@ widgets.Milliseconds = { format = '%d ms' };
 local percent, pixels, milliseconds = widgets.Percent, widgets.Pixels, widgets.Milliseconds;
 local dependent = { parent = true };
 local dependentPercent = { parent = true, format = '%d%%' };
-local heightSpec = { format = '%d px', tooltip = 'A window resized by its edge keeps that size until it is double-clicked there, which fits it again.' };
+local heightSpec = { format = '%d px' };
 
 -- The title of a section of a settings window, with a blank line before it to set it apart from the
 -- section above (pass first for the section that heads the tab). An addon's Winxi Theme tab has five:
@@ -718,7 +713,7 @@ local function IconSets()
     return iconChoices;
 end
 
-local iconSpec = { onOpen = IconSets, tooltip = 'For the addons that follow this setting: party, buff and name. A set is a folder in libs\\winxi\\statusicons with a picture for each status; add a folder there and it is in this list the next time it is opened. FFXIV is the set winxi comes with.' };
+local iconSpec = { onOpen = IconSets };
 
 local function StatusIcons()
     local current = theme.Get();
@@ -726,7 +721,7 @@ local function StatusIcons()
         IconSets();
     end
     local currentKey = current.StatusIcons and current.StatusIconSet or '';
-    local chosen = widgets.Dropdown('Custom Icons', 'The pictures used for buffs and debuffs. None keeps the game\'s own.',
+    local chosen = widgets.Dropdown('Custom Icons', 'The pictures used for buffs and debuffs. None keeps the game default icons.',
         iconChoices, currentKey, controlIds.StatusIconSet, iconSpec);
     if chosen ~= nil then
         if chosen == '' then
@@ -771,7 +766,7 @@ function widgets.Appearance(appearanceHooks, parts)
     local offersChoice = hooks ~= nil and hooks.onUseShared ~= nil;
     if offersChoice and widgets.Header('Theme', true) then
         box[1] = theme.IsShared();
-        if widgets.Check('Use Shared Theme', 'Look like every other winxi addon, and change them all from here. Off, this addon keeps colours of its own.', box, '##winxi.UseSharedTheme') then
+        if widgets.Check('Use Shared Theme', 'Look like every other winxi addon, and change them all from here. Off, this addon keeps its own colours.', box, '##winxi.UseSharedTheme') then
             hooks.onUseShared(box[1] and true or false);
         end
     end
@@ -811,24 +806,19 @@ function widgets.Appearance(appearanceHooks, parts)
     -- The styles: the window border for every window, and what an addon that draws bars or statuses
     -- draws them with
     if widgets.Header('Styles') then
-        ThemeChoice('Window Border', 'BorderStyle', theme.BorderStyles, 'A decorative border in place of the plain line.',
-            { tooltip = 'The window keeps its Background Color. With a decorative border, a Padding of 3 or more keeps the words clear of it. Settings windows keep the plain line.' });
-        ThemeChoice('Window Background', 'BackgroundStyle', theme.BackgroundStyles, 'A texture behind each window in place of the flat colour.',
-            { tooltip = 'Drawn in the Background Color: a gradient, fine lines, stone, marble, linen or brushed metal. Settings windows keep the flat colour.' });
-        ThemeChoice('Tab Style', 'TabStyle', theme.TabStyles, 'A finish over the tabs of windows that have them.',
-            { tooltip = 'Plain is none. Sheen, Glass and Bevel are drawn; the rest are textures. The tabs keep their colours. Settings windows keep plain tabs.' });
+        ThemeChoice('Window Border', 'BorderStyle', theme.BorderStyles, 'A decorative border in place of the plain line.');
+        ThemeChoice('Window Background', 'BackgroundStyle', theme.BackgroundStyles, 'A texture behind each window in place of the flat colour.');
+        ThemeChoice('Tab Style', 'TabStyle', theme.TabStyles, 'A finish over the tabs.');
         ThemeSlider('Border Opacity', 'BorderOpacity', 0, 100, 'How solid the border is. 0 is no border.', percent);
         widgets.Gap();
-        ThemeCheck('Frame Titles', 'FrameTitles', 'Writes each window\'s name along its top edge.',
-            { tooltip = 'In the addons that name their windows, as party does: Party, Target and the rest. Settings windows keep their own title bar.' });
+        ThemeCheck('Frame Titles', 'FrameTitles', 'Writes each window\'s name along its top edge.');
         if current.FrameTitles then
-            ThemeChoice('Title Style', 'TitleStyle', theme.TitleStyles, 'How the name sits on the edge.',
-                { tooltip = 'Outlined Text is the name alone with a dark edge. Break In Border leaves a gap in the border for it; Break With Shadow adds a soft haze behind it. Plate sets it on a small plate.' });
+            ThemeChoice('Title Style', 'TitleStyle', theme.TitleStyles, 'How the name sits on the edge.');
             ThemeColor('Title Color', 'TitleColor', 'The colour of the name.');
             ThemeCheck('Title All Caps', 'TitleAllCaps', 'PARTY in place of Party.');
             FontChoice('TitleFontFile', 'TitleSize',
-                'The font the names are written in. Window Font is the window\'s own.',
-                'How big the names are. Default is the size of the window\'s own words.', titleFontNames);
+                'The font the names are written in. Window Font uses the window\'s font.',
+                'How big the names are. Default matches the window\'s text.', titleFontNames);
             ThemeSlider('Title Position X', 'TitleOffsetX', -50, theme.MaxTitleOffsetX, 'How far in from the right edge the name ends. Below 0 it runs past the edge.', pixels);
             ThemeSlider('Title Position Y', 'TitleOffsetY', -theme.MaxTitleOffsetY, theme.MaxTitleOffsetY, 'Moves the name down, or up when below 0.', pixels);
             ThemeCheck('Title Shadow', 'TitleShadow', 'A soft dark copy of the name, down and to the right of it.');
@@ -838,20 +828,17 @@ function widgets.Appearance(appearanceHooks, parts)
             end
         end
         widgets.Gap();
-        ThemeChoice('Bar Texture', 'BarTexture', theme.BarTextures, 'The look of the HP and MP bars.',
-            { tooltip = 'For the addons that draw bars, as party does. The bars keep their HP and MP colours whatever the texture. The Enamel and Glass Tube ones are shaded from top to foot, so they look the same at any HP.' });
-        ThemeChoice('Bar Frame', 'BarFrame', theme.BarFrames, 'The frame round each bar.',
-            { tooltip = 'Bar Texture is the texture\'s own frame. Capsule Outline is a thin rim that goes with the Rounded bookends, so the bar and its caps are one capsule being filled.' });
+        ThemeChoice('Bar Texture', 'BarTexture', theme.BarTextures, 'The look of the HP and MP bars.');
+        ThemeChoice('Bar Frame', 'BarFrame', theme.BarFrames, 'The frame round each bar.');
         ThemeSlider('Bar Frame Opacity', 'BarFrameOpacity', 0, 100, 'How solid the frame is. 0 is none.', percent);
-        ThemeSlider('Fill End Glow', 'BarGlow', 0, 100, 'A soft light where the bar\'s fill ends, as on the game\'s own gauges. 0 is none.', percent);
-        ThemeCheck('Custom Bar Backdrop', 'BarBackdrop', 'Choose the colour of the empty part of each bar. Off, it is the bar\'s own colour, darkened.');
+        ThemeSlider('Fill End Glow', 'BarGlow', 0, 100, 'A soft light where the bar\'s fill ends. 0 is none.', percent);
+        ThemeCheck('Custom Bar Backdrop', 'BarBackdrop', 'Pick the colour of the empty part of each bar. Off, it is a darker shade of the bar.');
         if current.BarBackdrop then
             ThemeColor('Bar Backdrop Color', 'BarBackdropColor', 'The colour of the empty part. Its alpha lets the dark trough show through.', dependent);
         end
         ThemeCheck('Bar Bookends', 'Bookends', 'A small cap at each end of the bars.');
         if current.Bookends then
-            ThemeChoice('Bookend Style', 'BookendStyle', theme.BookendStyles, 'The look of the caps.',
-                { parent = true, tooltip = 'Match Border follows the Window Border. Rounded and Rounded Silver are round ends after the game\'s own, that carry the bar on past each end.' });
+            ThemeChoice('Bookend Style', 'BookendStyle', theme.BookendStyles, 'The look of the caps.', dependent);
             ThemeSlider('Bookend Opacity', 'BookendOpacity', 0, 100, 'How solid the caps are. 0 is none.', dependentPercent);
         end
         if withIcons then
@@ -874,7 +861,7 @@ function widgets.Appearance(appearanceHooks, parts)
     end
     ResetRow('Reset Appearance', resetPopups.game, resetKeys,
         'Puts every setting above back as it started, for every addon that shares the theme.',
-        'Puts this addon\'s own look back as it started.');
+        'Puts this addon\'s look back as it started.');
 
     SaveIfChanged();
 end
@@ -893,7 +880,7 @@ function widgets.SettingsAppearance(appearanceHooks)
         ThemeColor('Text Color', 'SettingsTextColor', 'The words in each settings window.');
         ThemeColor('Highlight Color', 'SettingsHighlightColor', 'The tab you have chosen, and the line under the tabs.');
         ThemeColor('Sub-Category Color', 'SettingsHeaderColor', 'The section titles, the ones that fold with [-] and [+].');
-        ThemeColor('Theme Tab Color', 'ThemeTabColor', 'The Winxi Theme tab, which sets it apart from an addon\'s own tabs.');
+        ThemeColor('Theme Tab Color', 'ThemeTabColor', 'The Winxi Theme tab, so it stands out from the other tabs.');
 
         widgets.Gap();
         ThemeSlider('Padding', 'SettingsPadding', 0, theme.MaxSettingsPadding, 'Space between a settings window\'s edge and what is in it.', pixels);
@@ -917,7 +904,7 @@ function widgets.SettingsAppearance(appearanceHooks)
 
     ResetRow('Reset Settings Windows', resetPopups.settings, theme.SettingsWindowKeys,
         'Puts every setting above back as it started, for every addon that shares the theme.',
-        'Puts this addon\'s own settings windows back as they started.');
+        'Puts this addon\'s settings windows back as they started.');
 
     SaveIfChanged();
 end
@@ -925,6 +912,7 @@ end
 -- Every tooltip's values (winxi.tooltip): whether they show, how soon, their colours, padding, text
 -- size and width. Tooltips are always the shared theme's, so this is for winxisettings, which follows it.
 local tooltipSample = 'A tooltip looks like this. Its words go on to another line once they reach the Max Width set above, so a long one stays readable.';
+local sampleWords = 'Hover Here';
 
 function widgets.TooltipAppearance()
     hooks = nil;
@@ -944,18 +932,18 @@ function widgets.TooltipAppearance()
         ThemeSlider('Max Width', 'TooltipMaxWidth', theme.MinTooltipWidth, theme.MaxTooltipWidth, 'How wide a note grows before its words go on to another line.', pixels);
         local current = theme.Get();
         box[1] = current.TooltipFontSize;
-        local resized = widgets.Slider('Font Size', 'How big a note\'s words are. Window\'s Own is the size of the window it is over.', box, 0, theme.MaxFontSize, controlIds.TooltipFontSize,
-            { format = current.TooltipFontSize > 0 and '%d px' or 'Window\'s Own' });
+        local resized = widgets.Slider('Font Size', 'How big a note\'s words are. Same As Window matches the window it is over.', box, 0, theme.MaxFontSize, controlIds.TooltipFontSize,
+            { format = current.TooltipFontSize > 0 and '%d px' or 'Same As Window' });
         if resized then
             current.TooltipFontSize = box[1];
         end
         AfterControl(resized);
 
         widgets.Gap();
-        widgets.BeginRow('Sample', 'Rest the mouse on the mark at the right to see a note.');
-        AtRight(imgui.CalcTextSize('(?)'));
+        widgets.BeginRow('Sample', 'Rest the mouse on the words at the right to see a note.');
+        AtRight(imgui.CalcTextSize(sampleWords));
         imgui.AlignTextToFramePadding();
-        imgui.TextDisabled('(?)');
+        imgui.TextDisabled(sampleWords);
         Tooltip(tooltipSample);
         widgets.EndRow();
     end
@@ -1047,7 +1035,6 @@ end
 -- options[key] is the setting; id the control's hidden label ('##buff.fontFile'). spec, each optional:
 --   label        the setting's name: Font, or Font Size
 --   description  the sentence under it, in place of the usual one
---   tooltip      a longer note, behind a (?)
 --   theme        what the theme's own is called: Theme Font, or Theme Size
 --   min, max     the size's range: 0 and theme.MaxFontSize. Only a range from 0 offers the theme's size.
 -- Both return whether the setting was changed this frame. FontSize returns as well whether the slider
@@ -1074,7 +1061,7 @@ function widgets.FontFile(options, key, id, spec)
         return changed;
     end
     local chosen = widgets.Dropdown(spec.label or 'Font',
-        spec.description or ('The font for this addon\'s own words. %s follows the Winxi Theme; the rest are the fonts Windows has.'):format(themeLabel),
+        spec.description or ('The font for this addon\'s text. %s follows the Winxi Theme; the rest are the fonts Windows has.'):format(themeLabel),
         choices, file, id, spec);
     if chosen ~= nil then
         options[key] = chosen;
@@ -1095,7 +1082,7 @@ function widgets.FontSize(options, key, id, spec)
         return changed, imgui.IsItemDeactivatedAfterEdit() and true or false;
     end
     widgets.BeginRow(spec.label or 'Font Size',
-        spec.description or ('How big this addon\'s own words are. %s follows the Winxi Theme.'):format(themeLabel), spec);
+        spec.description or ('How big this addon\'s text is. %s follows the Winxi Theme.'):format(themeLabel), spec);
     local changed = imgui.SliderInt(id, size, low, high, format);
     local done = imgui.IsItemDeactivatedAfterEdit() and true or false;
     widgets.EndRow();
@@ -1105,7 +1092,7 @@ end
 -- Lock Window: a window held where it is, the mouse going through it to the game (winxi.window's
 -- locked and clickThrough options, or the addon's own flags). box is the setting, a table holding
 -- true or false; id the control's hidden label. spec, each optional: label (Lock Window), description,
--- tooltip, and onChanged, called with the new value. Returns whether it was changed.
+-- and onChanged, called with the new value. Returns whether it was changed.
 function widgets.Lock(value, id, spec)
     spec = spec or noSpec;
     local changed = widgets.Check(spec.label or 'Lock Window',
@@ -1189,7 +1176,7 @@ function widgets.Hide(settings, onChanged)
     HideCheck(settings, 'Hide While Chat Open', 'UnderChat', 'The windows go while the chat log is opened right out.');
     HideCheck(settings, 'Hide While Loading', 'WhileLoading', 'The windows go while you change area.');
     HideCheck(settings, 'Hide During Events', 'DuringEvent', 'The windows go during cutscenes and while you talk to someone.');
-    HideCheck(settings, 'Hide With Game Interface', 'WithInterface', 'The windows go when you hide the game\'s own interface.');
+    HideCheck(settings, 'Hide With Game Interface', 'WithInterface', 'The windows go when you hide the game interface.');
 
     if hideDirty and MouseIsUp() then
         hideDirty = false;
