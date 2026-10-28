@@ -1,6 +1,6 @@
 addon.name    = 'inventory'
 addon.author  = 'lin, win'
-addon.version = '1.0'
+addon.version = '1.1'
 addon.desc    = 'The bags in a window: what is in them, and what can be done with it, by mouse or controller.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -1935,8 +1935,30 @@ end
 
 local topPadding = 6 -- more room above the tabs, below the title on the top edge, in pixels
 
+-- Begin has applied this frame's auto-size before any content is drawn. Offset that size change
+-- here, rather than measuring the content twice (which would also process tabs and input twice).
+local growth = { pos = { 0, 0 } }
+local function ApplyGrowthAnchor(options)
+    local x, y = imgui.GetWindowPos()
+    local w, h = imgui.GetWindowSize()
+    local mode = options.growthAnchor
+    if options.lockMovement[1] and growth.options == options and growth.mode == mode
+        and growth.locked and x == growth.x and y == growth.y then
+        if mode == 'TopRight' or mode == 'BottomRight' then x = x + growth.w - w end
+        if mode == 'BottomLeft' or mode == 'BottomRight' then y = y + growth.h - h end
+        if x ~= growth.x or y ~= growth.y then
+            growth.pos[1], growth.pos[2] = x, y
+            imgui.SetWindowPos(growth.pos)
+        end
+    end
+    -- A new choice, locking, or moving through Position starts from the current rectangle.
+    growth.options, growth.mode, growth.locked = options, mode, options.lockMovement[1]
+    growth.x, growth.y, growth.w, growth.h = x, y, w, h
+end
+
 -- What goes in the window
 local function DrawWindow(drawOptions)
+    ApplyGrowthAnchor(drawOptions)
     -- once for the frame, inside the window: they take in its fade
     stackMain, stackShadow = imgui.GetColorU32(stackWhite), imgui.GetColorU32(stackBlack)
     iconTint = imgui.GetColorU32(iconWhite)
@@ -1985,6 +2007,7 @@ local defaults = T{
     showEmptySlots = T{ true },
     maxHeight = T{ 432 }, -- retained for legacy settings import; no longer controls the window
     lockMovement = T{ false },
+    growthAnchor = 'TopLeft', -- the corner held still as the locked window changes size
     gridRows = T{ 7 },
     gridColumns = T{ 6 },
     bagTabs = T{ bag = T{ true }, satchel = T{ true }, wardrobe = T{ true }, house = T{ true } },
@@ -2054,6 +2077,7 @@ local app = shell.New({
         },
     },
     onSettings = function(options)
+        growth.options = nil
         equipment.Reset()
         currency.Reset()
         -- the player's own order is part of the settings, which may be another character's now
@@ -2161,6 +2185,7 @@ ashita.events.register('d3d_present', 'inv_present', function()
     local overBar = scrollBar.grab ~= nil or (zone.shown and mx ~= nil
         and mx >= zone[1] and mx < zone[3] and my >= zone[2] and my < zone[4])
     windowExtra.locked = options.lockMovement[1] or overBar
+    if not options.lockMovement[1] then growth.locked = false end
     zone.shown = false
     local shown = attached.shown[1]
     app:Window(attached.shown, DrawWindow, windowExtra)

@@ -19,6 +19,12 @@ themed tooltip.
 **Lock**, in General → Window, prevents dragging the inventory window when enabled.
 It is off by default; the **Position** fields remain usable while locked.
 
+**Growth Anchor**, also in General → Window, chooses which corner stays fixed while the locked
+window changes size (for example, when switching tabs). **Top Left** is the default and grows right
+and down. **Top Right** grows left and down, **Bottom Left** grows right and up, and **Bottom Right**
+grows left and up. Changing the anchor does not move the window; unlocking restores normal top-left
+growth so you can freely reposition it.
+
 While the window is locked, items can be dragged with the mouse. Drop an item on another item of the
 tab to swap their places (your own order, as the controller's Manual sort makes it; Auto sort puts
 the usual order back). Drop it on another tab's name at the top to move it into that tab's bags: the
