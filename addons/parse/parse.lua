@@ -1,6 +1,6 @@
 addon.name = 'parse'
 addon.author = 'win'
-addon.version = '0.6.0'
+addon.version = '0.6.0-pre1'
 addon.desc = 'Packet-based combat damage, observed hit rates and manual encounter DPS.'
 local winxiNeeded = 25
 do

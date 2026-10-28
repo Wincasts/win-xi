@@ -3,6 +3,15 @@
 
     tools/package_release.py <addon>          an addon, plugin or data named in RELEASES (chatbox, lens, mobdb, zone...)
     tools/package_release.py --all            each of them
+    tools/package_release.py <addon> --stage pre1
+                                              a pre-release (pre1, pre2...) or release candidate (rc1...) of it
+
+A testing round's package is a pre-release, and one that has come through a round untouched a release
+candidate: the version carries the stage (name 1.86-pre1), in the zip's and the tag's name and the
+release's title, and the notes say what it is. An addon's addon.version carries it too, so the game
+says it; a plugin's version is a number in Ashita's API, so the stage is the package's alone. The
+changelog section is the release's (1.86) throughout. A tag with a stage does not count as a release
+when the notes are gathered.
 
 Each zip holds the addon, everything it needs and nothing else:
 
@@ -118,9 +127,39 @@ def plugin_version(plugin):
     raise ValueError(f'No version for {plugin}: neither plugins/{plugin}/src/{plugin}.cpp nor src/Version.h says')
 
 
+STAGE = re.compile(r'^(pre|rc)\d+$')
+
+
+def staged(version, stage):
+    """The version to package and its changelog's: 1.86-pre1 and 1.86. The stage asked for must be the
+    addon's own where addon.version carries one; a plugin's or data's version takes it."""
+    base, found = version, None
+    match = re.match(r'^(.+)-(pre\d+|rc\d+)$', version)
+    if match:
+        base, found = match.groups()
+    if stage and found and stage != found:
+        raise ValueError(f'the version is {version}, not -{stage}: set it to {base}-{stage} first')
+    if stage and not found:
+        return f'{base}-{stage}', base
+    return version, base
+
+
+def stage_notes(version, base, title):
+    """What a staged release's notes say first: which it is, and what it is for."""
+    stage = version[len(base) + 1:]
+    if not stage:
+        return ''
+    kind = 'Pre-release' if stage.startswith('pre') else 'Release candidate'
+    return (f'**{kind} {stage} of {title} {base}**, for testing: install it as a release, try what the README\'s '
+            f'"Pre-releases and release candidates" section lists where there is one, and report what you find. '
+            f'The release notes below are those {base} will carry.\n\n')
+
+
 def released(addon):
-    """The versions released before, from the repository's tags: <addon>-v<version>."""
-    return [tag[len(addon) + 2:] for tag in git('tag', '-l', f'{addon}-v*').split() if '-test' not in tag]
+    """The versions released before, from the repository's tags: <addon>-v<version>; not tests,
+    pre-releases or release candidates."""
+    return [tag[len(addon) + 2:] for tag in git('tag', '-l', f'{addon}-v*').split()
+            if not re.search(r'-(test|pre\d+|rc\d+)', tag)]
 
 
 def notes(addon, version, changelog):
@@ -370,19 +409,19 @@ def write_zip(staging, archive, output):
             zipped.write(path, path.relative_to(staging).as_posix())
 
 
-def package_plugin(plugin, output):
+def package_plugin(plugin, output, stage=None):
     """A plugin alone: plugins/<plugin>.dll, its license, where its source is and how to load it."""
     commit = git('rev-parse', 'HEAD')
     folder = f'plugins/{plugin}'
     dirty = git('status', '--porcelain', '--', folder)
     if dirty:
         raise RuntimeError('Uncommitted changes in what would be packaged: commit them first\n' + dirty)
-    version = plugin_version(plugin)
+    version, base = staged(plugin_version(plugin), stage)
     name = f'{plugin}-v{version}'
     archive = output / f'{name}.zip'
     if archive.exists():
         raise FileExistsError(f'{archive} is already there: remove it, or raise the version')
-    release_notes = notes(plugin, version, ROOT / folder / 'CHANGELOG.md')
+    release_notes = stage_notes(version, base, plugin) + notes(plugin, base, ROOT / folder / 'CHANGELOG.md')
     with tempfile.TemporaryDirectory() as temporary:
         staging = Path(temporary) / name
         (staging / 'plugins').mkdir(parents=True)
@@ -402,7 +441,7 @@ def package_plugin(plugin, output):
            f'see plugins/{plugin}-INSTALL.txt.\n', output, commit)
 
 
-def package_data(addon, output):
+def package_data(addon, output, stage=None):
     """An addon's data alone, as the folder it reads it from: for the addon as its author releases it."""
     extras = RELEASES[addon]
     commit = git('rev-parse', 'HEAD')
@@ -415,12 +454,12 @@ def package_data(addon, output):
     sections = re.findall(r'^## (\S+)', changelog.read_text(), flags=re.M)
     if not sections:
         raise ValueError(f'{changelog} has no section to release')
-    version = sections[0]
+    version, base = staged(sections[0], stage)
     name = f'{addon}-data-v{version}'
     archive = output / f'{name}.zip'
     if archive.exists():
         raise FileExistsError(f'{archive} is already there: remove it, or add a newer section')
-    release_notes = notes(f'{addon}-data', version, changelog)
+    release_notes = stage_notes(version, base, extras['title']) + notes(f'{addon}-data', base, changelog)
     archived = git('archive', '--format=tar', commit, '--', source, binary=True)
     with tempfile.TemporaryDirectory() as temporary:
         tree = Path(temporary) / 'tree'
@@ -444,19 +483,22 @@ def package_data(addon, output):
            f'see addons/{addon}/{addon}-data-INSTALL.txt.\n', output, commit)
 
 
-def package(addon, output):
+def package(addon, output, stage=None):
     extras = RELEASES[addon]
     if extras.get('kind') == 'plugin':
-        return package_plugin(addon, output)
+        return package_plugin(addon, output, stage)
     if extras.get('kind') == 'data':
-        return package_data(addon, output)
+        return package_data(addon, output, stage)
     commit = git('rev-parse', 'HEAD')
     version = addon_version(ROOT / 'addons' / addon / f'{addon}.lua')
+    if stage and not version.endswith('-' + stage):
+        raise ValueError(f"addons/{addon}/{addon}.lua's addon.version is {version}: set it to {version.split('-')[0]}-{stage} first, so the game says it")
+    version, base = staged(version, stage)
     name = f'{addon}-v{version}'
     archive = output / f'{name}.zip'
     if archive.exists():
         raise FileExistsError(f'{archive} is already there: remove it, or raise the version')
-    release_notes = notes(addon, version, ROOT / 'addons' / addon / 'CHANGELOG.md')
+    release_notes = stage_notes(version, base, addon) + notes(addon, base, ROOT / 'addons' / addon / 'CHANGELOG.md')
 
     with tempfile.TemporaryDirectory() as temporary:
         staging = Path(temporary) / name
@@ -487,8 +529,11 @@ if __name__ == '__main__':
     parser.add_argument('addon', nargs='?', choices=sorted(RELEASES))
     parser.add_argument('--all', action='store_true', help='every addon that is released')
     parser.add_argument('--output', type=Path, default=ROOT / 'dist')
+    parser.add_argument('--stage', help='a pre-release (pre1, pre2...) or release candidate (rc1...) of the version')
     args = parser.parse_args()
     if args.all == (args.addon is not None):
         parser.error('name one addon, or give --all')
+    if args.stage and not STAGE.match(args.stage):
+        parser.error('--stage is pre<n> or rc<n>')
     for addon in sorted(RELEASES) if args.all else [args.addon]:
-        package(addon, args.output.resolve())
+        package(addon, args.output.resolve(), args.stage)

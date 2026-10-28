@@ -429,3 +429,36 @@ textures (Pillow required). The preview is illustrative, not an in-game screensh
 The Original bar images are XivParty's, cut down to the bars themselves, in `assets/bars` with its licence.
 The generated sets do not use those images as source material.
 Needs `libs/winxi`.
+
+## Pre-releases and release candidates
+
+A testing round's package is a **pre-release**: the version carries `-pre1`, `-pre2`... (in `addon.version`, so
+`/addon list` and the settings window say it; in the zip's and the tag's name; marked pre-release on GitHub), and
+its notes say what it is. A pre-release that comes through a round with nothing left to fix becomes a
+**release candidate**, `-rc1`, built from the same code; a candidate that runs a round untouched is the release,
+its version without a suffix. The changelog section is the release's throughout: the stage is not a version
+of its own. Packages are made from the commit with `tools/package_release.py <name> --stage pre1` (or `rc1`),
+after `tests/run.sh`, and the command it prints makes the GitHub release, marked pre-release.
+
+The uihook plugin in party's zip is built from the same commit (`plugins/uihook-SOURCE.txt` says which);
+its version stays a number (1.70), Ashita's API giving a plugin a number, so the stage is the package's.
+
+What a round of party covers before a release candidate is cut:
+
+- **Loading**: `/addon load party` alone (the overlay windows), then with `/load uihook` (the native
+  windows, Use uihook on); unload and load each again while the other stays. With hideparty loaded too,
+  party refuses its native windows and says so.
+- **The windows**: your party, an alliance's other two parties, pets, the target, sub-target and target
+  of target, each with its bars, values, cursor, leader marks, debuffs and lock-on brackets; a zone
+  change, an invite waiting, the treasure pool, and fishing (the game's own target window, with its
+  stamina gauge, while a fish is on the line).
+- **The settings window**: every tab, each row doing what its sentence says, dependents greyed under
+  their parent; Style's fonts, bars, bookends and backgrounds; Advanced: Value Positioning; saving and
+  reloading the character's settings.
+- **Offline first**: the checks in the Offline QA section above pass from the repository root.
+- **What to send**: a screenshot of the window in question, your settings file
+  (`config\addons\party\<character>.lua`, nothing private in it but the character's name), and the
+  lines of Ashita's log around any error. Say which pre-release: the version in `/addon list`.
+
+A finding fixed within the round makes the next pre-release (`-pre2`); a round with nothing to fix
+makes `-rc1` from the same commit, and that candidate's untouched round makes the release.

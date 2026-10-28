@@ -1,6 +1,6 @@
 addon.name    = 'trigger'
 addon.author  = 'win'
-addon.version = '1.1'
+addon.version = '1.1-pre1'
 addon.desc    = 'Plays a sound when something happens: a tell, an invite, a trade, being examined, an item you are after dropping, low HP and the like.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 

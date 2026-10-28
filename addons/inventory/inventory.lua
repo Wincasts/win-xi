@@ -1,6 +1,6 @@
 addon.name    = 'inventory'
 addon.author  = 'lin, win'
-addon.version = '1.1'
+addon.version = '1.1-pre1'
 addon.desc    = 'The bags in a window: what is in them, and what can be done with it, by mouse or controller.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
