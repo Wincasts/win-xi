@@ -1,6 +1,6 @@
 addon.name = 'parse'
 addon.author = 'win'
-addon.version = '0.5.0'
+addon.version = '0.6.0'
 addon.desc = 'Packet-based combat damage, observed hit rates and manual encounter DPS.'
 local winxiNeeded = 25
 do
@@ -187,9 +187,13 @@ local function DrawMinimalSettings(options)
         if widgets.Lock(options.minimalLocked, '##parse.minimal.locked') then app.save() end
         if imgui.SliderInt('Name width##parse.minimal', options.minimalNameWidth, 60, 220) then app.save() end
         if imgui.SliderInt('Row spacing##parse.minimal', options.minimalRowSpacing, 0, 6) then app.save() end
+        imgui.TextDisabled('Stats (left to right; independent of Full View)')
+        for _, stat in ipairs(minimal.Stats) do
+            if imgui.Checkbox(columns.Definitions[stat.key].label .. '##parse.minimal', options[stat.option]) then app.save() end
+        end
+        imgui.TextWrapped('Melee and Ranged are hit rates. WS Hit % (TP) is experimental and requires a WS TP profile; unavailable rates show --.')
         for _, item in ipairs({
-            { 'Encounter summary', 'minimalSummary' }, { 'Damage share', 'minimalShare' },
-            { 'Damage total', 'minimalDamage' }, { 'DPS', 'minimalDPS' },
+            { 'Encounter summary', 'minimalSummary' },
             { 'Rank numbers', 'minimalRanks' }, { 'Compact numbers (K / M)', 'minimalCompact' },
             { 'Show remaining actor count', 'minimalMore' }, { 'Hide when empty', 'minimalHideEmpty' },
         }) do
@@ -262,6 +266,9 @@ app = shell.New({
         minimalFontFile = '',
         minimalNameWidth = T{ 112 }, minimalRowSpacing = T{ 0 }, minimalSummary = T{ true },
         minimalShare = T{ true }, minimalDamage = T{ true }, minimalDPS = T{ true },
+        minimalMelee = T{ false }, minimalRanged = T{ false }, minimalMagic = T{ false },
+        minimalWSCount = T{ false }, minimalWSAccuracy = T{ false }, minimalWSUnknown = T{ false },
+        minimalMagicAccuracy = T{ false }, minimalMagicResists = T{ false },
         minimalRanks = T{ false }, minimalCompact = T{ false }, minimalMore = T{ true }, minimalHideEmpty = T{ false } },
     window = 'winxi.parse', title = 'Parse', resizable = true, configTitle = 'Parse Settings', command = '/parse',
     help = '/parse: minimal [on|off], clear, pause (toggle), resume, test [on|off|1-18], config, wsprofile <id> <base TP> <Store TP %> <attempts>|off, report [detail], capture <name|off>.',

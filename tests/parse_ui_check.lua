@@ -275,6 +275,30 @@ check('minimal columns can be hidden independently and row limit applied', minim
     and minimalWords[1]:find('1. ', 1, true) == 1)
 H.frames(1)
 check('test label remains visible with encounter summary disabled', badges.TEST)
+local fullColumns = table.concat(H.options().columnOrder, ',')
+for _, stat in ipairs(minimalModule.Stats) do H.options()[stat.option][1] = true end
+H.frames(1)
+check('minimal supports every full-view stat without changing full-view columns', minimalColumns == 12
+    and table.concat(H.options().columnOrder, ',') == fullColumns)
+H.resettle(); H.frames(1)
+check('additional minimal stats survive settings reload', H.options().minimalMelee[1]
+    and H.options().minimalMagic[1] and H.options().minimalWSAccuracy[1] and H.options().minimalMagicResists[1])
+local sample = { name = 'Stats', key = 'stats', damage = 2500, share = 50, dps = 100,
+    categories = { melee = { hits = 3, misses = 1 }, ranged = { hits = 1, misses = 1 },
+        spell = { damage = 1000 }, burst = { damage = 500 }, ws_count = { count = 2 },
+        ws_hits = { hits = 2, misses = 2 }, ws_unknown = { count = 1 },
+        magic_accuracy = { hits = 3, misses = 1 } } }
+H.options().minimalRanks[1], H.options().minimalCompact[1] = false, true
+minimalModule.Draw(H.options(), { rows = { sample }, total = 2500, duration = 25, running = true }, false)
+local statValues = require('parse_columns')
+local expected = { 'Stats', '50%', '2.5K', '100/s' }
+for _, stat in ipairs(minimalModule.Stats) do
+    if stat.key ~= 'share' and stat.key ~= 'damage' and stat.key ~= 'dps' then
+        expected[#expected + 1] = stat.key == 'magic' and '1.5K' or statValues.Value(stat.key, sample)
+    end
+end
+check('minimal renders added stats with shared accuracy and count formatting', table.concat(minimalWords, '|') == table.concat(expected, '|'))
+for _, stat in ipairs(minimalModule.Stats) do H.options()[stat.option][1] = false end
 local fontLibrary, outlineLibrary = require('winxi.fonts'), require('winxi.text')
 local getFont, pushFont, outlineDraw = fontLibrary.Get, imgui.PushFont, outlineLibrary.Draw
 local selectedFont, selectedSize, outlines = nil, nil, 0

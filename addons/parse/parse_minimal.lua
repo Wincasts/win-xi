@@ -6,7 +6,22 @@ local style = require('winxi.style')
 local fade = require('winxi.fade')
 local fonts = require('winxi.fonts')
 local outlined = require('winxi.text')
+local values = require('parse_columns')
 local M = {}
+-- Independent visibility from the full view; share its stat labels and formatting.
+M.Stats = {
+    { key = 'share', option = 'minimalShare', width = 38 },
+    { key = 'damage', option = 'minimalDamage', width = 58 },
+    { key = 'dps', option = 'minimalDPS', width = 56 },
+    { key = 'melee', option = 'minimalMelee', width = 52 },
+    { key = 'ranged', option = 'minimalRanged', width = 52 },
+    { key = 'magic', option = 'minimalMagic', width = 58 },
+    { key = 'ws_count', option = 'minimalWSCount', width = 48 },
+    { key = 'ws_accuracy', option = 'minimalWSAccuracy', width = 52 },
+    { key = 'ws_unknown', option = 'minimalWSUnknown', width = 48 },
+    { key = 'magic_accuracy', option = 'minimalMagicAccuracy', width = 52 },
+    { key = 'magic_resists', option = 'minimalMagicResists', width = 48 },
+}
 local clear = { 0, 0, 0, 0 }
 local foreground = { 0.9, 0.94, 0.97, 1 }
 local muted = { 0.75, 0.8, 0.85, 0.7 }
@@ -52,12 +67,10 @@ function M.Draw(options, snapshot, preview)
         local count = math.min(#snapshot.rows, options.minimalRows[1])
         local scale = options.minimalFontSize[1] / 12
         local columns = { { label = 'Actor', width = options.minimalNameWidth[1] * scale } }
-        for _, column in ipairs({
-            { label = 'Share', width = 38 * scale, option = 'minimalShare', key = 'share' },
-            { label = 'Damage', width = 58 * scale, option = 'minimalDamage', key = 'damage' },
-            { label = 'DPS', width = 56 * scale, option = 'minimalDPS', key = 'dps' },
-        }) do
-            if options[column.option][1] then columns[#columns + 1] = column end
+        for _, stat in ipairs(M.Stats) do
+            if options[stat.option][1] then
+                columns[#columns + 1] = { key = stat.key, label = values.Definitions[stat.key].label, width = stat.width * scale }
+            end
         end
         if count == 0 then
             text(snapshot.running and 'Waiting for damage' or '/parse resume to record', muted)
@@ -74,6 +87,9 @@ function M.Draw(options, snapshot, preview)
                     if column.key == 'share' then text = ('%.0f%%'):format(row.share or 0)
                     elseif column.key == 'damage' then text = number(row.damage)
                     elseif column.key == 'dps' then text = row.dps and (number(row.dps) .. '/s') or '--/s'
+                    elseif column.key then
+                        text = values.Value(column.key, row)
+                        if column.key == 'magic' then text = number(tonumber(text)) end
                     elseif options.minimalRanks[1] then text = i .. '. ' .. text end
                     if column.key then
                         local x = imgui.GetCursorPosX()
