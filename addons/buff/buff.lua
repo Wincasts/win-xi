@@ -1,6 +1,6 @@
 addon.name    = 'buff';
 addon.author  = 'win';
-addon.version = '1.1';
+addon.version = '1.1-pre1';
 addon.desc    = 'The statuses you are under, with FFXIV\'s icons and the time each has left.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 

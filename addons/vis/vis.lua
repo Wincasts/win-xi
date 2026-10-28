@@ -1,6 +1,6 @@
 addon.name    = 'vis';
 addon.author  = 'win';
-addon.version = '2.2';
+addon.version = '2.2-pre1';
 addon.desc    = 'World and entity draw distance with the fog kept where you want it: general values, a preset for cities, the outdoors and dungeons, and a zone\'s own, saved per character.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 

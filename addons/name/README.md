@@ -882,3 +882,37 @@ support report and normal compatibility/fallback warnings remain available.
 
 Detailed logs can contain character names, local paths, format strings and raw errors.
 Prefer **Write Report** for sharing; inspect detailed logs before sending them.
+
+## Pre-releases and release candidates
+
+A testing round's package is a **pre-release**: the version carries `-pre1`, `-pre2`... (in `addon.version`, so
+`/addon list` and the settings window say it; in the zip's and the tag's name; marked pre-release on GitHub), and
+its notes say what it is. A pre-release that comes through a round with nothing left to fix becomes a
+**release candidate**, `-rc1`, built from the same code; a candidate that runs a round untouched is the release,
+its version without a suffix. The changelog section is the release's throughout: the stage is not a version
+of its own. Packages are made from the commit with `tools/package_release.py <name> --stage pre1` (or `rc1`),
+after `tests/run.sh`, and the command it prints makes the GitHub release, marked pre-release.
+
+The namehook plugin in name's zip is built from the same commit (`plugins/namehook-SOURCE.txt` says which),
+but its own version stays a number (1.51): Ashita gives a plugin a number for a version, so the stage is
+the package's, and `/namehook` reports the plain number. A pre-release of name is a pre-release of the
+namehook it carries.
+
+What a round of name and namehook covers before a release candidate is cut:
+
+- **Loading**: `/load namehook` then `/addon load name`, and the other way round; unload and load each
+  again while the other stays, both ways. The names come back each time, and Diagnostics says
+  **Custom Names** is on, never `old` or `mismatch`.
+- **Names**: players, NPCs, monsters and pets, each kind's format and colours, distance thresholds,
+  crowd decluttering, the check details, statuses over a name, cast bars, NM tracking; a zone change
+  and a long session (an hour or more) without names dropping to the game's own.
+- **The settings window**: every tab, each row doing what its sentence says, saving and reloading
+  the character's settings, and the Reset rows.
+- **With the others**: lens on (the names aligned under the warp), the damage addon (damage popups
+  through namehook), a second names addon if any (claim slots), and the perf addon's figures for name.
+- **What to send**: **Write Report** (`/name report`, written to `config\addons\name\logs`, nothing
+  private in it), a screenshot where the look is the matter, and the lines of Ashita's log around any
+  error. Say which pre-release: the version in `/addon list`.
+
+A finding fixed within the round makes the next pre-release (`-pre2`); a round with nothing to fix
+makes `-rc1` from the same commit, and that candidate's untouched round makes the release.

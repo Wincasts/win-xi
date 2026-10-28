@@ -1,7 +1,7 @@
 from pathlib import Path
 import unittest
 
-from package_release import ROOT, RELEASES, data_sets, plugin_version, winxi_data, winxi_modules
+from package_release import ROOT, RELEASES, data_sets, plugin_version, stage_notes, staged, winxi_data, winxi_modules
 
 
 class PluginVersionTests(unittest.TestCase):
@@ -10,6 +10,21 @@ class PluginVersionTests(unittest.TestCase):
         for plugin in ('namehook', 'uihook', 'lens'):
             with self.subTest(plugin=plugin):
                 self.assertRegex(plugin_version(plugin), r'^\d+\.\d+$')
+
+
+class StageTests(unittest.TestCase):
+    def test_staged_versions(self):
+        self.assertEqual(staged('1.86', None), ('1.86', '1.86'))
+        self.assertEqual(staged('1.86-pre1', None), ('1.86-pre1', '1.86'))      # the addon's own stage
+        self.assertEqual(staged('0.94', 'rc2'), ('0.94-rc2', '0.94'))           # a plugin's number takes it
+        self.assertEqual(staged('2026.10.24', 'pre1'), ('2026.10.24-pre1', '2026.10.24'))
+        with self.assertRaises(ValueError):
+            staged('1.86-pre1', 'pre2')
+
+    def test_stage_notes(self):
+        self.assertEqual(stage_notes('1.86', '1.86', 'name'), '')
+        self.assertTrue(stage_notes('1.86-pre1', '1.86', 'name').startswith('**Pre-release pre1 of name 1.86**'))
+        self.assertTrue(stage_notes('0.94-rc1', '0.94', 'lens').startswith('**Release candidate rc1 of lens 0.94**'))
 
 
 class DataSetTests(unittest.TestCase):

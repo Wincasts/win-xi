@@ -1,6 +1,6 @@
 addon.name = 'chatbox'
 addon.author = 'win'
-addon.version = '0.17.0'
+addon.version = '0.17.0-pre1'
 addon.desc = 'WinXI native-backed chat, input and expanded history, with an optional chat-owned three-slot info panel.'
 local winxiNeeded = 50
 do

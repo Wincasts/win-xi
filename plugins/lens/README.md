@@ -214,3 +214,35 @@ The same clang-cl/lld-link, x86 Windows SDK and Ashita SDK toolchain as uihook (
 ## Stability
 
 The blocks this plugin shares with addons are frozen at their 1.0 layout until 2.0: an addon made for 1.0 keeps working with every newer 1.x lens. The rules, and the check that enforces them, are in [plugins/ABI.md](../ABI.md).
+
+## Pre-releases and release candidates
+
+A testing round's package is a **pre-release**: the version carries `-pre1`, `-pre2`... (in `addon.version`, so
+`/addon list` and the settings window say it; in the zip's and the tag's name; marked pre-release on GitHub), and
+its notes say what it is. A pre-release that comes through a round with nothing left to fix becomes a
+**release candidate**, `-rc1`, built from the same code; a candidate that runs a round untouched is the release,
+its version without a suffix. The changelog section is the release's throughout: the stage is not a version
+of its own. Packages are made from the commit with `tools/package_release.py <name> --stage pre1` (or `rc1`),
+after `tests/run.sh`, and the command it prints makes the GitHub release, marked pre-release.
+
+A plugin's version is a number in Ashita's API (`/lens status` says 0.94), so for lens the stage is the
+package's alone: the zip, the tag and the release's title say `lens-v0.94-pre1`, and
+`plugins/lens-SOURCE.txt` in the zip names the commit it was built from.
+
+What a round of lens covers before a release candidate is cut:
+
+- **Loading**: `/load lens` on a running game and before zoning in; `/unload lens` gives the game's own
+  view back and leaves no constant of the game's pointed at lens; load it again.
+- **The projection**: Panini and cylindrical at a few strengths, with and without `/lens aa`, at the
+  window sizes you play at; `/lens off` and `/lens on`; `/lens ultrawide on` and `off`, and your own
+  settings back after it.
+- **The view**: `/lens fov`, `/lens middle` and `/lens square` each on its own and together; the battle
+  camera (`/lens battle`) engaging and disengaging, and `/lens battle same` after it.
+- **With the others**: name and namehook (the names and cast bars aligned under the warp), the mouse on
+  menus and targets, and `/lens status` after a session: how often the grid was built and how long the
+  last build took.
+- **What to send**: `/lens status`, a screenshot of what looks wrong with the strength and mode, and the
+  lines of Ashita's log around any error. Say which pre-release: the zip's name.
+
+A finding fixed within the round makes the next pre-release (`-pre2`); a round with nothing to fix
+makes `-rc1` from the same commit, and that candidate's untouched round makes the release.

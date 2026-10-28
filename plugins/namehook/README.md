@@ -360,3 +360,10 @@ Nameplate is by BunnyBox Productions (Shirk / Velyn), 2022 to 2024. Nameplate-As
 ## Stability
 
 The blocks this plugin shares with addons are frozen at their 1.0 layout until 2.0: an addon made for 1.0 keeps working with every newer 1.x namehook. The rules, and the check that enforces them, are in [plugins/ABI.md](../ABI.md).
+
+## Pre-releases and release candidates
+
+namehook is released inside name's package, and a pre-release of name (`name-v1.86-pre1`) is a
+pre-release of the namehook it carries, built from the same commit (`plugins/namehook-SOURCE.txt` in the
+zip). The plugin's own version stays a number, as Ashita's API has it. What a round covers, and what to
+send, is in [name's README](../../addons/name/README.md#pre-releases-and-release-candidates).
