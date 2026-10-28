@@ -409,14 +409,14 @@ def write_zip(staging, archive, output):
             zipped.write(path, path.relative_to(staging).as_posix())
 
 
-def package_plugin(plugin, output, stage=None):
+def package_plugin(plugin, output, wanted=None):
     """A plugin alone: plugins/<plugin>.dll, its license, where its source is and how to load it."""
     commit = git('rev-parse', 'HEAD')
     folder = f'plugins/{plugin}'
     dirty = git('status', '--porcelain', '--', folder)
     if dirty:
         raise RuntimeError('Uncommitted changes in what would be packaged: commit them first\n' + dirty)
-    version, base = staged(plugin_version(plugin), stage)
+    version, base = staged(plugin_version(plugin), wanted)
     name = f'{plugin}-v{version}'
     archive = output / f'{name}.zip'
     if archive.exists():
@@ -441,7 +441,7 @@ def package_plugin(plugin, output, stage=None):
            f'see plugins/{plugin}-INSTALL.txt.\n', output, commit)
 
 
-def package_data(addon, output, stage=None):
+def package_data(addon, output, wanted=None):
     """An addon's data alone, as the folder it reads it from: for the addon as its author releases it."""
     extras = RELEASES[addon]
     commit = git('rev-parse', 'HEAD')
@@ -454,7 +454,7 @@ def package_data(addon, output, stage=None):
     sections = re.findall(r'^## (\S+)', changelog.read_text(), flags=re.M)
     if not sections:
         raise ValueError(f'{changelog} has no section to release')
-    version, base = staged(sections[0], stage)
+    version, base = staged(sections[0], wanted)
     name = f'{addon}-data-v{version}'
     archive = output / f'{name}.zip'
     if archive.exists():
@@ -483,17 +483,17 @@ def package_data(addon, output, stage=None):
            f'see addons/{addon}/{addon}-data-INSTALL.txt.\n', output, commit)
 
 
-def package(addon, output, stage=None):
+def package(addon, output, wanted=None):
     extras = RELEASES[addon]
     if extras.get('kind') == 'plugin':
-        return package_plugin(addon, output, stage)
+        return package_plugin(addon, output, wanted)
     if extras.get('kind') == 'data':
-        return package_data(addon, output, stage)
+        return package_data(addon, output, wanted)
     commit = git('rev-parse', 'HEAD')
     version = addon_version(ROOT / 'addons' / addon / f'{addon}.lua')
-    if stage and not version.endswith('-' + stage):
-        raise ValueError(f"addons/{addon}/{addon}.lua's addon.version is {version}: set it to {version.split('-')[0]}-{stage} first, so the game says it")
-    version, base = staged(version, stage)
+    if wanted and not version.endswith('-' + wanted):
+        raise ValueError(f"addons/{addon}/{addon}.lua's addon.version is {version}: set it to {version.split('-')[0]}-{wanted} first, so the game says it")
+    version, base = staged(version, wanted)
     name = f'{addon}-v{version}'
     archive = output / f'{name}.zip'
     if archive.exists():
