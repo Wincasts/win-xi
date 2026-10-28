@@ -31,3 +31,7 @@ __pycache__/
 
 # Retired diagnostic and experimental addons, kept locally for reference and never pushed
 /archive/
+
+# Disk images downloaded for the Retroid Pocket 5 (tools/rp5), never the repository's
+/*.img.zst
+/*.img
