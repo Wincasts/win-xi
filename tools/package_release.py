@@ -103,10 +103,19 @@ def addon_version(source):
 
 
 def plugin_version(plugin):
-    match = re.search(r'GetVersion\(\) const override \{ return ([\d.]+); \}', (ROOT / 'plugins' / plugin / 'src' / f'{plugin}.cpp').read_text())
-    if not match:
-        raise ValueError(f'No GetVersion in plugins/{plugin}/src/{plugin}.cpp')
-    return match.group(1)
+    """The plugin's version: GetVersion in src/<plugin>.cpp, or src/Version.h's MAJOR and MINOR (namehook)."""
+    source = ROOT / 'plugins' / plugin / 'src' / f'{plugin}.cpp'
+    if source.is_file():
+        match = re.search(r'GetVersion\(\) const override \{ return ([\d.]+); \}', source.read_text())
+        if not match:
+            raise ValueError(f'No GetVersion in plugins/{plugin}/src/{plugin}.cpp')
+        return match.group(1)
+    header = ROOT / 'plugins' / plugin / 'src' / 'Version.h'
+    if header.is_file():
+        parts = dict(re.findall(r'^#define \w+_VERSION_(MAJOR|MINOR) (\d+)$', header.read_text(), re.M))
+        if 'MAJOR' in parts and 'MINOR' in parts:
+            return f"{parts['MAJOR']}.{parts['MINOR']}"
+    raise ValueError(f'No version for {plugin}: neither plugins/{plugin}/src/{plugin}.cpp nor src/Version.h says')
 
 
 def released(addon):

@@ -1,7 +1,15 @@
 from pathlib import Path
 import unittest
 
-from package_release import ROOT, RELEASES, data_sets, winxi_data, winxi_modules
+from package_release import ROOT, RELEASES, data_sets, plugin_version, winxi_data, winxi_modules
+
+
+class PluginVersionTests(unittest.TestCase):
+    def test_each_released_plugin_has_a_version(self):
+        # GetVersion in src/<plugin>.cpp (uihook, lens) or src/Version.h's MAJOR.MINOR (namehook)
+        for plugin in ('namehook', 'uihook', 'lens'):
+            with self.subTest(plugin=plugin):
+                self.assertRegex(plugin_version(plugin), r'^\d+\.\d+$')
 
 
 class DataSetTests(unittest.TestCase):
