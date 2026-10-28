@@ -10,6 +10,7 @@ local imgui = require('imgui')
 local widgets = require('winxi.widgets')
 local tooltip = require('winxi.tooltip')
 local shell = require('winxi.shell')
+local anchor = require('winxi.anchor')
 local currency = require('currency')
 
 local config = { tabGroups = { }, tabNames = { } }
@@ -57,6 +58,16 @@ function config.General(options)
             imgui.SetWindowPos(windowName, options.pos)
         end
         widgets.Lock(options.lockMovement, '##inv.lockMovement', { label = 'Lock', tooltip = 'Prevent dragging the inventory window. The Position fields can still move it.\nWhile it is locked, items can be dragged with the mouse: onto another item to swap their places, or onto another tab\'s name to move them to that tab\'s bags.' })
+        widgets.Label('Growth Anchor')
+        if imgui.BeginCombo('##inv.growthAnchor', anchor.Labels[options.growthAnchor] or 'Top Left') then
+            for _, mode in ipairs(anchor.Modes) do
+                if imgui.Selectable(anchor.Labels[mode] .. '##inv.growthAnchor.' .. mode, options.growthAnchor == mode) then
+                    options.growthAnchor = mode
+                end
+            end
+            imgui.EndCombo()
+        end
+        tooltip.Hover('The corner that stays fixed while the locked inventory window changes size.\nTop Left: grows right and down. Top Right: grows left and down.\nBottom Left: grows right and up. Bottom Right: grows left and up.\nUnlock the window to move it; Position still moves it while locked.')
     end
 
     if widgets.Header('Controller') then
