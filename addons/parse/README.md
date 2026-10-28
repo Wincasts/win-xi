@@ -45,7 +45,7 @@ with its window size, position, columns and widths unchanged.
 
 Minimal mode has **no background, border, shadow, title, table headers, grid or buttons**.
 It uses 12px text at 75% opacity, zero row spacing, and shows the top six actors by
-recorded damage. The four columns are **actor / share / damage / DPS**. A faint summary
+recorded damage. The default columns are **actor / share / damage / DPS**. A faint summary
 shows total damage, encounter seconds and paused status; hidden actors are indicated
 by a `+N more` line. Shares are still relative to the whole encounter, not just visible rows.
 
@@ -59,6 +59,11 @@ full view or settings window.
 
 Widths scale with the font size. Toggle the encounter summary, damage share, damage total,
 DPS, rank numbers, compact K/M numbers, remaining actor count, and hiding when empty.
+The **Minimal** tab also lets you show **Melee** and **Ranged** hit rates, **Magic Damage**,
+**WS Count**, **WS Hit % (TP)**, **WS TP Unknown**, **Magic Land %**, and **Magic Resists**.
+These use the same stats as Full View, but their visibility is saved independently.
+WS Hit % (TP) still requires the experimental WS TP profile; unavailable rates show `--`.
+Compact K/M formatting also applies to magic damage. Actors remain sorted by total damage.
 Names always remain visible; numeric columns can all be hidden independently. TEST and
 PAUSED indicators remain visible even with the summary disabled.
 
