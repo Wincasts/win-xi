@@ -68,12 +68,15 @@ local defaultSettings = T{
     ShowSinglePalette = false,
 
     --Behavior tab..
+    AutoDetectSubjob = true,
+    BindingSubjob = 0,
     ClickToActivate = true,
     HideWhileZoning = true,
     HideWhileCutscene = true,
     HideWhileMap = true,
     HideWhileChat = true,
     DefaultSelectTarget = false,
+    ShowUnavailableActions = false,
     EnableDoubleTap = true,
     EnablePriority = true,
     ShowDoubleDisplay = true,
@@ -228,9 +231,11 @@ settings.register('settings', 'settings_update', function(newSettings)
     UpdateSettings();
     Initializer:ApplyController();
     Initializer:ApplyLayout();
+    gBindings:Update();
 end);
 
 Initializer:ApplyController();
 Initializer:ApplyLayout();
+gBindings:Update();
 
 return Initializer;

@@ -1,3 +1,7 @@
+local bindingcontext = require('bindingcontext');
+local weaponcontext = require('weaponcontext');
+local appliedWeapon = 0;
+local weaponCheckTime = 0;
 local bindings = {
     GlobalBindings = T{},
     JobBindings = T{
@@ -8,6 +12,38 @@ local bindings = {
 bindings.ActivePalette = bindings.JobBindings.Palettes[1];
 bindings.ActivePaletteIndex = 1;
 bindings.LastPaletteIndex = 1;
+
+-- Subjob overrides belong to each palette, leaving old binding files compatible.
+local function SelectedSubjob()
+    if gSettings and gSettings.AutoDetectSubjob then
+        -- Packet handlers update the tracker before Ashita's player memory catches up.
+        local player = package.loaded['state.player'];
+        local job = player and player:GetJobData();
+        return job and job.SubJob or AshitaCore:GetMemoryManager():GetPlayer():GetSubJob();
+    end
+    return (gSettings and gSettings.BindingSubjob) or 0;
+end
+
+local function SubjobBindings(create)
+    local palette = bindings.ActivePalette;
+    local job = SelectedSubjob();
+    if not palette or not job or job <= 0 then return nil; end
+    if create then
+        palette.Subjobs = palette.Subjobs or T{};
+        palette.Subjobs[job] = palette.Subjobs[job] or T{};
+    end
+    return palette.Subjobs and palette.Subjobs[job];
+end
+
+local function WeaponBindings(skill, create)
+    local palette = bindings.ActivePalette;
+    if not palette or weaponcontext.Label(skill) == 'Unavailable' then return nil; end
+    if create then
+        palette.Weapons = palette.Weapons or T{};
+        palette.Weapons[skill] = palette.Weapons[skill] or T{};
+    end
+    return palette.Weapons and palette.Weapons[skill];
+end
 
 local function WriteBinding(writer, depth, hotkey, binding)
     local pad1 = string.rep(' ', depth);
@@ -24,6 +60,21 @@ local function WriteBinding(writer, depth, hotkey, binding)
         writer:write(string.format('%s%q,\n', pad3, line));
     end
     writer:write(string.format('%s},\n', pad2));
+    -- fork: optional context overrides; legacy bindings have no Overrides table.
+    if binding.Overrides then
+        writer:write(string.format('%sOverrides = {\n', pad2));
+        for _,definition in ipairs(bindingcontext.Definitions) do
+            local override = binding.Overrides[definition.Key];
+            if override then
+                writer:write(string.format('%s%s = { Enabled = %s, Macro = T{\n', pad3, definition.Key, override.Enabled == true and 'true' or 'false'));
+                for _,line in ipairs(override.Macro or {}) do
+                    writer:write(string.format('%s    %q,\n', pad3, line));
+                end
+                writer:write(string.format('%s} },\n', pad3));
+            end
+        end
+        writer:write(string.format('%s},\n', pad2));
+    end
     if (binding.CostOverride ~= nil) then
         writer:write(string.format('%sCostOverride            = T{ ', pad2));
         local first = true;
@@ -75,6 +126,22 @@ local function WriteJob(jobBindings)
         for hotkey,binding in pairs(palette.Bindings) do
             WriteBinding(writer, 12, hotkey, binding);
         end
+        writer:write('        }, Subjobs = T{\n');
+        for job,subBindings in pairs(palette.Subjobs or {}) do
+            writer:write(string.format('            [%u] = T{\n', job));
+            for hotkey,binding in pairs(subBindings) do
+                WriteBinding(writer, 16, hotkey, binding);
+            end
+            writer:write('            },\n');
+        end
+        writer:write('        }, Weapons = T{\n');
+        for skill,weaponBindings in pairs(palette.Weapons or {}) do
+            writer:write(string.format('            [%u] = T{\n', skill));
+            for hotkey,binding in pairs(weaponBindings) do
+                WriteBinding(writer, 16, hotkey, binding);
+            end
+            writer:write('            },\n');
+        end
         writer:write('        } },\n');
     end
     writer:write('    },\n');
@@ -84,9 +151,22 @@ end
 
 local function FormatBindings()
     local output = {};
-    for hotkey,binding in pairs(bindings.ActivePalette.Bindings) do
+    appliedWeapon = weaponcontext.Current();
+    for hotkey,binding in pairs(WeaponBindings(appliedWeapon, false) or {}) do
         output[hotkey] = binding;
-        binding.Scope = 3;
+        binding.Scope = 5;
+    end
+    for hotkey,binding in pairs(SubjobBindings(false) or {}) do
+        if output[hotkey] == nil then
+            output[hotkey] = binding;
+            binding.Scope = 4;
+        end
+    end
+    for hotkey,binding in pairs(bindings.ActivePalette.Bindings) do
+        if output[hotkey] == nil then
+            output[hotkey] = binding;
+            binding.Scope = 3;
+        end
     end
 
     for hotkey,binding in pairs(bindings.JobBindings.Default) do
@@ -200,6 +280,49 @@ function exposed:BindPalette(hotkey, binding)
     bindings.ActivePalette.Bindings[hotkey] = binding;
     WriteJob();
     ApplyBindings();
+end
+
+function exposed:BindSubjob(hotkey, binding)
+    local subBindings = SubjobBindings(binding ~= nil);
+    if not subBindings then
+        if binding ~= nil then Error('Select a subjob in Configuration > Behavior before binding.'); end
+        return;
+    end
+    subBindings[hotkey] = binding;
+    WriteJob();
+    ApplyBindings();
+end
+
+function exposed:BindWeapon(hotkey, binding, skill)
+    skill = skill or weaponcontext.Current();
+    local weaponBindings = WeaponBindings(skill, binding ~= nil);
+    if not weaponBindings then
+        if binding ~= nil then Error('Equip a main-hand weapon before creating a weapon binding.'); end
+        return false;
+    end
+    weaponBindings[hotkey] = binding;
+    WriteJob();
+    ApplyBindings();
+    return true;
+end
+
+function exposed:GetWeaponSkill()
+    return weaponcontext.Current();
+end
+
+-- Poll outside the equipment packet callback so Ashita's inventory memory is up to date.
+function exposed:CheckWeapon()
+    local now = os.clock();
+    if now < weaponCheckTime then return; end
+    weaponCheckTime = now + 0.1;
+    if weaponcontext.Current() ~= appliedWeapon then
+        ApplyBindings();
+        -- Keep an open editor's draft and original weapon category intact.
+    end
+end
+
+function exposed:GetSelectedSubjob()
+    return SelectedSubjob();
 end
 
 function exposed:GetFormattedBindings()

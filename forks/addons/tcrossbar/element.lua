@@ -1,5 +1,6 @@
 local d3d8     = require('d3d8');
 local encoding = require('gdifonts.encoding');
+local bindingcontext = require('bindingcontext');
 local cooldown = require('cooldown'); -- winxi: the cooldown swipe and the low MP and TP tints
 local ffi      = require('ffi');
 local frameborder = require('frameborder'); -- winxi: the theme's border art
@@ -76,7 +77,9 @@ function Element:Activate()
     self.Activation = os.clock();
     if (self.Binding ~= nil) then
         local macroContainer = T{};
-        for _,entry in ipairs(self.Binding.Macro) do
+        -- Snapshot the context and commands at the button press, before scheduling execution.
+        local macro = bindingcontext.ResolveMacro(self.Binding, bindingcontext.Capture());
+        for _,entry in ipairs(macro) do
             macroContainer:append(entry);
         end
         DoMacro:bind1(macroContainer):oncef(0);
@@ -239,13 +242,19 @@ function Element:SwipeFraction(now)
     return math.max(0, math.min(1, left / self.SwipeLength));
 end
 
-function Element:RenderIcon(sprite)
-    local now = os.clock();
+-- Keep state sampling independent of drawing: hidden slots must see the start of a recast too.
+function Element:Tick(now)
+    now = now or os.clock();
     if (now >= (self.NextTick or 0)) then
         self.NextTick = now + tickInterval;
         self.Updater:Tick();
-        self:TrackRecast(now); -- winxi
+        self:TrackRecast(now);
     end
+end
+
+function Element:RenderIcon(sprite)
+    local now = os.clock();
+    self:Tick(now);
 
     local positionX = self.PositionX;
     local positionY = self.PositionY;

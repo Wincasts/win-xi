@@ -71,7 +71,7 @@ print('none at alpha 0, or with no colour', #draws == before)
 
 -- element.lua's recast tracking, with stand-ins for what it loads
 T = T or function(t) return t end
-for _, name in ipairs({ 'gdifonts.encoding', 'gdifonts.include', 'frameborder', 'frameshadow', 'gloss' }) do
+for _, name in ipairs({ 'gdifonts.encoding', 'gdifonts.include', 'frameborder', 'frameshadow', 'gloss', 'recasttext' }) do
     package.preload[name] = function() return {} end
 end
 for _, name in ipairs({ 'ability', 'command', 'empty', 'item', 'spell', 'trust', 'weaponskill' }) do
@@ -90,6 +90,43 @@ print('the next recast its own length', e.SwipeLength == 20)
 e.State.RecastLeft, e.State.RecastLength = 10, 40; e:TrackRecast(60)
 print('a charge: the length the updater gives', e:SwipeFraction(60) == 0.25)
 print('never past either end', e:SwipeFraction(1000) == 0, e:SwipeFraction(0) == 1)
+
+-- A cooldown which starts while no bar is rendered retains its original length on reveal.
+local ticks, timer = 0, 0
+local hidden = setmetatable({ State = {}, SwipeLeft = 0 }, { __index = Element })
+hidden.Updater = { Tick = function()
+    ticks = ticks + 1
+    hidden.State.RecastLeft = timer
+end }
+hidden:Tick(0)
+timer = 60; hidden:Tick(1)
+timer = 15; hidden:Tick(46)
+assert(hidden.SwipeLength == 60 and hidden:SwipeFraction(46) == 0.25,
+    'revealing a hidden bar must not restart the swipe from full')
+hidden:Tick(46.01)
+assert(ticks == 3, 'background and render ticks must share the throttle')
+timer = 0; hidden:Tick(61)
+timer = 20; hidden:Tick(62)
+assert(hidden.SwipeLength == 20, 'a cooldown completed while hidden must reset its length')
+
+-- Both displays tick every slot without calling Render, including inactive trigger groups.
+package.preload['backdrop'] = function() return {} end
+local SingleDisplay = require('singledisplay')
+local DoubleDisplay = require('doubledisplay')
+local seen = {}
+local function slot(id)
+    return { Tick = function(_, now) seen[id] = now end }
+end
+local single = setmetatable({ Valid = true, ElementGroups = {
+    { slot('LT') }, { slot('RT') }, { slot('LTRT') },
+} }, { __index = SingleDisplay })
+local double = setmetatable({ Valid = true, Elements = { slot('left'), slot('right') } },
+    { __index = DoubleDisplay })
+single:Tick(100); double:Tick(100)
+for _, id in ipairs({ 'LT', 'RT', 'LTRT', 'left', 'right' }) do
+    assert(seen[id] == 100, 'hidden slot not sampled: ' .. id)
+end
+print('hidden cooldown tracking and all display groups: passed')
 
 -- a wedge, to look at
 if arg[1] then

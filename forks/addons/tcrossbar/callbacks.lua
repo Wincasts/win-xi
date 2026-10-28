@@ -94,7 +94,12 @@ end
 
 ashita.events.register('d3d_present', 'd3d_present_cb', function ()
     player:UpdateBLUSpells();
-    gController:Tick();    
+    gBindings:CheckWeapon();
+    gController:Tick();
+    -- Track cooldowns before any visibility/trigger-state early return.
+    local now = os.clock();
+    gSingleDisplay:Tick(now);
+    gDoubleDisplay:Tick(now);
     gConfigGUI:Render();
     gBindingGUI:Render();
 

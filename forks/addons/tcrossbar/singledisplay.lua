@@ -58,6 +58,16 @@ function SingleDisplay:Initialize(layout)
     self:UpdateBindings(gBindings:GetFormattedBindings());
 end
 
+-- Sample every trigger group, including groups which are not currently drawn.
+function SingleDisplay:Tick(now)
+    if (not self.Valid) then return; end
+    for _,group in ipairs(self.ElementGroups) do
+        for _,element in ipairs(group) do
+            element:Tick(now);
+        end
+    end
+end
+
 function SingleDisplay:GetElementByMacro(macroState, macroIndex)
     if (self.Valid == false) then
         return;

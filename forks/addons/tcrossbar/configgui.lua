@@ -1,4 +1,7 @@
-local header = { 1.0, 0.75, 0.55, 1.0 };
+local window = require('winxi.window');
+local widgets = require('winxi.widgets');
+local theme = require('winxi.theme');
+local header = widgets.HeaderColor;
 local frameborder = require('frameborder'); -- winxi
 local recasttext = require('recasttext'); -- winxi
 local imgui = require('imgui');
@@ -129,19 +132,21 @@ local costTints = {
 };
 
 local function CheckBox(text, member)
-    if (imgui.Checkbox(string.format('%s##Config_%s', text, text), { gSettings[member] })) then
+    widgets.Label(text);
+    if (imgui.Checkbox('##Config_' .. member, { gSettings[member] })) then
         gSettings[member] = not gSettings[member];
         settings.save();
     end
 end
 
 local function ControllerBindingCombo(member, helpText)
-    imgui.TextColored(header, member);
+    widgets.Label(member);
     local controls = gSettings.Controls[gSettings.Controller];
     if (imgui.BeginCombo('##tCrossBarControlsSelect' .. member, controls[member], ImGuiComboFlags_None)) then
         for _,control in ipairs(gController.Layout.ButtonMap) do
             if (imgui.Selectable(control, control == controls[member])) then
                 controls[member] = control;
+                settings.save();
             end
         end
         imgui.EndCombo();
@@ -153,11 +158,15 @@ local exposed = {};
 
 function exposed:Render()
     if (state.IsOpen[1]) then
-        if (imgui.Begin(string.format('%s v%s Configuration', addon.name, addon.version), state.IsOpen, ImGuiWindowFlags_AlwaysAutoResize)) then
+        header = theme.Get().SettingsHeaderColor or widgets.HeaderColor;
+        window.Full(string.format('%s Configuration##tCrossBarConfig', addon.name), state.IsOpen, 0, function()
+            widgets.BeginLabels('tcrossbar.config');
+            widgets.PushControlWidth();
             if imgui.BeginTabBar('##tCrossBarConfigTabBar', ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
                 if imgui.BeginTabItem('Layouts##tCrossbarConfigLayoutsTab', 0, state.ForceTab and 6 or 4) then
+                    widgets.BeginLabels('tcrossbar.layouts');
                     state.ForceTab = nil;
-                    imgui.TextColored(header, 'Single Layout');
+                    widgets.Label('Single Layout');
                     if (imgui.BeginCombo('##tCrossBarSingleLayoutSelectConfig', state.Layouts[state.SingleLayout], ImGuiComboFlags_None)) then
                         for index,layout in ipairs(state.Layouts) do
                             if (imgui.Selectable(layout, index == state.SingleLayout)) then
@@ -166,6 +175,7 @@ function exposed:Render()
                         end
                         imgui.EndCombo();
                     end
+                    widgets.Label('Single Scale');
                     imgui.SliderFloat('##SingleScale', state.SingleScale, 0.5, 3, '%.2f', ImGuiSliderFlags_AlwaysClamp);
                     if (gSingleDisplay.Valid) then
                         local button = string.format('%s##MoveToggleSingle', (state.DragTarget == gSingleDisplay) and 'End Drag' or 'Allow Drag');
@@ -207,7 +217,8 @@ function exposed:Render()
                     end
                     imgui.ShowHelp('Applies the selected layout to your single display.', true);
                     
-                    imgui.TextColored(header, 'Double Layout');
+                    widgets.Gap();
+                    widgets.Label('Double Layout');
                     if (imgui.BeginCombo('##tCrossBarDoubleLayoutSelectConfig', state.Layouts[state.DoubleLayout], ImGuiComboFlags_None)) then
                         for index,layout in ipairs(state.Layouts) do
                             if (imgui.Selectable(layout, index == state.DoubleLayout)) then
@@ -216,6 +227,7 @@ function exposed:Render()
                         end
                         imgui.EndCombo();
                     end
+                    widgets.Label('Double Scale');
                     imgui.SliderFloat('##DoubleScale', state.DoubleScale, 0.5, 3, '%.2f', ImGuiSliderFlags_AlwaysClamp);
                     if (gDoubleDisplay.Valid) then
                         local button = string.format('%s##MoveToggleDouble', (state.DragTarget == gDoubleDisplay) and 'End Drag' or 'Allow Drag');
@@ -265,7 +277,7 @@ function exposed:Render()
                 end
                 
                 if imgui.BeginTabItem('Components##tCrossbarConfigComponentsTab') then
-                    imgui.BeginGroup();
+                    widgets.BeginLabels('tcrossbar.components');
                     CheckBox('Empty', 'ShowEmpty');
                     imgui.ShowHelp('Display empty macro elements.');
                     CheckBox('Frame', 'ShowFrame');
@@ -286,9 +298,6 @@ function exposed:Render()
                     imgui.ShowHelp('Overrides weaponskill icons when a skillchain would be formed.');
                     CheckBox('SC Animation', 'ShowSkillchainAnimation');
                     imgui.ShowHelp('Animates a border around weaponskill icons when a skillchain would be formed.');
-                    imgui.EndGroup();
-                    imgui.SameLine();
-                    imgui.BeginGroup();
                     CheckBox('Cross', 'ShowCross');
                     imgui.ShowHelp('Displays a X over actions you don\'t currently know.');
                     CheckBox('Fade', 'ShowFade');
@@ -303,9 +312,9 @@ function exposed:Render()
                     imgui.ShowHelp('Shows selected palette on single display.');
                     CheckBox('Palette(Double)', 'ShowPalette');
                     imgui.ShowHelp('Shows selected palette on double display.');
-                    imgui.EndGroup();
                     -- winxi: the theme's border art round each element
-                    imgui.TextColored(header, 'Frame Border');
+                    widgets.Gap();
+                    widgets.Label('Frame Border');
                     if (imgui.BeginCombo('##tCrossBarFrameBorder', frameborder.Label(gSettings.FrameBorder), ImGuiComboFlags_None)) then
                         for _,choice in ipairs(frameborder.Choices()) do
                             if (imgui.Selectable(choice.label, gSettings.FrameBorder == choice.key)) then
@@ -317,7 +326,7 @@ function exposed:Render()
                     end
                     imgui.ShowHelp('Draws one of the Winxi Theme\'s border styles round each macro element: round its frame, or round its icon while Frame is off. Window Border follows the theme\'s own (none while that is the plain border). Faded by the theme\'s Border Opacity.');
                     -- winxi: the recast timer's size
-                    imgui.TextColored(header, 'Recast Size');
+                    widgets.Label('Recast Size');
                     local recastBuff = { gSettings.RecastSize or 16 };
                     if imgui.SliderInt('##tCrossBarRecastSize', recastBuff, recasttext.MinSize, recasttext.MaxSize, '%d px', ImGuiSliderFlags_AlwaysClamp) then
                         gSettings.RecastSize = recastBuff[1];
@@ -327,7 +336,7 @@ function exposed:Render()
                     -- winxi: the backdrop behind the crossbar
                     for _,slider in ipairs(backdropSliders) do
                         local buff = { gSettings[slider[2]] or slider[6] };
-                        imgui.TextColored(header, slider[1]);
+                        widgets.Label(slider[1]);
                         if imgui.SliderInt('##tCrossBar' .. slider[2], buff, slider[3], slider[4], '%d%%', ImGuiSliderFlags_AlwaysClamp) then
                             gSettings[slider[2]] = buff[1];
                             settings.save();
@@ -335,7 +344,7 @@ function exposed:Render()
                         imgui.ShowHelp(slider[5]);
                     end
                     -- winxi: how strong the gloss is
-                    imgui.TextColored(header, 'Gloss Opacity');
+                    widgets.Label('Gloss Opacity');
                     local glossBuff = { gSettings.GlossOpacity or 100 };
                     if imgui.SliderInt('##tCrossBarGlossOpacity', glossBuff, 0, 100, '%d%%', ImGuiSliderFlags_AlwaysClamp) then
                         gSettings.GlossOpacity = glossBuff[1];
@@ -346,7 +355,7 @@ function exposed:Render()
                     imgui.TextColored(header, 'Cooldown');
                     CheckBox('Cooldown Swipe', 'ShowSwipe');
                     imgui.ShowHelp('Darkens the part of each icon still to come back while it recasts: a wedge from 12 o\'clock that shrinks clockwise until it is ready. For an ability with charges, the time to the next charge.');
-                    imgui.TextColored(header, 'Swipe Opacity');
+                    widgets.Label('Swipe Opacity');
                     local swipeBuff = { gSettings.SwipeOpacity or 60 };
                     if imgui.SliderInt('##tCrossBarSwipeOpacity', swipeBuff, 0, 100, '%d%%', ImGuiSliderFlags_AlwaysClamp) then
                         gSettings.SwipeOpacity = swipeBuff[1];
@@ -368,7 +377,7 @@ function exposed:Render()
                     if (gSettings.ShadowMatchTheme == false) then
                         for _,slider in ipairs(shadowSliders) do
                             local buff = { gSettings[slider[2]] };
-                            imgui.TextColored(header, slider[1]);
+                            widgets.Label(slider[1]);
                             if imgui.SliderInt('##tCrossBar' .. slider[2], buff, 0, slider[3], slider[4], ImGuiSliderFlags_AlwaysClamp) then
                                 gSettings[slider[2]] = buff[1];
                                 settings.save();
@@ -380,10 +389,40 @@ function exposed:Render()
                 end
                 
                 if imgui.BeginTabItem('Behavior##tCrossbarConfigBehaviorTab') then
+                    widgets.BeginLabels('tcrossbar.behavior');
+                    imgui.TextColored(header, 'Subjob Bindings');
+                    local auto = { gSettings.AutoDetectSubjob };
+                    widgets.Label('Automatic Subjob Detection');
+                    if imgui.Checkbox('##AutoDetectSubjob', auto) then
+                        gSettings.AutoDetectSubjob = auto[1];
+                        settings.save();
+                        gBindings:Update();
+                        if gBindingGUI:GetActive() then gBindingGUI:UpdatePalette(); end
+                    end
+                    imgui.ShowHelp('Uses your equipped subjob for Subjob (Palette) bindings. Switch off to select a subjob manually. Shared palette, job and global bindings still fill unbound slots.');
+                    local selected = gBindings:GetSelectedSubjob();
+                    local resources = AshitaCore:GetResourceManager();
+                    local preview = selected > 0 and resources:GetString('jobs.names_abbr', selected) or 'None';
+                    widgets.Label(gSettings.AutoDetectSubjob and 'Detected Subjob' or 'Binding Subjob');
+                    if gSettings.AutoDetectSubjob then
+                        imgui.Text(preview);
+                    elseif imgui.BeginCombo('##BindingSubjob', preview) then
+                        for job = 0,22 do
+                            local name = job == 0 and 'None' or resources:GetString('jobs.names_abbr', job);
+                            if imgui.Selectable(name, selected == job) then
+                                gSettings.BindingSubjob = job;
+                                settings.save();
+                                gBindings:Update();
+                                if gBindingGUI:GetActive() then gBindingGUI:UpdatePalette(); end
+                            end
+                        end
+                        imgui.EndCombo();
+                    end
+                    widgets.Gap();
                     imgui.TextColored(header, 'Macro Elements');
                     CheckBox('Clickable', 'ClickToActivate');
                     imgui.ShowHelp('Makes macros activate when their icon is left clicked.');
-                    imgui.TextColored(header, 'Trigger Duration');
+                    widgets.Label('Trigger Duration');
                     local buff = { gSettings.TriggerDuration };
                     if imgui.SliderFloat('##TriggerDurationSlider', buff, 0.01, 1.5, '%.2f', ImGuiSliderFlags_AlwaysClamp) then
                         gSettings.TriggerDuration = buff[1];
@@ -409,7 +448,7 @@ function exposed:Render()
                     imgui.TextColored(header, 'Binding Menu');
                     CheckBox('Default To <st>', 'DefaultSelectTarget');
                     imgui.ShowHelp('When enabled, new bindings that can target anything besides yourself will default to <st>.');
-                    imgui.TextColored(header, 'LT-RT Display');
+                    widgets.Label('LT-RT Display');
                     imgui.ShowHelp('Determines what should be displayed when using the single LT or single RT macro.');
                     if (imgui.BeginCombo('##tCrossBarLTRTMode', gSettings.LTRTMode, ImGuiComboFlags_None)) then
                         for _,text in ipairs(ltrtmodes) do
@@ -425,7 +464,8 @@ function exposed:Render()
                 end
                 
                 if imgui.BeginTabItem('Controller##tCrossbarControlseTab') then
-                    imgui.TextColored(header, 'Device Mapping');
+                    widgets.BeginLabels('tcrossbar.controller');
+                    widgets.Label('Device Mapping');
                     if (imgui.BeginCombo('##tCrossBarControllerSelectConfig', state.Controllers[state.SelectedController], ImGuiComboFlags_None)) then
                         for index,controller in ipairs(state.Controllers) do
                             if (imgui.Selectable(controller, index == state.SelectedController)) then
@@ -452,14 +492,14 @@ function exposed:Render()
                     imgui.ShowHelp('Loads the selected device mapping.', true);
                     CheckBox('Inventory Passthrough', 'AllowInventoryPassthrough');
                     imgui.ShowHelp('When enabled, L2/R2/ZL/ZR will be passed to the game when inventory is the topmost menu.');
-                    imgui.TextColored(header, 'Bind Menu Timer');
+                    widgets.Label('Bind Menu Timer');
                     local buff = { gSettings.BindMenuTimer };
                     if imgui.SliderFloat('##BindMenuDurationSlider', buff, 0.1, 1.5, '%.2f', ImGuiSliderFlags_AlwaysClamp) then
                         gSettings.BindMenuTimer = buff[1];
                         settings.save();
                     end
                     imgui.ShowHelp('Determines how long the activation combo must be pressed to open or close binding menu.')
-                    imgui.TextColored(header, 'Double Tap Timer');
+                    widgets.Label('Double Tap Timer');
                     local buff = { gSettings.TapTimer };
                     if imgui.SliderFloat('##TapTimerSlider', buff, 0.1, 1.5, '%.2f', ImGuiSliderFlags_AlwaysClamp) then
                         gSettings.TapTimer = buff[1];
@@ -469,7 +509,8 @@ function exposed:Render()
                     imgui.EndTabItem();
                 end                
                 if imgui.BeginTabItem('Binding##tCrossbarControlsBindingTab') then
-                    imgui.BeginChild('##tCrossbarControllerBindingChild', { 258, 350 });
+                    widgets.BeginLabels('tcrossbar.bindings');
+                    imgui.BeginChild('##tCrossbarControllerBindingChild', { 0, 350 });
                     for _,control in ipairs(validControls) do
                         ControllerBindingCombo(control.Name, control.Description);
                     end
@@ -479,8 +520,8 @@ function exposed:Render()
                 
                 imgui.EndTabBar();
             end
-            imgui.End();
-        end
+            widgets.PopControlWidth();
+        end, { kind = window.Settings });
     end
 
     if state.IsOpen[1] then

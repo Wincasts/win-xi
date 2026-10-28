@@ -65,6 +65,13 @@ function DoubleDisplay:Initialize(layout)
     self:UpdateBindings(gBindings:GetFormattedBindings());
 end
 
+function DoubleDisplay:Tick(now)
+    if (not self.Valid) then return; end
+    for _,element in ipairs(self.Elements) do
+        element:Tick(now);
+    end
+end
+
 function DoubleDisplay:SetActivationTimer(macroState, macroIndex)
     local element;
     if (macroState == 1) then
