@@ -132,6 +132,7 @@ end
 -- flags = additional ImGui window flags,
 -- locked = true for a window held where it is, clickThrough = true for one the mouse goes through
 -- (winxi.window's options of those names: an addon's Lock Window setting, widgets.Lock),
+-- pos = { x, y } to force a position this frame (otherwise the saved first-use position),
 -- size = { width, height } to apply this frame (after the fade/visibility check),
 -- alpha = 0 to 1, how much of the window shows beside its fading in and out (the addon's own fade).
 function App:Window(wanted, draw, extra)
@@ -148,7 +149,11 @@ function App:Window(wanted, draw, extra)
         return false;
     end
 
-    imgui.SetNextWindowPos(options.pos, ImGuiCond_FirstUseEver);
+    if extra ~= nil and extra.pos ~= nil then
+        imgui.SetNextWindowPos(extra.pos, ImGuiCond_Always);
+    else
+        imgui.SetNextWindowPos(options.pos, ImGuiCond_FirstUseEver);
+    end;
     if extra ~= nil and extra.size ~= nil then
         imgui.SetNextWindowSize(extra.size, ImGuiCond_Always);
     end

@@ -119,6 +119,8 @@
 -- 64: partystatus, the player's and the party's statuses as the game keeps them: Own, Member, Party
 -- 65: widgets' described rows: Check, Slider, Numbers, Dropdown, Color, Action, BeginRow/EndRow, Note,
 --     Status, the unit specs; shell's Visibility tab in place of hideHeader
+-- 66: shell's extra.pos, a window put where an addon says this frame; bars.Draw's texture, a bar's own
+--     art in place of the theme's (expbar)
 return {
-    Number = 65,
+    Number = 66,
 };

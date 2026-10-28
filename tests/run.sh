@@ -24,6 +24,7 @@ run inventory  addons/inventory/inventory.lua inventory_equipment_check.lua
 run inventory  addons/inventory/inventory.lua inventory_equipment_decorations_check.lua
 run inventory  addons/inventory/inventory.lua inventory_equipment_performance_check.lua
 run inventory  addons/inventory/inventory.lua inventory_performance_check.lua
+run inventory  addons/inventory/inventory.lua inventory_growth_check.lua
 run mark       addons/mark/mark.lua     mark_check.lua
 run mark       addons/mark/mark.lua     mark_performance_check.lua
 run mark       addons/mark/mark.lua     mark_persistence_check.lua
@@ -89,6 +90,8 @@ run mobcast    addons/mobcast/mobcast.lua mobcast_check.lua
 run tempo      addons/tempo/tempo.lua   tempo_ui_check.lua
 run targetlines tests/targetlines_fixture.lua targetlines_check.lua
 luajit tests/tempo_check.lua || exit 1
+luajit tests/expbar_check.lua || exit 1
+luajit tests/harness.lua expbar addons/expbar/expbar.lua tests/expbar_ui_check.lua || exit 1
 run vis        addons/vis/vis.lua       vis_check.lua
 run vis        addons/vis/vis.lua       vis_game_check.lua
 run vis        addons/vis/vis.lua       vis_adopt_check.lua
@@ -103,6 +106,11 @@ luajit tests/tcrossbar_gloss_check.lua
 luajit tests/tcrossbar_cooldown_check.lua
 luajit tests/tcrossbar_backdrop_check.lua
 luajit tests/tcrossbar_recast_check.lua
+luajit tests/tcrossbar_catalog_check.lua
+luajit tests/tcrossbar_context_check.lua
+luajit tests/tcrossbar_settings_check.lua
+luajit tests/tcrossbar_subjob_check.lua
+luajit tests/tcrossbar_weapon_check.lua
 luajit tests/mark_map_view_check.lua
 python3 tools/test_build_mark_maps.py
 luajit tests/mark_data_check.lua
@@ -136,11 +144,11 @@ run party      addons/party/party.lua party_shift_drag_check.lua
 run party      addons/party/party.lua party_clickthrough_hover_check.lua
 run party      addons/party/party.lua party_value_offsets_check.lua
 run party      addons/party/party.lua party_name_colors_check.lua
-run party      addons/party/party.lua party_cursor_check.lua
 run party      addons/party/party.lua party_fishing_check.lua
 run party      addons/party/party.lua party_lock_brackets_check.lua
 run party      addons/party/party.lua party_monster_letters_check.lua
 run party      addons/party/party.lua party_marks_check.lua
+run party      addons/party/party.lua party_cursor_check.lua
 run party      addons/party/party.lua party_dropdowns_check.lua
 run party      addons/party/party.lua winxi_fonts_check.lua
 run party      addons/party/party.lua winxi_settings_window_check.lua

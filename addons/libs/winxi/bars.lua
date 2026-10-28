@@ -92,8 +92,9 @@ local function Sliced(list, texture, x, y, width, height, imageWidth, used, pack
     Image(list, texture, x + width - ends, y, x + width, y + height, u2, used / imageWidth, packed);
 end
 
-function bars.Draw(list, x, y, width, height, fraction, color)
-    local art = bars.Textures(theme.Get().BarTexture);
+-- texture is an optional per-bar override; nil follows the shared theme.
+function bars.Draw(list, x, y, width, height, fraction, color, texture)
+    local art = bars.Textures(texture or theme.Get().BarTexture);
     if art == nil or width <= 0 or height <= 0 then
         return false;
     end
