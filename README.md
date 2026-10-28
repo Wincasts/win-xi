@@ -28,14 +28,14 @@ Each addon's folder has a README with all of its commands and settings.
 
 ## Installing
 
-**buff**, **inventory**, **name**, **occlusionfix**, **party** and **trigger** are released one at a time, on the
+**buff**, **chatbox**, **inventory**, **name**, **occlusionfix**, **parse**, **party**, **sct**, **trigger**,
+**vis** and **zone**, the **lens** plugin and **mobdb**'s Phoenix data are released one at a time, on the
 [Releases](https://github.com/Wincasts/win-xi/releases) page. Each zip has everything the addon needs:
-the `winxi` library, `winxisettings`, and with name the `namehook` plugin; occlusionfix needs none of
-them and comes alone. New buff/party packages include
-`uihook` for native UI replacement; party also includes `hideparty` for the ordinary overlay mode.
-Extract it into your Ashita folder (the one holding `addons`, `plugins` and `config`), merging
-folders, and follow `addons/<the addon>/INSTALL.txt`. If an addon says it needs a newer winxi,
-install the newest release of any of them.
+the `winxi` library and `winxisettings`, with name the `namehook` plugin, and with buff, chatbox and party
+the `uihook` plugin. vis and zone carry their own copy of the parts of winxi they use, so they need nothing
+else; occlusionfix needs nothing at all. Extract the zip into your Ashita folder (the one holding `addons`,
+`plugins` and `config`), merging folders, and follow `addons/<the addon>/INSTALL.txt`. If an addon says it
+needs a newer winxi, install the newest release of any of them.
 
 A release is made with `tools/package_release.py <addon>`, from the commit, after `tests/run.sh`.
 
@@ -46,7 +46,7 @@ occlusionfix needs the `winxi` library. Copy into your Ashita folder, merging fo
 - `addons/<the addon>` for each one you want
 - `addons/winxisettings`, to change the shared look
 - for `name`, also `plugins/namehook.dll` (see [plugins/namehook](plugins/namehook))
-- for `buff`, `clock`, `chatbox` or native `party` replacement, also `plugins/uihook.dll` (build/install:
+- for `buff`, `chatbox` or native `party` replacement, also `plugins/uihook.dll` (build/install:
   [plugins/uihook](plugins/uihook))
 - `plugins/lens.dll`, the world through a Panini or cylindrical projection for wide screens, anti-aliasing for the world, the field of view and true proportions it is drawn with, and the camera's distance in battle (experimental, see
   [plugins/lens](plugins/lens))
