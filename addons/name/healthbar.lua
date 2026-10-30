@@ -1,7 +1,9 @@
 -- HP and cast bars share the active text atlas's white pixel: no extra texture slot or asset.
 --
---   healthbar.Begin(white, now) each frame: optional {u,v} from the active text atlas;
---                          otherwise the font's white pixel is looked for afresh
+--   healthbar.Begin(white, now, edged, edgeOpacity) each frame: optional {u,v} from the active text
+--                          atlas; otherwise the font's white pixel is looked for afresh; edged whether
+--                          the text has an outline (Text Outline), which the bars then take, at
+--                          edgeOpacity (Text Outline Opacity, nil as it is)
 --   healthbar.Bar(left, right, under, scale, fraction, color, width, height, backdrop)
 --                         shared HP/cast geometry; returns the foot or unchanged under
 --   healthbar.Write(name, entities, left, right, under, scale, color, width, height, full)
@@ -30,10 +32,10 @@ end
 -- Where the white pixel is in the font's texture, asked of imgui once a frame and for the first bar;
 -- and again if imgui's function for it is another (a test's stand-in)
 local whiteU, whiteV, whiteOf = nil, nil, nil;
-local activeWhite;
+local activeWhite, activeEdged, activeEdge = nil, false, nil;
 
-function healthbar.Begin(white, now)
-    activeWhite = white;
+function healthbar.Begin(white, now, edged, edgeOpacity)
+    activeWhite, activeEdged, activeEdge = white, edged == true, edgeOpacity;
     whiteU, whiteV = nil, nil;
     frameNow = now or 0;
     healthbar.previewing = healthbar.Preview[1] and previewStart ~= nil and frameNow <= previewUntil or false;
@@ -75,7 +77,9 @@ function healthbar.Bar(left, right, under, scale, fraction, color, width, height
     if (u == nil) then return under; end
     -- The plugin feathers these edges in final render-target pixels, AFTER Lens
     -- correction. Keep the fill endpoint fractional for accurate low HP coverage.
-    nameplates.Quad(x, y, x + width, y + h, u, v, u, v, 0xFF101010, 0, false, nil, true);
+    -- The frame is edged as the letters are: the name's Text Outline thickness and colour, shrinking
+    -- with it, and Text Outline Opacity. Where the text has none, the frame keeps its soft fringe.
+    nameplates.Quad(x, y, x + width, y + h, u, v, u, v, 0xFF101010, 0, activeEdged, activeEdge, true);
     nameplates.Quad(x + border, y + border, x + width - border, y + h - border,
         u, v, u, v, backdrop or 0xFF483030, 0, false, nil, true);
     if (fraction > 0) then

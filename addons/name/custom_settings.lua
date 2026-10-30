@@ -267,9 +267,9 @@ function settings.DrawSettings(options, save)
         end
         if (controls.Sub('Outlines')) then
             controls.Outline(options.outline, 'Text Outline', '##name.outline',
-                'How thick the dark edge round the text is. Icons have an edge of their own.');
+                'How thick the dark edge round the text and the health and cast bars is. Icons have an edge of their own.');
             controls.Slider('Text Outline Opacity', '##name.textOutlineOpacity', options.textOutlineOpacity, 0, 100, '%d%%',
-                'How solid the edge round the text is. 0 hides it.');
+                'How solid the edge round the text and the bars is. 0 hides it.');
             controls.Outline(options.iconOutline, 'Icon Outline', '##name.iconOutline',
                 'How thick the dark edge round the icons is. Mastery stars and letter badges have their own.');
             controls.Slider('Icon Outline Opacity', '##name.iconOutlineOpacity', options.iconOutlineOpacity, 0, 100, '%d%%',

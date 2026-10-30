@@ -27,7 +27,15 @@ local function draw()
 end
 local under = draw()
 assert(#quads == 3 and under > 20 and quads[1][2] > 20)
-assert(quads[3][9] == 0xFF4080C0 and quads[1][11] == false)
+assert(quads[3][9] == 0xFF4080C0 and quads[1][11] == false, 'no outline on the text, none on the bar')
+healthbar.Begin(nil, 0, true)
+draw()
+assert(quads[1][11] == true and quads[1][12] == nil and quads[2][11] == false and quads[3][11] == false,
+    'the frame alone takes the text\'s outline, as it is')
+healthbar.Begin(nil, 0, true, 0.4)
+draw()
+assert(quads[1][11] == true and quads[1][12] == 0.4, 'at Text Outline Opacity')
+healthbar.Begin(nil, 0)
 for _, quad in ipairs(quads) do
     assert(quad[13] == true and quad[5] == quad[7] and quad[6] == quad[8],
         'every bar layer requests the constant-UV antialias fringe')

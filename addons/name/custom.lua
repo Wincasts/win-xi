@@ -1410,7 +1410,7 @@ function custom.Frame(options, hook, formats)
     local memory = AshitaCore:GetMemoryManager();
     local entities = askedOnce(memory.GetEntity ~= nil and memory:GetEntity() or nil);
     local colourContext = nameColours.Context(options, memory);
-    healthbar.Begin(filteredAtlas and filteredAtlas.white, now);
+    healthbar.Begin(filteredAtlas and filteredAtlas.white, now, edge > 0, fontPipeline.textEdgeOpacity);
 
     -- a monster that was checked and has died is forgotten before any level is written; what is
     -- written of a level is kept until what is known of levels changes
