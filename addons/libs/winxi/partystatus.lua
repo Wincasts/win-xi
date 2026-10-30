@@ -31,8 +31,9 @@ function partystatus.Own(list)
     local count = 0;
     local player = AshitaCore:GetMemoryManager():GetPlayer();
     if (player ~= nil and player:GetIsZoning() == 0) then
+        -- Ashita's array, a userdata rather than a table: indexed from 1 all the same
         local ids = player:GetStatusIcons();
-        if (type(ids) == 'table') then
+        if (ids ~= nil) then
             for slot = 1, SLOTS do
                 local id = ids[slot];
                 if (id ~= nil and id > 0 and id ~= NONE and id <= LAST) then

@@ -45,6 +45,13 @@ zoning = 1
 partystatus.Own(own)
 assert(same(own, {}), 'own: none between areas')
 zoning = 0
+-- the game gives a userdata, not a table
+local table_icons = icons
+icons = newproxy(true)
+getmetatable(icons).__index = function(_, slot) return table_icons[slot] end
+partystatus.Own(own)
+assert(same(own, { 4, 40, 13 }), 'own: read from a userdata as from a table')
+icons = table_icons
 
 for _, block in ipairs({ bulk, nil, function() error('no block reads') end }) do
     ashita.memory.read_array = block
