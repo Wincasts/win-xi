@@ -65,7 +65,7 @@ local function distinct(q)
 end
 check('every match listed', #view.items == distinct('hel'))
 check('title', picker.Title() == 'Auto-Translate: hel  1 of ' .. #view.items)
-check('status open', picker.Status() == 'open: ' .. #view.items .. ' phrases for hel')
+check('status open', picker.Status() == 'open: ' .. #view.items .. ' matches for hel')
 check('capped', (function() picker.Open('e', 1) local n = #picker.View().items picker.Close() return n == translate.Limit end)())
 
 -- The dictionary's references (spells, areas, abilities, jobs) are found by their names, each name once
@@ -300,5 +300,67 @@ theme.HighlightColor = nil
 calls = {}
 check('failed draw', translate.Draw(picker, layout, 0) == false and not picker.open and picker.Status():find('draw failed'))
 check('stacks balanced after a failure', calls.PushStyleVar == calls.PopStyleVar and calls.PushFont == calls.PopFont)
+theme.HighlightColor = { 0.2, 0.4, 0.8, 0.6 }
+
+-- Items and key items, from a stand-in for the client's names
+check('names kept plain', translate.Name(' Fire Crystal ') == 'Fire Crystal' and translate.Name('.') == nil
+    and translate.Name('') == nil and translate.Name('Caf\130\160') == nil and translate.Name(nil) == nil)
+check('no names without Ashita', #translate.ClientNames() == 0)
+local reads = 0
+local named = translate.New(auto, function()
+    reads = reads + 1
+    return { { kind = 'item', id = 4096, text = 'Fire Crystal' }, { kind = 'item', id = 4104, text = 'Fire Cluster' },
+        { kind = 'item', id = 9000, text = 'Fire Crystal' }, { kind = 'item', id = 300, text = 'Hello!' },
+        { kind = 'keyitem', id = 5, text = 'Hellfire Map' }, { kind = 'keyitem', id = 513, text = 'Ancient Fire Seal' },
+        { kind = 'weird', id = 1, text = 'Fireproof' } }
+end)
+local function find(list, label, kind)
+    for i, item in ipairs(list) do if item.label == label and item.kind == kind then return i, item end end
+end
+named.Open('fire', 4)
+local found = named.View().items
+check('items found', find(found, '❮Fire Crystal❯', 'item') and find(found, '❮Fire Cluster❯', 'item'))
+local count = 0
+for _, item in ipairs(found) do if item.label == '❮Fire Crystal❯' then count = count + 1 end end
+local _, crystal = find(found, '❮Fire Crystal❯', 'item')
+check('an item named twice listed once, the lowest id', count == 1 and crystal.id == 4096 and crystal.note == 'item')
+named.Open('fire', 4)
+found = named.View().items
+check('names read once', reads == 1)
+check('an unknown kind left out', not find(found, '❮Fireproof❯', 'weird'))
+local _, seal = find(found, '❮Ancient Fire Seal❯', 'keyitem')
+check('key item by substring, after the prefixes', seal and seal.note == 'key item' and find(found, '❮Ancient Fire Seal❯', 'keyitem') > find(found, '❮Fire Crystal❯', 'item'))
+named.Open('hello', 5)
+found = named.View().items
+local p, i = find(found, '❮Hello!❯', 'phrase'), find(found, '❮Hello!❯', 'item')
+check('a phrase and an item of one name both listed, the phrase first', p and i and p < i)
+check('status counts matches', named.Status() == 'open: ' .. #found .. ' matches for hello')
+-- Written as the item and key item tokens, a zero byte escaped
+chat = Chat(false, false, 'say crystal')
+named.Open(chat.buffer, #chat.buffer)
+named.Move(select(1, find(named.View().items, '❮Fire Crystal❯', 'item')) - 1)
+check('item token, low byte escaped', named.Enter(chat) and named.Flush(chat) and chat.set == 'say ' .. string.char(0xFD, 0x0A, 2, 0x10, 0xFF, 0xFD))
+check('item token decodes', auto.Decode(chat.set:sub(5)).Kind == 'item' and auto.Decode(chat.set:sub(5)).Id == 4096)
+chat = Chat(false, false, 'hellf')
+named.Open(chat.buffer, 5)
+check('key item token, high byte escaped', named.Enter(chat) and named.Flush(chat) and chat.set == string.char(0xFD, 0x15, 2, 0xFF, 5, 0xFD)
+    and named.Status() == 'closed; last insert: Hellfire Map written')
+-- Refresh keeps an item chosen by its kind as well as its id
+named.Open('fir', 3)
+local at = find(named.View().items, '❮Fire Cluster❯', 'item')
+named.Move(at - 1)
+named.Refresh('fire', 4)
+check('selection kept by kind and id', named.View().items[named.View().selected].label == '❮Fire Cluster❯')
+-- The note drawn at the right, dimmed
+named.Open('fire', 4); texts = {}; calls = {}
+check('drawn with notes', translate.Draw(named, layout, 0) == true)
+local note
+for _, t in ipairs(texts) do if t.text == 'item' then note = t end end
+check('note dimmed', note and note.color[4] == 0.6)
+named.Close()
+-- A names list that fails leaves the dictionary
+local failing = translate.New(auto, function() error('no resources') end)
+failing.Open('hel', 3)
+check('failing names: phrases still found', #failing.View().items == distinct('hel'))
 auto.Clear()
-print('Chatbox translate: word at the caret, CP932 and tokens, search, categories, deferred insertion, send bytes, rollback, limits, refresh and draw passed')
+print('Chatbox translate: word at the caret, CP932 and tokens, search, categories, deferred insertion, send bytes, rollback, limits, refresh, items, key items and draw passed')

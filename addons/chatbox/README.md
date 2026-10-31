@@ -197,7 +197,7 @@ the info panel (Anchor Above Info Panel, removed in 0.15.0).
 /chatbox off      Disable chatbox: the game's logs come back at once
 /chatbox clear    forget the messages this addon keeps
 /chatbox timestamps   toggle the Timestamps option (on or off to set it)
-/chatbox translate    toggle Auto-Translate, chatbox's own phrase list on Tab (on or off to set it)
+/chatbox translate    toggle Auto-Translate, chatbox's own phrase, item and key item list on Tab (on or off to set it)
 /chatbox status   bridge status, the last box drawn, kept-message and decode-error counts
 /chatbox modes    the last ten lines kept and their chat modes (to find a channel's)
 /chatbox bytes    the last incoming line: original, modified, expanded and UTF-8 bytes (hex, first 256 of each)
@@ -226,9 +226,10 @@ the mode is how the boxes behave and where they stand.
 - **Replace Native Chat** (on to begin with): on chooses **Follow Game**; off chooses **WinXI Skin**.
   This changes the layout behaviour, not whether chatbox is on. Existing mode settings are kept.
 - **Auto-Translate** (on to begin with): Tab while typing opens chatbox's own list of auto-translate
-  phrases, from the installed client's dictionary, for the word at the caret (with no word, the 42
-  categories), drawn above the input bar. Tab, Shift+Tab, Up and Down move; Page Up and Page Down move a
-  page; Enter puts the phrase in (on a category, opens it); Escape closes (in a category, goes back to the
+  phrases, items and key items, from the installed client's dictionary and names, for the word at the
+  caret (with no word, the 42 categories), drawn above the input bar. An item or key item says so at the
+  right of its row. Tab, Shift+Tab, Up and Down move; Page Up and Page Down move a
+  page; Enter puts the phrase, item or key item in (on a category, opens it); Escape closes (in a category, goes back to the
   categories). Typing goes on narrowing the list. The phrase goes into your line as its real token, so
   others see it in their own language when you send. Off, Tab is the game's, whose own menu takes the
   input bar back for as long as it is open. `/chatbox translate on` and `off` do the same.

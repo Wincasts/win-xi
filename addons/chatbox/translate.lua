@@ -3,6 +3,8 @@
 -- drawn above the input bar, narrowed to the word at the caret, whose choice is written into the game's own
 -- buffer as the phrase's six-byte token. Typing, history and sending stay the game's. chatbox keeps the picker's
 -- keys from the game (Ashita's key events, and DirectInput's polled state, from which the game reads Enter).
+-- Items and key items are offered too, as the game's Tab does: their names are the client's own (Ashita's
+-- resources), their tokens the item and key item kinds (winxi.autotranslate's ItemToken and KeyItemToken).
 local bit = require('bit')
 local M = {}
 M.Rows = 10
@@ -54,7 +56,44 @@ local function Printable(text)
     return table.concat(out)
 end
 
-function M.New(auto)
+-- Item ids run to 0x7FFF (65535, gil, is never a name to write); key ids stay well under 0x2000.
+M.ItemLast, M.KeyItemLast = 0x7FFF, 0x1FFF
+
+-- A client name as the picker can show it: plain ASCII with a letter or digit in it, else nil.
+function M.Name(text)
+    if type(text) ~= 'string' or text:find('[^\32-\126]') or not text:find('%w') then return nil end
+    return (text:gsub('^%s+', ''):gsub('%s+$', ''))
+end
+
+-- The client's item and key item names, read once from Ashita's resources: { kind, id, text } each, or an
+-- empty list without Ashita (tests, offline).
+function M.ClientNames()
+    local list = {}
+    if AshitaCore == nil then return list end
+    local ok, manager = pcall(function() return AshitaCore:GetResourceManager() end)
+    if not ok or manager == nil then return list end
+    for id = 1, M.ItemLast do
+        local found, name = pcall(function()
+            local item = manager:GetItemById(id)
+            return item and item.Name[1]
+        end)
+        name = found and M.Name(name)
+        if name then list[#list + 1] = { kind = 'item', id = id, text = name } end
+    end
+    for id = 1, M.KeyItemLast do
+        local found, name = pcall(function() return manager:GetString('keyitems.names', id) end)
+        name = found and M.Name(name)
+        if name then list[#list + 1] = { kind = 'keyitem', id = id, text = name } end
+    end
+    return list
+end
+
+local kindOrder = { phrase = 1, item = 2, keyitem = 3 }
+local notes = { item = 'item', keyitem = 'key item' }
+
+-- names (optional): a function giving the item and key item names as M.ClientNames does, called on the first
+-- search; M.ClientNames when left out.
+function M.New(auto, names)
     local picker = { open = false }
     local mode, items, selected, first = nil, {}, 1, 1
     local query, typed, category = nil, nil, nil
@@ -64,29 +103,53 @@ function M.New(auto)
     local function Phrase(record)
         return { kind = 'phrase', id = record.Id, label = '❮' .. record.Text.en .. '❯', text = record.Text.en }
     end
-    -- Text that starts with the word first, then the rest; alphabetical within each. Where the dictionary
-    -- holds the same text more than once (an area with several zones, a name in two categories) it is
-    -- listed once, the lowest id, as each reads the same in chat. The whole dictionary is searched before
-    -- the cap, so a prefix match is never lost behind earlier substring matches.
+    local function Named(entry)
+        return { kind = entry.kind, id = entry.id, label = '❮' .. entry.text .. '❯', text = entry.text, note = notes[entry.kind] }
+    end
+    -- The item and key item names, lowered once; read on the first search, as reading them takes a moment
+    local named
+    local function Names()
+        if named == nil then
+            named = {}
+            local ok, list = pcall(names or M.ClientNames)
+            for _, entry in ipairs(ok and type(list) == 'table' and list or {}) do
+                if notes[entry.kind] and type(entry.id) == 'number' and type(entry.text) == 'string' then
+                    named[#named + 1] = { kind = entry.kind, id = entry.id, text = entry.text, lower = entry.text:lower() }
+                end
+            end
+        end
+        return named
+    end
+    -- Text that starts with the word first, then the rest; alphabetical within each, a phrase before an item
+    -- before a key item of the same name. Where the dictionary, the items or the key items hold the same text
+    -- more than once (an area with several zones, a name in two categories, an item made twice) it is listed
+    -- once, the lowest id, as each reads the same in chat. Everything is searched before the cap, so a prefix
+    -- match is never lost behind earlier substring matches.
     local function Search(q)
         local found = {}
         for _, record in ipairs(auto.Search(q, 'en', nil, nil) or {}) do
             if record.Text and record.Text.en then
                 local lower = record.Text.en:lower()
-                found[#found + 1] = { record = record, lower = lower, prefix = lower:sub(1, #q) == q }
+                found[#found + 1] = { kind = 'phrase', id = record.Id, record = record, lower = lower, prefix = lower:sub(1, #q) == q }
             end
+        end
+        for _, entry in ipairs(Names()) do
+            local at = entry.lower:find(q, 1, true)
+            if at then found[#found + 1] = { kind = entry.kind, id = entry.id, entry = entry, lower = entry.lower, prefix = at == 1 } end
         end
         table.sort(found, function(a, b)
             if a.prefix ~= b.prefix then return a.prefix end
             if a.lower ~= b.lower then return a.lower < b.lower end
-            return a.record.Id < b.record.Id
+            if a.kind ~= b.kind then return kindOrder[a.kind] < kindOrder[b.kind] end
+            return a.id < b.id
         end)
         local list, seen = {}, {}
         for _, item in ipairs(found) do
             if #list >= M.Limit then break end
-            if not seen[item.lower] then
-                seen[item.lower] = true
-                list[#list + 1] = Phrase(item.record)
+            local key = item.kind .. '\0' .. item.lower
+            if not seen[key] then
+                seen[key] = true
+                list[#list + 1] = item.record and Phrase(item.record) or Named(item.entry)
             end
         end
         return list
@@ -146,10 +209,10 @@ function M.New(auto)
         if not q then picker.Close(); return end
         typed = raw:sub(wordFirst, wordLast)
         if q == query then return end
-        local id = items[selected] and items[selected].id
+        local was = items[selected]
         query, items, selected = q, Search(q), 1
         for i, item in ipairs(items) do
-            if item.id == id then selected = i; break end
+            if was and item.id == was.id and item.kind == was.kind then selected = i; break end
         end
         first = 1
         Show()
@@ -233,7 +296,10 @@ function M.New(auto)
             items, selected, first = Category(item.id), 1, 1
             return false
         end
-        local token = auto.Token(item.id, 'en')
+        local token
+        if item.kind == 'item' then token = auto.ItemToken(item.id, 'en')
+        elseif item.kind == 'keyitem' then token = auto.KeyItemToken(item.id, 'en')
+        else token = auto.Token(item.id, 'en') end
         if not token then
             last = item.text .. ' not written: no token'
             picker.Close()
@@ -284,7 +350,7 @@ function M.New(auto)
     function picker.Status()
         local line
         if not picker.open then line = 'closed'
-        elseif mode == 'phrases' then line = 'open: ' .. #items .. ' phrases for ' .. Printable(typed or query or '')
+        elseif mode == 'phrases' then line = 'open: ' .. #items .. ' matches for ' .. Printable(typed or query or '')
         elseif mode == 'category' then line = 'open: ' .. #items .. ' phrases in ' .. (category.name or category.label)
         else line = 'open: ' .. #items .. ' categories' end
         if last then line = line .. '; last insert: ' .. last end
@@ -321,7 +387,8 @@ function M.Draw(picker, layout, flags)
         local measured, widest = pcall(function()
             local w = render.Measure(title)
             for i = view.first, math.min(#view.items, view.first + rows - 1) do
-                w = math.max(w, render.Measure(view.items[i].label))
+                local row = view.items[i]
+                w = math.max(w, render.Measure(row.label) + (row.note and render.Measure(row.note) + fontSize or 0))
             end
             return w
         end)
@@ -345,6 +412,8 @@ function M.Draw(picker, layout, flags)
                 local chosenColor = imgui.GetColorU32(theme.TextColor)
                 local h = theme.HighlightColor
                 local highlight = imgui.GetColorU32({ h[1], h[2], h[3], 0.35 })
+                local t = layout.textColor or theme.TextColor
+                local noteColor = imgui.GetColorU32({ t[1], t[2], t[3], (t[4] or 1) * 0.6 })
                 local x, y = left + padding, top + padding
                 list:PushClipRect({ left, top }, { left + width, top + height }, true)
                 list:AddText({ x, y }, textColor, title)
@@ -359,6 +428,9 @@ function M.Draw(picker, layout, flags)
                         color = chosenColor
                     end
                     render.Text(list, { x, y }, color, view.items[i].label)
+                    -- an item or key item says so at the right, as a phrase may read the same
+                    local note = view.items[i].note
+                    if note then render.Text(list, { left + width - padding - render.Measure(note), y }, noteColor, note) end
                     y = y + rowHeight
                 end
                 list:PopClipRect()
