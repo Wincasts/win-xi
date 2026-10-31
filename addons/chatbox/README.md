@@ -235,8 +235,8 @@ the mode is how the boxes behave and where they stand.
   character you log into until then. Tab, Shift+Tab, Up and Down move; Page Up and Page Down move a
   page; Enter puts the phrase, item or key item in (on a category, opens it); Escape closes (in a category, goes back to the
   categories). With a controller, while the list is open: the d-pad up and down a row, left and right a
-  page, A puts the choice in (on a category, opens it), B goes back or closes; those buttons are kept from the
-  game only while the list is open. Typing goes on narrowing the list. The phrase goes into your line as its real token, so
+  page, A puts the choice in (on a category, opens it), B goes back or closes; the whole controller is kept
+  from the game while the list is open, and given back when it closes. Typing goes on narrowing the list. The phrase goes into your line as its real token, so
   others see it in their own language when you send. Off, Tab is the game's, whose own menu takes the
   input bar back for as long as it is open. `/chatbox translate on` and `off` do the same.
   Native window size does not necessarily mean the same number of lines.

@@ -286,17 +286,21 @@ do
             if ok and chat and PickerOpen() then Use('Enter', chat) else ClosePicker() end
         elseif action == 'escape' then Use('Back') end
     end
-    -- The controller works the open list as the game's own menus are worked: the d-pad up and down a row, left and
-    -- right a page, A (the bottom face button) puts the choice in or opens a category, B goes back or closes. Only
-    -- while the list is open are those buttons taken, and kept from the game (winxi.controller), so that A never
-    -- reaches the game as its confirm; the sticks, triggers and every other button stay the game's.
+    -- While the list is open the controller is chatbox's (winxi.controller): the d-pad up and down a row, left and
+    -- right a page, A (the bottom face button) puts the choice in or opens a category, B goes back or closes. Every
+    -- other button and the triggers are taken too, doing nothing, so nothing reaches the game while the list is
+    -- open (A never as its confirm, Start never as its menu); closed, the controller is the game's.
     local pad = controller.Button
+    local padActions = {}
+    for _, button in pairs(pad) do padActions[button] = 'none' end
+    padActions[pad.DpadUp], padActions[pad.DpadDown] = 'up', 'down'
+    padActions[pad.DpadLeft], padActions[pad.DpadRight] = 'pageUp', 'pageDown'
+    padActions[pad.A], padActions[pad.B] = 'enter', 'escape'
     Translate.Pad = controller.Bind({
         active = function() return PickerOpen() and Translating() and InputOpen() end,
-        actions = { [pad.DpadUp] = 'up', [pad.DpadDown] = 'down', [pad.DpadLeft] = 'pageUp', [pad.DpadRight] = 'pageDown',
-            [pad.A] = 'enter', [pad.B] = 'escape' },
+        actions = padActions,
         repeats = { up = true, down = true, pageUp = true, pageDown = true },
-        press = function(action) Act(action) end,
+        press = function(action) if action ~= 'none' then Act(action) end end,
     })
     ashita.events.register('key', 'chatbox_translate', function(e)
         local vk, lparam = tonumber(e.wparam) or 0, tonumber(e.lparam) or 0

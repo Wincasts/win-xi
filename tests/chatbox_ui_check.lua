@@ -150,7 +150,7 @@ package.loaded['winxi.widgets']=W
 end
 local binding
 package.loaded['winxi.controller'] = {HighlightColor={0.23,0.67,0.91,1}, RepeatDelay=0.35, RepeatRate=0.08,
-    Button={DpadUp=0,DpadDown=1,DpadLeft=2,DpadRight=3,A=12,B=13}, Bind=function(spec) binding=spec; return spec end}
+    Button={DpadUp=0,DpadDown=1,DpadLeft=2,DpadRight=3,Start=4,Back=5,L3=6,R3=7,LB=8,RB=9,A=12,B=13,X=14,Y=15}, Bind=function(spec) binding=spec; return spec end}
 local images = {}
 package.loaded['winxi.style'] = {Background=function() return 'tile' end}
 local labels, overs, lines = {}, {}, {}
@@ -2157,8 +2157,9 @@ do (function()
     tap(9); assert(binding.active(),'the list open: the controller chatbox\'s')
     assert(binding.actions[0]=='up' and binding.actions[1]=='down' and binding.actions[2]=='pageUp' and binding.actions[3]=='pageDown'
         and binding.actions[12]=='enter' and binding.actions[13]=='escape','the d-pad, A and B')
-    local taken=0; for _ in pairs(binding.actions) do taken=taken+1 end
-    assert(taken==6,'no other button taken')
+    local taken=0; for button,action in pairs(binding.actions) do taken=taken+1; if button>3 and button~=12 and button~=13 then assert(action=='none') end end
+    assert(taken==14,'every other button taken too, doing nothing')
+    binding.press('none'); assert(binding.active() and inputSet==nil,'Start, Y and the rest do nothing')
     assert(binding.repeats.up and binding.repeats.down and binding.repeats.pageUp and binding.repeats.pageDown and not binding.repeats.enter
         and not binding.repeats.escape,'the d-pad repeats, A and B do not')
     binding.press('down'); binding.press('up'); binding.press('pageDown'); binding.press('pageUp')
