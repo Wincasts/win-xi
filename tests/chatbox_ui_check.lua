@@ -167,6 +167,10 @@ do
     function pad.Heard() return pad.heard end
     function pad.LayoutMismatch() return pad.heard~=nil and pad.heard~=(pad.layout=='xinput' and 'xinput' or 'directinput') end
 end
+-- winxi.sound stood in for: what was played, while on
+local played, soundOn = {}, false
+package.loaded['winxi.sound'] = {SetEnabled=function(v) soundOn=v and true or false end, IsEnabled=function() return soundOn end,
+    Play=function(name) if soundOn then played[#played+1]=name end; return soundOn end}
 local images = {}
 package.loaded['winxi.style'] = {Background=function() return 'tile' end}
 local labels, overs, lines = {}, {}, {}
@@ -2190,6 +2194,35 @@ do (function()
     binding.press('escape'); assert(binding.active(),'B in a category: back to the categories')
     binding.press('escape'); assert(not binding.active(),'B again: closed')
     tap(9); assert(binding.active()); inputOpen=false; assert(not binding.active(),'the input closed: the game\'s'); inputOpen=true; frame()
+    -- Navigation Sounds: move for a row, tab for a page, confirm for a choice or a category, back, error; nothing
+    -- where the highlight cannot move; none with the setting off
+    assert(app.options.translateSounds[1]==true and soundOn,'Navigation Sounds on to begin with')
+    inputRaw='hel'; inputDisplay='hel'; inputCaret=3; inputSet=nil
+    local function heard(f) for k in pairs(played) do played[k]=nil end; f(); return table.concat(played,',') end
+    if binding.active() then tap(27) end
+    assert(not binding.active())
+    tap(9)
+    assert(heard(function() key(38); key(38,RELEASE) end)=='','Up on the first row: nothing')
+    assert(heard(function() key(40); key(40,RELEASE) end)=='move','Down: move')
+    assert(heard(function() tap(9) end)=='move','Tab: move')
+    assert(heard(function() binding.press('pageUp') end)=='tab','a page: tab')
+    assert(heard(function() binding.press('pageUp') end)=='','a page with nowhere to go: nothing')
+    assert(heard(function() tap(13) end)=='confirm','Enter on a phrase: confirm'); frame()
+    inputRaw='say '; inputDisplay=inputRaw; inputCaret=4; inputSet=nil
+    tap(9)
+    assert(heard(function() binding.press('enter') end)=='confirm','A on a category: confirm')
+    assert(heard(function() binding.press('escape') end)=='back','B: back')
+    assert(heard(function() tap(27) end)=='back','Escape closing: back')
+    inputRaw=string.rep('x',114)..' hello'; inputDisplay=inputRaw; inputCaret=#inputRaw; inputSet=nil
+    tap(9)
+    assert(heard(function() tap(13) end)=='error','a choice too long for the line: error')
+    tap(27)
+    app.options.translateSounds[1]=false; spec.onSettings(app.options)
+    inputRaw='hello'; inputDisplay='hello'; inputCaret=5; inputSet=nil
+    tap(9)
+    assert(heard(function() key(40); key(40,RELEASE); tap(27) end)=='','Navigation Sounds off: none')
+    app.options.translateSounds[1]=true; spec.onSettings(app.options)
+    frame()
     -- the input closing closes the list, and gives uihook's keys back
     inputRaw='hello'; inputDisplay='hello'; inputCaret=5; inputSet=nil
     tap(9); inputOpen=false; frame(); inputOpen=true

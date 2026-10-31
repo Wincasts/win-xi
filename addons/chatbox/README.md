@@ -241,7 +241,11 @@ the mode is how the boxes behave and where they stand.
     follows the game's own setting, as the Phoenix launcher sets it (XInput or DirectInput; a DirectInput
     controller is taken for a PlayStation one). Otherwise XInput is an Xbox controller, or one set up to act
     as one; for any other choose its DirectInput make (PlayStation, Switch Pro, Stadia). With the wrong kind
-    no button reaches the list; the settings and `/chatbox status` say so once a button is pressed. Typing goes on narrowing the list. The phrase goes into your line as its real token, so
+    no button reaches the list; the settings and `/chatbox status` say so once a button is pressed.
+  - **Navigation Sounds** (on to begin with): the winxi menu sounds as the list opens, the highlight moves
+    a row (keys, Tab or the d-pad), a page turns, a choice goes in or a category opens, and the list goes
+    back or closes; a choice too long for the line plays the error sound. The sounds are winxi's
+    (`addons/libs/winxi/sounds`); a wav of the same name in `addons/chatbox/sounds` is played in its place. Typing goes on narrowing the list. The phrase goes into your line as its real token, so
   others see it in their own language when you send. Off, Tab is the game's, whose own menu takes the
   input bar back for as long as it is open. `/chatbox translate on` and `off` do the same.
   Native window size does not necessarily mean the same number of lines.

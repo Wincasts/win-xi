@@ -21,6 +21,7 @@ local theme = require('winxi.theme')
 local clip = require('winxi.clip')
 local widgets = require('winxi.widgets')
 local controller = require('winxi.controller')
+local sound = require('winxi.sound')
 local fonts = require('winxi.fonts')
 local cursorArt = require('winxi.cursor')
 local native = require('winxi.nativechat')
@@ -276,18 +277,39 @@ do
     -- DirectInput's ids for the same keys: Tab, and the picker's (both Enters), kept from the game's buttons the same way
     local DIK_TAB = 0x0F
     local DIK_PICKER = { [0xC8] = 38, [0xD0] = 40, [0xC9] = 33, [0xD1] = 34, [0x1C] = 13, [0x9C] = 13, [0x01] = 27 }
+    -- Navigation Sounds (winxi.sound, on while the setting is): move for a row, tab for a page, confirm for a choice
+    -- put in or a category opened, back for going back or closing, error for a choice that cannot go in; open is
+    -- played by winxi.controller as the list takes the controller, as it opens
+    local function Selected()
+        local ok, view = pcall(picker.View)
+        return ok and view.selected or nil
+    end
+    local function Moving(name, delta)
+        local before = Selected()
+        Use(name, delta)
+        if PickerOpen() and Selected() ~= before then pcall(sound.Play, name == 'Page' and 'tab' or 'move') end
+    end
     local function Act(action)
-        if action == 'up' then Use('Move', -1)
-        elseif action == 'down' then Use('Move', 1)
-        elseif action == 'pageUp' then Use('Page', -1)
-        elseif action == 'pageDown' then Use('Page', 1)
+        if action == 'up' then Moving('Move', -1)
+        elseif action == 'down' then Moving('Move', 1)
+        elseif action == 'pageUp' then Moving('Page', -1)
+        elseif action == 'pageDown' then Moving('Page', 1)
         elseif action == 'enter' then
             -- The buffer as it is now, not as the last frame saw it: a letter typed since would be left beside the token
             local raw, caret = ReadInput()
             if raw then Use('Refresh', raw, caret) end
             local ok, chat = pcall(function() return AshitaCore:GetChatManager() end)
-            if ok and chat and PickerOpen() then Use('Enter', chat) else ClosePicker() end
-        elseif action == 'escape' then Use('Back') end
+            if ok and chat and PickerOpen() then
+                local shown, view = pcall(picker.View)
+                local item = shown and view.items[view.selected]
+                local queued = Use('Enter', chat)
+                local opened = item and item.kind == 'category' and PickerOpen()
+                pcall(sound.Play, (queued or opened) and 'confirm' or 'error')
+            else ClosePicker() end
+        elseif action == 'escape' then
+            Use('Back')
+            pcall(sound.Play, 'back')
+        end
     end
     -- While the list is open the controller is chatbox's (winxi.controller): the d-pad up and down a row, left and
     -- right a page, A (the bottom face button) puts the choice in or opens a category, B goes back or closes. Every
@@ -324,7 +346,7 @@ do
             e.blocked = true
             if up or repeated then return end
             taken[vk] = true
-            if PickerOpen() then return Use('Move', shiftHeld and -1 or 1) end
+            if PickerOpen() then return Moving('Move', shiftHeld and -1 or 1) end
             local raw, caret = ReadInput()
             if raw then Use('Open', raw, caret) else ClosePicker() end
             return
@@ -599,7 +621,7 @@ app = shell.New({
         window1Rows = T{ 0 }, window2Rows = T{ 0 },
         leftPadding = T{ 3 }, rightPadding = T{ 3 }, topPadding = T{ 3 }, bottomPadding = T{ 3 }, paddingVersion = T{ 0 },
         windowTitle = T{ '' }, splitTitle = T{ '' }, chatTooltips = T{ true }, tooltipNotes = T{ true }, tooltipKinds = TooltipKinds(),
-        autoTranslate = T{ true }, controllerType = 'auto' },
+        autoTranslate = T{ true }, controllerType = 'auto', translateSounds = T{ true } },
     command = '/chatbox',
     configTitle = 'Chatbox Settings',
     hideAppearance = true,
@@ -637,6 +659,10 @@ app = shell.New({
                     and 'Your controller is pressing XInput buttons: choose XInput, or no button reaches the list.'
                     or 'Your controller is pressing DirectInput buttons: choose the DirectInput make that matches it, or no button reaches the list.')
                 imgui.PopTextWrapPos()
+            end
+            if widgets.Check('Navigation Sounds', 'Plays the menu sounds as the Auto-Translate list opens, moves, turns a page, puts a choice in or goes back.', options.translateSounds, '##chatbox.translateSounds', R.pad) then
+                sound.SetEnabled(options.translateSounds[1])
+                app.save()
             end
             if widgets.Check('Timestamps', 'Shows the timestamps SimpleLog or the timestamp addon writes, hidden otherwise. /chatbox timestamps switches it too.', options.timestamps, '##chatbox.timestamps', R.enabled) then
                 model.ShowStamps(history, options.timestamps[1]); app.save()
@@ -878,6 +904,9 @@ app = shell.New({
         if padKey ~= controller.Automatic and controller.SetLayout(padKey) ~= padKey then padKey = controller.Automatic end
         if padKey == controller.Automatic then controller.SetLayout(padKey) end
         options.controllerType = padKey
+        if type(options.translateSounds) ~= 'table' then options.translateSounds = T{ true } end
+        options.translateSounds[1] = options.translateSounds[1] ~= false
+        sound.SetEnabled(options.translateSounds[1])
         for _, key in ipairs({ 'windowTitle', 'splitTitle' }) do
             local words = type(options[key]) == 'table' and options[key][1]
             options[key] = T{ type(words) == 'string' and words:sub(1, TITLE_LONGEST - 1) or '' }
