@@ -41,7 +41,8 @@ local picker = translate.New(auto)
 check('closed at first', picker.open == false and picker.Status() == 'closed')
 check('Open with hel', picker.Open('say hel', 7) and picker.open)
 local view = picker.View()
-check('Hello! first', view.items[1].kind == 'phrase' and view.items[1].label == '❮Hello!❯' and view.selected == 1 and view.first == 1)
+check('Helldive then Hello!', view.items[1].kind == 'phrase' and view.items[1].label == '❮Helldive❯'
+    and view.items[2].label == '❮Hello!❯' and view.selected == 1 and view.first == 1)
 check('rows', view.rows == translate.Rows and translate.Rows == 10)
 local prefixDone = false
 for i, item in ipairs(view.items) do
@@ -54,10 +55,45 @@ for i, item in ipairs(view.items) do
         check('alphabetical within each group', sa ~= sb or a <= b)
     end
 end
-check('every match listed', #view.items == #auto.Search('hel', 'en'))
+local function distinct(q)
+    local seen, n = {}, 0
+    for _, record in ipairs(auto.Search(q, 'en')) do
+        local key = record.Text.en:lower()
+        if not seen[key] then seen[key], n = true, n + 1 end
+    end
+    return n
+end
+check('every match listed', #view.items == distinct('hel'))
 check('title', picker.Title() == 'Auto-Translate: hel  1 of ' .. #view.items)
 check('status open', picker.Status() == 'open: ' .. #view.items .. ' phrases for hel')
 check('capped', (function() picker.Open('e', 1) local n = #picker.View().items picker.Close() return n == translate.Limit end)())
+
+-- The dictionary's references (spells, areas, abilities, jobs) are found by their names, each name once
+local function labels(raw)
+    picker.Open(raw, #raw)
+    local found = {}
+    for _, item in ipairs(picker.View().items) do found[item.label] = (found[item.label] or 0) + 1 end
+    picker.Close()
+    return found
+end
+local tele = labels('tele')
+for _, name in ipairs({ 'Teleport-Dem', 'Teleport-Holla', 'Teleport-Mea', 'Teleport-Vahzl', 'Teleport-Altep', 'Teleport-Yhoat' }) do
+    check('spell ' .. name, tele['❮' .. name .. '❯'] == 1)
+end
+local bastok = labels('bastok')
+for _, name in ipairs({ 'Bastok Mines', 'Bastok Markets', 'Port Bastok', 'Bastok' }) do
+    check('area ' .. name, bastok['❮' .. name .. '❯'] == 1)
+end
+check('ability', labels('provo')['❮Provoke❯'] == 1)
+check('weapon skill', labels('savage')['❮Savage Blade❯'] == 1)
+check('job', labels('thie')['❮Thief❯'] == 1)
+check('area named by several zones once', labels('vahzl')['❮Promyvion - Vahzl❯'] == 1)
+for _, id in ipairs(auto.Ids()) do
+    local text = auto.Text(id, 'en')
+    check('no unresolved reference ' .. id, not (text and text:find('^@')))
+end
+picker.Open('', 0)
+picker.Close()
 
 picker.Open('', 0)
 view = picker.View()
@@ -77,7 +113,7 @@ picker.Page(-10); check('Page clamps at the top', picker.View().selected == 1 an
 
 -- Separate native edit, send and display buffers: a raw-only write is not success.
 local function Chat(keeps, withRaw, initial)
-    local chat = { buffer = initial or 'say hel', parsed = initial or 'say hel', display = initial or 'say hel' }
+    local chat = { buffer = initial or 'say hello', parsed = initial or 'say hello', display = initial or 'say hello' }
     function chat:SetInputText(text)
         self.set = text
         if not keeps then self.buffer, self.parsed, self.display = text, text, text end
@@ -113,80 +149,80 @@ for i, item in ipairs(picker.View().items) do if item.id == 256 + 11 then picker
 check('category phrase inserted at the caret', Enter(chat) and chat.set == 'say ' .. HELLO and not picker.open)
 check('status after insert', picker.Status() == 'closed; last insert: Hello! written')
 
--- The bytes for 'say hel' with the caret at 7
+-- The bytes for 'say hello' with the caret at 9
 chat = Chat()
-picker.Open('say hel', 7)
+picker.Open('say hello', 9)
 check('selection queued, not written in key callback', picker.Enter(chat) and picker.pending and chat.set == nil)
 check('phrase written on the next frame', picker.Flush(chat) == true)
 check('exact bytes', chat.set == 'say ' .. string.char(0xFD, 0x02, 0x02, 0x01, 0x0B, 0xFD))
 check('closed after Enter', not picker.open)
 -- the word replaced in the middle of a line, the rest kept
-chat = Chat(false, false, 'say hel there')
-picker.Open('say hel there', 7)
+chat = Chat(false, false, 'say hello there')
+picker.Open('say hello there', 9)
 Enter(chat)
 check('rest of the line kept', chat.set == 'say ' .. HELLO .. ' there')
 
 -- The SetInputTextRaw fallback, and a game that keeps its text
-chat = Chat(true, true, 'hel')
-picker.Open('hel', 3)
+chat = Chat(true, true, 'hello')
+picker.Open('hello', 5)
 check('raw fallback written', Enter(chat) == true and chat.set == HELLO and chat.rawSet[1] == HELLO and chat.rawSet[2] == 6)
 check('raw fallback status', picker.Status() == 'closed; last insert: Hello! written raw')
 check('raw fallback synchronises send/display buffers', chat.parsed == HELLO and chat.display == HELLO)
-chat = Chat(true, false, 'hel')
-picker.Open('hel', 3)
-check('game kept its text', Enter(chat) == false and picker.Status():find('not written') and chat.buffer == 'hel')
-chat = { SetInputText = function() error('no binding') end, GetInputTextRaw = function() return 'hel' end }
-picker.Open('hel', 3)
+chat = Chat(true, false, 'hello')
+picker.Open('hello', 5)
+check('game kept its text', Enter(chat) == false and picker.Status():find('not written') and chat.buffer == 'hello')
+chat = { SetInputText = function() error('no binding') end, GetInputTextRaw = function() return 'hello' end }
+picker.Open('hello', 5)
 check('a failing SetInputText is caught', Enter(chat) == false and picker.Status():find('not written'))
 picker.Open('zzzzqqq', 7)
 check('no match still opens', picker.open and #picker.View().items == 0 and picker.Title() == 'Auto-Translate: zzzzqqq  no match')
 check('Enter on no match closes', Enter(Chat()) == false and not picker.open)
 
 -- A throwing combined setter must still try the native raw/parsed/display path.
-chat = Chat(true, true, 'hel')
+chat = Chat(true, true, 'hello')
 chat.SetInputText = function() error('combined setter unavailable') end
-picker.Open('hel', 3)
+picker.Open('hello', 5)
 check('fallback after a throwing combined setter', Enter(chat) and chat.buffer == HELLO and chat.parsed == HELLO)
 -- The raw buffer kept is success; a parsed buffer that differs is noted for /chatbox status, not undone
-chat = Chat(true, true, 'hel')
+chat = Chat(true, true, 'hello')
 chat.SetInputText = function(self, value) self.buffer = value end
-picker.Open('hel', 3)
+picker.Open('hello', 5)
 check('raw buffer kept: written', Enter(chat) and chat.buffer == HELLO)
 check('a differing parsed buffer noted', picker.Status():find('written; parsed buffer differs', 1, true))
 -- Never overwrite text typed between selection and the frame's commit.
-chat = Chat(false, false, 'hel')
-picker.Open('hel', 3); picker.Enter(chat); chat.buffer = 'hel later'
-check('stale pending write cancelled', not picker.Flush(chat) and chat.buffer == 'hel later' and chat.set == nil)
-chat = Chat(false, false, 'hel')
-picker.Open('hel', 3); picker.Enter(chat); picker.Close()
+chat = Chat(false, false, 'hello')
+picker.Open('hello', 5); picker.Enter(chat); chat.buffer = 'hello later'
+check('stale pending write cancelled', not picker.Flush(chat) and chat.buffer == 'hello later' and chat.set == nil)
+chat = Chat(false, false, 'hello')
+picker.Open('hello', 5); picker.Enter(chat); picker.Close()
 check('closing the list keeps the chosen phrase for the next frame', picker.pending ~= nil)
 picker.Cancel()
 check('cancelling drops it', not picker.Flush(chat) and chat.set == nil)
 -- Exact-fit messages are legal; overflowing messages remain editable, never truncated.
 local prefix = string.rep('x', 113) .. ' '
-chat = Chat(false, false, prefix .. 'hel')
+chat = Chat(false, false, prefix .. 'hello')
 picker.Open(chat.buffer, #chat.buffer)
 check('120-byte message with complete token', Enter(chat) and #chat.buffer == 120 and chat.buffer:sub(-6) == HELLO)
 prefix = prefix .. 'x '
-chat = Chat(false, false, prefix .. 'hel')
+chat = Chat(false, false, prefix .. 'hello')
 picker.Open(chat.buffer, #chat.buffer)
 check('oversize selection rejected without losing text', not picker.Enter(chat) and picker.open and chat.set == nil
     and picker.Status():find('exceeds 120 bytes'))
 picker.Close()
 -- The normal native send sees the encoded token, not the translated display label.
-chat = Chat(false, false, '/p hel there')
-picker.Open(chat.buffer, 6)
+chat = Chat(false, false, '/p hello there')
+picker.Open(chat.buffer, 8)
 check('native outbound bytes', Enter(chat) and chat.parsed == '/p ' .. HELLO .. ' there')
 check('outbound phrase decodes for other clients', auto.Decode(chat.parsed:sub(4, 9)).Id == 267)
 local before = '/p ' .. HELLO .. ' ' .. kana .. ' '
-chat = Chat(false, false, before .. 'hel suffix')
-picker.Open(chat.buffer, #before + 3)
+chat = Chat(false, false, before .. 'hello suffix')
+picker.Open(chat.buffer, #before + 5)
 check('existing tokens, CP932 and suffix survive insertion', Enter(chat) and chat.parsed == before .. HELLO .. ' suffix')
 -- Failed partial writes restore the draft instead of leaving only the raw buffer changed.
-chat = Chat(true, true, 'hel')
+chat = Chat(true, true, 'hello')
 chat.SetInputTextParsed = function() error('send buffer unavailable') end
-picker.Open('hel', 3)
-check('partial fallback rolls back', not Enter(chat) and chat.buffer == 'hel' and chat.parsed == 'hel')
+picker.Open('hello', 5)
+check('partial fallback rolls back', not Enter(chat) and chat.buffer == 'hello' and chat.parsed == 'hello')
 
 -- Refresh narrows and closes
 picker.Open('say he', 6)
@@ -195,7 +231,7 @@ picker.Move(1)
 local keep = picker.View().items[2].id
 picker.Refresh('say hel', 7)
 view = picker.View()
-check('Refresh narrows', #view.items < wide and #view.items == #auto.Search('hel', 'en'))
+check('Refresh narrows', #view.items < wide and #view.items == distinct('hel'))
 check('selection kept by id', view.items[view.selected].id == keep or (function()
     for _, item in ipairs(view.items) do if item.id == keep then return false end end return view.selected == 1 end)())
 picker.Refresh('say hel', 7)
@@ -249,9 +285,9 @@ check('title and rows drawn', texts[1].text == picker.Title() and calls['draw.Ad
 check('one highlight in the theme colour', #rects == 1 and rects[1][3][1] == 0.2 and rects[1][3][4] == 0.35)
 check('brackets drawn as geometry', (calls['draw.AddLine'] or 0) == rows * 4)
 check('selected text in TextColor', (function()
-    for _, t in ipairs(texts) do if t.text == 'Hello!' then return t.color == theme.TextColor end end end)())
+    for _, t in ipairs(texts) do if t.text == 'Helldive' then return t.color == theme.TextColor end end end)())
 check('others in the layout colour', (function()
-    for _, t in ipairs(texts) do if t.text ~= 'Hello!' and t.text ~= picker.Title() then return t.color == layout.textColor end end end)())
+    for _, t in ipairs(texts) do if t.text ~= 'Helldive' and t.text ~= picker.Title() then return t.color == layout.textColor end end end)())
 layout.width = 150; calls = {}
 translate.Draw(picker, layout, 0)
 check('never wider than the bar', calls['SetNextWindowSize.args'][1][1] == 150)

@@ -2086,7 +2086,7 @@ do (function()
     local said={}; app.Say=function(_,line) said[#said+1]=line end
     local function status() said={}; spec.commands.status(); for _,line in ipairs(said) do if line:find('^Auto%-Translate: ') then return line end end end
     local HELLO=string.char(0xFD,2,2,1,11,0xFD)
-    inputOpen=false; inputRaw='hel'; inputDisplay='hel'; inputCaret=3; inputSet=nil
+    inputOpen=false; inputRaw='hello'; inputDisplay='hello'; inputCaret=5; inputSet=nil
     local a,b=tap(9); assert(not a and not b,'Tab with the input closed: the game\'s')
     assert(not dik(0x0F),'DIK_TAB with the input closed: the game\'s')
     inputOpen=true; frame()
@@ -2120,23 +2120,23 @@ do (function()
     rendered['winxi.chatbox.translate']=nil; frame()
     assert(not rendered['winxi.chatbox.translate'],'closed: no list drawn')
     -- a phrase chosen, then typing before the next frame: the newer typing is kept, nothing written
-    inputRaw='hel'; inputDisplay='hel'; inputCaret=3; inputSet=nil
-    tap(9); tap(13); inputRaw='hel!'; frame()
-    assert(inputSet==nil and inputRaw=='hel!','typing since the choice: never overwritten')
+    inputRaw='hello'; inputDisplay='hello'; inputCaret=5; inputSet=nil
+    tap(9); tap(13); inputRaw='hello!'; frame()
+    assert(inputSet==nil and inputRaw=='hello!','typing since the choice: never overwritten')
     line=status(); assert(line and line:find('input changed',1,true),'/chatbox status says why: '..tostring(line))
     -- the input closed before the next frame: nothing written
-    inputRaw='hel'; inputSet=nil
+    inputRaw='hello'; inputSet=nil
     tap(9); tap(13); inputOpen=false; frame(); inputOpen=true; frame()
     assert(inputSet==nil,'the input closed before the write: nothing written into the next line')
     -- Tab, Down and Up move; Shift+Tab moves back
-    inputRaw='hel'; inputDisplay='hel'; inputCaret=3; inputSet=nil
+    inputRaw='hello'; inputDisplay='hello'; inputCaret=5; inputSet=nil
     tap(9); assert(key(40).blocked and key(40,RELEASE).blocked and key(40,REPEAT).blocked,'Down moves, on every repeat')
     assert(key(38).blocked and key(38).blocked and key(38,RELEASE).blocked,'Up moves')
     assert(key(34).blocked and key(33).blocked,'Page Down and Page Up')
     tap(9); key(16); tap(9); key(16,RELEASE); tap(13); frame()
     assert(inputSet==HELLO,'Tab then Shift+Tab: back on the first, Hello!')
     -- Escape closes; with no word, the categories, Enter into one, Escape back to them and again to close
-    inputRaw='hel'; inputSet=nil
+    inputRaw='hello'; inputSet=nil
     tap(9); a,b=tap(27); assert(a and b,'Escape blocked')
     assert(not key(40).blocked and not key(13).blocked and inputSet==nil,'Escape closed the list, nothing put in')
     key(13,RELEASE)
@@ -2150,7 +2150,7 @@ do (function()
     assert(type(inputSet)=='string' and #inputSet==10 and inputSet:sub(1,4)=='say ' and inputSet:sub(5,8)==string.char(0xFD,2,2,1) and inputSet:sub(10)==string.char(0xFD),
         'a Greetings phrase put in at the caret: '..tostring(inputSet and inputSet:gsub('.',function(ch) return ('%02X '):format(ch:byte()) end)))
     -- the input closing closes the list, and gives uihook's keys back
-    inputRaw='hel'; inputDisplay='hel'; inputCaret=3; inputSet=nil
+    inputRaw='hello'; inputDisplay='hello'; inputCaret=5; inputSet=nil
     tap(9); inputOpen=false; frame(); inputOpen=true
     assert(poll({0x1C,0x0F})[0x1C],'the input closed: the polled state the game\'s')
     assert(not key(40).blocked,'the input closed: the list with it')

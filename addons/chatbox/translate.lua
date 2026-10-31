@@ -64,9 +64,10 @@ function M.New(auto)
     local function Phrase(record)
         return { kind = 'phrase', id = record.Id, label = '❮' .. record.Text.en .. '❯', text = record.Text.en }
     end
-    -- Text that starts with the word first, then the rest; alphabetical within each, by id where the
-    -- dictionary holds the same text twice. The whole dictionary is searched before the cap, so a prefix
-    -- match is never lost behind earlier substring matches.
+    -- Text that starts with the word first, then the rest; alphabetical within each. Where the dictionary
+    -- holds the same text more than once (an area with several zones, a name in two categories) it is
+    -- listed once, the lowest id, as each reads the same in chat. The whole dictionary is searched before
+    -- the cap, so a prefix match is never lost behind earlier substring matches.
     local function Search(q)
         local found = {}
         for _, record in ipairs(auto.Search(q, 'en', nil, nil) or {}) do
@@ -80,8 +81,14 @@ function M.New(auto)
             if a.lower ~= b.lower then return a.lower < b.lower end
             return a.record.Id < b.record.Id
         end)
-        local list = {}
-        for i = 1, math.min(#found, M.Limit) do list[i] = Phrase(found[i].record) end
+        local list, seen = {}, {}
+        for _, item in ipairs(found) do
+            if #list >= M.Limit then break end
+            if not seen[item.lower] then
+                seen[item.lower] = true
+                list[#list + 1] = Phrase(item.record)
+            end
+        end
         return list
     end
     local function Categories()

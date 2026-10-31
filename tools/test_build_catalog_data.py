@@ -8,7 +8,7 @@ from pathlib import Path
 
 from build_action_data import binary_sql, blob_insert, lua_without_comments
 from phoenix.modules import merge_patch
-from build_client_data import HEADER, parse_dictionary, build
+from build_client_data import HEADER, parse_dictionary, parse_dmsg, build
 from build_item_data import replay
 
 
@@ -116,6 +116,39 @@ class CatalogBuildTest(unittest.TestCase):
             self.assertTrue((root / 'made/catalog.json').is_file())
             with self.assertRaises(ValueError):
                 build({'../en': path}, root / 'bad')
+
+    def test_references_resolved_from_name_tables(self):
+        def dmsg(names):
+            entries = []
+            for name in names:
+                text = name.encode('cp932') + b'\0'
+                entries.append(struct.pack('<III', 1, 12, 0) + bytes(0x1C) + text)
+            toc, offset, body = bytearray(), 0, bytearray()
+            for entry in entries:
+                toc += struct.pack('<II', offset, len(entry))
+                body += entry
+                offset += len(entry)
+            data = bytes(toc + body)
+            size = 0x40 + len(data)
+            header = b'd_msg\0\0\0' + struct.pack('<HHII6II', 1, 1, 3, 3, size, 0x40, len(toc), 0, len(body), len(entries), 1)
+            return header.ljust(0x40, b'\0') + bytes(b ^ 0xFF for b in data)
+        spells = parse_dmsg(dmsg(['(null)', 'Cure', 'Teleport-Dem']))
+        self.assertEqual(spells, ['(null)', 'Cure', 'Teleport-Dem'])
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / '25.DAT'
+            path.write_bytes(dictionary(entries=[(1, 'Hello!', ''), (2, '@C2', '')]))
+            metadata = build({'en': path}, root / 'made', names=lambda locale, letter: spells)
+            entries = {e['Id']: e for e in __import__('json').loads((root / 'made/catalog.json').read_text())['Entries']}
+            self.assertEqual(entries[258]['Text']['en'], 'Teleport-Dem')
+            self.assertEqual(entries[258]['References'], {'en': '@C2'})
+            self.assertNotIn('References', entries[257])
+            self.assertEqual(metadata['Count'], 2)
+            path.write_bytes(dictionary(entries=[(1, '@C9', '')]))
+            with self.assertRaises(ValueError):
+                build({'en': path}, root / 'missing', names=lambda locale, letter: spells)
+            with self.assertRaises(ValueError):
+                build({'en': path}, root / 'none')
 
 
 if __name__ == '__main__':

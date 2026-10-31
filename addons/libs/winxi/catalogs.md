@@ -141,6 +141,15 @@ present in the development installation. The parser validates headers, language/
 IDs, category sizes, duplicate IDs and truncation; Japanese reading strings are preserved.
 An unsupported or corrupt dictionary fails without replacing the old set.
 
+About half the dictionary (1,283 phrases: spells, areas, abilities, weapon skills, traits, pet
+commands, jobs) is stored as references into the client's own name tables, `@` and a letter
+and a hex id: `@C` spell (file 55702 English, 55582 Japanese), `@A` area (55465, 55535), `@J`
+job (55467, 55536) and `@Y` ability, weapon skill, trait or pet command (55701, 55581), found
+through the client's FTABLE/VTABLE. `@C7B` is Teleport-Dem, `@AEA` Bastok Mines. The build
+writes the name in `Text` and keeps the reference in `References`; a reference with no name
+fails the build. 148 slots are blank in both languages (retired phrases); they are kept so
+their tokens still decode, and `Search` never returns them.
+
 Explicit inputs can replace the default pair:
 
 ```sh
@@ -172,8 +181,8 @@ local clientText = auto.Expand(token, true);    -- optional live-game expansion,
 - `Get`, `Ids`, `Index`, `Clear`, `Categories`, `Text`, `Search`, `Token`, `Decode`, `ItemToken`,
   `KeyItemToken`, `Expand` are available. `Search` arguments are query, locale, category, limit.
 - Phrase IDs are canonical **category × 256 + entry**. They are neither item IDs nor raw
-  four-byte dictionary IDs. Records also retain per-language `RawIds`, `Text`, and Japanese
-  `Readings`. Category headers are not sendable phrases.
+  four-byte dictionary IDs. Records also retain per-language `RawIds`, `Text`, Japanese
+  `Readings` and, for a name, the client's `References`. Category headers are not sendable phrases.
 - Dictionary token layout: `FD 02 <language byte> <category> <entry> FD`. Language bytes come
   from the dictionary, not Ashita language-array indices. No silent missing-language fallback.
 - Item/key-item IDs use their separate token kinds. Zero high/low ID bytes are escaped with
@@ -184,8 +193,8 @@ local clientText = auto.Expand(token, true);    -- optional live-game expansion,
 - `Decode` accepts a single six-byte token, not a whole chat line. `Expand` calls Ashita's
   `ParseAutoTranslate` only when explicitly requested. It does not send chat or edit input.
 
-No existing addon UI is rewired. A future chat picker should display `Text` but insert the
-actual token through the appropriate native editor path, preserving IME/input ownership.
+chatbox's Tab picker (`addons/chatbox/translate.lua`) displays `Text` and inserts the token
+through the game's own input buffer; it lists a text the dictionary holds more than once only once.
 
 ## Validation and limits
 

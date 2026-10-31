@@ -28,7 +28,8 @@ function auto.Search(query, locale, category, limit)
         local record = auto.Get(id);
         local text = record and record.Text[locale];
         local reading = record and record.Readings[locale];
-        if record and (category == nil or record.Category == category) and text and
+        -- a blank text is a retired slot in the client's dictionary, never a phrase to find
+        if record and (category == nil or record.Category == category) and text and text:find('%S') and
             (text:lower():find(query, 1, true) or reading and reading:lower():find(query, 1, true)) then
             found[#found + 1] = record;
             if limit and #found >= limit then break; end

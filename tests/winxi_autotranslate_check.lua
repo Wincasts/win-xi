@@ -32,7 +32,34 @@ check('item low-byte escape', auto.ItemToken(256):byte(2) == 10 and auto.ItemTok
 check('bad locale', not auto.Token(hello.Id, 'missing') and #auto.Search('', 'missing') == 0)
 check('bad input', not auto.Decode('Hello!') and not auto.Decode(nil) and not auto.ItemToken(0) and not auto.ItemToken(65536) and not auto.ItemToken('1'))
 check('category is not a sendable phrase', not auto.Token(256))
-check('literal search', #auto.Search('[', 'en') == 0 and #auto.Search('', 'en', nil, 0) == 0)
+check('literal search', #auto.Search('', 'en', nil, 0) == 0 and (function()
+    local found = auto.Search('[s]', 'en')
+    for _, record in ipairs(found) do if not record.Text.en:find('[S]', 1, true) then return false end end
+    return #found > 0
+end)())
+-- The client's name references (@A area, @C spell, @J job, @Y ability) come resolved, the reference kept
+local function named(text, category)
+    for _, record in ipairs(auto.Search(text, 'en', category)) do
+        if record.Text.en == text then return record end
+    end
+end
+local dem = named('Teleport-Dem', 27)
+check('spell reference', dem and dem.References.en == '@C7B' and dem.Text.ja == 'テレポデム')
+local mines = named('Bastok Mines', 20)
+check('area reference', mines and mines.References.en == '@AEA' and mines.Text.ja == 'バストゥーク鉱山区')
+check('ability reference', named('Provoke', 31) and named('Savage Blade', 33) and named('Store TP', 32) and named('Thief', 16))
+local references, blank = 0, 0
+for _, id in ipairs(auto.Ids()) do
+    local record = auto.Get(id)
+    for _, text in pairs(record.Text) do check('no unresolved reference', not text:find('^@[ACJY]%x')) end
+    if record.References then references = references + 1 end
+    if not record.Text.en:find('%S') then blank = blank + 1 end
+end
+check('every reference resolved', references == 1283)
+check('blank slots kept but never found', blank > 0 and (function()
+    for _, record in ipairs(auto.Search('', 'en', 7)) do if not record.Text.en:find('%S') then return false end end
+    return true
+end)())
 local requested
 AshitaCore = { GetChatManager = function() return { ParseAutoTranslate = function(_, token, brackets) requested = token; return brackets and 'expanded' or 'plain' end } end }
 check('game expansion bridge', auto.Expand(auto.Token(hello.Id), true) == 'expanded' and requested == auto.Token(hello.Id))
