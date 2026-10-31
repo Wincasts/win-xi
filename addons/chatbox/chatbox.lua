@@ -258,6 +258,8 @@ do
         local ok, words = pcall(picker.Status)
         words = ok and tostring(words) or 'no status (' .. tostring(words) .. ')'
         words = words .. ('; keyboard state masked %d times'):format(Translate.Masked and Translate.Masked() or 0)
+        words = words .. '; controller ' .. controller.GetLayout() .. (controller.Heard() and (', heard ' .. controller.Heard()) or ', none heard')
+            .. (controller.LayoutMismatch() and ' (the wrong kind: no button reaches the list)' or '')
         local counts = knownStore.Counts()
         words = words .. ('; %d items and key items held, %d heard this session'):format(counts.held, counts.heard)
         if knownStore.problem then words = words .. '; not saved: ' .. knownStore.problem end
@@ -534,6 +536,7 @@ local R = {
         duration = { float = true, format = '%.1f s' }, idle = { format = '%d s' } },
     activityIds = {}, -- window number -> its rows' ids
     enabled = {},     -- the Settings tab's rows under Enable
+    pad = {},         -- Controller Type, under Auto-Translate
     replace = { false }, -- Replace Native Chat, read from and written to the mode
     font = { description = 'The font of the log, input bar and expanded log. Theme Font follows the Winxi Theme, and the rest come from Windows.' },
     fontSize = { theme = 'Automatic', max = 24 },
@@ -595,7 +598,7 @@ app = shell.New({
         window1Rows = T{ 0 }, window2Rows = T{ 0 },
         leftPadding = T{ 3 }, rightPadding = T{ 3 }, topPadding = T{ 3 }, bottomPadding = T{ 3 }, paddingVersion = T{ 0 },
         windowTitle = T{ '' }, splitTitle = T{ '' }, chatTooltips = T{ true }, tooltipNotes = T{ true }, tooltipKinds = TooltipKinds(),
-        autoTranslate = T{ true } },
+        autoTranslate = T{ true }, controllerType = 'xinput' },
     command = '/chatbox',
     configTitle = 'Chatbox Settings',
     hideAppearance = true,
@@ -617,6 +620,21 @@ app = shell.New({
             if widgets.Check('Auto-Translate', 'Tab while typing lists auto-translate phrases and your own items and key items for the word at the caret, instead of the game default menu. /chatbox translate switches it too.', options.autoTranslate, '##chatbox.autoTranslate', R.enabled) then
                 if not options.autoTranslate[1] then Translate.Cancel() end
                 app.save()
+            end
+            R.pad.parent = options.autoTranslate
+            local padType = widgets.Dropdown('Controller Type', 'The kind of controller that works the Auto-Translate list. XInput is an Xbox controller, or one set up to act as one; DirectInput is any other.',
+                controller.Layouts, controller.GetLayout(), '##chatbox.controllerType', R.pad)
+            if padType ~= nil then
+                options.controllerType = controller.SetLayout(padType)
+                app.save()
+            end
+            -- the game reads one kind of controller: with the other chosen, no button reaches the list
+            if controller.LayoutMismatch() then
+                imgui.PushTextWrapPos(0)
+                imgui.TextColored(widgets.ExperimentalColor, controller.Heard() == 'xinput'
+                    and 'Your controller is pressing XInput buttons: choose XInput, or no button reaches the list.'
+                    or 'Your controller is pressing DirectInput buttons: choose the DirectInput make that matches it, or no button reaches the list.')
+                imgui.PopTextWrapPos()
             end
             if widgets.Check('Timestamps', 'Shows the timestamps SimpleLog or the timestamp addon writes, hidden otherwise. /chatbox timestamps switches it too.', options.timestamps, '##chatbox.timestamps', R.enabled) then
                 model.ShowStamps(history, options.timestamps[1]); app.save()
@@ -852,6 +870,8 @@ app = shell.New({
         options.tooltipKinds = TooltipKinds(options.tooltipKinds)
         if type(options.autoTranslate) ~= 'table' then options.autoTranslate = T{ true } end
         options.autoTranslate[1] = options.autoTranslate[1] ~= false
+        -- the kind of controller that works the list (winxi.controller's Layouts; a key it does not know is XInput)
+        options.controllerType = controller.SetLayout(type(options.controllerType) == 'string' and options.controllerType or 'xinput')
         for _, key in ipairs({ 'windowTitle', 'splitTitle' }) do
             local words = type(options[key]) == 'table' and options[key][1]
             options[key] = T{ type(words) == 'string' and words:sub(1, TITLE_LONGEST - 1) or '' }

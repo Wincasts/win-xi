@@ -150,7 +150,15 @@ package.loaded['winxi.widgets']=W
 end
 local binding
 package.loaded['winxi.controller'] = {HighlightColor={0.23,0.67,0.91,1}, RepeatDelay=0.35, RepeatRate=0.08,
-    Button={DpadUp=0,DpadDown=1,DpadLeft=2,DpadRight=3,Start=4,Back=5,L3=6,R3=7,LB=8,RB=9,A=12,B=13,X=14,Y=15}, Bind=function(spec) binding=spec; return spec end}
+    Button={DpadUp=0,DpadDown=1,DpadLeft=2,DpadRight=3,Start=4,Back=5,L3=6,R3=7,LB=8,RB=9,A=12,B=13,X=14,Y=15}, Bind=function(spec) binding=spec; return spec end,
+    Layouts={{key='xinput',label='XInput (Xbox)'},{key='playstation',label='DirectInput (PlayStation)'}}, layout='xinput', heard=nil}
+do
+    local pad=package.loaded['winxi.controller']
+    function pad.SetLayout(key) for _,l in ipairs(pad.Layouts) do if l.key==key then pad.layout=key end end return pad.layout end
+    function pad.GetLayout() return pad.layout end
+    function pad.Heard() return pad.heard end
+    function pad.LayoutMismatch() return pad.heard~=nil and pad.heard~=(pad.layout=='xinput' and 'xinput' or 'directinput') end
+end
 local images = {}
 package.loaded['winxi.style'] = {Background=function() return 'tile' end}
 local labels, overs, lines = {}, {}, {}
@@ -2228,4 +2236,38 @@ do
     events.packet_in({id=0x00a}); frame()
     assert(heardCount()==start+2,'logging out keeps them, for the next character')
 end
-print('Chatbox UI: Auto-Translate\'s Tab list, the items and key items heard, its keys kept from the polled state, compact/expanded chat, settings migration, routing, visibility, lifecycle, tooltips and info-panel settings passed')
+-- Controller Type, under Auto-Translate: the kind of controller that works the list, set in winxi.controller,
+-- saved; a key winxi does not know is XInput; /chatbox status says which, what was heard and a mismatch
+do (function()
+local pad=package.loaded['winxi.controller']
+local oldCombo,oldSelectable=imgui.BeginCombo,imgui.Selectable
+local padLabel
+imgui.BeginCombo=function(id,label) if id=='##chatbox.controllerType' then padLabel=label end; return id=='##chatbox.controllerType' end
+imgui.Selectable=function(label) return label:find('##chatbox.controllerType.playstation',1,true)~=nil end
+assert(app.options.controllerType=='xinput' and pad.GetLayout()=='xinput','XInput to begin with')
+local savesBefore=saves
+headers['Chatbox']=true
+spec.drawSettings(app.options)
+headers['Chatbox']=nil
+assert(padLabel=='XInput (Xbox)' and app.options.controllerType=='playstation' and pad.GetLayout()=='playstation' and saves==savesBefore+1,
+    'DirectInput (PlayStation) chosen: set and saved')
+imgui.BeginCombo,imgui.Selectable=oldCombo,oldSelectable
+app.options.controllerType='xinput'; spec.onSettings(app.options)
+assert(pad.GetLayout()=='xinput','loaded settings set the kind')
+app.options.controllerType='playstation'; spec.onSettings(app.options)
+assert(pad.GetLayout()=='playstation','and DirectInput')
+app.options.controllerType='nonsense'; spec.onSettings(app.options)
+assert(app.options.controllerType=='playstation','a key not known leaves the kind as it was')
+app.options.controllerType=nil; spec.onSettings(app.options)
+assert(app.options.controllerType=='xinput' and pad.GetLayout()=='xinput','missing: XInput')
+local said={}; app.Say=function(_,line) said[#said+1]=line end
+pad.heard='directinput'; spec.commands.status()
+local text=table.concat(said,'\n')
+assert(text:find('controller xinput, heard directinput (the wrong kind: no button reaches the list)',1,true),'/chatbox status says the kind is wrong: '..text)
+said={}; app.options.controllerType='playstation'; spec.onSettings(app.options); spec.commands.status()
+text=table.concat(said,'\n')
+assert(text:find('controller playstation, heard directinput;',1,true),'and right once chosen: '..text)
+app.Say=function() end
+pad.heard=nil; app.options.controllerType='xinput'; spec.onSettings(app.options)
+end)() end
+print('Chatbox UI: Auto-Translate\'s Tab list, its Controller Type, the items and key items heard, its keys kept from the polled state, compact/expanded chat, settings migration, routing, visibility, lifecycle, tooltips and info-panel settings passed')
