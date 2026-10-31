@@ -231,7 +231,8 @@ the mode is how the boxes behave and where they stand.
   and Key Items), drawn above the input bar. An item or key item says so at the right of its row. Your
   bags are read each time the list opens, and what you have held stays in the list for good, kept for
   each character in `config/addons/chatbox/<name>_<id>/autotranslate.lua`. An item or key item someone
-  writes in chat (a yell selling it, a tell) is in your list too until you log out or close the game. Tab, Shift+Tab, Up and Down move; Page Up and Page Down move a
+  writes in chat (a yell selling it, a tell) is in your list too until you close the game, for every
+  character you log into until then. Tab, Shift+Tab, Up and Down move; Page Up and Page Down move a
   page; Enter puts the phrase, item or key item in (on a category, opens it); Escape closes (in a category, goes back to the
   categories). Typing goes on narrowing the list. The phrase goes into your line as its real token, so
   others see it in their own language when you send. Off, Tab is the game's, whose own menu takes the

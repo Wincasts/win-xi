@@ -2179,7 +2179,7 @@ do (function()
     inputOpen=false; inputRaw=''; inputDisplay=''; inputCaret=0; inputSet=nil
     frame()
 end)() end
--- Items and key items heard in chat join Auto-Translate's list until logging out (known.lua); a phrase does not
+-- Items and key items heard in chat join Auto-Translate's list until the game closes (known.lua); a phrase does not
 do
     local function heardCount()
         local said={}; app.Say=function(_,line) said[#said+1]=line end; spec.commands.status(); app.Say=function() end
@@ -2201,6 +2201,6 @@ do
     assert(heardCount()==start+2,'zoning keeps them')
     events.packet_in({id=0x00b,data='\11\14\0\0\1'..string.rep('\0',23)}); frame()
     events.packet_in({id=0x00a}); frame()
-    assert(heardCount()==0,'logging out drops them')
+    assert(heardCount()==start+2,'logging out keeps them, for the next character')
 end
 print('Chatbox UI: Auto-Translate\'s Tab list, the items and key items heard, its keys kept from the polled state, compact/expanded chat, settings migration, routing, visibility, lifecycle, tooltips and info-panel settings passed')

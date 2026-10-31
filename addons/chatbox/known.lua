@@ -1,7 +1,7 @@
 -- The items and key items a character's auto-translate list holds, as the game's own Items and Key Items lists:
 -- what the character has held, kept between sessions in a file of their own, and what was heard in chat (an item
--- or key item token in any line), kept until they log out or the game shuts down. Plain data, no game calls: the
--- caller says who the character is, what they hold and what was heard.
+-- or key item token in any line), kept until the game shuts down and shared by every character played until then.
+-- Plain data, no game calls: the caller says who the character is, what they hold and what was heard.
 local M = {}
 M.Kinds = { 'item', 'keyitem' }
 
@@ -46,11 +46,9 @@ function M.New(files)
     local held, heard, dirty = Empty(), Empty(), false
 
     -- Who is playing: a key naming the character, or nil while it cannot be told. A character's held list is read
-    -- the first time they are seen; one character after another drops what the first heard. The first character
-    -- seen keeps what was heard before they could be told, as chat can come before the name is in memory.
+    -- each time they are switched to; what was heard stays, for whoever plays next.
     function store.Use(character)
         if character == nil or character == store.character then return end
-        if store.character ~= nil then heard = Empty() end
         store.Save()
         store.character, dirty = character, false
         local ok, text = pcall(files.Read, character)
@@ -58,19 +56,11 @@ function M.New(files)
     end
 
     function store.Hold(kind, id)
-        if Valid(kind, id) and not held[kind][id] then
-            held[kind][id], dirty = true, true
-            heard[kind][id] = nil
-        end
+        if Valid(kind, id) and not held[kind][id] then held[kind][id], dirty = true, true end
     end
 
     function store.Hear(kind, id)
         if Valid(kind, id) and not held[kind][id] then heard[kind][id] = true end
-    end
-
-    -- Logged out: what was heard goes; what was held stays, in its file.
-    function store.Forget()
-        heard = Empty()
     end
 
     function store.Save()
@@ -96,13 +86,6 @@ function M.New(files)
     end
 
     return store
-end
-
--- The game's 0x00B with a LogoutState that ends the session (logout, PlayOnline exit, job exit, timeout, GM),
--- not a zone change or the Mog House.
-local ends = { [1] = true, [5] = true, [6] = true, [7] = true, [8] = true, [9] = true }
-function M.LoggedOut(id, data)
-    return id == 0x00B and type(data) == 'string' and #data >= 5 and ends[data:byte(5)] == true
 end
 
 return M

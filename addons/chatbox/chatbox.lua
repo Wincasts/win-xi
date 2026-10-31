@@ -44,7 +44,8 @@ local function Tokens(raw)
     return ok and type(tokens) == 'table' and #tokens > 0 and tokens or nil
 end
 -- Auto-Translate's items and key items (known.lua): what the character has held, in
--- config/addons/chatbox/<name>_<id>/autotranslate.lua, and what was heard in chat until they log out
+-- config/addons/chatbox/<name>_<id>/autotranslate.lua, and what was heard in chat until the game closes, for
+-- every character played until then
 local known = require('known')
 local function KnownPath(character)
     return AshitaCore:GetInstallPath():gsub('[\\/]+$', '') .. '\\config\\addons\\' .. addon.name .. '\\' .. character .. '\\'
@@ -870,7 +871,7 @@ local function Keep(line)
         expanded=type(expanded)=='string' and expanded:sub(1,256) or '', utf8=text:sub(1,256) }
     RefreshRetention(primary.Routes and primary.Routes() or nil)
     local tokens = Tokens(raw)
-    -- an item or key item heard joins the Auto-Translate list until logging out
+    -- an item or key item heard joins the Auto-Translate list until the game closes
     for _, token in ipairs(tokens or {}) do
         if token.kind ~= 'phrase' then knownStore.Hear(token.kind, token.id) end
     end
@@ -937,7 +938,6 @@ end)
 ashita.events.register('packet_in', 'chatbox_zone', function(e)
     if e.blocked then return end
     infoPanel.Packet(app.options.infoPanel, e.id, e.data_modified or e.data)
-    if known.LoggedOut(e.id, e.data_modified or e.data) then knownStore.Forget() end
     if e.id == 0x00b then zoning = true; Release()
     elseif e.id == 0x00a then zoning = false; channels.ResetLinkshells()
     elseif e.id == 0x0e0 then channels.LinkshellPacket(e.data_modified or e.data) end

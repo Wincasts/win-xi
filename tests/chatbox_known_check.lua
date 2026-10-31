@@ -1,5 +1,5 @@
 -- Chatbox's Auto-Translate item and key item list (known.lua): held between sessions per character, heard until
--- logging out, the file it keeps and the logout packet.
+-- the game closes for every character played, and the file it keeps.
 package.path = 'addons/chatbox/?.lua;' .. package.path
 local known = dofile('addons/chatbox/known.lua')
 local function check(label, ok) assert(ok, label) end
@@ -42,6 +42,7 @@ store.Hear('item', 4096)
 check('heard what is held stays held', list().item4096 == 'held')
 store.Hold('item', 300)
 check('held what was heard is held', list().item300 == 'held')
+store.Hear('item', 300)
 store.Hear('item', 17); store.Hear('keyitem', 9)
 store.Hear('phrase', 1); store.Hear('item', -3)
 local counts = store.Counts()
@@ -50,20 +51,20 @@ check('saved', store.Save() and writes == 1 and known.Parse(files.Win_1).item[30
 check('nothing to save twice', store.Save() and writes == 1)
 store.Hold('item', 4096)
 check('holding again changes nothing', store.Save() and writes == 1)
--- logging out drops what was heard, never what was held
-store.Forget()
-counts = store.Counts()
-check('logged out', counts.held == 3 and counts.heard == 0 and list().item17 == nil)
--- another character: their own file, nothing heard carried over, the first saved before
+-- another character: their own file, the first saved before, and what was heard shared
 store.Hear('item', 18)
 store.Hold('item', 5000)
 store.Use('Alt_2')
 check('first saved on the switch', known.Parse(files.Win_1).item[5000])
-check('the other starts empty', next(list()) == nil)
-store.Hold('item', 1)
+local alt = list()
+check('the other: nothing held, everything heard', alt.item5000 == nil and alt.item4096 == nil and alt.item17 == 'heard'
+    and alt.keyitem9 == 'heard' and alt.item18 == 'heard' and alt.item300 == 'heard')
+store.Hold('item', 17)
+check('held by the other', list().item17 == 'held')
 store.Use('Win_1')
-check('the other saved on the switch back', known.Parse(files.Alt_2).item[1])
-check('back to the first: held kept, heard gone', list().item5000 == 'held' and list().item18 == nil and list().item17 == nil)
+check('the other saved on the switch back', known.Parse(files.Alt_2).item[17])
+local back = list()
+check('back to the first: held kept, heard still there', back.item5000 == 'held' and back.item18 == 'heard' and back.item17 == 'heard')
 store.Use(nil)
 check('no character changes nothing', store.character == 'Win_1')
 -- a failed write keeps the change for the next save and says why
@@ -73,10 +74,4 @@ check('a failed write', not store.Save() and store.problem == 'disk full')
 failing = false
 check('written next time', store.Save() and store.problem == nil and known.Parse(files.Win_1).item[6])
 
--- The logout packet: 0x00B with a LogoutState that ends the session, at its fifth byte
-local function packet(state) return '\11\14\0\0' .. string.char(state) .. string.rep('\0', 23) end
-for _, state in ipairs({ 1, 5, 6, 7, 8, 9 }) do check('logout state ' .. state, known.LoggedOut(0x00B, packet(state))) end
-for _, state in ipairs({ 0, 2, 3, 4, 10 }) do check('not a logout ' .. state, not known.LoggedOut(0x00B, packet(state))) end
-check('another packet', not known.LoggedOut(0x00A, packet(1)) and not known.LoggedOut(0x00B, '\11\14') and not known.LoggedOut(0x00B, nil))
-
-print('Chatbox known: the file, held and heard, logout, characters, failed writes and the logout packet passed')
+print('Chatbox known: the file, held and heard, heard shared by the characters, failed writes passed')
