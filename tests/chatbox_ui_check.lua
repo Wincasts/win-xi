@@ -150,7 +150,7 @@ package.loaded['winxi.widgets']=W
 end
 local binding
 package.loaded['winxi.controller'] = {HighlightColor={0.23,0.67,0.91,1}, RepeatDelay=0.35, RepeatRate=0.08,
-    Button={DpadUp=0,DpadDown=1,A=12}, Bind=function(spec) binding=spec; return spec end}
+    Button={DpadUp=0,DpadDown=1,DpadLeft=2,DpadRight=3,A=12,B=13}, Bind=function(spec) binding=spec; return spec end}
 local images = {}
 package.loaded['winxi.style'] = {Background=function() return 'tile' end}
 local labels, overs, lines = {}, {}, {}
@@ -811,9 +811,10 @@ assert(app.options.colors == nil and app.options.themeColors == nil and app.opti
     and app.options.inlineColors == nil and app.options.timestampOwnColor == nil and app.options.timestampColor == nil,
     'retired settings cannot disable preservation or rewrite/filter source messages')
 assert(app.options.leftPadding[1]==40 and app.options.bottomPadding[1]==3 and app.options.rightPadding[1]==3 and app.options.fontFile=='','Left Padding and Font made whole')
--- Native expanded selection is not emulated: no controller owner or injected tell.
+-- Native expanded selection is not emulated: no injected tell, and the controller only Auto-Translate's list's
+-- while it is open.
 local clock=0; local realClock=os.clock; os.clock=function() return clock end
-assert(events.text_out==nil and binding==nil,'no outgoing-chat interception or controller owner')
+assert(events.text_out==nil and binding~=nil and not binding.active(),'no outgoing-chat interception; the controller the game\'s')
 spec.commands.clear()
 for i=1,30 do message(('Talker%s : line %d'):format(string.char(64+i%26+1),i),{mode=9}) end
 message('Melyon>> are you there',{mode=12})
@@ -2149,6 +2150,29 @@ do (function()
     tap(9); tap(13); tap(13); frame()
     assert(type(inputSet)=='string' and #inputSet==10 and inputSet:sub(1,4)=='say ' and inputSet:sub(5,8)==string.char(0xFD,2,2,1) and inputSet:sub(10)==string.char(0xFD),
         'a Greetings phrase put in at the caret: '..tostring(inputSet and inputSet:gsub('.',function(ch) return ('%02X '):format(ch:byte()) end)))
+    -- the controller: taken only while the list is open; the d-pad up and down a row, left and right a page,
+    -- A puts the choice in or opens a category, B goes back or closes
+    inputRaw='hello'; inputDisplay='hello'; inputCaret=5; inputSet=nil
+    assert(not binding.active(),'the list closed: the controller the game\'s')
+    tap(9); assert(binding.active(),'the list open: the controller chatbox\'s')
+    assert(binding.actions[0]=='up' and binding.actions[1]=='down' and binding.actions[2]=='pageUp' and binding.actions[3]=='pageDown'
+        and binding.actions[12]=='enter' and binding.actions[13]=='escape','the d-pad, A and B')
+    local taken=0; for _ in pairs(binding.actions) do taken=taken+1 end
+    assert(taken==6,'no other button taken')
+    assert(binding.repeats.up and binding.repeats.down and binding.repeats.pageUp and binding.repeats.pageDown and not binding.repeats.enter
+        and not binding.repeats.escape,'the d-pad repeats, A and B do not')
+    binding.press('down'); binding.press('up'); binding.press('pageDown'); binding.press('pageUp')
+    assert(inputSet==nil and binding.active(),'moving puts nothing in')
+    binding.press('enter'); assert(inputSet==nil,'A: nothing written inside the button event')
+    frame(); assert(inputSet==HELLO,'A puts the choice in, the next frame')
+    assert(not binding.active(),'the list closed: the controller the game\'s again')
+    inputSet=nil; tap(9); binding.press('escape')
+    assert(not binding.active() and inputSet==nil,'B closes, nothing put in')
+    inputRaw='say '; inputDisplay=inputRaw; inputCaret=4
+    tap(9); binding.press('enter'); assert(binding.active(),'no word: A on a category opens it, still open')
+    binding.press('escape'); assert(binding.active(),'B in a category: back to the categories')
+    binding.press('escape'); assert(not binding.active(),'B again: closed')
+    tap(9); assert(binding.active()); inputOpen=false; assert(not binding.active(),'the input closed: the game\'s'); inputOpen=true; frame()
     -- the input closing closes the list, and gives uihook's keys back
     inputRaw='hello'; inputDisplay='hello'; inputCaret=5; inputSet=nil
     tap(9); inputOpen=false; frame(); inputOpen=true

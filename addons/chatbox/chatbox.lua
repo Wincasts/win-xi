@@ -286,6 +286,18 @@ do
             if ok and chat and PickerOpen() then Use('Enter', chat) else ClosePicker() end
         elseif action == 'escape' then Use('Back') end
     end
+    -- The controller works the open list as the game's own menus are worked: the d-pad up and down a row, left and
+    -- right a page, A (the bottom face button) puts the choice in or opens a category, B goes back or closes. Only
+    -- while the list is open are those buttons taken, and kept from the game (winxi.controller), so that A never
+    -- reaches the game as its confirm; the sticks, triggers and every other button stay the game's.
+    local pad = controller.Button
+    Translate.Pad = controller.Bind({
+        active = function() return PickerOpen() and Translating() and InputOpen() end,
+        actions = { [pad.DpadUp] = 'up', [pad.DpadDown] = 'down', [pad.DpadLeft] = 'pageUp', [pad.DpadRight] = 'pageDown',
+            [pad.A] = 'enter', [pad.B] = 'escape' },
+        repeats = { up = true, down = true, pageUp = true, pageDown = true },
+        press = function(action) Act(action) end,
+    })
     ashita.events.register('key', 'chatbox_translate', function(e)
         local vk, lparam = tonumber(e.wparam) or 0, tonumber(e.lparam) or 0
         local up, repeated = bit.band(lparam, 0x80000000) ~= 0, bit.band(lparam, 0x40000000) ~= 0
