@@ -2,6 +2,7 @@
 
 ## 1.1
 
+- Controller Type is Automatic to begin with (winxi 68): the kind of controller the game reads, as the Phoenix launcher sets it, and set as the settings load, so the confirm button heard follows it from the start. A Controller Type saved as XInput becomes Automatic once. Requires winxi 68.
 - The settings are described rows (winxi 65): each setting's name, a plain sentence under it saying what it does, and its control at the right, in Window, Icons, Game and Controller sections; the rules for hiding and Fade In And Out are on a Visibility tab of their own. Grow From is a dropdown. Requires winxi 65.
 - uihook's buff block is read as plugins/ABI.md promises (winxi 57's `winxi.abi`): the same Version and at least the size this knows, so a newer uihook that adds to the block is still read. Requires winxi 57.
 - uihook alone: the retired buffhook plugin is no longer looked for.

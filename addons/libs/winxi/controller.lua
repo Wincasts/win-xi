@@ -214,6 +214,12 @@ function controller.IsAutomatic()
     return automatic;
 end
 
+-- What was chosen: controller.Automatic, or the layout's key. An addon that sets its setting each frame
+-- compares with this, so that Automatic does not read the game's setting again every frame.
+function controller.GetChoice()
+    return automatic and controller.Automatic or layout.key;
+end
+
 -- A button (by its Xbox name's number) is down or up, or is being reported again. Returns whether the
 -- event that said so should be kept from the game. Every button's state is followed whether or not
 -- anything wants the controller, so that one already down is not taken for a new press.

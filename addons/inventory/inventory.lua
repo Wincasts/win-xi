@@ -17,7 +17,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 50
+local winxiNeeded = 68
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -1217,7 +1217,7 @@ pad.binding = controller.Bind({
 -- Starts a frame of drawing
 local function PadBeginFrame(options)
     -- the kind of controller, from the settings (a key winxi does not know leaves it as it was)
-    if options.controllerType ~= nil and options.controllerType ~= controller.GetLayout() then
+    if options.controllerType ~= nil and options.controllerType ~= controller.GetChoice() then
         controller.SetLayout(options.controllerType)
     end
 
@@ -2016,7 +2016,7 @@ local defaults = T{
     controllerSounds = T{ false }, -- sounds as the controller works the window
     controllerInfo = 'simple', -- what is said of the highlighted item: 'simple' or 'verbose'
     controllerInfoPlace = 'window', -- where the verbose box goes: under the 'window' or the 'item'
-    controllerType = 'xinput', -- which kind: a key of winxi.controller's Layouts
+    controllerType = 'auto', -- which kind: Automatic (the game's own setting) or a key of winxi.controller's Layouts
     currency1 = 'gil', -- what is shown in the gil's place, by currency.lua's keys: '' for none
     currency2 = '', -- and after it, with a line between
     currencyList = 'phoenix', -- which currencies can be chosen: a key of currency.filters

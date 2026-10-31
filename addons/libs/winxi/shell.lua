@@ -120,6 +120,12 @@ local function Prepare(app)
         settings.save();
     end
 
+    -- Controller Type was XInput to begin with until Automatic came (winxi 68), what was brought over above included: a saved XInput becomes Automatic
+    -- once, which is XInput still where the game reads XInput, and with the game on DirectInput XInput heard nothing
+    if options.controllerType ~= nil and not options.controllerTypeAutomatic then
+        if options.controllerType == 'xinput' then options.controllerType = 'auto'; end
+        options.controllerTypeAutomatic = true;
+    end
     game.CompleteHide(options.hide);
     if app.spec.onSettings ~= nil then
         app.spec.onSettings(options);
@@ -349,8 +355,8 @@ function shell.ControllerSettings(options, tooltip, between)
         between(options);
     end
 
-    local chosen = widgets.Dropdown('Controller Type', 'XInput is an Xbox controller, or one set up to act as one. DirectInput is any other.',
-        controller.Layouts, controller.GetLayout(), ids.type, controllerDependent);
+    local chosen = widgets.Dropdown('Controller Type', 'Automatic follows the game\'s own setting, as the launcher sets it. XInput is an Xbox controller, or one set up to act as one; DirectInput is any other.',
+        controller.Choices, options.controllerType or controller.GetChoice(), ids.type, controllerDependent);
     if chosen ~= nil then
         options.controllerType = chosen;
     end

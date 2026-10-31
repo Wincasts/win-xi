@@ -124,7 +124,8 @@
 -- 67: castbar, the casts seen in the action packets, moved from name for party's cast bars:
 --     Configure, Begin, HandlePacket, Of, Reset, Diagnostics, Preview, PreviewVisible
 -- 68: controller's Automatic, the kind of controller the game reads (its padmode000's Enable XInput):
---     Automatic, Choices, GameKind, IsAutomatic, SetLayout(controller.Automatic)
+--     Automatic, Choices, GameKind, IsAutomatic, GetChoice, SetLayout(controller.Automatic); shell's
+--     Controller Type offers it, and a saved XInput becomes Automatic once (controllerTypeAutomatic)
 return {
     Number = 68,
 };

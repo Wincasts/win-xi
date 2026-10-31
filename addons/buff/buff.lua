@@ -23,7 +23,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 57; -- winxi.abi: uihook's block read as plugins/ABI.md promises
+local winxiNeeded = 68; -- winxi.abi: uihook's block read as plugins/ABI.md promises
 do
     local ok, found = pcall(require, 'winxi.version');
     local number = ok and type(found) == 'table' and found.Number or 0;
@@ -81,7 +81,7 @@ local defaults = T{
     cursorSize = T{ 60 },     -- the selector's hand, as a share of an icon's height, in percent
     controller = T{ true },        -- the controller's confirm in the selector removes the status
     controllerSounds = T{ false },
-    controllerType = 'xinput',     -- which DirectInput make, a key of winxi.controller's Layouts
+    controllerType = 'auto',       -- which kind: Automatic (the game's own setting) or a key of winxi.controller's Layouts
 };
 
 -- Grow From: where a row's icons sit across the bar. Anchored, the bar is as wide as a full row of
@@ -256,7 +256,7 @@ local function DirectConfirm()
         if layout.buttons ~= nil then
             for offset, button in pairs(layout.buttons) do
                 if button == controller.Button.A then
-                    if layout.key == app.options.controllerType then return offset; end
+                    if layout.key == controller.GetLayout() then return offset; end
                     if layout.key == 'playstation' then fallback = offset; end
                 end
             end
@@ -851,7 +851,7 @@ local function PositionSliders(values, label, id, signed, sentenceX, sentenceY, 
     return changedX or changedY;
 end
 
-local controllerTip = 'In the game\'s buff selector, confirm (A, or the bottom face button) removes the status its cursor is on, as a click does. Needs the uihook plugin, which says which one that is.\nThe press still reaches the game: buff asks for the status to be removed only when the game has not, a moment later.\nAn XInput controller\'s A is always heard; Controller Type picks the DirectInput make (PlayStation with XInput chosen).';
+local controllerTip = 'In the game\'s buff selector, confirm (A, or the bottom face button) removes the status its cursor is on, as a click does. Needs the uihook plugin, which says which one that is.\nThe press still reaches the game: buff asks for the status to be removed only when the game has not, a moment later.\nAn XInput controller\'s A is always heard; Controller Type picks the DirectInput make (PlayStation where XInput is in use).';
 
 local lockSpec = { description = 'Keeps the bar where it is. Off, drag it with the mouse to move it.' };
 local fontSpec = { description = 'The font for the times and the status tooltips. Theme Font follows the Winxi Theme.' };
@@ -899,8 +899,8 @@ local function DrawSettings(options)
     end
 
     if widgets.Header('Controller') then
-        controller.SetLayout(options.controllerType);
         shell.ControllerSettings(options, controllerTip);
+        if options.controllerType ~= controller.GetChoice() then controller.SetLayout(options.controllerType); end
     end
 end
 
@@ -911,7 +911,11 @@ app = shell.New({
     command = '/buff',
     help = '/buff shows or hides the window; /buff config opens or closes the settings.',
     drawSettings = DrawSettings,
-    onSettings = ApplyGameIcons,
+    onSettings = function(options)
+        -- the kind of controller whose confirm button is heard, set as the settings load
+        controller.SetLayout(options.controllerType);
+        ApplyGameIcons(options);
+    end,
 });
 
 ashita.events.register('unload', 'buff_unload', function()

@@ -79,7 +79,7 @@ selector is still the game's: its keys and the controller move the cursor. The c
 removes the status the cursor is on. The press still reaches the game, and if the game has not asked
 the server to remove the status a quarter of a second later, buff asks (**Controller**:
 **Controller Navigation** is on to begin with; an XInput controller's A is always heard, and
-**Controller Type** picks the DirectInput make, PlayStation's cross with XInput chosen). A click on
+**Controller Type**, Automatic to begin with, follows the game's own setting as the Phoenix launcher sets it or picks the DirectInput make, PlayStation's cross where XInput is in use). A click on
 an icon removes that one too.
 Dragged elsewhere, with **Hide Game's Icons** on, the plugin keeps the game's row and its hand away,
 instead of changing the game's code. Without the plugin there is no hand, but a click still removes.

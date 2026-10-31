@@ -318,3 +318,19 @@ do
     H.print('no DLL to be found: nothing', hook.Block() == nil)
     ashita.memory.get_base, ashita.memory.find = nil, find
 end
+-- Controller Type: a saved XInput, from before Automatic, becomes Automatic once (shell),
+-- and the kind is set as the settings load (the game on DirectInput: the PlayStation cross is the confirm)
+do
+    local controller = require('winxi.controller')
+    H.print('settings marked as brought to Automatic', o.controllerTypeAutomatic == true)
+    local padmode = '1,0,0,1,1,0'
+    AshitaCore.GetConfigurationManager = function() return { GetString = function() return padmode end } end
+    o.controllerType, o.controllerTypeAutomatic = 'xinput', nil
+    H.resettle()
+    H.print('a saved XInput: Automatic, set on load', o.controllerType == 'auto', o.controllerTypeAutomatic == true,
+        controller.GetChoice() == 'auto', controller.GetLayout() == 'playstation')
+    o.controllerType = 'xinput'; H.resettle()
+    H.print('XInput chosen since: kept', o.controllerType == 'xinput', controller.GetLayout() == 'xinput')
+    o.controllerType = 'auto'; H.resettle()
+    AshitaCore.GetConfigurationManager = nil
+end
