@@ -2,6 +2,7 @@
 -- DAT artwork/mapping is cached and owned by Name, never borrowed from game memory.
 local rectangles = require('assets.player-icons');
 local bundledOverlays = require('assets.player-icon-overlays');
+local outline = require('outline');
 local icons = {};
 icons.Sources = {
     { key = 'game', label = 'Game DATs' },
@@ -15,15 +16,13 @@ for byte, rect in pairs(rectangles) do
 end
 local outlineRadius, outlineOpacity, plates = 1, 1, nil;
 
--- Match text's screen/Lens/distance scaling, but never use its outline setting.
+-- Match text's screen/Lens/distance scaling and fading, but never use its outline setting.
 function icons.ConfigureOutline(options, size, scale, fit)
     local width = options.iconOutline and options.iconOutline[1] or 1;
     width = math.max(0, math.min(3, width));
-    outlineRadius = width > 0 and math.max(1, math.floor(math.min(width, math.max(1, math.floor(size / 8 + 0.5))) * scale)) or 0;
-    if outlineRadius > 0 and fit < 1 then
-        outlineRadius = math.max(1, math.floor(outlineRadius * fit + 0.5));
-    end
-    outlineOpacity = math.max(0, math.min(100, options.iconOutlineOpacity and options.iconOutlineOpacity[1] or 100)) / 100;
+    local weight;
+    outlineRadius, weight = outline.Of(width, size, scale, fit);
+    outlineOpacity = math.max(0, math.min(100, options.iconOutlineOpacity and options.iconOutlineOpacity[1] or 100)) / 100 * weight;
 end
 
 -- All outlined icons go through this path; text, badges and mastery stars do not.

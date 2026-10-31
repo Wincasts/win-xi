@@ -39,7 +39,10 @@ assert(quads[1][11] == true and quads[1][12] == nil and quads[1][15] == 3 and qu
     'the frame alone is edged, at Bar Outline\'s thickness, with Text Outline None')
 healthbar.ConfigureOutline(o, 30, 1, 0.5)
 draw()
-assert(quads[1][15] == 2, 'the bar\'s outline shrinks with the name')
+assert(quads[1][15] == 3 and quads[1][12] == 0.5, 'the bar\'s outline keeps its thickness and fades with the name')
+healthbar.ConfigureOutline(o, 27, 1, 0.9)
+draw()
+assert(quads[1][15] == 3 and math.abs(quads[1][12] - 0.9) < 1e-9, 'smoothly, with no step between thicknesses')
 o.barOutline[1] = 2
 healthbar.ConfigureOutline(o, 30, 2, 1)
 draw()

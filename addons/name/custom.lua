@@ -43,7 +43,7 @@ local rules = require('block_rules');
 local diag = require('diag');
 
 local custom = {};
-local fontPipeline = { Readability = require('readability'), Castbar = require('castbar') };
+local fontPipeline = { Readability = require('readability'), Castbar = require('castbar'), Outline = require('outline') };
 
 local STAR          = 0xAD; -- the star of the Job Mastery stars: a small one, a large one, a small one
 local FADE_SHRUNK   = 0.15; -- the last part of a name's distance over which it fades out
@@ -1485,18 +1485,17 @@ function custom.Frame(options, hook, formats)
                 local fit = size > fullSize and height / rungHeight or math.min(1, height / rungHeight);
                 local set = nameSet(font, rungHeight, bold);
 
-                -- Round the base edge down to whole render-target pixels so
-                -- resolution scaling does not make nearby names unnecessarily bold.
-                -- Shrink the integer edge with the letters, still without fractional
-                -- offsets or a thickness jump as soon as shrinking starts.
+                -- The edge is whole render-target pixels, as at the name's largest, so resolution
+                -- scaling does not make nearby names unnecessarily bold. A distant name keeps that
+                -- thickness and fades it instead, as solid as the thinner edge would be, so it
+                -- never pops from one thickness to the next.
                 local outlineFit = size / maximumSize;
-                local nameEdge = edge > 0 and math.max(1, math.floor(math.min(edge, math.max(1, math.floor(size / 8 + 0.5))) * scale)) or 0;
+                local nameEdge, edgeWeight = fontPipeline.Outline.Of(edge, size, scale, outlineFit);
                 local nameDark = dark;
                 if (outlineFit < 1) then
-                    if nameEdge > 0 then nameEdge = math.max(1, math.floor(nameEdge * outlineFit + 0.5)); end
                     -- Keep small names separated from bright scenery: only soften
                     -- the halo slightly, rather than losing half its contrast.
-                    local edgeAlpha = math.floor(bit.rshift(dark, 24) * (0.85 + 0.15 * outlineFit) + 0.5);
+                    local edgeAlpha = math.floor(bit.rshift(dark, 24) * (0.85 + 0.15 * outlineFit) * edgeWeight + 0.5);
                     nameDark = dark % 0x1000000 + edgeAlpha * 0x1000000;
                 end
                 icons.ConfigureOutline(options, size, scale, outlineFit);

@@ -71,7 +71,7 @@ function types.DrawSize(options)
     controls.Input('Bar Height', '##name.healthBarHeight', options.healthBarHeight, 3, 40, '%d px',
         'How tall the health and cast bars are, border included. They shrink with the name.', sizeSpec);
     controls.Outline(options.barOutline, 'Bar Outline', '##name.barOutline',
-        'How thick the dark edge round the health and cast bars is. It shrinks with the name.', sizeSpec);
+        'How thick the dark edge round the health and cast bars is. It fades with the name.', sizeSpec);
 end
 
 return types;

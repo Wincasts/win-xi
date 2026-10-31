@@ -4,7 +4,7 @@
 --                          otherwise the font's white pixel is looked for afresh; the bars' outline at
 --                          edgeOpacity (Text Outline Opacity, nil as it is)
 --   healthbar.ConfigureOutline(options, size, scale, fit) for each name: Bar Outline's thickness,
---                          shrinking with the name as Text Outline's does
+--                          fading with the name as Text Outline's does
 --   healthbar.Bar(left, right, under, scale, fraction, color, width, height, backdrop)
 --                         shared HP/cast geometry; returns the foot or unchanged under
 --   healthbar.Write(name, entities, left, right, under, scale, color, width, height, full)
@@ -15,6 +15,7 @@
 --   healthbar.previewing  whether this frame is showing the preview
 local imgui = require('imgui');
 local nameplates = require('winxi.nameplates');
+local outline = require('outline');
 local healthbar = {};
 
 -- Session-only, never part of saved settings: as castbar.Preview
@@ -33,7 +34,7 @@ end
 -- Where the white pixel is in the font's texture, asked of imgui once a frame and for the first bar;
 -- and again if imgui's function for it is another (a test's stand-in)
 local whiteU, whiteV, whiteOf = nil, nil, nil;
-local activeWhite, activeEdge, activeRadius = nil, nil, 0;
+local activeWhite, activeEdge, activeRadius, activeWeight = nil, nil, 0, 1;
 
 function healthbar.Begin(white, now, edgeOpacity)
     activeWhite, activeEdge = white, edgeOpacity;
@@ -42,14 +43,11 @@ function healthbar.Begin(white, now, edgeOpacity)
     healthbar.previewing = healthbar.Preview[1] and previewStart ~= nil and frameNow <= previewUntil or false;
 end
 
--- As icons.ConfigureOutline: whole render-target pixels, no thicker than the letters allow, shrinking
+-- As icons.ConfigureOutline: whole render-target pixels, no thicker than the letters allow, fading
 -- with a distant name
 function healthbar.ConfigureOutline(options, size, scale, fit)
     local width = math.max(0, math.min(3, options.barOutline and options.barOutline[1] or 1));
-    activeRadius = width > 0 and math.max(1, math.floor(math.min(width, math.max(1, math.floor(size / 8 + 0.5))) * scale)) or 0;
-    if activeRadius > 0 and fit < 1 then
-        activeRadius = math.max(1, math.floor(activeRadius * fit + 0.5));
-    end
+    activeRadius, activeWeight = outline.Of(width, size, scale, fit);
 end
 
 -- The preview's HP for a name: down from full to empty and back, each name a little apart from the next
@@ -91,7 +89,8 @@ function healthbar.Bar(left, right, under, scale, fraction, color, width, height
     -- The frame is edged in the name's dark colour at Bar Outline's thickness (its own radius, so it
     -- holds with Text Outline None) and Text Outline Opacity. With Bar Outline None it keeps its soft fringe.
     local edged = activeRadius > 0;
-    nameplates.Quad(x, y, x + width, y + h, u, v, u, v, 0xFF101010, 0, edged, activeEdge, true,
+    local edgeOpacity = activeWeight < 1 and (activeEdge or 1) * activeWeight or activeEdge;
+    nameplates.Quad(x, y, x + width, y + h, u, v, u, v, 0xFF101010, 0, edged, edgeOpacity, true,
         nil, edged and activeRadius or nil);
     nameplates.Quad(x + border, y + border, x + width - border, y + h - border,
         u, v, u, v, backdrop or 0xFF483030, 0, false, nil, true);
