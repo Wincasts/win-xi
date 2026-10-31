@@ -289,8 +289,12 @@ Buttons are named as an Xbox controller's are. XInput is the default. For a Dire
 the addon says which make it is, and its buttons are read as the Xbox buttons in the same positions:
 
 ```lua
-controller.SetLayout(settings.ControllerType);    -- 'xinput', 'playstation', 'switch' or 'stadia'
--- controller.Layouts lists them, each with a key and a label, for a settings window to offer
+controller.SetLayout(settings.ControllerType);    -- 'xinput', 'playstation', 'switch' or 'stadia', or 'auto'
+-- controller.Layouts lists them, each with a key and a label, for a settings window to offer;
+-- controller.Choices is the same with Automatic first. Automatic (controller.Automatic, winxi 68) follows
+-- the kind the game reads, its padmode000's Enable XInput in Ashita's boot configuration as the launcher
+-- writes it (controller.GameKind), a DirectInput controller taken for a PlayStation one; where that cannot
+-- be read, the kind heard pressing buttons
 ```
 
 ## Menu sounds

@@ -117,26 +117,88 @@ controller.Layouts = {
 
 local layout = controller.Layouts[1];
 
--- Says which kind of controller is in use, by its key in controller.Layouts. Returns the key in use
--- (the present one, if the key given is not one of them).
+-- Automatic: the kind of controller the game reads, as its own setting says (controller.GameKind), a
+-- DirectInput controller taken for a PlayStation one, the commonest; where the setting cannot be read,
+-- the kind heard pressing buttons. controller.Choices is the Layouts with Automatic first, for a setting.
+controller.Automatic = 'auto';
+controller.Choices = { { key = controller.Automatic, label = 'Automatic' } };
+for _, candidate in ipairs(controller.Layouts) do controller.Choices[#controller.Choices + 1] = candidate; end
+local automatic = false; -- whether Automatic was chosen
+local directDefault = 'playstation';
+
+-- The kind of controller the game reads, from the padmode000 of Ashita's boot configuration ([ffxi.registry],
+-- as the Phoenix launcher and FINAL FANTASY XI Config write it), whose sixth field is the game's Enable XInput:
+-- 'xinput' or 'directinput', or nil where it is missing, -1 (the registry's own, unread) or the gamepad off.
+-- text, if given, is read in place of the configuration's.
+function controller.GameKind(text)
+    if text == nil then
+        local ok, found = pcall(function()
+            return AshitaCore:GetConfigurationManager():GetString('boot', 'ffxi.registry', 'padmode000');
+        end);
+        text = ok and found or nil;
+    end
+    if type(text) ~= 'string' then
+        return nil;
+    end
+    local fields = {};
+    for field in text:gmatch('[^,]+') do
+        fields[#fields + 1] = tonumber(field);
+    end
+    if #fields < 6 or fields[1] ~= 1 then
+        return nil;
+    end
+    if fields[6] == 1 then
+        return 'xinput';
+    elseif fields[6] == 0 then
+        return 'directinput';
+    end
+    return nil;
+end
+
+local function Use(candidate)
+    if candidate ~= layout then
+        layout = candidate;
+        -- what was held was held on the other kind of controller, whose releases will no
+        -- longer be heard: forget it, or a press taken there would repeat for ever
+        for button in pairs(held) do
+            held[button] = nil;
+        end
+        for button in pairs(owner) do
+            owner[button] = nil;
+        end
+        for id in pairs(triggerDown) do
+            triggerDown[id] = nil;
+        end
+    end
+end
+
+local function Find(key)
+    for _, candidate in ipairs(controller.Layouts) do
+        if candidate.key == key then return candidate; end
+    end
+end
+
+-- Automatic's layout for a kind of controller
+local function Automatic(kind)
+    return Find(kind == 'directinput' and directDefault or 'xinput');
+end
+
+-- Says which kind of controller is in use, by its key in controller.Layouts, or controller.Automatic.
+-- Returns the key in use (the present one, if the key given is not one of them); for Automatic, the
+-- layout it chose.
 function controller.SetLayout(key)
+    if key == controller.Automatic then
+        automatic = true;
+        local kind = controller.GameKind();
+        if kind ~= nil then
+            Use(Automatic(kind));
+        end
+        return layout.key;
+    end
     for _, candidate in ipairs(controller.Layouts) do
         if candidate.key == key then
-            if candidate ~= layout then
-                layout = candidate;
-
-                -- what was held was held on the other kind of controller, whose releases will no
-                -- longer be heard: forget it, or a press taken there would repeat for ever
-                for button in pairs(held) do
-                    held[button] = nil;
-                end
-                for button in pairs(owner) do
-                    owner[button] = nil;
-                end
-                for id in pairs(triggerDown) do
-                    triggerDown[id] = nil;
-                end
-            end
+            automatic = false;
+            Use(candidate);
             break;
         end
     end
@@ -145,6 +207,11 @@ end
 
 function controller.GetLayout()
     return layout.key;
+end
+
+-- Whether Automatic chose the layout
+function controller.IsAutomatic()
+    return automatic;
 end
 
 -- A button (by its Xbox name's number) is down or up, or is being reported again. Returns whether the
@@ -220,6 +287,10 @@ end
 local function OnXInput(e)
     if e.button <= 15 and e.state == 1 then
         heard = 'xinput';
+        -- Automatic, with the game's setting unread: the kind heard
+        if automatic and layout.buttons ~= nil and controller.GameKind() == nil then
+            Use(Automatic('xinput'));
+        end
     end
     if layout.buttons ~= nil then
         return; -- a DirectInput controller is in use
@@ -250,6 +321,9 @@ local function OnDirectInput(e)
     -- DIJOYSTATE's buttons, from offset 48: not its sticks and triggers, which report at rest
     if e.button >= 48 and e.button < 80 and e.state == 128 then
         heard = 'directinput';
+        if automatic and layout.buttons == nil and controller.GameKind() == nil then
+            Use(Automatic('directinput'));
+        end
     end
     local buttons = layout.buttons;
     if buttons == nil then

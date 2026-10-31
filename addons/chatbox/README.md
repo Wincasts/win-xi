@@ -237,10 +237,11 @@ the mode is how the boxes behave and where they stand.
   categories). With a controller, while the list is open: the d-pad up and down a row, left and right a
   page, A puts the choice in (on a category, opens it), B goes back or closes; the whole controller is kept
   from the game while the list is open, and given back when it closes.
-  - **Controller Type** (XInput to begin with): the kind of controller that works the list. XInput is an
-    Xbox controller, or one set up to act as one; for any other choose its DirectInput make (PlayStation,
-    Switch Pro, Stadia). With the wrong kind no button reaches the list; the settings and `/chatbox status`
-    say so once a button is pressed. Typing goes on narrowing the list. The phrase goes into your line as its real token, so
+  - **Controller Type** (Automatic to begin with): the kind of controller that works the list. Automatic
+    follows the game's own setting, as the Phoenix launcher sets it (XInput or DirectInput; a DirectInput
+    controller is taken for a PlayStation one). Otherwise XInput is an Xbox controller, or one set up to act
+    as one; for any other choose its DirectInput make (PlayStation, Switch Pro, Stadia). With the wrong kind
+    no button reaches the list; the settings and `/chatbox status` say so once a button is pressed. Typing goes on narrowing the list. The phrase goes into your line as its real token, so
   others see it in their own language when you send. Off, Tab is the game's, whose own menu takes the
   input bar back for as long as it is open. `/chatbox translate on` and `off` do the same.
   Native window size does not necessarily mean the same number of lines.

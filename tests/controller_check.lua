@@ -33,3 +33,29 @@ controller.SetLayout('playstation'); H.print('PlayStation chosen: none', control
 H.button(H.Button.A, 1); H.button(H.Button.A, 0)
 H.print('an XInput press heard: a mismatch again', controller.Heard(), controller.LayoutMismatch())
 controller.SetLayout('xinput')
+-- Automatic: the kind of controller the game reads, its padmode000's sixth field (Enable XInput), DirectInput taken
+-- for a PlayStation controller; with the game's setting unread, the kind heard
+assert(controller.GameKind('1,0,0,1,1,0') == 'directinput' and controller.GameKind('1,1,0,0,0,1') == 'xinput', 'GameKind reads Enable XInput')
+assert(controller.GameKind('0,0,0,1,1,1') == nil and controller.GameKind('-1') == nil and controller.GameKind('1,0,0') == nil
+    and controller.GameKind('1,0,0,1,1,x') == nil and controller.GameKind(42) == nil, 'GameKind: gamepad off, unread, short or odd')
+assert(controller.Choices[1].key == controller.Automatic and controller.Choices[2].key == 'xinput' and #controller.Choices == #controller.Layouts + 1,
+    'Choices: Automatic, then the Layouts')
+local padmode = '1,0,0,1,1,0'
+AshitaCore.GetConfigurationManager = function() return { GetString = function(_, alias, section, key)
+    assert(alias == 'boot' and section == 'ffxi.registry' and key == 'padmode000'); return padmode end } end
+H.print('Automatic, the game on DirectInput: PlayStation', controller.SetLayout(controller.Automatic) == 'playstation',
+    controller.IsAutomatic(), controller.GetLayout() == 'playstation')
+padmode = '1,1,0,0,0,1'
+H.print('the game on XInput: XInput', controller.SetLayout(controller.Automatic) == 'xinput', controller.IsAutomatic())
+controller.SetLayout('playstation'); H.print('a kind chosen: not Automatic', controller.IsAutomatic() == false)
+padmode = nil; controller.SetLayout('xinput'); controller.SetLayout(controller.Automatic)
+H.print('the game\'s setting unread: as it was', controller.GetLayout() == 'xinput', controller.IsAutomatic())
+H.dinput(49, 128); H.print('a DirectInput press heard: PlayStation', controller.GetLayout() == 'playstation')
+H.dinput(49, 0); on = true; H.frames(1)
+H.print('a cross pressed then works the binding', H.dinput(49, 128)); H.dinput(49, 0)
+on = false; H.frames(1)
+H.button(H.Button.A, 1); H.print('an XInput press heard: XInput again', controller.GetLayout() == 'xinput'); H.button(H.Button.A, 0)
+padmode = '1,0,0,1,1,0'; controller.SetLayout(controller.Automatic)
+H.button(H.Button.A, 1); H.button(H.Button.A, 0)
+H.print('the game\'s setting read: a press of the other kind changes nothing', controller.GetLayout() == 'playstation')
+controller.SetLayout('xinput'); AshitaCore.GetConfigurationManager = nil

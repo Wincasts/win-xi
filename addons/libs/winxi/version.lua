@@ -123,6 +123,8 @@
 --     art in place of the theme's (expbar)
 -- 67: castbar, the casts seen in the action packets, moved from name for party's cast bars:
 --     Configure, Begin, HandlePacket, Of, Reset, Diagnostics, Preview, PreviewVisible
+-- 68: controller's Automatic, the kind of controller the game reads (its padmode000's Enable XInput):
+--     Automatic, Choices, GameKind, IsAutomatic, SetLayout(controller.Automatic)
 return {
-    Number = 67,
+    Number = 68,
 };

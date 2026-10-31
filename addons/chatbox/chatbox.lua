@@ -2,7 +2,7 @@ addon.name = 'chatbox'
 addon.author = 'win'
 addon.version = '0.17.0-pre1'
 addon.desc = 'WinXI native-backed chat, input and expanded history, with an optional chat-owned three-slot info panel.'
-local winxiNeeded = 50
+local winxiNeeded = 68
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -258,7 +258,8 @@ do
         local ok, words = pcall(picker.Status)
         words = ok and tostring(words) or 'no status (' .. tostring(words) .. ')'
         words = words .. ('; keyboard state masked %d times'):format(Translate.Masked and Translate.Masked() or 0)
-        words = words .. '; controller ' .. controller.GetLayout() .. (controller.Heard() and (', heard ' .. controller.Heard()) or ', none heard')
+        words = words .. '; controller ' .. (controller.IsAutomatic() and ('automatic, ' .. (controller.GameKind() or 'the game\'s setting unread') .. ', ') or '')
+            .. controller.GetLayout() .. (controller.Heard() and (', heard ' .. controller.Heard()) or ', none heard')
             .. (controller.LayoutMismatch() and ' (the wrong kind: no button reaches the list)' or '')
         local counts = knownStore.Counts()
         words = words .. ('; %d items and key items held, %d heard this session'):format(counts.held, counts.heard)
@@ -598,7 +599,7 @@ app = shell.New({
         window1Rows = T{ 0 }, window2Rows = T{ 0 },
         leftPadding = T{ 3 }, rightPadding = T{ 3 }, topPadding = T{ 3 }, bottomPadding = T{ 3 }, paddingVersion = T{ 0 },
         windowTitle = T{ '' }, splitTitle = T{ '' }, chatTooltips = T{ true }, tooltipNotes = T{ true }, tooltipKinds = TooltipKinds(),
-        autoTranslate = T{ true }, controllerType = 'xinput' },
+        autoTranslate = T{ true }, controllerType = 'auto' },
     command = '/chatbox',
     configTitle = 'Chatbox Settings',
     hideAppearance = true,
@@ -622,10 +623,11 @@ app = shell.New({
                 app.save()
             end
             R.pad.parent = options.autoTranslate
-            local padType = widgets.Dropdown('Controller Type', 'The kind of controller that works the Auto-Translate list. XInput is an Xbox controller, or one set up to act as one; DirectInput is any other.',
-                controller.Layouts, controller.GetLayout(), '##chatbox.controllerType', R.pad)
+            local padType = widgets.Dropdown('Controller Type', 'The kind of controller that works the Auto-Translate list. Automatic follows the game\'s own setting, as the launcher sets it; XInput is an Xbox controller, DirectInput any other.',
+                controller.Choices, options.controllerType, '##chatbox.controllerType', R.pad)
             if padType ~= nil then
-                options.controllerType = controller.SetLayout(padType)
+                controller.SetLayout(padType)
+                options.controllerType = padType
                 app.save()
             end
             -- the game reads one kind of controller: with the other chosen, no button reaches the list
@@ -870,8 +872,12 @@ app = shell.New({
         options.tooltipKinds = TooltipKinds(options.tooltipKinds)
         if type(options.autoTranslate) ~= 'table' then options.autoTranslate = T{ true } end
         options.autoTranslate[1] = options.autoTranslate[1] ~= false
-        -- the kind of controller that works the list (winxi.controller's Layouts; a key it does not know is XInput)
-        options.controllerType = controller.SetLayout(type(options.controllerType) == 'string' and options.controllerType or 'xinput')
+        -- the kind of controller that works the list: Automatic (the game's own setting) or one of winxi.controller's
+        -- Layouts; a key it does not know is Automatic
+        local padKey = type(options.controllerType) == 'string' and options.controllerType or controller.Automatic
+        if padKey ~= controller.Automatic and controller.SetLayout(padKey) ~= padKey then padKey = controller.Automatic end
+        if padKey == controller.Automatic then controller.SetLayout(padKey) end
+        options.controllerType = padKey
         for _, key in ipairs({ 'windowTitle', 'splitTitle' }) do
             local words = type(options[key]) == 'table' and options[key][1]
             options[key] = T{ type(words) == 'string' and words:sub(1, TITLE_LONGEST - 1) or '' }
