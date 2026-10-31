@@ -89,7 +89,8 @@ local first = draw.Entities[1]
 assert(draw.Quads[first.First + first.Count - 1].Color == draw.Quads[first.First].Color,
     'renderer gives bar fill the same converted colour as name text')
 local frame = first.First + first.Count - 3
-assert(draw.Quads[frame].Flags == 1, 'the bar\'s frame is edged as the letters are')
+assert(draw.Quads[frame].Flags == 17 and bit.rshift(draw.Quads[frame].Reserved, 16) >= 1,
+    'the bar\'s frame is edged at Bar Outline\'s own radius')
 for i = frame + 1, first.First + first.Count - 1 do
     assert(draw.Quads[i].Flags == 4, 'bar layers opt into plugin screen-space antialiasing')
 end

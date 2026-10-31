@@ -103,6 +103,7 @@ local settings = {
     iconOutlineOpacity = function () return T{ 100 }; end,
     textOutlineOpacity = function () return T{ 100 }; end, -- the text's dark edge, as a percentage of its own
     outline     = function () return T{ 1 }; end,     -- how thick the dark edge round them is, in pixels
+    barOutline  = function () return T{ 1 }; end,     -- the same, round the health and cast bars
     font        = function () return ''; end,         -- a file of FONT_FOLDER, or nothing for the font everything else is in
     iconFormatVersion = function () return 0; end,
     iconSize    = function () return T{ 125 }; end,   -- an icon's side, as a percentage of the height of the names
@@ -146,7 +147,7 @@ local settings = {
 
 -- What Settle makes good: the setting, the kind of value it holds, and for a number its bounds
 local settled = {
-    { 'iconOutline', 'number', 0, 3 }, { 'iconOutlineOpacity', 'number', 0, 100 },
+    { 'iconOutline', 'number', 0, 3 }, { 'iconOutlineOpacity', 'number', 0, 100 }, { 'barOutline', 'number', 0, 3 },
     { 'textOutlineOpacity', 'number', 0, 100 },
     { 'checkSize', 'number', 50, 125 }, { 'healthBarWidth', 'number', 12, 300 }, { 'healthBarHeight', 'number', 3, 40 },
     { 'huntScale', 'number', 100, 200 }, { 'subtargetScale', 'number', 50, 200 },
@@ -1410,7 +1411,7 @@ function custom.Frame(options, hook, formats)
     local memory = AshitaCore:GetMemoryManager();
     local entities = askedOnce(memory.GetEntity ~= nil and memory:GetEntity() or nil);
     local colourContext = nameColours.Context(options, memory);
-    healthbar.Begin(filteredAtlas and filteredAtlas.white, now, edge > 0, fontPipeline.textEdgeOpacity);
+    healthbar.Begin(filteredAtlas and filteredAtlas.white, now, fontPipeline.textEdgeOpacity);
 
     -- a monster that was checked and has died is forgotten before any level is written; what is
     -- written of a level is kept until what is known of levels changes
@@ -1499,6 +1500,7 @@ function custom.Frame(options, hook, formats)
                     nameDark = dark % 0x1000000 + edgeAlpha * 0x1000000;
                 end
                 icons.ConfigureOutline(options, size, scale, outlineFit);
+                healthbar.ConfigureOutline(options, size, scale, outlineFit);
                 if (set ~= nil and nameplates.BeginName(name.EntityIndex, alpha, nameEdge, nameDark)) then
                     -- what is written, part by part, as its line has it
                     local parts = nameFormat;

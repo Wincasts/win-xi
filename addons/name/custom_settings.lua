@@ -267,7 +267,7 @@ function settings.DrawSettings(options, save)
         end
         if (controls.Sub('Outlines')) then
             controls.Outline(options.outline, 'Text Outline', '##name.outline',
-                'How thick the dark edge round the text and the health and cast bars is. Icons have an edge of their own.');
+                'How thick the dark edge round the text is. Icons and bars have an edge of their own.');
             controls.Slider('Text Outline Opacity', '##name.textOutlineOpacity', options.textOutlineOpacity, 0, 100, '%d%%',
                 'How solid the edge round the text and the bars is. 0 hides it.');
             controls.Outline(options.iconOutline, 'Icon Outline', '##name.iconOutline',

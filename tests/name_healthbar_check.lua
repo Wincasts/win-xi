@@ -27,14 +27,30 @@ local function draw()
 end
 local under = draw()
 assert(#quads == 3 and under > 20 and quads[1][2] > 20)
-assert(quads[3][9] == 0xFF4080C0 and quads[1][11] == false, 'no outline on the text, none on the bar')
-healthbar.Begin(nil, 0, true)
+assert(quads[3][9] == 0xFF4080C0 and quads[1][11] == false, 'no outline until a name sets Bar Outline')
+assert(o.barOutline[1] == 1, 'Bar Outline 1 px to begin with')
+o.barOutline[1] = 9
+custom.Settle(o)
+assert(o.barOutline[1] == 3, 'Bar Outline kept within None to 3 px')
+o.outline[1] = 0
+healthbar.ConfigureOutline(o, 30, 1, 1)
 draw()
-assert(quads[1][11] == true and quads[1][12] == nil and quads[2][11] == false and quads[3][11] == false,
-    'the frame alone takes the text\'s outline, as it is')
-healthbar.Begin(nil, 0, true, 0.4)
+assert(quads[1][11] == true and quads[1][12] == nil and quads[1][15] == 3 and quads[2][11] == false and quads[3][11] == false,
+    'the frame alone is edged, at Bar Outline\'s thickness, with Text Outline None')
+healthbar.ConfigureOutline(o, 30, 1, 0.5)
 draw()
-assert(quads[1][11] == true and quads[1][12] == 0.4, 'at Text Outline Opacity')
+assert(quads[1][15] == 2, 'the bar\'s outline shrinks with the name')
+o.barOutline[1] = 2
+healthbar.ConfigureOutline(o, 30, 2, 1)
+draw()
+assert(quads[1][15] == 4, 'and grows with the render target\'s scale')
+healthbar.Begin(nil, 0, 0.4)
+o.barOutline[1] = 1
+healthbar.ConfigureOutline(o, 30, 1, 1)
+draw()
+assert(quads[1][11] == true and quads[1][12] == 0.4 and quads[1][15] == 1, 'at Text Outline Opacity')
+o.barOutline[1], o.outline[1] = 0, 1
+healthbar.ConfigureOutline(o, 30, 1, 1)
 healthbar.Begin(nil, 0)
 for _, quad in ipairs(quads) do
     assert(quad[13] == true and quad[5] == quad[7] and quad[6] == quad[8],

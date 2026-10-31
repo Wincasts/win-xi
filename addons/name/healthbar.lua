@@ -1,9 +1,10 @@
 -- HP and cast bars share the active text atlas's white pixel: no extra texture slot or asset.
 --
---   healthbar.Begin(white, now, edged, edgeOpacity) each frame: optional {u,v} from the active text
---                          atlas; otherwise the font's white pixel is looked for afresh; edged whether
---                          the text has an outline (Text Outline), which the bars then take, at
+--   healthbar.Begin(white, now, edgeOpacity) each frame: optional {u,v} from the active text atlas;
+--                          otherwise the font's white pixel is looked for afresh; the bars' outline at
 --                          edgeOpacity (Text Outline Opacity, nil as it is)
+--   healthbar.ConfigureOutline(options, size, scale, fit) for each name: Bar Outline's thickness,
+--                          shrinking with the name as Text Outline's does
 --   healthbar.Bar(left, right, under, scale, fraction, color, width, height, backdrop)
 --                         shared HP/cast geometry; returns the foot or unchanged under
 --   healthbar.Write(name, entities, left, right, under, scale, color, width, height, full)
@@ -32,13 +33,23 @@ end
 -- Where the white pixel is in the font's texture, asked of imgui once a frame and for the first bar;
 -- and again if imgui's function for it is another (a test's stand-in)
 local whiteU, whiteV, whiteOf = nil, nil, nil;
-local activeWhite, activeEdged, activeEdge = nil, false, nil;
+local activeWhite, activeEdge, activeRadius = nil, nil, 0;
 
-function healthbar.Begin(white, now, edged, edgeOpacity)
-    activeWhite, activeEdged, activeEdge = white, edged == true, edgeOpacity;
+function healthbar.Begin(white, now, edgeOpacity)
+    activeWhite, activeEdge = white, edgeOpacity;
     whiteU, whiteV = nil, nil;
     frameNow = now or 0;
     healthbar.previewing = healthbar.Preview[1] and previewStart ~= nil and frameNow <= previewUntil or false;
+end
+
+-- As icons.ConfigureOutline: whole render-target pixels, no thicker than the letters allow, shrinking
+-- with a distant name
+function healthbar.ConfigureOutline(options, size, scale, fit)
+    local width = math.max(0, math.min(3, options.barOutline and options.barOutline[1] or 1));
+    activeRadius = width > 0 and math.max(1, math.floor(math.min(width, math.max(1, math.floor(size / 8 + 0.5))) * scale)) or 0;
+    if activeRadius > 0 and fit < 1 then
+        activeRadius = math.max(1, math.floor(activeRadius * fit + 0.5));
+    end
 end
 
 -- The preview's HP for a name: down from full to empty and back, each name a little apart from the next
@@ -77,9 +88,11 @@ function healthbar.Bar(left, right, under, scale, fraction, color, width, height
     if (u == nil) then return under; end
     -- The plugin feathers these edges in final render-target pixels, AFTER Lens
     -- correction. Keep the fill endpoint fractional for accurate low HP coverage.
-    -- The frame is edged as the letters are: the name's Text Outline thickness and colour, shrinking
-    -- with it, and Text Outline Opacity. Where the text has none, the frame keeps its soft fringe.
-    nameplates.Quad(x, y, x + width, y + h, u, v, u, v, 0xFF101010, 0, activeEdged, activeEdge, true);
+    -- The frame is edged in the name's dark colour at Bar Outline's thickness (its own radius, so it
+    -- holds with Text Outline None) and Text Outline Opacity. With Bar Outline None it keeps its soft fringe.
+    local edged = activeRadius > 0;
+    nameplates.Quad(x, y, x + width, y + h, u, v, u, v, 0xFF101010, 0, edged, activeEdge, true,
+        nil, edged and activeRadius or nil);
     nameplates.Quad(x + border, y + border, x + width - border, y + h - border,
         u, v, u, v, backdrop or 0xFF483030, 0, false, nil, true);
     if (fraction > 0) then
