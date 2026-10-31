@@ -21,14 +21,14 @@ plugins' own compiled sources (`tools/abi_check.py --freeze`, once, for 1.0; nev
 | namehook | `NAMEHOOK` | 3 | `HookShared` | 35,168 | `HookName` | `addons/libs/winxi/nameplates.lua` |
 | namehook | `NAMEHOOKCAPS` | 1 | `HookCapabilities` | 32 | — | `addons/libs/winxi/nameplates.lua` |
 | namehook | `HookShared.Draw`, `HookClaims` slots | — | `HookDraw` | 841,872 | `HookDrawing`, `HookQuad` | `addons/libs/winxi/nameplates.lua` |
-| namehook | `NAMEBUBBLES` | 2 | `HookBubbles` | 851,116 | — | `addons/chatbubbles/world.lua` |
+| namehook | `NAMEBUBBLES` | 2 | `HookBubbles` | 851,116 | — | `addons/winbubbles/world.lua` |
 | namehook | `NAMEHOOKPOPUPS` | 1 | `HookPopups` | 5,432 | `HookPopup` | `addons/libs/winxi/popups.lua` |
 | namehook | `HookPopups.Draw` | — | `HookPopupDraw` | 198,808 | `HookPopupDrawing`, `HookQuad` | `addons/libs/winxi/popups.lua` |
 | namehook | `NAMEHOOKCAMERA` | 1 | `HookCamera` | 268 | — | `addons/libs/winxi/camera.lua` |
 | namehook | `NAMEHOOKCLAIMS` | 1 | `HookClaims` | 144 | `HookClaimSlot` | `addons/libs/winxi/nameplates.lua` |
 | namehook | `NAMEHOOKLAYERS` | 1 | `HookLayers` | 176 | `HookLayerSlot` | `addons/libs/winxi/layers.lua` |
 | namehook | `HookLayers` slots | — | `HookLayerDraw` | 417,944 | `HookLayerDrawing`, `HookQuad` | `addons/libs/winxi/layers.lua` |
-| uihook | `BUFFHOOK-SHARED` | 4 | `BuffShared` | 41,228 | `BuffQuad` | `addons/buff/hook.lua` |
+| uihook | `BUFFHOOK-SHARED` | 4 | `BuffShared` | 41,228 | `BuffQuad` | `addons/winbuff/hook.lua` |
 | uihook | `PARTYHOOK` | 3 | `PartyShared` | 168 | `NativeRect` | `addons/winparty/hook.lua` |
 | uihook | `UIHOOK-CHAT` | 13 | `ChatShared` | 71,684 | `ChatTab`, `ChatTextRow` | `addons/libs/winxi/nativechat.lua` |
 | uihook | `UIHOOK-HUD` | 6 | `HudShared` | 164 | — | `addons/libs/winxi/nativehud.lua` |
@@ -36,7 +36,7 @@ plugins' own compiled sources (`tools/abi_check.py --freeze`, once, for 1.0; nev
 | uihook | `UIHOOK-TEXT` | 1 | `TextTapShared` | 525,856 | `TextTapEvent` | `addons/libs/winxi/nativetext.lua` |
 | uihook | `UIHOOK-HISTORY` | 1 | `ChatHistoryShared` | 67,988 | `ChatHistoryLine` | `addons/libs/winxi/nativehistory.lua` |
 | uihook | `UIHOOK-KEYS` | 1 | `KeysShared` | 72 | — | `addons/libs/winxi/gamekeys.lua` |
-| uihook | `UIHOOK-MIRROR` | 6 | `MirrorShared` | 106,880 | `MirrorFrameData` | `addons/nativeui/groupmirror.lua` |
+| uihook | `UIHOOK-MIRROR` | 6 | `MirrorShared` | 106,880 | `MirrorFrameData` | `addons/winui/groupmirror.lua` |
 | lens | `LENS-WARP` (exported `LensWarp`) | 1 | `lens::Shared` | 48 | — | `addons/libs/winxi/lens.lua`; namehook and uihook in C++ (`lens::Live`) |
 
 A record is a struct a block holds a list of (a name, a popup, a quad, a party window's rectangle): fixed in

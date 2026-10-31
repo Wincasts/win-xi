@@ -165,8 +165,8 @@ luajit tests/chatbubbles_world_check.lua
 luajit tests/chatbubbles_check.lua
 luajit tests/chatbubbles_npc_check.lua
 luajit tests/chatbubbles_colors_check.lua
-run chatbubbles addons/chatbubbles/chatbubbles.lua chatbubbles_config_check.lua
-run chatbubbles addons/chatbubbles/chatbubbles.lua chatbubbles_absent_check.lua
+run winbubbles addons/winbubbles/winbubbles.lua chatbubbles_config_check.lua
+run winbubbles addons/winbubbles/winbubbles.lua chatbubbles_absent_check.lua
 luajit tests/hideparty_cursor_check.lua
 luajit tests/winxi_lens_check.lua || exit 1
 luajit tests/map_files_check.lua
@@ -186,10 +186,10 @@ luajit tests/harness.lua cooldowns tests/cooldowns_stand_in.lua tests/cooldowns_
 run puppet     addons/puppet/puppet.lua puppet_check.lua
 luajit tests/harness.lua puppet addons/puppet/puppet.lua tests/puppet_regression_check.lua || exit 1
 luajit tests/harness.lua puppet addons/puppet/puppet.lua tests/puppet_attachments_check.lua || exit 1
-run buff       addons/buff/buff.lua     buff_check.lua
-run buff       addons/buff/buff.lua     buff_performance_check.lua
-run buff       addons/buff/buff.lua     buff_hook_check.lua
-run buff       addons/buff/buff.lua     buff_hook_performance_check.lua
+run winbuff       addons/winbuff/winbuff.lua     buff_check.lua
+run winbuff       addons/winbuff/winbuff.lua     buff_performance_check.lua
+run winbuff       addons/winbuff/winbuff.lua     buff_hook_check.lua
+run winbuff       addons/winbuff/winbuff.lua     buff_hook_performance_check.lua
 run zone       tests/zoneinfo_fixture.lua zoneinfo_check.lua
 run zoneinfo-presentation tests/zoneinfo_fixture.lua zoneinfo_presentation_ui_check.lua
 run zoneinfo-background tests/zoneinfo_background_fixture.lua zoneinfo_background_check.lua
@@ -217,8 +217,8 @@ run zoneinfo-settings tests/zoneinfo_fixture.lua zoneinfo_settings_ui_check.lua
 run zoneinfo-more tests/zoneinfo_fixture.lua zoneinfo_more_styles_check.lua
 echo
 run winplates addons/winplates/winplates.lua name_check.lua
-run damage addons/damage/damage.lua damage_check.lua
-run damage addons/damage/damage.lua damage_absent_check.lua
+run windamage addons/windamage/windamage.lua damage_check.lua
+run windamage addons/windamage/windamage.lua damage_absent_check.lua
 run namehooktest addons/namehooktest/namehooktest.lua namehooktest_check.lua
 run winplates addons/winplates/winplates.lua name_token_options_check.lua
 run winplates addons/winplates/winplates.lua name_types_check.lua

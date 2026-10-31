@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2
+
+- Renamed winbuff: the addon is `winbuff` (`addons\winbuff`, `/addon load winbuff`), its settings window winbuff Settings and its command `/winbuff`, with `/buff` kept as another way in. Each character's settings are brought over from `config\addons\buff` the first time it logs in (winxi.shell's formerName). Remove the old `addons\buff` folder.
+
 ## 1.1
 
 - Controller Type is Automatic to begin with (winxi 68): the kind of controller the game reads, as the Phoenix launcher sets it, and set as the settings load, so the confirm button heard follows it from the start. A Controller Type saved as XInput becomes Automatic once. Requires winxi 68.

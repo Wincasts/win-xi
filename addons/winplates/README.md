@@ -431,7 +431,7 @@ way than through a placeholder (timed, forced or scripted spawns) has none liste
 ### Statuses over a name
 
 The **Statuses** tab puts a row of status icons above or below a name, for the statuses ticked there and no
-others. To begin with the icons are drawn as the winparty and buff addons draw them, by Custom Icons in wxi
+others. To begin with the icons are drawn as the winparty and winbuff addons draw them, by Custom Icons in wxi
 (`/wxi`). With it on, the chosen set's icons (FFXIV, `libs\winxi\statusicons\ffxiv`, to start) are used where the set has an
 icon for the status, and the game's where it has not. With it off, the game's icons are used. `libs/winxi` has to be deployed
 with its `statusicons` folder. The set's icons are as narrow as the set has them; the game's are square.
@@ -912,7 +912,7 @@ What a round of name and namehook covers before a release candidate is cut:
   and a long session (an hour or more) without names dropping to the game's own.
 - **The settings window**: every tab, each row doing what its sentence says, saving and reloading
   the character's settings, and the Reset rows.
-- **With the others**: lens on (the names aligned under the warp), the damage addon (damage popups
+- **With the others**: lens on (the names aligned under the warp), the windamage addon (damage popups
   through namehook), a second names addon if any (claim slots), and the perf addon's figures for name.
 - **What to send**: **Write Report** (`/winplates report`, written to `config\addons\winplates\logs`, nothing
   private in it), a screenshot where the look is the matter, and the lines of Ashita's log around any

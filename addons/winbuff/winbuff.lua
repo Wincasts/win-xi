@@ -1,6 +1,6 @@
-addon.name    = 'buff';
+addon.name    = 'winbuff';
 addon.author  = 'win';
-addon.version = '1.1-pre1';
+addon.version = '1.2';
 addon.desc    = 'The statuses you are under, with FFXIV\'s icons and the time each has left.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -8,8 +8,8 @@ addon.link    = 'https://github.com/Wincasts/win-xi';
 -- of winxi's (FFXIV's: see winxi.statusicons) or the game's own where winxi has none, and the time it has left under it. After the statustimers addon (heals), which showed
 -- how the times are read and how the game's own icons are switched off.
 --
---   /buff           shows or hides the window (it only appears while there is a status to show)
---   /buff config    opens or closes the settings
+--   /winbuff        shows or hides the window (it only appears while there is a status to show)
+--   /winbuff config opens or closes the settings
 --
 -- In the game's buff selector, with the plugin loaded, the game's hand (which points at where the
 -- game's icons would be) is drawn again at the left of the status the game's cursor is on; a click on an icon then removes it.
@@ -851,7 +851,7 @@ local function PositionSliders(values, label, id, signed, sentenceX, sentenceY, 
     return changedX or changedY;
 end
 
-local controllerTip = 'In the game\'s buff selector, confirm (A, or the bottom face button) removes the status its cursor is on, as a click does. Needs the uihook plugin, which says which one that is.\nThe press still reaches the game: buff asks for the status to be removed only when the game has not, a moment later.\nAn XInput controller\'s A is always heard; Controller Type picks the DirectInput make (PlayStation where XInput is in use).';
+local controllerTip = 'In the game\'s buff selector, confirm (A, or the bottom face button) removes the status its cursor is on, as a click does. Needs the uihook plugin, which says which one that is.\nThe press still reaches the game: winbuff asks for the status to be removed only when the game has not, a moment later.\nAn XInput controller\'s A is always heard; Controller Type picks the DirectInput make (PlayStation where XInput is in use).';
 
 local lockSpec = { description = 'Keeps the bar where it is. Off, drag it with the mouse to move it.' };
 local fontSpec = { description = 'The font for the times and the status tooltips. Theme Font follows the Winxi Theme.' };
@@ -907,9 +907,11 @@ end
 app = shell.New({
     defaults = defaults,
     window = windowName,
-    configTitle = 'Buff Settings',
-    command = '/buff',
-    help = '/buff shows or hides the window; /buff config opens or closes the settings.',
+    configTitle = 'winbuff Settings',
+    command = '/winbuff',
+    aliases = { '/buff' },
+    formerName = 'buff',
+    help = '/winbuff shows or hides the window; /winbuff config opens or closes the settings.',
     drawSettings = DrawSettings,
     onSettings = function(options)
         -- the kind of controller whose confirm button is heard, set as the settings load

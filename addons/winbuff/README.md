@@ -1,11 +1,13 @@
-# buff
+# winbuff
 
 The statuses you are under, in a window, with FFXIV's icons and the time each has left. It stands in
 for the game's own row of status icons, which it switches off. It needs only the `winxi` library
 (`addons/libs/winxi`).
 
-- `/buff` shows or hides the window (it only appears while there is a status to show)
-- `/buff config` opens or closes the settings
+- `/winbuff` shows or hides the window (it only appears while there is a status to show)
+- `/winbuff config` opens or closes the settings
+
+`/buff` still works as `/winbuff`.
 
 Hover over an icon for the status's name, number and description. Right click one to remove it, where
 the game allows that. In the game's buff selector, any click on an icon removes it.
@@ -13,15 +15,15 @@ the game allows that. In the game's buff selector, any click on an icon removes 
 Unload `statustimers` first. Both switch the game's own icons off, and the second to try says it
 could not.
 
-## Renamed from buffs
+## Renamed from buff
 
-The folder and entry point are now `addons/buff/buff.lua`. Unload the old addon before you load this
-one. Never run both: they patch the same native icon routines. Change any startup script from
-`load buffs` to `load buff`. The old `/buffs` command no longer works.
+Up to 1.1 this addon was called buff. Unload buff, load `winbuff` in its place and remove the old
+`addons\buff` folder; change `load buff` to `load winbuff` in any startup script. Never run both: they patch
+the same native icon routines. Each character's settings are brought over from `config/addons/buff/` the
+first time it logs in.
 
-Settings now live under `config/addons/buff/`. To keep your character settings, copy the contents of
-`config/addons/buffs/` there **before you first load buff**, without overwriting any buff settings
-already there. The rename in the repository changes no live installation and no settings files.
+Before that it was called buffs. Settings kept under `config/addons/buffs/` are not brought over: copy them
+to `config/addons/winbuff/` before you first load winbuff, without overwriting any settings already there.
 
 ## Automatic default-HUD placement
 
@@ -59,7 +61,7 @@ back map hiding. After that, your changes to the hiding rules are kept.
 
 ## Under the game's menus: the uihook plugin
 
-With the `uihook` plugin loaded (`/load uihook`, before `/addon load buff`), the plugin draws the
+With the `uihook` plugin loaded (`/load uihook`, before `/addon load winbuff`), the plugin draws the
 anchored bar where, and when, the game draws its own row of status icons, in their place (see
 [plugins/uihook](../../plugins/uihook)). It then behaves as the game's icons do: the menus the game
 opens over them (the macro palettes, the main menu and the rest) are drawn over the bar, a menu that
@@ -77,7 +79,7 @@ is, as a share of an icon's height (60% to begin with). Where the hand cannot be
 winxi's highlight round it instead (the controller's: a line and a fainter glow outside it). The
 selector is still the game's: its keys and the controller move the cursor. The controller's confirm
 removes the status the cursor is on. The press still reaches the game, and if the game has not asked
-the server to remove the status a quarter of a second later, buff asks (**Controller**:
+the server to remove the status a quarter of a second later, winbuff asks (**Controller**:
 **Controller Navigation** is on to begin with; an XInput controller's A is always heard, and
 **Controller Type**, Automatic to begin with, follows the game's own setting as the Phoenix launcher sets it or picks the DirectInput make, PlayStation's cross where XInput is in use). A click on
 an icon removes that one too.
@@ -90,7 +92,7 @@ always a window.
 
 **Placement without the plugin:** the default origin was measured from
 `screenshots/Screenshot_20261014_111534.png` at 1:1 menu scale, not read from the live native buff
-bar. The menu resolution is cached by Ashita's scaling helper when buff loads; reload buff after
+bar. The menu resolution is cached by Ashita's scaling helper when winbuff loads; reload winbuff after
 changing that configuration.
 
 ## Settings
@@ -112,9 +114,9 @@ changing that configuration.
 ## Optimization check
 
 ```
-luajit tests/harness.lua buff addons/buff/buff.lua tests/buff_check.lua
-luajit tests/harness.lua buff addons/buff/buff.lua tests/buff_performance_check.lua
-luajit tests/harness.lua buff addons/buff/buff.lua tests/buff_hook_performance_check.lua
+luajit tests/harness.lua winbuff addons/winbuff/winbuff.lua tests/buff_check.lua
+luajit tests/harness.lua winbuff addons/winbuff/winbuff.lua tests/buff_performance_check.lua
+luajit tests/harness.lua winbuff addons/winbuff/winbuff.lua tests/buff_hook_performance_check.lua
 ```
 
 The performance check counts work over 120 warmed-up frames with 32 statuses. Compared with the

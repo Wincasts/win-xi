@@ -170,7 +170,7 @@ for key, fn in pairs(original) do game[key] = fn end
 -- Exercise real anchored-window placement with the existing scaling helper supplied.
 local savedScaling, savedIO = package.loaded.scaling, imgui.GetIO
 package.loaded.scaling = {menu={w=1152,h=648}}
-local scaledAnchoring = dofile('addons/buff/anchoring.lua')
+local scaledAnchoring = dofile('addons/winbuff/anchoring.lua')
 imgui.GetIO = function() return {DisplaySize={x=2304,y=1296}} end
 o.fadeInOut[1] = false
 assert(scaledAnchoring.Draw('buffs.scaled.test', o, function() end))
@@ -221,13 +221,14 @@ ashita.memory.read_uint16 = function(pointer) return written[pointer] or pointer
 ashita.memory.write_uint16 = function(pointer, value) written[pointer] = value end
 H.print('hidden', native.Set(true, true), '|', written[100] == 0x9090, written[200] == 0x9090, written[300] == 0xC031)
 H.print('the row given back, the rest kept', native.Set(false, true), written[100] == 101, written[200] == 201, written[300] == 0xC031)
-H.print('hidden already by another: left alone', (function() local n = dofile('addons/buff/native.lua') return n.Set(false, true) == false and written[300] == 0xC031 end)())
+H.print('hidden already by another: left alone', (function() local n = dofile('addons/winbuff/native.lua') return n.Set(false, true) == false and written[300] == 0xC031 end)())
 native.Set(true, true)
 H.unload(); H.print('unload puts them back', written[100] == 101, written[200] == 201, written[300] == 301)
 ashita.memory.find = originalFind
 
-assert(addon.name == 'buff')
-assert(H.command('/buff config'))
-assert(H.command('/buff') and o.isVisible[1] == false)
+assert(addon.name == 'winbuff')
+assert(H.command('/winbuff config'))
+assert(H.command('/winbuff') and o.isVisible[1] == false)
+assert(H.command('/buff') and o.isVisible[1] == true)
 assert(not H.command('/buffs') and not H.command('/buffx'))
-H.print('/buff config and toggle handled; /buffs and /buffx left alone: passed')
+H.print('/winbuff config and toggle handled, /buff as well; /buffs and /buffx left alone: passed')

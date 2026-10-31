@@ -1,6 +1,6 @@
 -- buff with the uihook plugin: the work of handing the anchored bar over, counted over 120 frames
 -- with 32 statuses. Counts, not a claim about frames per second.
---     luajit tests/harness.lua buff addons/buff/buff.lua tests/buff_hook_performance_check.lua [measure]
+--     luajit tests/harness.lua winbuff addons/winbuff/winbuff.lua tests/buff_hook_performance_check.lua [measure]
 -- With measure, it prints what it counts and asserts nothing, to compare with another version.
 local ffi = require('ffi')
 local imgui = require('imgui')

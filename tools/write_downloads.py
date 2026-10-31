@@ -18,7 +18,7 @@ from package_release import RELEASES, REPOSITORY, ROOT
 
 # One plain line each, for the page
 WHAT = {
-    'buff': 'The statuses you are under, in a window, with the time each has left.',
+    'winbuff': 'The statuses you are under, in a window, with the time each has left.',
     'winchat': 'A replacement chat log and input bar, with an info panel. Experimental.',
     'inventory': 'Your bags in a window, by mouse or controller, with the treasure pool and an equipment monitor.',
     'winplates': 'The names over players, NPCs and monsters, drawn your way, with health and cast bars.',
@@ -38,7 +38,7 @@ def gh(*args):
     return json.loads(subprocess.check_output(['gh', *args, '-R', REPOSITORY]))
 
 # An addon's name before it was renamed, for the releases made under it
-FORMER = {'winplates': 'name', 'winchat': 'chatbox', 'winparty': 'party'}
+FORMER = {'winplates': 'name', 'winchat': 'chatbox', 'winparty': 'party', 'winbuff': 'buff'}
 
 
 def carries(extras):

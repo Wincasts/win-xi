@@ -43,14 +43,14 @@ BLOCKS = [
     ('namehook', 'HookShared', 'NAMEHOOK', 'namehook_t', 'addons/libs/winxi/nameplates.lua'),
     ('namehook', 'HookCapabilities', 'NAMEHOOKCAPS', 'namehook_capabilities_t', 'addons/libs/winxi/nameplates.lua'),
     ('namehook', 'HookDraw', None, 'namehook_draw_t', 'addons/libs/winxi/nameplates.lua'),
-    ('namehook', 'HookBubbles', 'NAMEBUBBLES', 'chatbubbles_world_t', 'addons/chatbubbles/world.lua'),
+    ('namehook', 'HookBubbles', 'NAMEBUBBLES', 'chatbubbles_world_t', 'addons/winbubbles/world.lua'),
     ('namehook', 'HookPopups', 'NAMEHOOKPOPUPS', 'namehook_popups_t', 'addons/libs/winxi/popups.lua'),
     ('namehook', 'HookPopupDraw', None, 'namehook_popup_draw_t', 'addons/libs/winxi/popups.lua'),
     ('namehook', 'HookCamera', 'NAMEHOOKCAMERA', 'namehook_camera_t', 'addons/libs/winxi/camera.lua'),
     ('namehook', 'HookClaims', 'NAMEHOOKCLAIMS', 'namehook_claims_t', 'addons/libs/winxi/nameplates.lua'),
     ('namehook', 'HookLayers', 'NAMEHOOKLAYERS', 'namehook_layers_t', 'addons/libs/winxi/layers.lua'),
     ('namehook', 'HookLayerDraw', None, 'namehook_layer_draw_t', 'addons/libs/winxi/layers.lua'),
-    ('uihook', 'BuffShared', 'BUFFHOOK-SHARED', 'buffhook_t', 'addons/buff/hook.lua'),
+    ('uihook', 'BuffShared', 'BUFFHOOK-SHARED', 'buffhook_t', 'addons/winbuff/hook.lua'),
     ('uihook', 'PartyShared', 'PARTYHOOK', 'partyhook_shared_t', 'addons/winparty/hook.lua'),
     ('uihook', 'ChatShared', 'UIHOOK-CHAT', 'uihook_chat_t', 'addons/libs/winxi/nativechat.lua'),
     ('uihook', 'HudShared', 'UIHOOK-HUD', 'uihook_hud_t', 'addons/libs/winxi/nativehud.lua'),
@@ -58,7 +58,7 @@ BLOCKS = [
     ('uihook', 'TextTapShared', 'UIHOOK-TEXT', 'uihook_text_t', 'addons/libs/winxi/nativetext.lua'),
     ('uihook', 'ChatHistoryShared', 'UIHOOK-HISTORY', 'uihook_history_t', 'addons/libs/winxi/nativehistory.lua'),
     ('uihook', 'KeysShared', 'UIHOOK-KEYS', 'uihook_keys_t', 'addons/libs/winxi/gamekeys.lua'),
-    ('uihook', 'MirrorShared', 'UIHOOK-MIRROR', 'uihook_mirror_t', 'addons/nativeui/groupmirror.lua'),
+    ('uihook', 'MirrorShared', 'UIHOOK-MIRROR', 'uihook_mirror_t', 'addons/winui/groupmirror.lua'),
     ('lens', 'lens::Shared', 'LENS-WARP', 'lens_warp_t', 'addons/libs/winxi/lens.lua'),
 ]
 
@@ -72,19 +72,19 @@ RECORD_LUA = {
     'HookClaimSlot': ('namehook_claim_slot_t', 'addons/libs/winxi/nameplates.lua'),
     'HookLayerSlot': ('namehook_layer_slot_t', 'addons/libs/winxi/layers.lua'),
     'HookLayerDrawing': ('namehook_layer_drawing_t', 'addons/libs/winxi/layers.lua'),
-    'BuffQuad': ('buffhook_quad_t', 'addons/buff/hook.lua'),
+    'BuffQuad': ('buffhook_quad_t', 'addons/winbuff/hook.lua'),
     'TextTapEvent': ('uihook_text_event_t', 'addons/libs/winxi/nativetext.lua'),
-    'MirrorRun': ('uihook_mirror_run_t', 'addons/nativeui/groupmirror.lua'),
-    'MirrorQuad': ('uihook_mirror_quad_t', 'addons/nativeui/groupmirror.lua'),
-    'MirrorWindow': ('uihook_mirror_window_t', 'addons/nativeui/groupmirror.lua'),
-    'MirrorFrameData': ('uihook_mirror_frame_t', 'addons/nativeui/groupmirror.lua'),
+    'MirrorRun': ('uihook_mirror_run_t', 'addons/winui/groupmirror.lua'),
+    'MirrorQuad': ('uihook_mirror_quad_t', 'addons/winui/groupmirror.lua'),
+    'MirrorWindow': ('uihook_mirror_window_t', 'addons/winui/groupmirror.lua'),
+    'MirrorFrameData': ('uihook_mirror_frame_t', 'addons/winui/groupmirror.lua'),
 }
 
 # The Lua files in the order their cdefs are loaded: later ones use types the earlier define
-LUA_ORDER = ['addons/libs/winxi/nameplates.lua', 'addons/libs/winxi/layers.lua', 'addons/libs/winxi/popups.lua', 'addons/chatbubbles/world.lua',
+LUA_ORDER = ['addons/libs/winxi/nameplates.lua', 'addons/libs/winxi/layers.lua', 'addons/libs/winxi/popups.lua', 'addons/winbubbles/world.lua',
              'addons/libs/winxi/lens.lua', 'addons/libs/winxi/camera.lua', 'addons/libs/winxi/nativechat.lua', 'addons/libs/winxi/nativehud.lua',
              'addons/libs/winxi/nativemenus.lua', 'addons/libs/winxi/nativetext.lua', 'addons/libs/winxi/nativehistory.lua',
-             'addons/libs/winxi/gamekeys.lua', 'addons/buff/hook.lua', 'addons/winparty/hook.lua', 'addons/nativeui/groupmirror.lua']
+             'addons/libs/winxi/gamekeys.lua', 'addons/winbuff/hook.lua', 'addons/winparty/hook.lua', 'addons/winui/groupmirror.lua']
 
 FIELD = re.compile(r'^\s*(\d+)(?::\d+-\d+)? \|   (\S.*?) ([A-Za-z_]\w*)$')
 RECORD = re.compile(r'^\s*0 \| (?:struct|class) (\S+)$')

@@ -1,5 +1,5 @@
 -- Count hot-path work rather than pretending the harness measures game/D3D performance.
--- luajit tests/harness.lua buff addons/buff/buff.lua tests/buff_performance_check.lua
+-- luajit tests/harness.lua winbuff addons/winbuff/winbuff.lua tests/buff_performance_check.lua
 local imgui = require('imgui')
 local game = require('winxi.game')
 local statuses = require('statuses')

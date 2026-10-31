@@ -3,7 +3,7 @@
 One Ashita v4 plugin that changes the game's own interface. Addons hand it their own **buff**, **party/alliance**,
 **target**, **clock**, **compass** and **chat log** drawing to stand in for the game's, each independently; and it
 changes the game's **menus** themselves: drawn with a skin's textures and fonts (`/uihook skin`, set by
-`addons/nativeui`), and moved and scaled with the mouse following (`/uihook native`, nativeui). Replaces loading `buffhook` and `partyhook`; the addons remain separate. Loading uihook
+`addons/winui`), and moved and scaled with the mouse following (`/uihook native`, winui). Replaces loading `buffhook` and `partyhook`; the addons remain separate. Loading uihook
 without any of that asked for leaves the game's drawing unchanged.
 
 ## Build and install
@@ -20,7 +20,7 @@ Uses the same clang-cl/lld-link, x86 Windows SDK/MSVC and Ashita SDK toolchain a
 Unload addons and old hooks **before replacing DLLs**:
 
 ```text
-/addon unload buff
+/addon unload winbuff
 /addon unload party
 /addon unload clock
 /unload buffhook
@@ -28,12 +28,12 @@ Unload addons and old hooks **before replacing DLLs**:
 /unload uihook
 ```
 
-Copy the built DLL to your Ashita `plugins/` directory, deploy the updated buff/winparty addons, and
+Copy the built DLL to your Ashita `plugins/` directory, deploy the updated winbuff/winparty addons, and
 replace old hook load commands in your startup script with:
 
 ```text
 /load uihook
-/addon load buff
+/addon load winbuff
 /addon load party
 ```
 
@@ -588,7 +588,7 @@ together, with Window::Render, or not at all (`src/modules/window/window.h`;
 ## The group's mirror (1.59; the menu mirror's, 0.96–1.57, for the group alone)
 
 `src/modules/native/mirror.h`, mirror ABI 6 (`UIHOOK-MIRROR`, version 6). While an addon renews `RequestFrame` each
-frame (nativeui's Drawn As Winxi, through its `groupmirror.lua`), every window of the native look's group over the
+frame (winui's Drawn As Winxi, through its `groupmirror.lua`), every window of the native look's group over the
 chat log is mirrored: its draws are measured and left undrawn, and what it would have drawn is published at Present
 (its frame's place, each run of text with its bytes, colour and place measured from its glyphs, each quad of the
 game's art with its texture held for two frames, its elements, the cursor, the element the cursor is on and the
@@ -617,7 +617,7 @@ up to commit `eae073d`. Its mouse mapping lives on in the native look's `mouse o
 ## The native look (1.25; drawn moved in 1.29)
 
 The game's own menus drawn moved and scaled rather than drawn again: the menu stays the game's whole (its
-controller input, cursor and text). `addons/nativeui` gives it its settings.
+controller input, cursor and text). `addons/winui` gives it its settings.
 
 ```
 /uihook native                         what is set, and how much of each was drawn so
@@ -635,7 +635,7 @@ The group (1.38) is told each frame by where the game draws each window (+3A; 1.
 which for some is over the log while they are drawn elsewhere): its bottom on the chat log's top (within 8),
 its left within 150 of the log's, the log itself and the input line not of it. That is the command menu, a shop's
 buy and sell, yes-or-no questions, an item's description and some fifty more; a window of the same name placed
-elsewhere (the main menu on the right) is left. `addons/nativeui` keeps the offset as a setting.
+elsewhere (the main menu on the right) is left. `addons/winui` keeps the offset as a setting.
 
 Only the drawing moves: every screen-space draw made while the window is drawn, its frame, elements,
 contents, text, cursor and scrollbar alike, is copied, moved about the window's last frame's bounds and drawn
@@ -654,7 +654,7 @@ always given, so nothing is left held). Ashita, imgui and every addon see each m
 the game's: its place is the screen's, and the game scrolls where its own cursor is. Not yet tried in game: the
 game may set the cursor's place itself (SetCursorPos) in some flows, at the game's own place.
 
-`frames` (1.59, an experiment; nativeui's Drawn As Winxi Frames) draws the group's frames as panels in the colours given.
+`frames` (1.59, an experiment; winui's Drawn As Winxi Frames) draws the group's frames as panels in the colours given.
 While it is on the group is told even with no move. A draw made in a window of the group, in its frame (before its
 contents), not text, whose texture is the frame's art (the texture census's corners `72D3D795`, top and bottom
 `3C8984C5`, sides `1023C0C5` and striped background `92C145C5`, each pointer's pixels read once and again when
@@ -730,7 +730,7 @@ ABI. Lua checks cover slot isolation, reloads, weather expiry, clock presentatio
 These are offline checks, **not proof of live GPU output**.
 
 In game, `/uihook` (or `/uihook addons`) lists the addons handing uihook something now, and what:
-buff's bar, winparty's party, alliance and target windows, clock's line and its hidden compass, each
+winbuff's bar, winparty's party, alliance and target windows, clock's line and its hidden compass, each
 marked "(hidden)" where the addon hands over an intentionally empty replacement. A plugin cannot see
 which Lua addon calls it, so this is read from the slots, each filled by one addon only, while the
 last submission is fresh (eight frames). It also says which parts this client was not recognised for.

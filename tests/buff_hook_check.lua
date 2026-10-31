@@ -2,7 +2,7 @@
 -- where the game puts its first icon, instead of being drawn as a window; the game's row of icons is
 -- left for the plugin to stand in for; an empty bar keeps it away while the bar is hidden; and without
 -- the plugin, or with one that took nothing, the bar is a window again.
---     luajit tests/harness.lua buff addons/buff/buff.lua tests/buff_hook_check.lua
+--     luajit tests/harness.lua winbuff addons/winbuff/winbuff.lua tests/buff_hook_check.lua
 local ffi = require('ffi')
 local imgui = require('imgui')
 local game = require('winxi.game')

@@ -79,7 +79,7 @@ bytes (its magic), or through an address in a block that is found that way. Thei
 |---|---|---|---|---|
 | `HookShared` | `NAMEHOOK` | 1.0 | the names listed, the categories hidden, claiming names, the drawing of claimed names | `winxi.nameplates` |
 | `HookCapabilities` | `NAMEHOOKCAPS` | 1.35 | which optional features this build has | `nameplates.Supports` |
-| `HookBubbles` | `NAMEBUBBLES` | 1.24 | speech bubbles over entities | `addons/chatbubbles/world.lua` |
+| `HookBubbles` | `NAMEBUBBLES` | 1.24 | speech bubbles over entities | `addons/winbubbles/world.lua` |
 | `HookPopups` | `NAMEHOOKPOPUPS` | 1.38 | the damage popups, listed, claimed and drawn | `winxi.popups` |
 | `HookCamera` | `NAMEHOOKCAMERA` | 1.44 | the camera names are placed with | `winxi.camera` |
 | `HookClaims` | `NAMEHOOKCLAIMS` | 1.45 | a second (third, fourth) addon drawing names | `nameplates.TakeSlot` |
@@ -224,11 +224,11 @@ Under the [lens](../lens) plugin's warp, which bends the client's picture as it 
 
 ### Additive world-space speech bubbles (1.24+)
 
-`addons/chatbubbles` uses a second independent shared block, `HookBubbles` in
+`addons/winbubbles` uses a second independent shared block, `HookBubbles` in
 `src/Nameplate.h`, found by `NAMEBUBBLES` followed by five zero bytes. Its header
 holds `Version` (2: a texture may be `1`, imgui's font texture, as for the names), `Size` (`sizeof(HookBubbles)`) and `DrawSize`
 (`sizeof(HookDraw)`), followed by a server-ID array for the 0x900 entity indices
-and a complete `HookDraw`. See `addons/chatbubbles/world.lua` for the writer.
+and a complete `HookDraw`. See `addons/winbubbles/world.lua` for the writer.
 
 This layer uses the same quad layout and two-frame freshness checks as custom
 names, but never claims or replaces a name. It is drawn during the nameplate
@@ -264,7 +264,7 @@ Each hit makes two popups, from two objects, with the same text, place and owner
 
 An addon that draws the popups itself sets `Claimed` to anything but 0 and `ClaimFrame` to `HookShared::Frame`, every frame. The client then draws none, and they are still listed, without `POPUP_DRAWN`. The claim lapses as a name claim does, half a second after it was last made. `HookShared::Frame` is the one to renew it with: the popups' own `Frame` only moves while there are popups.
 
-The plugin draws what the addon has drawn for a claimed popup, found through `Draw` (a `HookPopupDraw`). Every frame the addon sets its `Frame` to `HookShared::Frame`, `Count` and `QuadCount` to 0, and for each popup it draws adds its quads to `Quads` and a `HookPopupDrawing` to `Drawings`: the popup's `Id`, `Flags` and a `HookDrawing` as for a name, its `Frame` the buffer's. The quads are in pixels of the game's picture from the popup's point, as a name's are from its point, with the same flags, edges and lens counter. They are drawn where and when the client was about to draw the popup, in its place, so they rise and fade as it does. `POPUP_DRAW_OVER` (1) in a drawing's `Flags` draws it over everything, not hidden by what is in front. `Reserved` is the 16.16 horizontal fit, as in `HookDraw`. The textures are the buffer's own eight, `1` for imgui's font texture. A drawing more than eight frames old is not drawn; a claimed popup with none is not drawn at all. `addons/damage` is the addon that draws them, with `winxi.popups`.
+The plugin draws what the addon has drawn for a claimed popup, found through `Draw` (a `HookPopupDraw`). Every frame the addon sets its `Frame` to `HookShared::Frame`, `Count` and `QuadCount` to 0, and for each popup it draws adds its quads to `Quads` and a `HookPopupDrawing` to `Drawings`: the popup's `Id`, `Flags` and a `HookDrawing` as for a name, its `Frame` the buffer's. The quads are in pixels of the game's picture from the popup's point, as a name's are from its point, with the same flags, edges and lens counter. They are drawn where and when the client was about to draw the popup, in its place, so they rise and fade as it does. `POPUP_DRAW_OVER` (1) in a drawing's `Flags` draws it over everything, not hidden by what is in front. `Reserved` is the 16.16 horizontal fit, as in `HookDraw`. The textures are the buffer's own eight, `1` for imgui's font texture. A drawing more than eight frames old is not drawn; a claimed popup with none is not drawn at all. `addons/windamage` is the addon that draws them, with `winxi.popups`.
 
 `/namehook popups` says last frame's popups in the chat log, and `/namehook popups watch on` says each new one as it first appears, until `watch off`. The watch is not saved.
 

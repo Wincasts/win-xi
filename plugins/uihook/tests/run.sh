@@ -23,8 +23,8 @@ done
 cd "$HERE/../.."
 luajit tests/nativehud_check.lua
 luajit tests/nativechat_check.lua
-luajit tests/harness.lua nativeui addons/nativeui/nativeui.lua tests/nativeui_check.lua
+luajit tests/harness.lua winui addons/winui/winui.lua tests/nativeui_check.lua
 luajit tests/groupmirror_check.lua > /dev/null && echo 'groupmirror: 0 failures'
-luajit tests/harness.lua nativeui tests/nativeui_group_stand_in.lua tests/nativeui_group_check.lua
+luajit tests/harness.lua winui tests/nativeui_group_stand_in.lua tests/nativeui_group_check.lua
 luajit tests/party_hook_check.lua
-luajit tests/harness.lua buff addons/buff/buff.lua tests/buff_hook_check.lua
+luajit tests/harness.lua winbuff addons/winbuff/winbuff.lua tests/buff_hook_check.lua
