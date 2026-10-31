@@ -341,6 +341,36 @@ do
     bags[0] = { 4096 }
     got = translate.CharacterNames()
     check('bags read again, names kept once read', itemReads == before and #got == 6)
+    -- With a store: who is playing, what they held before and what was heard
+    local known = dofile('addons/chatbox/known.lua')
+    local files = { Win_77 = 'return { item = { 9000 }, keyitem = { 700 } }' }
+    local store = known.New({ Read = function(c) return files[c] end, Write = function(c, t) files[c] = t; return true end })
+    names[9000], keyNames[700], names[12] = 'Old Sword', 'Old Map', 'Heard Ring'
+    check('no store without a character', #translate.CharacterNames(store) == 6 and store.character == nil)
+    local member = { 'Win', 77 }
+    local memory = AshitaCore.GetMemoryManager
+    AshitaCore.GetMemoryManager = function()
+        local m = memory()
+        m.GetParty = function() return { GetMemberName = function() return member[1] end,
+            GetMemberServerId = function() return member[2] end } end
+        return m
+    end
+    store.Hear('item', 12)
+    got = translate.CharacterNames(store)
+    by = {}
+    for _, entry in ipairs(got) do by[entry.kind .. entry.id] = entry.text end
+    check('the character named', store.character == 'Win_77')
+    check('held before, held now and heard', by.item9000 == 'Old Sword' and by.keyitem700 == 'Old Map' and by.item4096 == 'Fire Crystal'
+        and by.item12 == 'Heard Ring' and by.keyitem5 == 'Hellfire Map' and #got == 9)
+    check('what they hold saved', known.Parse(files.Win_77).item[4096] and known.Parse(files.Win_77).keyitem[5]
+        and not known.Parse(files.Win_77).item[12])
+    bags[0] = {}
+    got = translate.CharacterNames(store)
+    by = {}
+    for _, entry in ipairs(got) do by[entry.kind .. entry.id] = entry.text end
+    check('an item sold stays in the list', by.item4096 == 'Fire Crystal')
+    member = { '', 0 }
+    check('the title screen: only what is held now', #translate.CharacterNames(store) == 5)
     AshitaCore = nil
 end
 local reads, sold = 0, false

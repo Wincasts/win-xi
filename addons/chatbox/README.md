@@ -229,7 +229,9 @@ the mode is how the boxes behave and where they stand.
   phrases, from the installed client's dictionary, and of your character's own items (in any bag) and key
   items, as the game's own lists are, for the word at the caret (with no word, the 42 categories and Items
   and Key Items), drawn above the input bar. An item or key item says so at the right of its row. Your
-  bags are read each time the list opens, so an item sold or dropped is gone from it. Tab, Shift+Tab, Up and Down move; Page Up and Page Down move a
+  bags are read each time the list opens, and what you have held stays in the list for good, kept for
+  each character in `config/addons/chatbox/<name>_<id>/autotranslate.lua`. An item or key item someone
+  writes in chat (a yell selling it, a tell) is in your list too until you log out or close the game. Tab, Shift+Tab, Up and Down move; Page Up and Page Down move a
   page; Enter puts the phrase, item or key item in (on a category, opens it); Escape closes (in a category, goes back to the
   categories). Typing goes on narrowing the list. The phrase goes into your line as its real token, so
   others see it in their own language when you send. Off, Tab is the game's, whose own menu takes the

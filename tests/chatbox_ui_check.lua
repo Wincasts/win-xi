@@ -2179,4 +2179,28 @@ do (function()
     inputOpen=false; inputRaw=''; inputDisplay=''; inputCaret=0; inputSet=nil
     frame()
 end)() end
-print('Chatbox UI: Auto-Translate\'s Tab list, its keys kept from the polled state, compact/expanded chat, settings migration, routing, visibility, lifecycle, tooltips and info-panel settings passed')
+-- Items and key items heard in chat join Auto-Translate's list until logging out (known.lua); a phrase does not
+do
+    local function heardCount()
+        local said={}; app.Say=function(_,line) said[#said+1]=line end; spec.commands.status(); app.Say=function() end
+        return tonumber(table.concat(said,'\n'):match('(%d+) heard this session'))
+    end
+    local start=heardCount()
+    assert(start~=nil,'/chatbox status counts what was heard')
+    local selling='Selling '..string.char(0xFD,0x07,0x02,0x2E,0x45,0xFD)..' and '..string.char(0xFD,0x13,0x02,0x0B,0x23,0xFD)
+        ..' '..string.char(0xFD,0x02,0x02,0x01,0x0B,0xFD)
+    linkStub.tokens[selling]={{kind='item',id=0x2E45},{kind='keyitem',id=0x0B23},{kind='phrase',id=267}}
+    message(selling,{mode=11})
+    frame()
+    assert(heardCount()==start+2,'an item and a key item yelled are heard, the phrase is not')
+    local again='Again '..string.char(0xFD,0x07,0x02,0x2E,0x45,0xFD)
+    linkStub.tokens[again]={{kind='item',id=0x2E45}}
+    message(again,{mode=11}); frame()
+    assert(heardCount()==start+2,'each once')
+    events.packet_in({id=0x00b,data='\11\14\0\0\2'..string.rep('\0',23)}); frame()
+    assert(heardCount()==start+2,'zoning keeps them')
+    events.packet_in({id=0x00b,data='\11\14\0\0\1'..string.rep('\0',23)}); frame()
+    events.packet_in({id=0x00a}); frame()
+    assert(heardCount()==0,'logging out drops them')
+end
+print('Chatbox UI: Auto-Translate\'s Tab list, the items and key items heard, its keys kept from the polled state, compact/expanded chat, settings migration, routing, visibility, lifecycle, tooltips and info-panel settings passed')

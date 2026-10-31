@@ -43,6 +43,30 @@ local function Tokens(raw)
     local ok, tokens = pcall(links.Tokens, raw)
     return ok and type(tokens) == 'table' and #tokens > 0 and tokens or nil
 end
+-- Auto-Translate's items and key items (known.lua): what the character has held, in
+-- config/addons/chatbox/<name>_<id>/autotranslate.lua, and what was heard in chat until they log out
+local known = require('known')
+local function KnownPath(character)
+    return AshitaCore:GetInstallPath():gsub('[\\/]+$', '') .. '\\config\\addons\\' .. addon.name .. '\\' .. character .. '\\'
+end
+local knownStore = known.New({
+    Read = function(character)
+        local file = io.open(KnownPath(character) .. 'autotranslate.lua', 'rb')
+        if not file then return nil end
+        local text = file:read('*a')
+        file:close()
+        return text
+    end,
+    Write = function(character, text)
+        local directory = KnownPath(character)
+        ashita.fs.create_directory(directory)
+        local file, err = io.open(directory .. 'autotranslate.lua', 'wb')
+        if not file then return nil, err end
+        local ok, failure = file:write(text)
+        file:close()
+        return ok and true or nil, failure
+    end,
+})
 local panelModel = require('winxi.infopanel.chat')
 local infoPanel = panelModel.New()
 local panelAttachment -- current frame only, appended to its owning chat capture
@@ -166,7 +190,7 @@ do
             if not ok or type(found) ~= 'table' then picker, translateProblem = false, 'translate.lua could not be loaded: ' .. tostring(found)
             elseif not okAuto or type(auto) ~= 'table' then picker, translateProblem = false, 'winxi.autotranslate could not be loaded: ' .. tostring(auto)
             else
-                local made, built = pcall(found.New, auto)
+                local made, built = pcall(found.New, auto, function() return found.CharacterNames(knownStore) end)
                 if made and type(built) == 'table' then translate, picker = found, built
                 else picker, translateProblem = false, 'the picker could not be made: ' .. tostring(built) end
             end
@@ -233,6 +257,9 @@ do
         local ok, words = pcall(picker.Status)
         words = ok and tostring(words) or 'no status (' .. tostring(words) .. ')'
         words = words .. ('; keyboard state masked %d times'):format(Translate.Masked and Translate.Masked() or 0)
+        local counts = knownStore.Counts()
+        words = words .. ('; %d items and key items held, %d heard this session'):format(counts.held, counts.heard)
+        if knownStore.problem then words = words .. '; not saved: ' .. knownStore.problem end
         return pickerError and (words .. '; last failure ' .. pickerError) or words
     end
     -- Auto-Translate's keys, as Ashita's key event has them (before the game's input handler, which a blocked key down
@@ -842,7 +869,12 @@ local function Keep(line)
         modified=raw:sub(1,256), final=type(line.final)=='string' and line.final:sub(1,256) or nil,
         expanded=type(expanded)=='string' and expanded:sub(1,256) or '', utf8=text:sub(1,256) }
     RefreshRetention(primary.Routes and primary.Routes() or nil)
-    model.Add(history, text, mode, nil, originalMode, spans, line.mode or line.originalMode, Tokens(raw))
+    local tokens = Tokens(raw)
+    -- an item or key item heard joins the Auto-Translate list until logging out
+    for _, token in ipairs(tokens or {}) do
+        if token.kind ~= 'phrase' then knownStore.Hear(token.kind, token.id) end
+    end
+    model.Add(history, text, mode, nil, originalMode, spans, line.mode or line.originalMode, tokens)
 end
 -- Each line read through uihook after every addon (winxi.nativetext, uihook 0.8 or newer): chatbox's own text_in
 -- copy of a line is held until the frame's lines are drained, and the line is kept as uihook has it, so a formatter
@@ -905,11 +937,15 @@ end)
 ashita.events.register('packet_in', 'chatbox_zone', function(e)
     if e.blocked then return end
     infoPanel.Packet(app.options.infoPanel, e.id, e.data_modified or e.data)
+    if known.LoggedOut(e.id, e.data_modified or e.data) then knownStore.Forget() end
     if e.id == 0x00b then zoning = true; Release()
     elseif e.id == 0x00a then zoning = false; channels.ResetLinkshells()
     elseif e.id == 0x0e0 then channels.LinkshellPacket(e.data_modified or e.data) end
 end)
-ashita.events.register('unload', 'chatbox_unload', Reset)
+ashita.events.register('unload', 'chatbox_unload', function()
+    knownStore.Save()
+    Reset()
+end)
 
 -- Native Square/window focus: a faint light over the box and the game's cursor at its newest line.
 -- Both are drawn in the window, so they are part of the captured replacement; no buttons are bound.

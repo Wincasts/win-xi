@@ -5,7 +5,8 @@
 -- keys from the game (Ashita's key events, and DirectInput's polled state, from which the game reads Enter).
 -- The character's own items and key items are offered too, as the game's Tab does (its Items and Key Items lists
 -- are each character's, built from what they hold): the items in their bags and the key items they have, read
--- each time the list opens, named by the client (Ashita's resources) and written as the item and key item tokens
+-- each time the list opens, with what they held before (kept in known.lua's file) and what was heard in chat this
+-- session, named by the client (Ashita's resources) and written as the item and key item tokens
 -- (winxi.autotranslate's ItemToken and KeyItemToken).
 local bit = require('bit')
 local M = {}
@@ -78,9 +79,22 @@ local function Cached(cache, id, read)
     return cache[id] or nil
 end
 
+-- The character who is playing as known.lua keys them, name and server id, or nil while it cannot be told.
+function M.Character(memory)
+    local ok, key = pcall(function()
+        local party = memory:GetParty()
+        local name, id = party:GetMemberName(0), party:GetMemberServerId(0)
+        if type(name) ~= 'string' or not name:find('^%w+$') or type(id) ~= 'number' or id <= 0 then return nil end
+        return name .. '_' .. id
+    end)
+    return ok and key or nil
+end
+
 -- The character's items (every bag in M.Bags, gil left out) and key items, each once, named by the client:
--- { kind, id, text } each, or an empty list without Ashita (tests, offline, the title screen).
-function M.CharacterNames()
+-- { kind, id, text } each, or an empty list without Ashita (tests, offline, the title screen). With a store
+-- (known.lua), what they hold is added to it and saved, and the list is the store's: everything they have held,
+-- and what was heard this session.
+function M.CharacterNames(store)
     local list = {}
     if AshitaCore == nil then return list end
     local ok, resources, memory = pcall(function()
@@ -88,6 +102,11 @@ function M.CharacterNames()
     end)
     if not ok or resources == nil or memory == nil then return list end
     local inventory, player = memory:GetInventory(), memory:GetPlayer()
+    local function ItemName(id) return Cached(itemNames, id, function() return resources:GetItemById(id).Name[1] end) end
+    local function KeyItemName(id) return Cached(keyItemNames, id, function() return resources:GetString('keyitems.names', id) end) end
+    -- with no character to keep them for (the title screen), only what is held now
+    local character = store and M.Character(memory)
+    if character then store.Use(character) else store = nil end
     local seen = {}
     for _, bag in ipairs(M.Bags) do
         local counted, max = pcall(function() return inventory:GetContainerCountMax(bag) end)
@@ -98,18 +117,31 @@ function M.CharacterNames()
             end)
             if read and id > 0 and id ~= M.Gil and not seen[id] then
                 seen[id] = true
-                local name = Cached(itemNames, id, function() return resources:GetItemById(id).Name[1] end)
-                if name then list[#list + 1] = { kind = 'item', id = id, text = name } end
+                local name = ItemName(id)
+                if name then
+                    list[#list + 1] = { kind = 'item', id = id, text = name }
+                    if store then store.Hold('item', id) end
+                end
             end
         end
     end
     for id = 0, M.KeyItemLast do
         local read, has = pcall(function() return player:HasKeyItem(id) end)
         if read and has then
-            local name = Cached(keyItemNames, id, function() return resources:GetString('keyitems.names', id) end)
-            if name then list[#list + 1] = { kind = 'keyitem', id = id, text = name } end
+            local name = KeyItemName(id)
+            if name then
+                list[#list + 1] = { kind = 'keyitem', id = id, text = name }
+                if store then store.Hold('keyitem', id) end
+            end
         end
     end
+    if not store then return list end
+    store.Save()
+    list = {}
+    store.Each(function(kind, id)
+        local name = kind == 'item' and id ~= M.Gil and ItemName(id) or kind == 'keyitem' and KeyItemName(id) or nil
+        if name then list[#list + 1] = { kind = kind, id = id, text = name } end
+    end)
     return list
 end
 
