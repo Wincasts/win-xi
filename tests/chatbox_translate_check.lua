@@ -97,18 +97,20 @@ picker.Close()
 
 picker.Open('', 0)
 view = picker.View()
-check('categories with no word', #view.items == 42 and view.items[1].kind == 'category' and view.items[1].label == '【Greetings】')
-for i = 2, #view.items do check('categories in id order', view.items[i - 1].id < view.items[i].id) end
-check('categories title and status', picker.Title() == 'Auto-Translate  1 of 42' and picker.Status() == 'open: 42 categories')
+check('categories with no word', #view.items == 44 and view.items[1].kind == 'category' and view.items[1].label == '【Greetings】')
+for i = 2, 42 do check('categories in id order', view.items[i - 1].id < view.items[i].id) end
+check('the character\'s two last', view.items[43].id == 'item' and view.items[43].label == '【Items】'
+    and view.items[44].id == 'keyitem' and view.items[44].label == '【Key Items】')
+check('categories title and status', picker.Title() == 'Auto-Translate  1 of 44' and picker.Status() == 'open: 44 categories')
 picker.Refresh('', 0)
-check('categories stay with no word', picker.open and #picker.View().items == 42)
+check('categories stay with no word', picker.open and #picker.View().items == 44)
 
 -- Move and Page clamp
 picker.Move(-1); check('Move clamps at the top', picker.View().selected == 1)
 picker.Move(1); check('Move down', picker.View().selected == 2)
 picker.Page(1); check('Page down', picker.View().selected == 12 and picker.View().first == 3)
-picker.Page(10); check('Page clamps at the end', picker.View().selected == 42 and picker.View().first == 33)
-picker.Page(-1); check('Page up keeps the row shown', picker.View().selected == 32 and picker.View().first == 32)
+picker.Page(10); check('Page clamps at the end', picker.View().selected == 44 and picker.View().first == 35)
+picker.Page(-1); check('Page up keeps the row shown', picker.View().selected == 34 and picker.View().first == 34)
 picker.Page(-10); check('Page clamps at the top', picker.View().selected == 1 and picker.View().first == 1)
 
 -- Separate native edit, send and display buffers: a raw-only write is not success.
@@ -138,8 +140,8 @@ check('Enter on a category writes nothing', Enter(chat) == false and chat.set ==
 view = picker.View()
 check('category list', view.items[1].kind == 'phrase' and view.selected == 1 and picker.Title():find('^Auto%-Translate: Greetings  1 of '))
 for i = 2, #view.items do check('category in entry order', auto.Get(view.items[i - 1].id).Entry < auto.Get(view.items[i].id).Entry) end
-check('category status', picker.Status():find('^open: %d+ phrases in Greetings$'))
-check('Back to the categories', picker.Back() == true and #picker.View().items == 42 and picker.View().selected == 1)
+check('category status', picker.Status():find('^open: %d+ entries in Greetings$'))
+check('Back to the categories', picker.Back() == true and #picker.View().items == 44 and picker.View().selected == 1)
 picker.Move(2); Enter(chat)
 check('Back selects the category it came from', picker.Back() and picker.View().selected == 3)
 check('Back from the categories closes', picker.Back() == false and not picker.open)
@@ -305,10 +307,46 @@ theme.HighlightColor = { 0.2, 0.4, 0.8, 0.6 }
 -- Items and key items, from a stand-in for the client's names
 check('names kept plain', translate.Name(' Fire Crystal ') == 'Fire Crystal' and translate.Name('.') == nil
     and translate.Name('') == nil and translate.Name('Caf\130\160') == nil and translate.Name(nil) == nil)
-check('no names without Ashita', #translate.ClientNames() == 0)
-local reads = 0
+check('no names without Ashita', #translate.CharacterNames() == 0)
+-- The character's bags and key items, read through a stand-in for Ashita
+do
+    local bags = { [0] = { 65535, 4096, 4096, 0 }, [5] = { 4104 }, [17] = { 300, 77 } }
+    local keys = { [5] = true, [513] = true, [4095] = true, [600] = true }
+    local itemReads = 0
+    local names = { [4096] = 'Fire Crystal', [4104] = 'Fire Cluster', [300] = 'Hello!', [77] = '.' }
+    local keyNames = { [5] = 'Hellfire Map', [513] = 'Ancient Fire Seal', [4095] = 'Last Key', [600] = '' }
+    AshitaCore = {
+        GetResourceManager = function() return {
+            GetItemById = function(_, id) itemReads = itemReads + 1; return { Name = { names[id] } } end,
+            GetString = function(_, table_, id) assert(table_ == 'keyitems.names'); return keyNames[id] end } end,
+        GetMemoryManager = function() return {
+            GetInventory = function() return {
+                GetContainerCountMax = function(_, bag) return bags[bag] and #bags[bag] or 0 end,
+                GetContainerItem = function(_, bag, slot)
+                    local id = bags[bag][slot]
+                    return { Id = id, Count = id == 0 and 0 or 1 }
+                end } end,
+            GetPlayer = function() return { HasKeyItem = function(_, id) return keys[id] == true end } end } end }
+    local got = translate.CharacterNames()
+    local by = {}
+    for _, entry in ipairs(got) do by[entry.kind .. entry.id] = entry.text end
+    check('items from every bag, once, gil and blank names left out', by.item4096 == 'Fire Crystal' and by.item4104 == 'Fire Cluster'
+        and by.item300 == 'Hello!' and by.item77 == nil and by.item65535 == nil)
+    check('owned key items only, to the last id', by.keyitem5 == 'Hellfire Map' and by.keyitem513 == 'Ancient Fire Seal'
+        and by.keyitem4095 == 'Last Key' and by.keyitem600 == nil and by.keyitem6 == nil)
+    local count = 0
+    for _ in pairs(by) do count = count + 1 end
+    check('nothing else', count == #got and count == 6)
+    local before = itemReads
+    bags[0] = { 4096 }
+    got = translate.CharacterNames()
+    check('bags read again, names kept once read', itemReads == before and #got == 6)
+    AshitaCore = nil
+end
+local reads, sold = 0, false
 local named = translate.New(auto, function()
     reads = reads + 1
+    if sold then return { { kind = 'item', id = 4104, text = 'Fire Cluster' } } end
     return { { kind = 'item', id = 4096, text = 'Fire Crystal' }, { kind = 'item', id = 4104, text = 'Fire Cluster' },
         { kind = 'item', id = 9000, text = 'Fire Crystal' }, { kind = 'item', id = 300, text = 'Hello!' },
         { kind = 'keyitem', id = 5, text = 'Hellfire Map' }, { kind = 'keyitem', id = 513, text = 'Ancient Fire Seal' },
@@ -326,7 +364,7 @@ local _, crystal = find(found, '❮Fire Crystal❯', 'item')
 check('an item named twice listed once, the lowest id', count == 1 and crystal.id == 4096 and crystal.note == 'item')
 named.Open('fire', 4)
 found = named.View().items
-check('names read once', reads == 1)
+check('names read each time the list opens', reads == 2)
 check('an unknown kind left out', not find(found, '❮Fireproof❯', 'weird'))
 local _, seal = find(found, '❮Ancient Fire Seal❯', 'keyitem')
 check('key item by substring, after the prefixes', seal and seal.note == 'key item' and find(found, '❮Ancient Fire Seal❯', 'keyitem') > find(found, '❮Fire Crystal❯', 'item'))
@@ -351,6 +389,30 @@ local at = find(named.View().items, '❮Fire Cluster❯', 'item')
 named.Move(at - 1)
 named.Refresh('fire', 4)
 check('selection kept by kind and id', named.View().items[named.View().selected].label == '❮Fire Cluster❯')
+local opened = reads
+named.Refresh('fir', 3)
+check('typing does not read the bags again', reads == opened)
+-- The Items and Key Items categories: the character's own, alphabetical, each name once
+named.Open('', 0)
+named.Move(42)
+check('Items category', named.Enter(Chat()) == false and named.Title():find('^Auto%-Translate: Items  1 of 3$'))
+found = named.View().items
+check('items alphabetical', found[1].label == '❮Fire Cluster❯' and found[2].label == '❮Fire Crystal❯' and found[3].label == '❮Hello!❯'
+    and found[2].id == 4096 and found[1].note == 'item')
+check('Items status', named.Status():find('^open: 3 entries in Items'))
+check('Back selects Items', named.Back() and named.View().selected == 43)
+named.Move(1); named.Enter(Chat())
+found = named.View().items
+check('Key Items category', #found == 2 and found[1].label == '❮Ancient Fire Seal❯' and found[2].label == '❮Hellfire Map❯'
+    and found[1].kind == 'keyitem')
+named.Close()
+-- An item no longer held is gone the next time the list opens
+sold = true
+named.Open('crystal', 7)
+check('an item sold is gone', not find(named.View().items, '❮Fire Crystal❯', 'item'))
+named.Open('cluster', 7)
+check('an item still held stays', find(named.View().items, '❮Fire Cluster❯', 'item'))
+sold = false
 -- The note drawn at the right, dimmed
 named.Open('fire', 4); texts = {}; calls = {}
 check('drawn with notes', translate.Draw(named, layout, 0) == true)

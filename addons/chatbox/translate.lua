@@ -3,8 +3,10 @@
 -- drawn above the input bar, narrowed to the word at the caret, whose choice is written into the game's own
 -- buffer as the phrase's six-byte token. Typing, history and sending stay the game's. chatbox keeps the picker's
 -- keys from the game (Ashita's key events, and DirectInput's polled state, from which the game reads Enter).
--- Items and key items are offered too, as the game's Tab does: their names are the client's own (Ashita's
--- resources), their tokens the item and key item kinds (winxi.autotranslate's ItemToken and KeyItemToken).
+-- The character's own items and key items are offered too, as the game's Tab does (its Items and Key Items lists
+-- are each character's, built from what they hold): the items in their bags and the key items they have, read
+-- each time the list opens, named by the client (Ashita's resources) and written as the item and key item tokens
+-- (winxi.autotranslate's ItemToken and KeyItemToken).
 local bit = require('bit')
 local M = {}
 M.Rows = 10
@@ -56,8 +58,9 @@ local function Printable(text)
     return table.concat(out)
 end
 
--- Item ids run to 0x7FFF (65535, gil, is never a name to write); key ids stay well under 0x2000.
-M.ItemLast, M.KeyItemLast = 0x7FFF, 0x1FFF
+-- The bags read (inventory, safes, storage, locker, satchel, sack, case, wardrobes) and the key item ids asked.
+M.Bags, M.KeyItemLast = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17 }, 4095
+M.Gil = 65535
 
 -- A client name as the picker can show it: plain ASCII with a letter or digit in it, else nil.
 function M.Name(text)
@@ -65,25 +68,47 @@ function M.Name(text)
     return (text:gsub('^%s+', ''):gsub('%s+$', ''))
 end
 
--- The client's item and key item names, read once from Ashita's resources: { kind, id, text } each, or an
--- empty list without Ashita (tests, offline).
-function M.ClientNames()
+-- Client names by id, kept once read: they never change while the game runs.
+local itemNames, keyItemNames = {}, {}
+local function Cached(cache, id, read)
+    if cache[id] == nil then
+        local ok, name = pcall(read)
+        cache[id] = ok and M.Name(name) or false
+    end
+    return cache[id] or nil
+end
+
+-- The character's items (every bag in M.Bags, gil left out) and key items, each once, named by the client:
+-- { kind, id, text } each, or an empty list without Ashita (tests, offline, the title screen).
+function M.CharacterNames()
     local list = {}
     if AshitaCore == nil then return list end
-    local ok, manager = pcall(function() return AshitaCore:GetResourceManager() end)
-    if not ok or manager == nil then return list end
-    for id = 1, M.ItemLast do
-        local found, name = pcall(function()
-            local item = manager:GetItemById(id)
-            return item and item.Name[1]
-        end)
-        name = found and M.Name(name)
-        if name then list[#list + 1] = { kind = 'item', id = id, text = name } end
+    local ok, resources, memory = pcall(function()
+        return AshitaCore:GetResourceManager(), AshitaCore:GetMemoryManager()
+    end)
+    if not ok or resources == nil or memory == nil then return list end
+    local inventory, player = memory:GetInventory(), memory:GetPlayer()
+    local seen = {}
+    for _, bag in ipairs(M.Bags) do
+        local counted, max = pcall(function() return inventory:GetContainerCountMax(bag) end)
+        for slot = 1, counted and tonumber(max) or 0 do
+            local read, id = pcall(function()
+                local item = inventory:GetContainerItem(bag, slot)
+                return item and item.Count > 0 and item.Id or 0
+            end)
+            if read and id > 0 and id ~= M.Gil and not seen[id] then
+                seen[id] = true
+                local name = Cached(itemNames, id, function() return resources:GetItemById(id).Name[1] end)
+                if name then list[#list + 1] = { kind = 'item', id = id, text = name } end
+            end
+        end
     end
-    for id = 1, M.KeyItemLast do
-        local found, name = pcall(function() return manager:GetString('keyitems.names', id) end)
-        name = found and M.Name(name)
-        if name then list[#list + 1] = { kind = 'keyitem', id = id, text = name } end
+    for id = 0, M.KeyItemLast do
+        local read, has = pcall(function() return player:HasKeyItem(id) end)
+        if read and has then
+            local name = Cached(keyItemNames, id, function() return resources:GetString('keyitems.names', id) end)
+            if name then list[#list + 1] = { kind = 'keyitem', id = id, text = name } end
+        end
     end
     return list
 end
@@ -91,8 +116,8 @@ end
 local kindOrder = { phrase = 1, item = 2, keyitem = 3 }
 local notes = { item = 'item', keyitem = 'key item' }
 
--- names (optional): a function giving the item and key item names as M.ClientNames does, called on the first
--- search; M.ClientNames when left out.
+-- names (optional): a function giving the item and key item names as M.CharacterNames does, called each time
+-- the list opens; M.CharacterNames when left out.
 function M.New(auto, names)
     local picker = { open = false }
     local mode, items, selected, first = nil, {}, 1, 1
@@ -106,20 +131,18 @@ function M.New(auto, names)
     local function Named(entry)
         return { kind = entry.kind, id = entry.id, label = '❮' .. entry.text .. '❯', text = entry.text, note = notes[entry.kind] }
     end
-    -- The item and key item names, lowered once; read on the first search, as reading them takes a moment
-    local named
-    local function Names()
-        if named == nil then
-            named = {}
-            local ok, list = pcall(names or M.ClientNames)
-            for _, entry in ipairs(ok and type(list) == 'table' and list or {}) do
-                if notes[entry.kind] and type(entry.id) == 'number' and type(entry.text) == 'string' then
-                    named[#named + 1] = { kind = entry.kind, id = entry.id, text = entry.text, lower = entry.text:lower() }
-                end
+    -- The character's item and key item names, lowered; read again each time the list opens, as bags change
+    local named = {}
+    local function Read()
+        named = {}
+        local ok, list = pcall(names or M.CharacterNames)
+        for _, entry in ipairs(ok and type(list) == 'table' and list or {}) do
+            if notes[entry.kind] and type(entry.id) == 'number' and type(entry.text) == 'string' then
+                named[#named + 1] = { kind = entry.kind, id = entry.id, text = entry.text, lower = entry.text:lower() }
             end
         end
-        return named
     end
+    local function Names() return named end
     -- Text that starts with the word first, then the rest; alphabetical within each, a phrase before an item
     -- before a key item of the same name. Where the dictionary, the items or the key items hold the same text
     -- more than once (an area with several zones, a name in two categories, an item made twice) it is listed
@@ -161,9 +184,25 @@ function M.New(auto, names)
                 name = c.Names.en }
         end
         table.sort(list, function(a, b) return a.id < b.id end)
+        -- the character's own two after the dictionary's, as the game's menu has them
+        list[#list + 1] = { kind = 'category', id = 'item', label = '【Items】', name = 'Items' }
+        list[#list + 1] = { kind = 'category', id = 'keyitem', label = '【Key Items】', name = 'Key Items' }
         return list
     end
     local function Category(id)
+        if notes[id] then
+            local found, seen = {}, {}
+            for _, entry in ipairs(Names()) do
+                if entry.kind == id and not seen[entry.lower] then seen[entry.lower] = true; found[#found + 1] = entry end
+            end
+            table.sort(found, function(a, b)
+                if a.lower ~= b.lower then return a.lower < b.lower end
+                return a.id < b.id
+            end)
+            local list = {}
+            for i, entry in ipairs(found) do list[i] = Named(entry) end
+            return list
+        end
         local found = {}
         for _, record in ipairs(auto.Search('', 'en', id, nil) or {}) do
             if record.Text and record.Text.en then found[#found + 1] = record end
@@ -188,6 +227,7 @@ function M.New(auto, names)
     function picker.Open(r, c)
         picker.pending = nil
         See(r, c)
+        Read()
         local wordFirst, wordLast, q = M.Word(raw, caret)
         if q then
             mode, query, typed = 'phrases', q, raw:sub(wordFirst, wordLast)
@@ -351,7 +391,7 @@ function M.New(auto, names)
         local line
         if not picker.open then line = 'closed'
         elseif mode == 'phrases' then line = 'open: ' .. #items .. ' matches for ' .. Printable(typed or query or '')
-        elseif mode == 'category' then line = 'open: ' .. #items .. ' phrases in ' .. (category.name or category.label)
+        elseif mode == 'category' then line = 'open: ' .. #items .. ' entries in ' .. (category.name or category.label)
         else line = 'open: ' .. #items .. ' categories' end
         if last then line = line .. '; last insert: ' .. last end
         if problem then line = line .. '; draw failed: ' .. problem end

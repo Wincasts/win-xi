@@ -570,7 +570,7 @@ app = shell.New({
                 options.mode[1] = game and 'game' or 'skin'
                 app.save()
             end
-            if widgets.Check('Auto-Translate', 'Tab while typing lists auto-translate phrases, items and key items for the word at the caret, instead of the game default menu. /chatbox translate switches it too.', options.autoTranslate, '##chatbox.autoTranslate', R.enabled) then
+            if widgets.Check('Auto-Translate', 'Tab while typing lists auto-translate phrases and your own items and key items for the word at the caret, instead of the game default menu. /chatbox translate switches it too.', options.autoTranslate, '##chatbox.autoTranslate', R.enabled) then
                 if not options.autoTranslate[1] then Translate.Cancel() end
                 app.save()
             end

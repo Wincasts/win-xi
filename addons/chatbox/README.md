@@ -226,9 +226,10 @@ the mode is how the boxes behave and where they stand.
 - **Replace Native Chat** (on to begin with): on chooses **Follow Game**; off chooses **WinXI Skin**.
   This changes the layout behaviour, not whether chatbox is on. Existing mode settings are kept.
 - **Auto-Translate** (on to begin with): Tab while typing opens chatbox's own list of auto-translate
-  phrases, items and key items, from the installed client's dictionary and names, for the word at the
-  caret (with no word, the 42 categories), drawn above the input bar. An item or key item says so at the
-  right of its row. Tab, Shift+Tab, Up and Down move; Page Up and Page Down move a
+  phrases, from the installed client's dictionary, and of your character's own items (in any bag) and key
+  items, as the game's own lists are, for the word at the caret (with no word, the 42 categories and Items
+  and Key Items), drawn above the input bar. An item or key item says so at the right of its row. Your
+  bags are read each time the list opens, so an item sold or dropped is gone from it. Tab, Shift+Tab, Up and Down move; Page Up and Page Down move a
   page; Enter puts the phrase, item or key item in (on a category, opens it); Escape closes (in a category, goes back to the
   categories). Typing goes on narrowing the list. The phrase goes into your line as its real token, so
   others see it in their own language when you send. Off, Tab is the game's, whose own menu takes the
