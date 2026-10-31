@@ -9,19 +9,19 @@ settings window.
 | Addon | What it does | Command |
 |---|---|---|
 | [buff](addons/buff) | Shows the statuses you are under in a window, with FFXIV's icons and the time each has left | `/buff` |
-| [chatbox](addons/chatbox) | Experimental WinXI chat log that the game still drives. It sets the game log's place and size (both log windows, routed as the game routes them). It has a native-backed input bar with its own auto-translate picker on Tab, native selection, the expanded log in WinXI tabs, scrollbar and font, and an info panel that shows the Vana'diel calendar, the zone's weather forecast and the ships' and airships' timetable under the mouse. Needs `uihook` | `/chatbox` |
 | [vis](addons/vis) | Draw distance for the world and for entities, with the fog at its own scale. Objects don't pop in or lose detail, and distant terrain is drawn. Saved per character, with presets for cities, the outdoors and dungeons, and a zone's own values over them. Replaces drawdistance (it was called drawscale before 2.1) | `/vis` |
 | [expbar](addons/expbar) | A basic experience bar with session XP gained and an optional XP/hour rate | `/expbar` |
 | [hidecompass](addons/hidecompass) | Hides the game's compass | `/hidecompass` |
 | [mark](addons/mark) | Pick a notorious monster and see its placeholders, their respawns, where it spawns on the map, its window and its drops | `/mark` |
 | [mobcast](addons/mobcast) | Shows what the enemies around you are casting, readying and using, in a small window, worded as the chat log says it | `/mobcast` |
 | [nativeui](addons/nativeui) | Gives the game's own menus a uihook skin (the winxi look), and moves the menus the game stacks over the chat log (the command menu, shops, yes-or-no, item descriptions) to where you want them. Needs `uihook` | `/nativeui` |
-| [winplates](addons/winplates) | Shows and hides the names over characters' heads by what they are, and draws them in winxi's style. Needs the `namehook` plugin | `/winplates` |
 | [occlusionfix](addons/occlusionfix) | Stops characters near walls, door frames and counters blinking out of view. Needs nothing else | `/occlusionfix` |
 | [parse](addons/parse) | Experimental packet-based damage, observed hit rates and manual encounter DPS, with capture/replay diagnostics | `/parse` |
 | [puppet](addons/puppet) | The next enfeebles and weapon skill an automaton will use | `/puppet` |
 | [tempo](addons/tempo) | Bars that show when your next auto attack comes and when your next resting tick lands, about how much it restores, and when HP and MP will be full. A basic take on cadence | `/tempo` |
 | [trigger](addons/trigger) | Plays a sound when something happens: a tell, an invite, a trade, an item dropping, low HP and the like | `/trigger` |
+| [winchat](addons/winchat) | Experimental WinXI chat log that the game still drives. It sets the game log's place and size (both log windows, routed as the game routes them). It has a native-backed input bar with its own auto-translate picker on Tab, native selection, the expanded log in WinXI tabs, scrollbar and font, and an info panel that shows the Vana'diel calendar, the zone's weather forecast and the ships' and airships' timetable under the mouse. Needs `uihook` | `/winchat` |
+| [winplates](addons/winplates) | Shows and hides the names over characters' heads by what they are, and draws them in winxi's style. Needs the `namehook` plugin | `/winplates` |
 | [wxi](addons/wxi) | The look shared by every winxi addon, in one settings window | `/winxi` |
 | [zone](addons/zone) | Zone, region and weather banners, and a location line | `/zone` |
 
@@ -29,11 +29,11 @@ Each addon's folder has a README with all of its commands and settings.
 
 ## Installing
 
-**buff**, **chatbox**, **inventory**, **occlusionfix**, **parse**, **party**, **sct**, **trigger**,
-**vis**, **winplates** and **zone**, the **lens** plugin and **mobdb**'s Phoenix data are released one at a time, on the
+**buff**, **inventory**, **occlusionfix**, **parse**, **party**, **sct**, **trigger**,
+**vis**, **winchat**, **winplates** and **zone**, the **lens** plugin and **mobdb**'s Phoenix data are released one at a time, on the
 [Releases](https://github.com/Wincasts/win-xi/releases) page. The newest of each is listed on one page,
 [DOWNLOADS.md](DOWNLOADS.md). Each zip has everything the addon needs:
-the `winxi` library and `wxi`; with winplates, the `namehook` plugin; and with buff, chatbox and
+the `winxi` library and `wxi`; with winplates, the `namehook` plugin; and with buff, winchat and
 party, the `uihook` plugin. vis and zone carry their own copy of the parts of winxi they use, so they
 need nothing else. occlusionfix needs nothing at all. Extract the zip into your Ashita folder (the one
 that holds `addons`, `plugins` and `config`). Merge folders when asked. Then follow
@@ -49,7 +49,7 @@ except occlusionfix needs the `winxi` library. Copy these into your Ashita folde
 - `addons/<the addon>` for each one you want
 - `addons/wxi`, to change the shared look
 - for `winplates`, also `plugins/namehook.dll` (see [plugins/namehook](plugins/namehook))
-- for `buff`, `chatbox` or native `party` replacement, also `plugins/uihook.dll` (build/install:
+- for `buff`, `winchat` or native `party` replacement, also `plugins/uihook.dll` (build/install:
   [plugins/uihook](plugins/uihook))
 - `plugins/lens.dll`: shows the world through a Panini or cylindrical projection for wide screens, adds
   anti-aliasing for the world, sets the field of view and the true proportions the world is drawn with,
@@ -59,11 +59,11 @@ Then, in game: `/addon load <the addon>`. For `winplates`, run `/load namehook` 
 `party`, run `/load uihook` first. Uihook replaces the retired `buffhook` and `partyhook` plugins:
 unload those before loading it, and remove their startup commands. Native rendering for party is
 still opt-in; unload `hideparty` before turning it on.
-[Chatbox](addons/chatbox/README.md) includes a native-backed WinXI input bar. It needs winxi 22 and
+[Winchat](addons/winchat/README.md) includes a native-backed WinXI input bar. It needs winxi 22 and
 uihook 0.5 with chat ABI 13 (0.6 for native action-menu anchoring above the panel, for the expanded log
-drawn wholly by chatbox and opened in place, and for the game's history read at start).
-Its optional Info Panel belongs to chatbox and does not hide with the native clock.
-Unload `clock` before `/chatbox panel on`, or you get two.
+drawn wholly by winchat and opened in place, and for the game's history read at start).
+Its optional Info Panel belongs to winchat and does not hide with the native clock.
+Unload `clock` before `/winchat panel on`, or you get two.
 Load uihook first, and unload other chat replacements and visibility writers.
 See the uihook README for migration and testing steps.
 

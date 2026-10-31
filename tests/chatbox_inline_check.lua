@@ -1,4 +1,4 @@
-package.path = 'addons/chatbox/?.lua;' .. package.path
+package.path = 'addons/winchat/?.lua;' .. package.path
 local model, rich = require('log'), require('richtext')
 local palette = require('palette')
 local measure = function(text) return #text end

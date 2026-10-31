@@ -21,7 +21,7 @@ local unity = Set{ 211, 212 }
 -- 0352F940 of a filter and its tab's art): Window, Window 2 (only while the game's second log window
 -- setting, config B4, is on), Say, Tell, Party, Linkshell 1, Linkshell 2, Assist (E) and Assist (J)
 -- (Assist (J) first in a Japanese client), Unity and Shout; place is that, for the title, and name what
--- the tab says (tab, where given, what chatbox's tab says, short). Each shows the modes of its channel, sent and received; Window shows everything. Which
+-- the tab says (tab, where given, what winchat's tab says, short). Each shows the modes of its channel, sent and received; Window shows everything. Which
 -- Assist channel has modes 220/221 and which 222/223 is a guess, FancyChat listing 220 and 222 as
 -- assist without saying which is which.
 M.Filters = {

@@ -1,4 +1,4 @@
-local input = dofile('addons/chatbox/input.lua')
+local input = dofile('addons/winchat/input.lua')
 assert(input.Prompt() == '> ', 'input prompt is just an arrow, with no mode label')
 local opened, raw, display, caret = 0x11, 'hello world', 'hello world', 5
 local chat = {

@@ -1,4 +1,4 @@
-package.path = 'addons/chatbox/?.lua;' .. package.path
+package.path = 'addons/winchat/?.lua;' .. package.path
 local visibility = require('visibility')
 local model = require('log')
 local box = { left=20, top=100, bottom=250, width=400, height=150 }

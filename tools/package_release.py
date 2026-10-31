@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Packages one addon for a release: a zip to extract into the Ashita folder, and its checksum.
 
-    tools/package_release.py <addon>          an addon, plugin or data named in RELEASES (chatbox, lens, mobdb, zone...)
+    tools/package_release.py <addon>          an addon, plugin or data named in RELEASES (winchat, lens, mobdb, zone...)
     tools/package_release.py --all            each of them
     tools/package_release.py <addon> --stage pre1
                                               a pre-release (pre1, pre2...) or release candidate (rc1...) of it
@@ -23,7 +23,7 @@ Each zip holds the addon, everything it needs and nothing else:
     addons/libs/winxi/           the shared library, in every zip but a standalone one (winxi.version says which it is)
     addons/wxi/                  the shared look's settings window, in every zip but a standalone one
     plugins/namehook.dll         with name, built here, with its GPL license and where its source is
-    plugins/uihook.dll           with buff/chatbox/party, built here, with its MIT license and where its source is
+    plugins/uihook.dll           with buff/winchat/party, built here, with its MIT license and where its source is
 
 A plugin released alone (lens) is plugins/<plugin>.dll with its license, source and INSTALL.txt beside it.
 Data released alone (mobdb) is the folder the addon reads it from, for the addon as its author releases it.
@@ -54,7 +54,7 @@ REPOSITORY = 'Wincasts/win-xi'
 # What each release brings besides the addon, winxi and wxi; standalone leaves out those two
 RELEASES = {
     'buff': {'plugin': 'uihook'},
-    'chatbox': {'plugin': 'uihook'},
+    'winchat': {'plugin': 'uihook'},
     'lens': {'kind': 'plugin'},
     # Phoenix's monsters for ThornyFFXI's MobDB as it is: the data folder alone, versioned by the date it was made
     # the data is winxi's mobs set, the same files mobdb reads as data/<zone>.lua
@@ -84,7 +84,7 @@ RELEASES = {
 }
 # MIT, as the repository's LICENSE says: each is given a copy of it. The others keep their own terms.
 MIT = {'addons/libs/winxi', 'addons/wxi', 'addons/buff', 'addons/winplates', 'addons/occlusionfix',
-       'addons/trigger', 'addons/zone', 'addons/zone/winxi', 'addons/vis/winxi', 'addons/chatbox', 'addons/parse', 'addons/sct', 'addons/vis'}
+       'addons/trigger', 'addons/zone', 'addons/zone/winxi', 'addons/vis/winxi', 'addons/winchat', 'addons/parse', 'addons/sct', 'addons/vis'}
 # The art a winxi module draws, which goes with it into an addon's own copy
 WINXI_ART = {'backgrounds': 'assets/backgrounds', 'borders': 'assets/borders', 'bars': 'assets/bars'}
 # The terms each plugin is under: namehook is a fork of GPL code, the others this repository's own

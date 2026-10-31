@@ -1,5 +1,5 @@
 -- The expanded log's cursor, view and senders, and the steps of opening a tell. No FFXI needed.
-package.path = 'addons/chatbox/?.lua;' .. package.path
+package.path = 'addons/winchat/?.lua;' .. package.path
 local model = require('log')
 local browse = require('browse')
 

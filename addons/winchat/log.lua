@@ -147,7 +147,7 @@ function M.Add(log, text, mode, now, originalMode, spans, raw, tokens)
     return true
 end
 
--- Older messages put before the ones kept (the game's history, read as chatbox starts): entries oldest first, each
+-- Older messages put before the ones kept (the game's history, read as winchat starts): entries oldest first, each
 -- { text, mode, originalMode, spans, raw, tokens }; as many of the newest as fit beside what is kept. Returns how many.
 function M.Prepend(log, entries)
     local room = log.retention and M.Capacity or M.Capacity - #log.messages

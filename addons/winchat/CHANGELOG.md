@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.18.0
+
+- Renamed winchat: the addon is `winchat` (`addons\winchat`, `/addon load winchat`), its settings window Winchat Settings, its first section Winchat and its command `/winchat`, with `/chatbox` kept as another way in. Each character's settings are brought over from `config\addons\chatbox` the first time it logs in (winxi.shell's formerName), and the Auto-Translate list of what the character has held is read from there until it is written under winchat. Remove the old `addons\chatbox` folder.
+
 ## 0.17.0
 
 - Navigation Sounds (under Auto-Translate, on to begin with): the list plays winxi's menu sounds, open as it opens, move for a row (the arrows, Tab or the d-pad), tab for a page, confirm for a choice put in or a category opened, back for going back or closing, and error for a choice too long for the line; nothing where the highlight cannot move. tests/chatbox_ui_check asserts each.

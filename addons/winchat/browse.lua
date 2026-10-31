@@ -1,4 +1,4 @@
--- Browsing the expanded log: a cursor moved message by message through what chatbox has kept, the view
+-- Browsing the expanded log: a cursor moved message by message through what winchat has kept, the view
 -- going back with it, and the name to send a tell to from the message chosen. No Ashita dependency:
 -- chatbox.lua feeds it the keys and buttons and does what it asks.
 local M = {}

@@ -1,7 +1,7 @@
 -- Chatbox's own auto-translate picker. The game's Tab menu would become the game's active menu and take the
--- input bar back from chatbox, so chatbox keeps Tab from the game and offers the dictionary itself: a list
+-- input bar back from winchat, so winchat keeps Tab from the game and offers the dictionary itself: a list
 -- drawn above the input bar, narrowed to the word at the caret, whose choice is written into the game's own
--- buffer as the phrase's six-byte token. Typing, history and sending stay the game's. chatbox keeps the picker's
+-- buffer as the phrase's six-byte token. Typing, history and sending stay the game's. winchat keeps the picker's
 -- keys from the game (Ashita's key events, and DirectInput's polled state, from which the game reads Enter).
 -- The character's own items and key items are offered too, as the game's Tab does (its Items and Key Items lists
 -- are each character's, built from what they hold): the items in their bags and the key items they have, read
@@ -303,7 +303,7 @@ function M.New(auto, names)
         picker.open = false
         mode, items, selected, first, query, typed, category = nil, {}, 1, 1, nil, nil, nil
     end
-    -- A chosen phrase not yet written is dropped too (chatbox off, zoning, reset); closing alone keeps it for Flush.
+    -- A chosen phrase not yet written is dropped too (winchat off, zoning, reset); closing alone keeps it for Flush.
     function picker.Cancel()
         picker.Close()
         picker.pending = nil

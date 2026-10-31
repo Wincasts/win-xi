@@ -1,6 +1,6 @@
 -- Chatbox links: tokens, names under the mouse and their tooltips, against the real catalogs and a
 -- stand-in for the client's resources. No FFXI needed.
-package.path = 'addons/chatbox/?.lua;addons/libs/?.lua;' .. package.path
+package.path = 'addons/winchat/?.lua;addons/libs/?.lua;' .. package.path
 require('winxi.gamedata').Root('addons/libs/winxi/data/')
 
 -- imgui and the tooltip record what is drawn

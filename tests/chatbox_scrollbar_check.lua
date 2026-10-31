@@ -1,4 +1,4 @@
-package.path = 'addons/chatbox/?.lua;' .. package.path
+package.path = 'addons/winchat/?.lua;' .. package.path
 local bar = require('scrollbar')
 assert(bar.Layout(10,20,120,10,10,0) == nil, 'no scrollbar when all rows fit')
 assert(bar.Layout(10,20,20,100,10,0) == nil)

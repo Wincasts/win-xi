@@ -1,7 +1,7 @@
 -- Chatbox's Auto-Translate item and key item list (known.lua): held between sessions per character, heard until
 -- the game closes for every character played, and the file it keeps.
-package.path = 'addons/chatbox/?.lua;' .. package.path
-local known = dofile('addons/chatbox/known.lua')
+package.path = 'addons/winchat/?.lua;' .. package.path
+local known = dofile('addons/winchat/known.lua')
 local function check(label, ok) assert(ok, label) end
 
 -- The file

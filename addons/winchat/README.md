@@ -1,4 +1,9 @@
-# chatbox (experimental)
+# winchat (experimental)
+
+Up to 0.17 this addon was called chatbox. Load `winchat` in place of `chatbox` and remove the old
+`addons\chatbox` folder: each character's settings are brought over from `chatbox` the first time it
+logs in, and its Auto-Translate list is read from there until winchat writes its own. `/chatbox` still
+works as `/winchat`.
 
 A **WinXI-styled chat log that the game still drives**. The compact log takes the place and
 **size** of the game's main log (it follows the game's chat size setting), in WinXI's background and border art,
@@ -11,9 +16,9 @@ each where the game's are.
 - The title follows `/cm` (`/chatmode`) at once, with a passing override for a line typed with
   `/p`, `/l`, `/t` and the like. Until a mode command is seen, it is the last channel spoken in (Say
   to begin with). Linkshells show `Linkshell 1: Name` or `Linkshell 2: Name`, from the equipped
-  pearl. If you loaded chatbox mid-session and names are missing, re-equip your pearls, because the game
+  pearl. If you loaded winchat mid-session and names are missing, re-equip your pearls, because the game
   sends their slots on login and equip.
-  **Window Title** in the Chatbox section puts your own words there instead; left empty, the channel.
+  **Window Title** in the Winchat section puts your own words there instead; left empty, the channel.
 - Native and SimpleLog inline colours are always kept; text with no colour of its own takes its native chat-mode
   colour. The colours are the game's own, as you have set them, read through uihook; without uihook, close
   approximations.
@@ -22,12 +27,12 @@ each where the game's are.
   These share one chronological store (at most 768 messages; a message in more than one list is stored once).
   Routing changes apply to the kept messages; messages already dropped cannot be brought back.
   No chat is written to disk. As it starts
-  (and after a reset or a new character), chatbox reads the game's own history once through uihook,
+  (and after a reset or a new character), winchat reads the game's own history once through uihook,
   the first log window's last 100 lines, and puts them before its own, so a reload or a late load
   does not begin empty; lines it already has are left out. The game keeps a message as the lines it
   wrapped it into. With timestamps on, a line without one is joined back to the message before it, so
   each message is whole again (with timestamps off, each of the game's lines stays a message).
-  `/chatbox status` says how many were read. The expanded log is the game's own.
+  `/winchat status` says how many were read. The expanded log is the game's own.
 - While you type, the input bar takes the compact log's bottom rows. The log's total footprint does not move or grow. The game's clock and its icons follow the top
   of the log.
 - With **Log Window 2** on in the game's settings, a second box stands where the game puts its second
@@ -53,7 +58,7 @@ each where the game's are.
 ## Install
 
 ```text
-addons/chatbox/          this directory
+addons/winchat/          this directory
 addons/libs/winxi/       WinXI 24 or newer (including infopanel code and bundled icons)
 addons/wxi/    shared theme settings (optional)
 plugins/uihook.dll       0.5 or newer, chat ABI 13 (native content, the tab strip, scrollbar and rows of text measured, the two log windows' routing and lines, the game's colours); 0.8 or newer reads each chat line after every addon, so the addon load order does not matter
@@ -61,33 +66,33 @@ plugins/uihook.dll       0.5 or newer, chat ABI 13 (native content, the tab stri
 
 Build uihook with `plugins/uihook/build.sh`; the output is `plugins/uihook/build/uihook.dll`. Turn
 replacement off or unload the addon before you replace its files, and unload uihook before you replace
-its DLL. Update the DLL and `addons/libs/winxi` together with chatbox. Do not run FancyChat,
+its DLL. Update the DLL and `addons/libs/winxi` together with winchat. Do not run FancyChat,
 hidechatbg or other addons that write the native chat's visibility alongside it.
 
 ```text
 /load uihook
-/addon load chatbox
+/addon load winchat
 ```
 
 With uihook 0.8 or newer loaded after `addons` (as `/load addons` then `/load uihook`), the addon
-load order does not matter. Chatbox reads each chat line through uihook as it stands after every
+load order does not matter. Winchat reads each chat line through uihook as it stands after every
 addon, so SimpleLog's timestamps and a filter's blocks reach it whether SimpleLog is loaded before or
-after it (`/chatbox status` says "Lines: read through uihook after every addon"). Where uihook is
-loaded before `addons`, its copy is the game's original, and chatbox keeps its own copy of a line an
+after it (`/winchat status` says "Lines: read through uihook after every addon"). Where uihook is
+loaded before `addons`, its copy is the game's original, and winchat keeps its own copy of a line an
 earlier addon changed instead. Without that uihook, load chat formatting and filtering addons,
-SimpleLog among them, **before** chatbox. It then reads `text_in`'s modified text and mode and ignores
+SimpleLog among them, **before** winchat. It then reads `text_in`'s modified text and mode and ignores
 blocked messages, but cannot see changes made by handlers that run after its own. An alphabetical
-`scripts/default.txt` loads chatbox before simplelog, so move simplelog's line above chatbox's, or
-every game start puts them back (SimpleLog's timestamps then reach the game's log but not chatbox's;
-`/chatbox bytes` says so). Chatbox never blocks or rewrites a message, so the game's history keeps
+`scripts/default.txt` loads winchat before simplelog, so move simplelog's line above winchat's, or
+every game start puts them back (SimpleLog's timestamps then reach the game's log but not winchat's;
+`/winchat bytes` says so). Winchat never blocks or rewrites a message, so the game's history keeps
 everything and is there if replacement stops. SimpleLog's multi-hit and critical tags, aggregation,
 actor filters, timestamps and job profiles come through that way; there is no second combat
 formatter or filter.
 
 ## Optional Info Panel
 
-The **Info Panel** tab in `/chatbox` has General, Layout, Data, Window 2, Text and Icons subtabs. Turn the panel on
-there or with `/chatbox panel on`. It is **off by default**, so an update does not add a second copy
+The **Info Panel** tab in `/winchat` has General, Layout, Data, Window 2, Text and Icons subtabs. Turn the panel on
+there or with `/winchat panel on`. It is **off by default**, so an update does not add a second copy
 of a clock panel you already have.
 
 - Three separate **Left/Middle/Right** slots, each with a format, a field picker, Left/Center/Right
@@ -96,7 +101,7 @@ of a clock panel you already have.
 - Fields: `{time}`, `{zone}`, `{grid}`, `{day}`, `{date}`, `{moon}`, `{weather}`, `{dayicon}`,
   `{weathericon}`, `{level}`, `{exp}`, `{tnl}`, `{rate}`. For example, Left: `{time} | {zone}`,
   Middle: `{day} | {date}`, Right: `{tnl} | {rate}`. An empty field takes the divider before it away.
-- Width 0 follows the chatbox that owns the panel. Height 0 matches the prepared input-bar height, or grows to fit
+- Width 0 follows the winchat that owns the panel. Height 0 matches the prepared input-bar height, or grows to fit
   the panel font/icons and padding. The font and its size can follow chat or be set on their own. Text and icons are
   vertically centred; at a fixed size, overflow is clipped inside its own slot.
 - Attach To Chat (with offsets), or use a custom position and size, which leaves chat where the game
@@ -119,7 +124,7 @@ of a clock panel you already have.
   made by `tools/generate_classic_icons.py`) are bundled. Each has a picture for every weather, including the skies the
   game draws no icon for (a sun for a clear sky, a pair of clouds, a bank of fog), and `gems`
   supplies any custom picture that is missing. Hidden/Native placement does not add an icon on its own;
-  chatbox never changes the native HUD's visibility.
+  winchat never changes the native HUD's visibility.
 - Hover a **day icon** to see the Vana'diel weekday and its element. Hover a **weather icon** or the
   `{weather}` words to see the weather name, element and single/double strength (or no elemental
   weather for clear skies, clouds and fog), and then the **zone's forecast**: today and the four days
@@ -161,76 +166,76 @@ of a clock panel you already have.
   clock no longer stop the panel. When both compact logs are empty, at zero native lines, or
   hidden by Smart Visibility, the panel (if on) stays visible. Menu anchors use its real bounds,
   with no space reserved for the collapsed logs. It still hides during expanded history, zoning,
-  chatbox off, or when no valid native layout or capture is available. Custom positioning does not override these rules.
+  winchat off, or when no valid native layout or capture is available. Custom positioning does not override these rules.
 - Time, zone and EXP data do not need the native clock to be drawn. Weather uses the login and weather packets,
   then fresh native data or a direct read of the game's weather state. Its icon stays available while
-  fishing, in events, or when the native clock is hidden, even when Chatbox loads mid-session.
+  fishing, in events, or when the native clock is hidden, even when Winchat loads mid-session.
   A passing read failure keeps the last known weather; leaving a zone and character resets clear it.
   Clear skies are a real value, never a guessed fallback. `{grid}` likewise falls back to the game's
   own grid function while the clock is hidden; zones without a grid still omit it.
 
-**Switching from clock:** install this chatbox and the full updated Winxi library, including the
-shared panel icons. `/addon unload clock`, `/addon reload chatbox`, then `/chatbox panel on`.
-Chatbox does not need the clock addon or its folder; existing clock settings are left as they are
-and are not imported. Use `/chatbox panel off` before you go back to clock.
+**Switching from clock:** install this winchat and the full updated Winxi library, including the
+shared panel icons. `/addon unload clock`, `/addon reload winchat`, then `/winchat panel on`.
+Winchat does not need the clock addon or its folder; existing clock settings are left as they are
+and are not imported. Use `/winchat panel off` before you go back to clock.
 
-**Hide Game Clock** (Info Panel → General, off by default; `/chatbox clock [hide|show]`) hides the
-game's clock, its time and its day and weather icons while chatbox runs, with the panel on or off.
-Each frame chatbox renews an empty replacement in uihook's clock slot and names both icons hidden,
+**Hide Game Clock** (Info Panel → General, off by default; `/winchat clock [hide|show]`) hides the
+game's clock, its time and its day and weather icons while winchat runs, with the panel on or off.
+Each frame winchat renews an empty replacement in uihook's clock slot and names both icons hidden,
 so the game still runs its clock: `{grid}` and the weather stay readable for the panel. Turning it
-off, chatbox off, zoning or unloading gives the game's clock back at once. Needs uihook with clock
-support; unload the clock addon and hidecompass, which use the same object. `/chatbox status`
+off, winchat off, zoning or unloading gives the game's clock back at once. Needs uihook with clock
+support; unload the clock addon and hidecompass, which use the same object. `/winchat status`
 reports it as Game Clock.
 
-**Hide Compass** (Info Panel → General, off by default; `/chatbox compass [hide|show]`) does the same
+**Hide Compass** (Info Panel → General, off by default; `/winchat compass [hide|show]`) does the same
 for the game's compass and its radar, through uihook's compass slot. The clock is not affected
 either way, and each can be hidden alone. It is given back on the same terms as the clock.
 
-The game's own menus are left where the game puts them: chatbox no longer moves the action menus above
+The game's own menus are left where the game puts them: winchat no longer moves the action menus above
 the info panel (Anchor Above Info Panel, removed in 0.15.0).
 
 ## Commands
 
 ```text
-/chatbox          the settings
-/chatbox on       Enable chatbox
-/chatbox off      Disable chatbox: the game's logs come back at once
-/chatbox clear    forget the messages this addon keeps
-/chatbox timestamps   toggle the Timestamps option (on or off to set it)
-/chatbox translate    toggle Auto-Translate, chatbox's own phrase, item and key item list on Tab (on or off to set it)
-/chatbox status   bridge status, the last box drawn, kept-message and decode-error counts
-/chatbox modes    the last ten lines kept and their chat modes (to find a channel's)
-/chatbox bytes    the last incoming line: original, modified, expanded and UTF-8 bytes (hex, first 256 of each)
-/chatbox panel on     enable the optional info panel (off by default)
-/chatbox panel off    hide the info panel without affecting chat
-/chatbox panel reset  reset the panel's EXP-per-hour tracker
-/chatbox clock        toggle hiding the game's clock (hide or show to set it)
-/chatbox compass      toggle hiding the game's compass (hide or show to set it)
+/winchat          the settings
+/winchat on       Enable winchat
+/winchat off      Disable winchat: the game's logs come back at once
+/winchat clear    forget the messages this addon keeps
+/winchat timestamps   toggle the Timestamps option (on or off to set it)
+/winchat translate    toggle Auto-Translate, winchat's own phrase, item and key item list on Tab (on or off to set it)
+/winchat status   bridge status, the last box drawn, kept-message and decode-error counts
+/winchat modes    the last ten lines kept and their chat modes (to find a channel's)
+/winchat bytes    the last incoming line: original, modified, expanded and UTF-8 bytes (hex, first 256 of each)
+/winchat panel on     enable the optional info panel (off by default)
+/winchat panel off    hide the info panel without affecting chat
+/winchat panel reset  reset the panel's EXP-per-hour tracker
+/winchat clock        toggle hiding the game's clock (hide or show to set it)
+/winchat compass      toggle hiding the game's compass (hide or show to set it)
 /uihook chat      native recognition, focus/expansion flags, cursor, page, scroll and filter
 /winxi            the shared WinXI look, with wxi installed
 ```
 
 ## Settings
 
-`/chatbox` opens the Settings, Info Panel and Tooltips tabs. Every setting is a described row: its name, a sentence under it
+`/winchat` opens the Settings, Info Panel and Tooltips tabs. Every setting is a described row: its name, a sentence under it
 saying what it does, and its control at the right (winxi 65). There is no Winxi Theme tab. Settings are kept for each character. The
-Chatbox and Look sections apply in both modes. The Layout and Activity sections belong to the WinXI Skin and
+Winchat and Look sections apply in both modes. The Layout and Activity sections belong to the WinXI Skin and
 show only in it (their settings are kept, and ignored, in Follow Game). The look is WinXI's in both:
 the mode is how the boxes behave and where they stand.
 
-**Chatbox**
+**Winchat**
 
-- **Enable** (on to begin with): turns on chatbox's log and input bar. Off, the native log and input
+- **Enable** (on to begin with): turns on winchat's log and input bar. Off, the native log and input
   come back, and all the other controls in Settings, Info Panel and Tooltips are greyed out. Saved settings
-  are kept. `/chatbox on` and `/chatbox off` control this switch.
+  are kept. `/winchat on` and `/winchat off` control this switch.
 - **Replace Native Chat** (on to begin with): on chooses **Follow Game**; off chooses **WinXI Skin**.
-  This changes the layout behaviour, not whether chatbox is on. Existing mode settings are kept.
-- **Auto-Translate** (on to begin with): Tab while typing opens chatbox's own list of auto-translate
+  This changes the layout behaviour, not whether winchat is on. Existing mode settings are kept.
+- **Auto-Translate** (on to begin with): Tab while typing opens winchat's own list of auto-translate
   phrases, from the installed client's dictionary, and of your character's own items (in any bag) and key
   items, as the game's own lists are, for the word at the caret (with no word, the 42 categories and Items
   and Key Items), drawn above the input bar. An item or key item says so at the right of its row. Your
   bags are read each time the list opens, and what you have held stays in the list for good, kept for
-  each character in `config/addons/chatbox/<name>_<id>/autotranslate.lua`. An item or key item someone
+  each character in `config/addons/winchat/<name>_<id>/autotranslate.lua`. An item or key item someone
   writes in chat (a yell selling it, a tell) is in your list too until you close the game, for every
   character you log into until then. Tab, Shift+Tab, Up and Down move; Page Up and Page Down move a
   page; Enter puts the phrase, item or key item in (on a category, opens it); Escape closes (in a category, goes back to the
@@ -241,13 +246,13 @@ the mode is how the boxes behave and where they stand.
     follows the game's own setting, as the Phoenix launcher sets it (XInput or DirectInput; a DirectInput
     controller is taken for a PlayStation one). Otherwise XInput is an Xbox controller, or one set up to act
     as one; for any other choose its DirectInput make (PlayStation, Switch Pro, Stadia). With the wrong kind
-    no button reaches the list; the settings and `/chatbox status` say so once a button is pressed.
+    no button reaches the list; the settings and `/winchat status` say so once a button is pressed.
   - **Navigation Sounds** (on to begin with): the winxi menu sounds as the list opens, the highlight moves
     a row (keys, Tab or the d-pad), a page turns, a choice goes in or a category opens, and the list goes
     back or closes; a choice too long for the line plays the error sound. The sounds are winxi's
-    (`addons/libs/winxi/sounds`); a wav of the same name in `addons/chatbox/sounds` is played in its place. Typing goes on narrowing the list. The phrase goes into your line as its real token, so
+    (`addons/libs/winxi/sounds`); a wav of the same name in `addons/winchat/sounds` is played in its place. Typing goes on narrowing the list. The phrase goes into your line as its real token, so
   others see it in their own language when you send. Off, Tab is the game's, whose own menu takes the
-  input bar back for as long as it is open. `/chatbox translate on` and `off` do the same.
+  input bar back for as long as it is open. `/winchat translate on` and `off` do the same.
   Native window size does not necessarily mean the same number of lines.
   - *On, Follow Game*: the log, the input bar and the expanded log where the game puts its own, at its sizes.
     Each log follows its game window's size and its lines, as the game grows its window a row for each
@@ -259,11 +264,11 @@ the mode is how the boxes behave and where they stand.
   - *Off, WinXI Skin*: the addon's own Width and rows, the activity controls, and the expanded log's place
     and height, from the Layout and Activity sections.
 - **Timestamps** (on to begin with): the time in front of each line as SimpleLog's Timestamps or
-  Ashita's timestamp addon writes it; chatbox adds none of its own. Off, those are hidden in the
+  Ashita's timestamp addon writes it; winchat adds none of its own. Off, those are hidden in the
   compact log, Window 2 and the expanded log; the messages keep them, so turning it on shows them
   again at once. Turn on timestamps in either SimpleLog or the timestamp addon to supply them;
-  do not turn on both, or the stamps double. `/chatbox timestamps on`
-  and `off` do the same. There is no button to clear the history; `/chatbox clear` is still there.
+  do not turn on both, or the stamps double. `/winchat timestamps on`
+  and `off` do the same. There is no button to clear the history; `/winchat clear` is still there.
 - **Chat Tooltips** (Tooltips tab, on to begin with): rest the mouse on an item, key item, auto-translate phrase,
   spell, ability, weapon skill, quest or place in the compact log, Window 2 or (with Replace Expanded Log)
   the expanded log's rows, and a tooltip shows it; the gap between two rows counts as the row above. Under
@@ -399,17 +404,17 @@ or expanding it, brings back the ordinary clock placement.
 history, Enter and Escape are the **same native editor's**, as are the chat mode, commands and
 sending; the bar draws its text and blinking caret and scrolls to keep the caret in view.
 Auto-translate phrases already in the line use the game's display buffer; otherwise the raw-byte caret is used.
-With Auto-Translate on, Tab while the game's input is open is chatbox's, so the game's own auto-translate
-menu, which would take the input bar back, never opens; while chatbox's list is open, Up, Down, Page Up,
+With Auto-Translate on, Tab while the game's input is open is winchat's, so the game's own auto-translate
+menu, which would take the input bar back, never opens; while winchat's list is open, Up, Down, Page Up,
 Page Down, Enter and Escape are its own too. They are blocked in Ashita's `key` event (which sees a key
 before the game's input handler) and DirectInput's `key_data`, each until it is let go. The game reads the
 Enter that sends the line from DirectInput's polled keyboard state, though, not from a key message, so
-blocking those alone sent the half-typed line. So chatbox also clears the list's keys from that state
+blocking those alone sent the half-typed line. So winchat also clears the list's keys from that state
 (`key_state`, written through `data_modified_raw`) while the list is open and while a key it acted on is
-still down. No other key's state is touched; `/chatbox status` counts the times it cleared one. The chosen phrase's six-byte token replaces the word (or goes
+still down. No other key's state is touched; `/winchat status` counts the times it cleared one. The chosen phrase's six-byte token replaces the word (or goes
 in at the caret from a category) on the next frame, through Ashita's `SetInputText`, or each buffer's
 setter where that is not kept, and is read back to be sure. Text typed since the choice is never overwritten,
-and a line past the setters' 120 bytes is refused rather than cut. `/chatbox status` says what was
+and a line past the setters' 120 bytes is refused rather than cut. `/winchat status` says what was
 written. Nothing is sent, no outgoing message is blocked and no key is pressed for the game: the next
 Enter sends the line as ever, with the token in it.
 
@@ -526,4 +531,4 @@ logs, wrapping, Enter, slash and mode shortcuts, history, editing and caret scro
 the Auto-Translate list (Tab never reaching the game, Enter's phrase kept and not sent) and IME, non-Latin glyphs, input fallback, expanded history, selection and focus
 changes, confirm and cancel, menu hiding, shared widths, input lift and close, clock anchoring,
 zoning, UI hide, theme and font changes, device recovery, and unloading and reloading the addon and
-plugin. `/chatbox off` returns to the game's chat at once.
+plugin. `/winchat off` returns to the game's chat at once.

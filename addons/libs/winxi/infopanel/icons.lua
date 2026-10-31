@@ -62,7 +62,7 @@ local function Picture(set, folder, name)
     return handle or nil
 end
 
--- A host can keep its existing custom icon directory; chatbox uses the shared one.
+-- A host can keep its existing custom icon directory; winchat uses the shared one.
 function icons.Root(path)
     if root ~= path then icons.Forget(); root = path end
 end

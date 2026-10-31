@@ -1,5 +1,5 @@
 -- Standalone addon integration: real model, stub UI/native callbacks. No FFXI needed.
-package.path = 'addons/chatbox/?.lua;addons/libs/?.lua;' .. package.path
+package.path = 'addons/winchat/?.lua;addons/libs/?.lua;' .. package.path
 -- the real auto-translate dictionary for Auto-Translate's picker, read from the repository rather than the game's install
 require('winxi.gamedata').Root('addons/libs/winxi/data/')
 addon = {}
@@ -260,7 +260,7 @@ package.loaded.links = {
     Tooltip = function(reference, notes) linkStub.tips[#linkStub.tips+1] = { reference=reference, notes=notes, captures=hooks[0].captures, themeFont=themeFontDepth>0 }; return true end,
     Reset = function() linkStub.resets = linkStub.resets + 1 end,
 }
-dofile('addons/chatbox/chatbox.lua')
+dofile('addons/winchat/winchat.lua')
 local function frame()
     text={}; outlines={}; filled={}; images={}; labels={}; overs={}; lines={}
     events.d3d_present(); assert(styleDepth==0, 'input minimum-size override balanced'); assert(fontDepth==0, 'chat font pushes balanced'); assert(themeFontDepth==0, 'the theme font round the tooltips popped')
@@ -647,15 +647,15 @@ imgui.Selectable=function() return false end
 imgui.EndCombo=function() end
 imgui.BeginCombo=function() return true end
 spec.drawSettings(app.options)
-assert(table.concat(opened,',')=='Chatbox,Layout,Activity,Look','WinXI Skin, collapsed: the Chatbox section and the skin\'s three')
+assert(table.concat(opened,',')=='Winchat,Layout,Activity,Look','WinXI Skin, collapsed: the Winchat section and the skin\'s three')
 for _,name in ipairs(opened) do headers[name]=true end
 headers['Chat Log Window'], headers['Input Text Box'] = true, true
 opened={}
 spec.drawSettings(app.options)
-assert(table.concat(opened,',')=='Chatbox,Layout,Activity,Look','open: settings sections without per-window colour overrides')
+assert(table.concat(opened,',')=='Winchat,Layout,Activity,Look','open: settings sections without per-window colour overrides')
 app.options.mode[1]='game'; opened={}
 spec.drawSettings(app.options)
-assert(table.concat(opened,',')=='Chatbox,Look','Follow Game: the Chatbox and Look sections; no Layout or Activity')
+assert(table.concat(opened,',')=='Winchat,Look','Follow Game: the Winchat and Look sections; no Layout or Activity')
 app.options.mode[1]='skin'
 -- Each control in its section: Layout the sizes and the expanded log's place, Activity each window's, Look the rest.
 -- A window's Animate Resize, Resize Duration, Minimum Rows and Fade Duration are rows under their switch, greyed
@@ -673,8 +673,8 @@ imgui.Checkbox,imgui.SliderInt,imgui.SliderFloat=recordControl,recordControl,rec
 spec.drawSettings(app.options)
 assert(controlOrder[1]=='##chatbox.enabled' and controlOrder[2]=='##chatbox.replaceNativeChat' and controlOrder[3]=='##chatbox.autoTranslate',
     'Enable, Replace Native Chat, then Auto-Translate')
-assert(controlGroups['##chatbox.enabled']=='Chatbox' and controlGroups['##chatbox.timestamps']=='Chatbox',
-    'the switches in the Chatbox section (the font is winxi\'s widget, not recorded here)')
+assert(controlGroups['##chatbox.enabled']=='Winchat' and controlGroups['##chatbox.timestamps']=='Winchat',
+    'the switches in the Winchat section (the font is winxi\'s widget, not recorded here)')
 assert(controlGroups['##chatbox.chatTooltips']==nil and controlGroups['##chatbox.tooltipNotes']==nil,
     'tooltip controls no longer appear in the main Settings tab')
 headers['Chat Tooltips']=true
@@ -942,12 +942,12 @@ local report=table.concat(byteReport,'\n')
 assert(report:find('48 69 6C 6C 3F 4C',1,true) and report:find('48 69 6C 6C A0 4C',1,true),
     'byte diagnostic distinguishes original question marks from modified non-ASCII separators')
 assert(not report:find('\160',1,true),'diagnostic prints safe ASCII hex, not control bytes')
-assert(byteReport[1]:find('no timestamp in front',1,true) and byteReport[1]:find('loaded after chatbox',1,true),'the report says the line reached chatbox without a stamp, and why that can be')
+assert(byteReport[1]:find('no timestamp in front',1,true) and byteReport[1]:find('loaded after winchat',1,true),'the report says the line reached chatbox without a stamp, and why that can be')
 byteReport={}; spec.commands.clear(); spec.commands.bytes()
 assert(#byteReport==1 and byteReport[1]:find('No decode sample',1,true),'clear removes captured diagnostic data')
 -- as in the game, each line the report says goes through text_in itself: the sample is held for the whole report
 byteReport={}
-app.Say=function(_,line) byteReport[#byteReport+1]=line; events.text_in({mode=11,message='[chatbox] '..line,injected=true}) end
+app.Say=function(_,line) byteReport[#byteReport+1]=line; events.text_in({mode=11,message='[winchat] '..line,injected=true}) end
 message('[12:00:00] Yeller[Jeuno]: stamped by simplelog',{mode=11})
 spec.commands.bytes()
 assert(#byteReport==5 and byteReport[1]:find('a timestamp in front',1,true) and not byteReport[1]:find('addon\'s own',1,true),'the game\'s line, with its stamp')
@@ -1005,7 +1005,7 @@ assert(text[1].text == 'wheel 1' and text[10].text == 'wheel 10', 'scroll clamps
 -- No destructive clear button in settings; the explicit command still resets scrolling.
 do local oldSmall=imgui.SmallButton; imgui.SmallButton=function(label)
         assert(not label:find('chatbox.clear',1,true),'history clear button removed'); return false end
-    headers['Chatbox']=true; spec.drawSettings(app.options); headers['Chatbox']=nil; imgui.SmallButton=oldSmall end
+    headers['Winchat']=true; spec.drawSettings(app.options); headers['Winchat']=nil; imgui.SmallButton=oldSmall end
 spec.commands.clear()
 for i=1,80 do message('wheel ' .. i) end; frame() -- no frame between: nothing has clamped the old scroll away
 assert(text[10].text == 'wheel 80', 'the clear command forgets the scroll as well, so the newest line is at the bottom again')
@@ -1675,7 +1675,7 @@ assert(historyRequests==requests+1 and table.concat(texts,'|')=='[01:00:00] Old 
 assert(text[2].color==require('palette').Mode(5),'in its mode\'s colour')
 frame(); assert(historyRequests==requests+1,'read once')
 local said5={}; app.Say=function(_,line) said5[#said5+1]=line end; spec.commands.status(); app.Say=function() end
-assert(table.concat(said5,'\n'):find('Game history: 2 of the game\'s lines put before chatbox\'s own',1,true),'/chatbox status says so')
+assert(table.concat(said5,'\n'):find('Game history: 2 of the game\'s lines put before winchat\'s own',1,true),'/chatbox status says so')
 events.unload(); frame(); frame(); assert(historyRequests==requests+2,'read again after a reset')
 -- timestamps on: a line without one is the rest of the message before it in the same mode, joined back to it
 gameLines={{text='[01:00:00] [uihook:party] Party/target',mode=0},{text='[target] on; unload hideparty first.',mode=0},
@@ -1728,7 +1728,7 @@ app.Say=function() end
 -- Each line read through uihook after every addon (uihook 0.8): chatbox's own copy held for the frame and the line
 -- kept as uihook has it, so a formatter or filter loaded after chatbox still reaches it
 local said7={}; app.Say=function(_,line) said7[#said7+1]=line end
-spec.commands.status(); assert(table.concat(said7,'\n'):find('Lines: chatbox\'s own text_in: load formatting addons before it (Load uihook 0.8',1,true),'without the tap, status says lines are chatbox\'s own and why')
+spec.commands.status(); assert(table.concat(said7,'\n'):find('Lines: winchat\'s own text_in: load formatting addons before it (Load uihook 0.8',1,true),'without the tap, status says lines are chatbox\'s own and why')
 spec.commands.clear(); tapReady=true; frame()
 local function tapped(l) tapLines=tapLines or {}; tapLines[#tapLines+1]=l end
 message('Ann : hi',{mode=9}); frame()
@@ -1756,7 +1756,7 @@ message('never tapped',{mode=9}); frame(); assert(#text==count,'a held copy uiho
 tapClock=tapClock+1; frame(); assert(text[#text].text=='never tapped','and is kept as chatbox\'s own after half a second')
 os.clock=tapRealClock
 tapReady=false; message('tap gone',{mode=9}); frame(); assert(text[#text].text=='tap gone','without the tap, each line is kept as it arrives again')
-said7={}; app.Say=function(_,line) said7[#said7+1]=line end; spec.commands.status(); assert(table.concat(said7,'\n'):find('Lines: chatbox\'s own',1,true),'status says lines are chatbox\'s own again')
+said7={}; app.Say=function(_,line) said7[#said7+1]=line end; spec.commands.status(); assert(table.concat(said7,'\n'):find('Lines: winchat\'s own',1,true),'status says lines are chatbox\'s own again')
 app.Say=function() end
 -- Explicit row counts are independent of game sizing and each other.
 chatState.expanded=false; chatState.selected=false; chatState.selectedWindow=nil
@@ -2290,13 +2290,13 @@ assert(app.options.controllerType=='auto' and pad.IsAutomatic() and pad.GetLayou
 imgui.BeginCombo=function(id,label) if id=='##chatbox.controllerType' then padLabel=label end; return id=='##chatbox.controllerType' end
 imgui.Selectable=function(label) return label:find('##chatbox.controllerType.xinput',1,true)~=nil end
 local savesBefore=saves
-headers['Chatbox']=true
+headers['Winchat']=true
 spec.drawSettings(app.options)
 assert(padLabel=='Automatic' and app.options.controllerType=='xinput' and pad.GetLayout()=='xinput' and not pad.IsAutomatic() and saves==savesBefore+1,
     'XInput chosen over Automatic: set and saved')
 imgui.Selectable=function(label) return label:find('##chatbox.controllerType.auto',1,true)~=nil end
 spec.drawSettings(app.options)
-headers['Chatbox']=nil
+headers['Winchat']=nil
 assert(app.options.controllerType=='auto' and pad.IsAutomatic() and pad.GetLayout()=='playstation' and saves==savesBefore+2,'Automatic chosen again')
 imgui.BeginCombo,imgui.Selectable=oldCombo,oldSelectable
 app.options.controllerType='playstation'; spec.onSettings(app.options)

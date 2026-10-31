@@ -34,4 +34,4 @@ Bundled gems are repository-generated MIT artwork. Regenerate this shared copy w
 python3 tools/generate_clock_icons.py --output addons/libs/winxi/infopanel/icons/gems
 ```
 
-See [chatbox](../../../chatbox/README.md#optional-info-panel) for controls, data fields and migration.
+See [winchat](../../../winchat/README.md#optional-info-panel) for controls, data fields and migration.

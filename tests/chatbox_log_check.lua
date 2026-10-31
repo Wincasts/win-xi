@@ -1,5 +1,5 @@
-package.path = 'addons/chatbox/?.lua;' .. package.path
-local model = dofile('addons/chatbox/log.lua')
+package.path = 'addons/winchat/?.lua;' .. package.path
+local model = dofile('addons/winchat/log.lua')
 local function measure(text) return select(2, text:gsub('[^\128-\191]', '')) end
 local function same(actual, expected)
     assert(#actual == #expected, table.concat(actual, '|'))

@@ -9,7 +9,7 @@
 --                                   out the dimmed lines (the catalogs' caveats, a phrase's category and kind)
 --   links.Reset()                   drops every name map and every row's results
 --
--- A bracketed phrase or link is known by its token where chatbox gives the row's tokens; anything else is
+-- A bracketed phrase or link is known by its token where winchat gives the row's tokens; anything else is
 -- known by its name, the longest name of one to six words round the mouse. Names of one word must be
 -- written as the game writes them (Fire and Shield are ordinary words too); longer names are matched
 -- whatever their case. Items are asked of the client by name; spells, abilities, weapon skills, quests
@@ -398,7 +398,7 @@ function links.At(text, offset, tokens, enabled)
     if enabled ~= nil and type(enabled) ~= 'table' then enabled = nil end
     local ok, reference = pcall(Find, text, math.floor(offset), tokens, enabled)
     if not ok or not reference then return nil end
-    -- a copy, so what chatbox does with it never reaches the cache
+    -- a copy, so what winchat does with it never reaches the cache
     return { kind = reference.kind, id = reference.id, log = reference.log, name = reference.name,
         first = reference.first, last = reference.last }
 end

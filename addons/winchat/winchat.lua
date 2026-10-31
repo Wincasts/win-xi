@@ -1,6 +1,6 @@
-addon.name = 'chatbox'
+addon.name = 'winchat'
 addon.author = 'win'
-addon.version = '0.17.0-pre1'
+addon.version = '0.18.0'
 addon.desc = 'WinXI native-backed chat, input and expanded history, with an optional chat-owned three-slot info panel.'
 local winxiNeeded = 68
 do
@@ -8,7 +8,7 @@ do
     local number = ok and type(found) == 'table' and found.Number or 0
     if number < winxiNeeded then
         local text = ('%s needs winxi %d or newer, and addons/libs/winxi is %d: install the newest release of any winxi addon.'):format(addon.name, winxiNeeded, number)
-        print('[chatbox] ' .. text)
+        print('[winchat] ' .. text)
         error(text, 0)
     end
 end
@@ -45,15 +45,17 @@ local function Tokens(raw)
     return ok and type(tokens) == 'table' and #tokens > 0 and tokens or nil
 end
 -- Auto-Translate's items and key items (known.lua): what the character has held, in
--- config/addons/chatbox/<name>_<id>/autotranslate.lua, and what was heard in chat until the game closes, for
+-- config/addons/winchat/<name>_<id>/autotranslate.lua, and what was heard in chat until the game closes, for
 -- every character played until then
 local known = require('known')
-local function KnownPath(character)
-    return AshitaCore:GetInstallPath():gsub('[\\/]+$', '') .. '\\config\\addons\\' .. addon.name .. '\\' .. character .. '\\'
+local function KnownPath(character, name)
+    return AshitaCore:GetInstallPath():gsub('[\\/]+$', '') .. '\\config\\addons\\' .. (name or addon.name) .. '\\' .. character .. '\\'
 end
 local knownStore = known.New({
     Read = function(character)
+        -- kept under the old name until written under the new one
         local file = io.open(KnownPath(character) .. 'autotranslate.lua', 'rb')
+            or io.open(KnownPath(character, 'chatbox') .. 'autotranslate.lua', 'rb')
         if not file then return nil end
         local text = file:read('*a')
         file:close()
@@ -157,7 +159,7 @@ local flags = bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoResize, Im
     ImGuiWindowFlags_NoFocusOnAppearing, ImGuiWindowFlags_NoBringToFrontOnFocus)
 -- The last box drawn, kept up to HOLD_FRAMES while the game's log has no fresh place (opening or closing)
 local held, frame, HOLD_FRAMES = nil, 0, 30
-local lastDrawn, lastSplit, lastHandOver = nil, nil, nil -- for /chatbox status: the last boxes drawn, and why the game's was shown
+local lastDrawn, lastSplit, lastHandOver = nil, nil, nil -- for /winchat status: the last boxes drawn, and why the game's was shown
 local splitStatus = 'Second window: none; the game shows one log window.'
 -- /cm selects the persistent input mode; a one-line /p or /l only overrides its preview.
 -- Until a mode command is observed, retain the last sent channel as a fallback.
@@ -176,12 +178,12 @@ local function ResetViews(scroll)
 end
 local Translate = {} -- Auto-Translate's picker, its keys and status, in a block: the main chunk is near LuaJIT's 200 locals
 do
-    -- Auto-Translate: chatbox's own list of phrases on Tab while typing (translate.lua). The game's own menu, once open,
+    -- Auto-Translate: winchat's own list of phrases on Tab while typing (translate.lua). The game's own menu, once open,
     -- is the game's active menu and takes the input bar back from uihook for as long as it stays open, so Tab is kept
     -- from the game and the phrase goes into the game's buffer as its token instead. The game sends the line on Enter
     -- read from DirectInput's polled keyboard state, so the picker's keys are cleared from that state as well as blocked
     -- in Ashita's key events (see key_state below). The picker and the dictionary are made on first use, so a missing
-    -- one only turns the feature off, with the reason in /chatbox status.
+    -- one only turns the feature off, with the reason in /winchat status.
     local ffi = require('ffi')
     local translate, picker, translateProblem, pickerError
     local function Picker()
@@ -202,7 +204,7 @@ do
     local function PickerOpen() return picker and picker.open == true or false end
     local function ClosePicker() if picker then pcall(picker.Close) end end
     local function CancelPicker() if picker then pcall(picker.Cancel) end end
-    -- One of the picker's own calls: a failure closes it, kept for /chatbox status, rather than reaching the game's
+    -- One of the picker's own calls: a failure closes it, kept for /winchat status, rather than reaching the game's
     -- key handling or the frame
     local function Use(name, ...)
         local ok, result = pcall(picker[name], ...)
@@ -311,7 +313,7 @@ do
             pcall(sound.Play, 'back')
         end
     end
-    -- While the list is open the controller is chatbox's (winxi.controller): the d-pad up and down a row, left and
+    -- While the list is open the controller is winchat's (winxi.controller): the d-pad up and down a row, left and
     -- right a page, A (the bottom face button) puts the choice in or opens a category, B goes back or closes. Every
     -- other button and the triggers are taken too, doing nothing, so nothing reaches the game while the list is
     -- open (A never as its confirm, Start never as its menu); closed, the controller is the game's.
@@ -404,11 +406,11 @@ local function Release()
     secondary.Stop()
     input.Stop()
 end
--- The game's own history, put before chatbox's once as it starts (and after a reset, a new character's): the
+-- The game's own history, put before winchat's once as it starts (and after a reset, a new character's): the
 -- first log window's ring, read through uihook. The game keeps a message as the lines it wrapped it into, its
 -- header the same on each; with timestamps on (most lines starting with one), a line with none is the rest of the
 -- one before in the same mode and is joined to it, so each message is whole again (without timestamps each line
--- stays a message). Lines chatbox has already had since it started are left out: from the newest back, those found
+-- stays a message). Lines winchat has already had since it started are left out: from the newest back, those found
 -- in the first messages it kept. Tried for a while, then given up (no uihook, or an old one).
 local IMPORT_TIME = 10 -- seconds, at any frame rate
 local import = { wanted = true, asked = false, since = nil, reader = nil, count = 0, status = 'not yet read' }
@@ -444,7 +446,7 @@ local function ImportLines(lines)
             end
         end
     end
-    -- the newest of the game's lines may be messages chatbox already has: left out from the newest back
+    -- the newest of the game's lines may be messages winchat already has: left out from the newest back
     while #entries > 0 and recent ~= '' and recent:find(entries[#entries].text, 1, true) do entries[#entries] = nil end
     RefreshRetention(primary.Routes and primary.Routes() or nil)
     return model.Prepend(history, entries)
@@ -465,7 +467,7 @@ local function ImportHistory()
     if not lines then return end
     import.wanted = false
     import.count = ImportLines(lines)
-    import.status = ('%d of the game\'s lines put before chatbox\'s own'):format(import.count)
+    import.status = ('%d of the game\'s lines put before winchat\'s own'):format(import.count)
 end
 local function Reset()
     Release()
@@ -536,17 +538,17 @@ local function OwnTitle(value)
     local words = type(value) == 'table' and value[1]
     return type(words) == 'string' and words:match('%S') and words or nil
 end
--- Forget the kept messages, the decode sample and where the log was scrolled to: the settings' Clear and /chatbox clear alike.
+-- Forget the kept messages, the decode sample and where the log was scrolled to: the settings' Clear and /winchat clear alike.
 local function ClearHistory() model.Clear(history); decodeSample = nil; for _, view in ipairs(views) do view.offset, view.pending = 0, 0 end end
 
--- /chatbox clock and /chatbox compass: toggle, or hide/show, the game's own
+-- /winchat clock and /winchat compass: toggle, or hide/show, the game's own
 local function HideHud(options, args, key, name)
     local verb = args[3] and args[3]:lower()
     local hide = options.infoPanel[key]
     if verb == nil then hide[1] = not hide[1]
     elseif verb == 'hide' or verb == 'off' then hide[1] = true
     elseif verb == 'show' or verb == 'on' then hide[1] = false
-    else app:Say(('/chatbox %s [hide|show] hides or shows the game\'s %s.'):format(name, name)); return end
+    else app:Say(('/winchat %s [hide|show] hides or shows the game\'s %s.'):format(name, name)); return end
     app.save()
     app:Say(hide[1] and ('Game %s hidden. Unload clock and hidecompass, which hide the same thing.'):format(name)
         or ('Game %s shown.'):format(name))
@@ -622,14 +624,16 @@ app = shell.New({
         leftPadding = T{ 3 }, rightPadding = T{ 3 }, topPadding = T{ 3 }, bottomPadding = T{ 3 }, paddingVersion = T{ 0 },
         windowTitle = T{ '' }, splitTitle = T{ '' }, chatTooltips = T{ true }, tooltipNotes = T{ true }, tooltipKinds = TooltipKinds(),
         autoTranslate = T{ true }, controllerType = 'auto', translateSounds = T{ true } },
-    command = '/chatbox',
-    configTitle = 'Chatbox Settings',
+    command = '/winchat',
+    aliases = { '/chatbox' },
+    formerName = 'chatbox',
+    configTitle = 'Winchat Settings',
     hideAppearance = true,
-    help = '/chatbox opens settings; /chatbox on, off, clear, status, modes, bytes; /chatbox timestamps [on|off] shows or hides the timestamps SimpleLog or the timestamp addon write; /chatbox panel [on|off|reset] controls the optional info panel; /chatbox clock and /chatbox compass [hide|show] the game\'s; /chatbox translate [on|off] turns chatbox\'s own auto-translate list on Tab on or off.',
+    help = '/winchat opens settings; /winchat on, off, clear, status, modes, bytes; /winchat timestamps [on|off] shows or hides the timestamps SimpleLog or the timestamp addon write; /winchat panel [on|off|reset] controls the optional info panel; /winchat clock and /winchat compass [hide|show] the game\'s; /winchat translate [on|off] turns winchat\'s own auto-translate list on Tab on or off.',
     drawSettings = function(options)
         local game = Game(options)
-        if widgets.Header('Chatbox', true) then
-            if widgets.Check('Enable', 'Draws the chat log, input bar and expanded log in the Winxi look instead of the game default. /chatbox on and off switch it too.', options.enabled, '##chatbox.enabled') then
+        if widgets.Header('Winchat', true) then
+            if widgets.Check('Enable', 'Draws the chat log, input bar and expanded log in the Winxi look instead of the game default. /winchat on and off switch it too.', options.enabled, '##chatbox.enabled') then
                 if not options.enabled[1] then Release() end
                 app.save()
             end
@@ -640,7 +644,7 @@ app = shell.New({
                 options.mode[1] = game and 'game' or 'skin'
                 app.save()
             end
-            if widgets.Check('Auto-Translate', 'Tab while typing lists auto-translate phrases and your own items and key items for the word at the caret, instead of the game default menu. /chatbox translate switches it too.', options.autoTranslate, '##chatbox.autoTranslate', R.enabled) then
+            if widgets.Check('Auto-Translate', 'Tab while typing lists auto-translate phrases and your own items and key items for the word at the caret, instead of the game default menu. /winchat translate switches it too.', options.autoTranslate, '##chatbox.autoTranslate', R.enabled) then
                 if not options.autoTranslate[1] then Translate.Cancel() end
                 app.save()
             end
@@ -664,7 +668,7 @@ app = shell.New({
                 sound.SetEnabled(options.translateSounds[1])
                 app.save()
             end
-            if widgets.Check('Timestamps', 'Shows the timestamps SimpleLog or the timestamp addon writes, hidden otherwise. /chatbox timestamps switches it too.', options.timestamps, '##chatbox.timestamps', R.enabled) then
+            if widgets.Check('Timestamps', 'Shows the timestamps SimpleLog or the timestamp addon writes, hidden otherwise. /winchat timestamps switches it too.', options.timestamps, '##chatbox.timestamps', R.enabled) then
                 model.ShowStamps(history, options.timestamps[1]); app.save()
             end
             if widgets.FontFile(options, 'fontFile', '##chatbox.fontFile', R.font) then app.save() end
@@ -758,7 +762,7 @@ app = shell.New({
             elseif verb == 'on' then enabled[1] = true
             elseif verb == 'off' then enabled[1] = false
             elseif verb == 'reset' then require('winxi.infopanel.exp').Reset(); infoPanel.Invalidate(); return
-            else app:Say('/chatbox panel [on|off|reset]; configure slots in the Info Panel tab.'); return end
+            else app:Say('/winchat panel [on|off|reset]; configure slots in the Info Panel tab.'); return end
             infoPanel.Invalidate(); app.save()
             app:Say(enabled[1] and 'Info Panel enabled. Unload clock to avoid duplicate panels.' or 'Info Panel disabled.')
         end,
@@ -770,7 +774,7 @@ app = shell.New({
             if verb == nil then shown[1] = not shown[1]
             elseif verb == 'on' or verb == 'show' then shown[1] = true
             elseif verb == 'off' or verb == 'hide' then shown[1] = false
-            else app:Say('/chatbox timestamps [on|off] shows or hides the timestamps SimpleLog or the timestamp addon write.'); return end
+            else app:Say('/winchat timestamps [on|off] shows or hides the timestamps SimpleLog or the timestamp addon write.'); return end
             model.ShowStamps(history, shown[1])
             app.save()
             app:Say(shown[1] and 'Timestamps shown.' or 'Timestamps hidden; the messages keep them.')
@@ -781,10 +785,10 @@ app = shell.New({
             if verb == nil then on[1] = not on[1]
             elseif verb == 'on' then on[1] = true
             elseif verb == 'off' then on[1] = false
-            else return app:Say('/chatbox translate [on|off] turns chatbox\'s own auto-translate list on Tab on or off.') end
+            else return app:Say('/winchat translate [on|off] turns winchat\'s own auto-translate list on Tab on or off.') end
             if not on[1] then Translate.Cancel() end
             app.save()
-            app:Say(on[1] and 'Auto-Translate on: Tab while typing opens chatbox\'s list of phrases.' or 'Auto-Translate off: Tab is the game\'s again.')
+            app:Say(on[1] and 'Auto-Translate on: Tab while typing opens winchat\'s list of phrases.' or 'Auto-Translate off: Tab is the game\'s again.')
         end,
         on = function(options) options.enabled[1] = true; app.save() end,
         off = function(options) options.enabled[1] = false; Release(); app.save() end,
@@ -793,12 +797,12 @@ app = shell.New({
         bytes = function()
             -- held: each line said here goes through text_in itself and would take the sample's place
             local sample = decodeSample
-            if not sample then app:Say('No decode sample yet. Receive a chat line, then /chatbox bytes.'); return end
+            if not sample then app:Say('No decode sample yet. Receive a chat line, then /winchat bytes.'); return end
             -- Hex is ASCII-only: printing the diagnostic cannot reinterpret the bad character.
             app:Say(('Chat bytes, original mode %d / display mode %d%s, %s (first 256 bytes per stage%s):')
                 :format(sample.originalMode, sample.mode, sample.injected and ', an addon\'s own line' or '',
                     sample.stamp and 'a timestamp in front' or sample.final and 'no timestamp in front'
-                        or 'no timestamp in front (one written by an addon loaded after chatbox never reaches it without uihook 0.8)',
+                        or 'no timestamp in front (one written by an addon loaded after winchat never reaches it without uihook 0.8)',
                     sample.final and '; final: as uihook read it after every addon' or ''))
             for _, key in ipairs({'original','modified','final','expanded','utf8'}) do
                 local text = sample[key]
@@ -948,11 +952,11 @@ local function Keep(line)
     end
     model.Add(history, text, mode, nil, originalMode, spans, line.mode or line.originalMode, tokens)
 end
--- Each line read through uihook after every addon (winxi.nativetext, uihook 0.8 or newer): chatbox's own text_in
+-- Each line read through uihook after every addon (winxi.nativetext, uihook 0.8 or newer): winchat's own text_in
 -- copy of a line is held until the frame's lines are drained, and the line is kept as uihook has it, so a formatter
--- loaded after chatbox (SimpleLog's timestamps, a filter's block) still reaches it and the load order does not
+-- loaded after winchat (SimpleLog's timestamps, a filter's block) still reaches it and the load order does not
 -- matter. Where uihook runs before the addons (loaded before the addons plugin), its copy is the game's original:
--- chatbox's own, which may have been formatted, is kept instead. Without the tap, each line is kept as it arrives.
+-- winchat's own, which may have been formatted, is kept instead. Without the tap, each line is kept as it arrives.
 -- A held copy uihook never matches (a line it did not see) is kept as it is after HOLD seconds.
 local HOLD = 0.5
 local tap = { reader = nil, pending = {}, used = false }
@@ -965,14 +969,14 @@ local function TapReady()
 end
 TapStatus = function()
     if tap.used then return 'read through uihook after every addon; the load order does not matter' end
-    return 'chatbox\'s own text_in: load formatting addons before it (' .. (tap.reader and tap.reader.Status() or 'winxi.nativetext is missing') .. ')'
+    return 'winchat\'s own text_in: load formatting addons before it (' .. (tap.reader and tap.reader.Status() or 'winxi.nativetext is missing') .. ')'
 end
 local function DrainTap()
     local lines = tap.reader and tap.reader.Drain() or nil
     if lines then
         tap.used = true
         for _, got in ipairs(lines) do
-            -- chatbox's own copy of the same line: the first still held with the same original bytes and mode
+            -- winchat's own copy of the same line: the first still held with the same original bytes and mode
             local own
             for i, held in ipairs(tap.pending) do
                 if held.original == got.original and bit.band(held.originalMode, 0xff) == bit.band(got.mode, 0xff) then
@@ -982,7 +986,7 @@ local function DrainTap()
             if not got.blocked and not (own and own.blocked) then
                 local line = { originalMode = got.mode, mode = got.finalMode, raw = got.text, original = got.original,
                     injected = got.injected, final = got.text }
-                -- uihook's copy the game's original while chatbox's own was changed: uihook ran before the addons
+                -- uihook's copy the game's original while winchat's own was changed: uihook ran before the addons
                 if not got.modified and own and own.raw ~= own.original then line.mode, line.raw = own.mode, own.raw end
                 Keep(line)
             end
@@ -1101,7 +1105,7 @@ local function TipMouse(left, width, areaTop, areaBottom)
 end
 
 -- What DrawLog says of the box it drew (view.drawn): which rows, where, and its scrollbar, as the mouse hook matches
--- it (view.target) and /chatbox status tells it (lastDrawn, lastSplit). Each window has three tables for it, and a
+-- it (view.target) and /winchat status tells it (lastDrawn, lastSplit). Each window has three tables for it, and a
 -- frame fills one that none of those holds, so a box once handed out stays as it was drawn, whatever later frames do.
 local function DrawnTable(view)
     local pool = view.drawnPool
@@ -1453,7 +1457,7 @@ local function Fill(t, a, b, c, d, e)
     return t
 end
 -- the full log's rectangle as the game gives it, and the box it is drawn in as lastDrawn has it: one table each,
--- filled afresh every frame the log is expanded (only lastDrawn holds the box past its frame, for /chatbox status,
+-- filled afresh every frame the log is expanded (only lastDrawn holds the box past its frame, for /winchat status,
 -- and the mouse hook never matches it)
 local fullRect, expandedDrawn = {}, {}
 local function DrawExpanded(state, sw, sh)
@@ -1902,11 +1906,11 @@ do -- the frame's helpers are this block's, not the main chunk's (LuaJIT allows 
         hovered.text, hovered.row, hovered.view, hovered.expanded, hovered.mirror = nil, nil, nil, false, false -- found again as this frame's logs are drawn
         app:BeginFrame() -- configures WinXI's shared/local theme and draws settings
         infoPanel.BeginFrame() -- renew menu placement only with this frame's successful host capture
-        DrainTap() -- the frame's lines as uihook has them after every addon, or chatbox's own copies
+        DrainTap() -- the frame's lines as uihook has them after every addon, or winchat's own copies
         if not app.options.enabled[1] or zoning then Release(); return end
         Translate.Flush() -- last frame's chosen phrase into the game's buffer
         infoPanel.Hud(app.options.infoPanel) -- Hide Game Clock and Hide Compass, with or without the panel or chat's capture
-        ImportHistory() -- the game's history before chatbox's own, once
+        ImportHistory() -- the game's history before winchat's own, once
         if not primary.Begin() then
             ResetViews(false)
             Translate.Close()

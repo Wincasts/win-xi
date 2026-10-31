@@ -1,4 +1,4 @@
-package.path = 'addons/chatbox/?.lua;' .. package.path
+package.path = 'addons/winchat/?.lua;' .. package.path
 local model = require('log')
 local function measure(s) return #s end
 local first = function(m) return m.mode == 1 or m.mode == 3 end

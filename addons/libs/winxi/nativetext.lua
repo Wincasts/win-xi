@@ -36,7 +36,7 @@ function M.new()
             if os.clock()-looked<1 then return nil end
             looked=os.clock()
             local at=ashita.memory.find('uihook.dll',0,'5549484F4F4B2D544558540000000000',0,0)
-            if not at or at==0 then reason='Update uihook to 0.8 or newer: chat lines are read as they reach chatbox.'; return nil end
+            if not at or at==0 then reason='Update uihook to 0.8 or newer: chat lines are read as they reach winchat.'; return nil end
             local found=ffi.cast('uihook_text_t*',at)
             if not abi.Accepts(found,'uihook_text_t',1) then
                 reason='uihook text ABI mismatch; install the matching DLL.'; return nil

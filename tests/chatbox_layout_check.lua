@@ -1,5 +1,5 @@
-local layout=dofile('addons/chatbox/layout.lua')
-local input=dofile('addons/chatbox/input.lua')
+local layout=dofile('addons/winchat/layout.lua')
+local input=dofile('addons/winchat/input.lua')
 local state=layout.New()
 local function plan(open,rect,match)
     local p=input.Layout(640,1920,1080,12,4,match and rect or nil)

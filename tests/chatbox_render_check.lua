@@ -5,7 +5,7 @@ package.loaded.imgui = {
     CalcTextSize=function(text) assert(not text:find('❮',1,true) and not text:find('❯',1,true)); return #text*10,20 end,
     GetColorU32=function(color) return color end,
 }
-local render=dofile('addons/chatbox/render.lua')
+local render=dofile('addons/winchat/render.lua')
 local list={
     AddText=function(_,pos,color,text) drawn[#drawn+1]={pos={pos[1],pos[2]},text=text} end, -- the point copied, as imgui copies it: render fills one table for its parts
     AddLine=function(_,a,b,color,thickness) lines[#lines+1]={a=a,b=b,color=color} end,

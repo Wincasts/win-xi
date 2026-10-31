@@ -68,7 +68,7 @@ then load the legacy plugins and reload the addons.
 ## Clock and compass
 
 The clock addon that used this (writing the clock on one line in place of the game's text, keeping
-the game's icons and hiding the compass through the compass slot) is retired; chatbox's Info Panel
+the game's icons and hiding the compass through the compass slot) is retired; winchat's Info Panel
 reads the same native clock. **Unload hidecompass first**: it hides the shared native object and
 prevents both clock and compass render boundaries from running.
 
@@ -193,7 +193,7 @@ submitted screen coordinates, not automatic chat anchoring, and follow native dr
 eligibility: closing the log or switching to expanded chat does not force it open.
 Do not run FancyChat, hidechatbg or other chat-visibility writers alongside replacement:
 they can close the native log or change what native restoration looks like.
-The [chatbox addon](../../addons/chatbox/README.md) supplies a compact log, native selection highlight,
+The [winchat addon](../../addons/winchat/README.md) supplies a compact log, native selection highlight,
 a WinXI frame, WinXI tabs, scrollbar and rows of text where the game's are (or theme-tinted native controls
 and the game's own text) around the actual native expanded browser, and a native-backed WinXI input bar.
 The plugin itself does not collect chat messages or own keyboard input.
@@ -202,7 +202,7 @@ The plugin itself does not collect chat messages or own keyboard input.
 
 Independent `UIHOOK-CHAT` marker padded to 16 bytes, **71684 bytes** total (update DLL and bridge together).
 From 1.58 the chat's state, the two windows' routing and lines, and the colours are read only while an addon is
-asking: a chat submission (chatbox's `Begin`, each frame it draws) in the last 8 frames; the first submission after
+asking: a chat submission (winchat's `Begin`, each frame it draws) in the last 8 frames; the first submission after
 a while reads them all at once, so that frame's reads find them fresh. With only party (or nothing) handing uihook
 something, nothing of the chat is read each frame.
 
@@ -270,7 +270,7 @@ and last native/drawn frames; `/uihook` includes fresh chat replacements, and an
 capture is being refused, with the reason (`PartyRefusal`, `src/slots.h`), how many in a row and how
 long ago; the first refusal in a row, and each change of reason, is a warning in Ashita's log, and a
 capture taken again after refusals an info line. A refused slot is drawn by the game, with the addon's
-window drawn by imgui over it, until a capture is taken; chatbox draws its second box only after the
+window drawn by imgui over it, until a capture is taken; winchat draws its second box only after the
 first's capture, so it is missing while the first is refused.
 While imgui is making its font texture again (its atlas grown or made afresh, as when an addon loads
 a font or writes new sizes), a slot's capture is not refused but its last one drawn again, for up to
@@ -436,7 +436,7 @@ own incoming-text event (PluginFlags::UseText) and records each line given to th
 it stands at its turn: the bytes the game was given and the bytes it will keep, with both modes. Ashita
 hands plugins the event in load order and the Addons plugin runs the Lua addons inside its own turn,
 so a uihook loaded after `addons` sees each line after every addon, whatever their order. An addon
-whose own `text_in` handler runs before a formatter's (chatbox loaded before SimpleLog) reads the line
+whose own `text_in` handler runs before a formatter's (winchat loaded before SimpleLog) reads the line
 here instead. The line with serial s is at Events[(s - 1) % 64], written whole before its serial is;
 a reader keeps the last serial it read and takes the ones after, at most a ring's worth. The block is
 zero in the DLL's file, its magic written as the plugin initializes, so the half-megabyte ring costs
@@ -458,7 +458,7 @@ begun while its key is held is kept whole, its characters (matched by scan code,
 release too, though the key is no longer held by then. A press begun with the key not held is the game's, so a
 release lost to the window losing focus keeps nothing past the next press. A printable character is kept only with
 its key down seen (a scan code's key is ambiguous: numpad 8's is Up's). Ashita, imgui and every addon see each message as it was. Supported is 1 where the handler was
-taken (with the window hooks); Kept counts the messages kept. chatbox's Auto-Translate keeps Tab while typing and its
+taken (with the window hooks); Kept counts the messages kept. winchat's Auto-Translate keeps Tab while typing and its
 list's keys while the list is open, so Enter on a phrase puts it in without sending the line.
 
 ## Diagnostics: built with `--diagnostics` (1.58)

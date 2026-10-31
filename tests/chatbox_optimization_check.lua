@@ -1,5 +1,5 @@
 -- Shared wrapping must survive viewport/filter changes without retaining evicted history.
-package.path = 'addons/chatbox/?.lua;' .. package.path
+package.path = 'addons/winchat/?.lua;' .. package.path
 local model = require('log')
 local calls = 0
 local function measure(text) calls = calls + 1; return #text end

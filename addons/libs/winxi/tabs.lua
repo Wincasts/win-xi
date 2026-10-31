@@ -9,7 +9,7 @@
 --   tabs.Over(list, left, top, right, bottom, radius)
 --                              the style over a tab the addon draws itself, not imgui's: a rectangle on a
 --                              draw list, kept inside rounded top corners of the radius (imgui's TabRounding
---                              if none). For an addon drawing tabs where the game's are, as chatbox does
+--                              if none). For an addon drawing tabs where the game's are, as winchat does
 --                              over the expanded log's. Nothing for 'plain'.
 --   tabs.Line(list, left, right, y, chosenLeft, chosenRight)
 --                              the line under such a row of tabs, from left to right at y, the chosen tab's

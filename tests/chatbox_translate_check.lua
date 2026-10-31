@@ -1,9 +1,9 @@
 -- Chatbox's auto-translate picker against the installed client's dictionary: the word at the caret, the
 -- lists, the keys, the bytes written into the game's buffer and the window drawn above the input bar.
-package.path = 'addons/libs/?.lua;addons/chatbox/?.lua;' .. package.path
+package.path = 'addons/libs/?.lua;addons/winchat/?.lua;' .. package.path
 require('winxi.gamedata').Root('addons/libs/winxi/data/')
 local auto = require('winxi.autotranslate')
-local translate = dofile('addons/chatbox/translate.lua')
+local translate = dofile('addons/winchat/translate.lua')
 local function check(label, ok) assert(ok, label) end
 local HELLO = string.char(0xFD, 2, 2, 1, 11, 0xFD)
 
@@ -342,7 +342,7 @@ do
     got = translate.CharacterNames()
     check('bags read again, names kept once read', itemReads == before and #got == 6)
     -- With a store: who is playing, what they held before and what was heard
-    local known = dofile('addons/chatbox/known.lua')
+    local known = dofile('addons/winchat/known.lua')
     local files = { Win_77 = 'return { item = { 9000 }, keyitem = { 700 } }' }
     local store = known.New({ Read = function(c) return files[c] end, Write = function(c, t) files[c] = t; return true end })
     names[9000], keyNames[700], names[12] = 'Old Sword', 'Old Map', 'Heard Ring'

@@ -1,5 +1,5 @@
 -- Exercise the decoder's Windows conversion contract without loading kernel32 on Linux.
-package.path = 'addons/chatbox/?.lua;' .. package.path
+package.path = 'addons/winchat/?.lua;' .. package.path
 local cleaned, fail, parsed = nil, false, false
 local decoded = { ['\n']='\n', ['hello world']='hello world', [' hello world ']=' hello world ', ['\130\160']='あ',
     ['\129\239\39']="○'", ['Hill Lizard']='Hill Lizard', ['Hill?Lizard']='Hill?Lizard',

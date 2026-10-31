@@ -1,4 +1,4 @@
--- Optional chatbox info-panel attachment. Draw on the host's list before its border/title;
+-- Optional winchat info-panel attachment. Draw on the host's list before its border/title;
 -- Claims the clock and compass slots only to hide them.
 local panel = require('winxi.infopanel.panel')
 local fields = require('winxi.infopanel.fields')

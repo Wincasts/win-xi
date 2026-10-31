@@ -37,7 +37,7 @@ function M.Format(list)
         table.sort(ids)
         parts[#parts + 1] = '    ' .. kind .. ' = { ' .. table.concat(ids, ', ') .. ' },'
     end
-    return '-- chatbox: the items and key items in this character\'s auto-translate list\nreturn {\n' .. table.concat(parts, '\n') .. '\n}\n'
+    return '-- winchat: the items and key items in this character\'s auto-translate list\nreturn {\n' .. table.concat(parts, '\n') .. '\n}\n'
 end
 
 -- files: { Read(character) -> text or nil, Write(character, text) -> true or nil, error }

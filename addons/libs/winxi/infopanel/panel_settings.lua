@@ -2,7 +2,7 @@
 local imgui = require('imgui')
 local widgets = require('winxi.widgets')
 local panel = require('winxi.infopanel.panel')
-local buffers = setmetatable({}, { __mode = 'k' }) -- each slot's text being edited, by slot (chatbox has two panels)
+local buffers = setmetatable({}, { __mode = 'k' }) -- each slot's text being edited, by slot (winchat has two panels)
 return function(p, fields, changed, section, host)
     local function Save() changed() end
     local function Check(label,key)

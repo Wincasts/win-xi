@@ -193,7 +193,7 @@ local clientText = auto.Expand(token, true);    -- optional live-game expansion,
 - `Decode` accepts a single six-byte token, not a whole chat line. `Expand` calls Ashita's
   `ParseAutoTranslate` only when explicitly requested. It does not send chat or edit input.
 
-chatbox's Tab picker (`addons/chatbox/translate.lua`) displays `Text` and inserts the token
+winchat's Tab picker (`addons/winchat/translate.lua`) displays `Text` and inserts the token
 through the game's own input buffer; it lists a text the dictionary holds more than once only once.
 
 ## Validation and limits
