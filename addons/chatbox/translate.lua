@@ -212,13 +212,13 @@ function M.New(auto, names)
     local function Categories()
         local list = {}
         for _, c in ipairs(auto.Categories() or {}) do
-            list[#list + 1] = { kind = 'category', id = c.Id, label = (c.DisplayNames and c.DisplayNames.en) or c.Names.en,
-                name = c.Names.en }
+            -- in plain square brackets: the client's display names have 【 】, which the chat fonts do not draw
+            list[#list + 1] = { kind = 'category', id = c.Id, label = '[' .. c.Names.en .. ']', name = c.Names.en }
         end
         table.sort(list, function(a, b) return a.id < b.id end)
         -- the character's own two after the dictionary's, as the game's menu has them
-        list[#list + 1] = { kind = 'category', id = 'item', label = '【Items】', name = 'Items' }
-        list[#list + 1] = { kind = 'category', id = 'keyitem', label = '【Key Items】', name = 'Key Items' }
+        list[#list + 1] = { kind = 'category', id = 'item', label = '[Items]', name = 'Items' }
+        list[#list + 1] = { kind = 'category', id = 'keyitem', label = '[Key Items]', name = 'Key Items' }
         return list
     end
     local function Category(id)

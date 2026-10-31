@@ -97,10 +97,10 @@ picker.Close()
 
 picker.Open('', 0)
 view = picker.View()
-check('categories with no word', #view.items == 44 and view.items[1].kind == 'category' and view.items[1].label == '【Greetings】')
+check('categories with no word', #view.items == 44 and view.items[1].kind == 'category' and view.items[1].label == '[Greetings]')
 for i = 2, 42 do check('categories in id order', view.items[i - 1].id < view.items[i].id) end
-check('the character\'s two last', view.items[43].id == 'item' and view.items[43].label == '【Items】'
-    and view.items[44].id == 'keyitem' and view.items[44].label == '【Key Items】')
+check('the character\'s two last', view.items[43].id == 'item' and view.items[43].label == '[Items]'
+    and view.items[44].id == 'keyitem' and view.items[44].label == '[Key Items]')
 check('categories title and status', picker.Title() == 'Auto-Translate  1 of 44' and picker.Status() == 'open: 44 categories')
 picker.Refresh('', 0)
 check('categories stay with no word', picker.open and #picker.View().items == 44)
