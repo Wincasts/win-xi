@@ -165,7 +165,7 @@ end of the performance-check command.
 
 ## The icons
 
-The icons are winxi's, shared with the party addon. `libs/winxi/statusicons/ffxiv/<status number>.png`
+The icons are winxi's, shared with the winparty addon. `libs/winxi/statusicons/ffxiv/<status number>.png`
 is the icon for an FFXI status: FFXIV's, 48 by 64 in the middle of a square of 64. A status with no
 file there has the game's own icon. You can put any 64 by 64 PNG of that shape in its place, or make
 a set of your own beside it (see Custom icons in the winxi README).

@@ -499,9 +499,25 @@ local function FromXiframes(saved)
     saved.fromXiframes = true
 end
 
+-- Up to 0.4 the addon was called party, and before that xiframes. What party kept is taken in the same way,
+-- first: party had already taken up xiframes', and says so.
+local function FromParty(saved)
+    if saved.fromParty or not settings.logged_in then
+        return
+    end
+    local old = legacy.ReadSettings('party')
+    if old ~= nil then
+        for key, value in pairs(old) do
+            saved[key] = value
+        end
+        print('[winparty] Settings brought over from party.')
+    end
+    saved.fromParty = true
+end
+
 -- The styles that were the addon's own before they were winxi's theme's. What was set is carried into
 -- the addon's own theme, and what was set other than as the theme starts is kept aside as carriedTheme,
--- for party.lua to hand to the shared theme if the addon follows it.
+-- for winparty.lua to hand to the shared theme if the addon follows it.
 local themeKeys = { borderStyle = 'BorderStyle', barTexture = 'BarTexture', bookends = 'Bookends', bookendStyle = 'BookendStyle', ffxivIcons = 'StatusIcons' }
 
 local function ToTheme(saved)
@@ -522,6 +538,7 @@ local function ToTheme(saved)
 end
 
 function options.Complete(saved)
+    FromParty(saved)
     FromXiframes(saved)
     saved.profiles = nil -- the profiles of earlier versions, gone with them
     for _, section in ipairs(sections) do

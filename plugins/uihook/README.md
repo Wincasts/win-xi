@@ -28,7 +28,7 @@ Unload addons and old hooks **before replacing DLLs**:
 /unload uihook
 ```
 
-Copy the built DLL to your Ashita `plugins/` directory, deploy the updated buff/party addons, and
+Copy the built DLL to your Ashita `plugins/` directory, deploy the updated buff/winparty addons, and
 replace old hook load commands in your startup script with:
 
 ```text
@@ -718,8 +718,8 @@ luajit tests/nativechat_check.lua
 python3 plugins/uihook/tests/check_hud_client.py /path/to/ffximain.bin /path/to/ffximain.txt
 python3 plugins/uihook/tests/check_window_client.py /path/to/ffximain.bin /path/to/ffximain.txt
 luajit tests/party_hook_performance_check.lua
-luajit tests/harness.lua party addons/party/party.lua tests/party_hook_integration_check.lua
-luajit tests/harness.lua party addons/party/party.lua tests/party_native_positioning_check.lua
+luajit tests/harness.lua winparty addons/winparty/winparty.lua tests/party_hook_integration_check.lua
+luajit tests/harness.lua winparty addons/winparty/winparty.lua tests/party_native_positioning_check.lua
 ```
 
 The Wine fixtures compile against the migrated modules' headers, checking signatures, detours,
@@ -730,7 +730,7 @@ ABI. Lua checks cover slot isolation, reloads, weather expiry, clock presentatio
 These are offline checks, **not proof of live GPU output**.
 
 In game, `/uihook` (or `/uihook addons`) lists the addons handing uihook something now, and what:
-buff's bar, party's party, alliance and target windows, clock's line and its hidden compass, each
+buff's bar, winparty's party, alliance and target windows, clock's line and its hidden compass, each
 marked "(hidden)" where the addon hands over an intentionally empty replacement. A plugin cannot see
 which Lua addon calls it, so this is read from the slots, each filled by one addon only, while the
 last submission is fresh (eight frames). It also says which parts this client was not recognised for.

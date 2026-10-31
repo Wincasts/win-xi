@@ -257,14 +257,14 @@ local function DrawGlobal(saved)
         imgui.TextColored(foundColor, Found(manager, plugin))
         if open then
             if widgets.Check('Use uihook',
-                'Draws the chosen windows where the game draws its own, among its menus. /pt native status says how it is going.',
+                'Draws the chosen windows where the game draws its own, among its menus. /winparty native status says how it is going.',
                 saved.nativeHook, '##party.nativeHook') then Save() end
             nativeSpec.parent = saved.nativeHook
             if widgets.Check('Party',
                 'The three party lists instead of the game default ones, with its selection. Pets go with them.',
                 saved.nativeParty, '##party.nativeParty', nativeSpec) then Save() end
             if widgets.Check('Target',
-                'The target windows instead of the game default target box. /pt native target on|off does the same.',
+                'The target windows instead of the game default target box. /winparty native target on|off does the same.',
                 saved.nativeTarget, '##party.nativeTarget', nativeSpec) then Save() end
             if widgets.Check('Follow Default UI Behavior',
                 'The windows in the game\'s place show and hide with its interface, in its order, solo too, and never fade.',
@@ -358,7 +358,7 @@ function config.Draw(saved)
     flags = flags or ImGuiWindowFlags_NoSavedSettings
     drawing = saved
     imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, windows.ItemSpacing)
-    window.Full('Party Settings', saved.showConfig, flags, DrawContent, style)
+    window.Full('Winparty Settings', saved.showConfig, flags, DrawContent, style)
     imgui.PopStyleVar()
 
     if not saved.showConfig[1] then

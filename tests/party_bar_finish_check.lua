@@ -50,7 +50,7 @@ for _, key in ipairs({ 'enamel', 'enamel_rim', 'enamel_gradient', 'tube', 'tube_
         for _, layer in ipairs({ 'back', 'fill', 'front' }) do
             local path = 'bars/' .. key .. '/' .. kind .. '_' .. layer .. '.png'
             assert(handles[path], 'drawn with ' .. path)
-            assert(png('addons/party/assets/' .. path), 'bundled ' .. path)
+            assert(png('addons/winparty/assets/' .. path), 'bundled ' .. path)
         end
     end
     for _, layer in ipairs({ 'back', 'fill', 'front' }) do
@@ -65,7 +65,7 @@ style.barGlow = 60
 paint()
 local glows, fills = find('glow%.png$'), find('_fill%.png$')
 assert(#glows == 2 and #fills == 2, 'one glow a fill')
-assert(png('addons/party/assets/bars/glow.png') and png('addons/libs/winxi/assets/bars/glow.png'), 'glow image bundled')
+assert(png('addons/winparty/assets/bars/glow.png') and png('addons/libs/winxi/assets/bars/glow.png'), 'glow image bundled')
 for index = 1, 2 do
     local light, fill = glows[index], fills[index]
     assert(math.abs(light.x2 - fill.x2) < 1e-6 and light.x1 < light.x2 and light.x1 >= fill.x1, 'over the fill\'s end')
@@ -97,7 +97,7 @@ H.print('custom bar backdrop: one a bar, the length of its inside', true)
 style.bookends, style.bookendOpacity = true, 100
 for _, key in ipairs({ 'rounded', 'rounded_silver' }) do
     assert(listed(theme.BookendStyles, key), 'Bookend Style offers ' .. key)
-    assert(png('addons/party/assets/bookends/' .. key .. '.png'), 'bundled ' .. key)
+    assert(png('addons/winparty/assets/bookends/' .. key .. '.png'), 'bundled ' .. key)
     style.bookendStyle = key
     paint()
     local caps = find('^bookends/' .. key)

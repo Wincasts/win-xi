@@ -8,7 +8,7 @@ centre. No game artwork is used. Includes a preview of each on Radiant HP/MP bar
 from pathlib import Path
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
-ROOT = Path(__file__).resolve().parents[1] / 'addons/party/assets'
+ROOT = Path(__file__).resolve().parents[1] / 'addons/winparty/assets'
 W, H, S = 16, 40, 4
 
 # shape, then the colours: outline, body, light (the lit side), gem, gem's shine

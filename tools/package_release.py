@@ -23,7 +23,7 @@ Each zip holds the addon, everything it needs and nothing else:
     addons/libs/winxi/           the shared library, in every zip but a standalone one (winxi.version says which it is)
     addons/wxi/                  the shared look's settings window, in every zip but a standalone one
     plugins/namehook.dll         with name, built here, with its GPL license and where its source is
-    plugins/uihook.dll           with buff/winchat/party, built here, with its MIT license and where its source is
+    plugins/uihook.dll           with buff/winchat/winparty, built here, with its MIT license and where its source is
 
 A plugin released alone (lens) is plugins/<plugin>.dll with its license, source and INSTALL.txt beside it.
 Data released alone (mobdb) is the folder the addon reads it from, for the addon as its author releases it.
@@ -69,7 +69,7 @@ RELEASES = {
     'inventory': {},
     'winplates': {'plugin': 'namehook'},
     'occlusionfix': {'standalone': True},
-    'party': {'plugin': 'uihook'},
+    'winparty': {'plugin': 'uihook'},
     'trigger': {},
     # Released for people who use no other winxi addon, so it carries its own winxi. Its research notes
     # and the data and flag copies no code loads are left out.

@@ -761,7 +761,7 @@ window AddText (383,193) #F0E6C2FF Target
 window PopClipRect
 imgui End
 ## filled with sample data, the settings open (bare): 649 calls
-imgui Begin Party Settings
+imgui Begin Winparty Settings
 window AddRectFilled (10,17) (210,39) #B0ADC738
 window AddRectFilled (10,37) (210,39) #B0ADC766
 imgui TextColored (1,0.75,0.55,1) Positioning
@@ -787,7 +787,7 @@ imgui Dummy (0,3)
 imgui Separator
 imgui SameLine
 imgui End
-imgui Begin winxi.grid.party
+imgui Begin winxi.grid.winparty
 window AddLine (935,0) (935,1080) #FFFFFF1F 1
 window AddLine (985,0) (985,1080) #FFFFFF1F 1
 window AddLine (0,515) (1920,515) #FFFFFF1F 1

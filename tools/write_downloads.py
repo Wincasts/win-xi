@@ -24,7 +24,7 @@ WHAT = {
     'winplates': 'The names over players, NPCs and monsters, drawn your way, with health and cast bars.',
     'occlusionfix': 'Stops characters near walls and door frames from blinking out of view.',
     'parse': 'A combat parser: damage, hit rates and DPS for everyone in the fight.',
-    'party': 'Party, target and pet frames in the style of XivParty.',
+    'winparty': 'Party, target and pet frames in the style of XivParty.',
     'sct': 'Scrolling text for statuses, items received and key items.',
     'trigger': 'Plays a sound when something happens: a tell, an invite, a trade, low HP and more.',
     'vis': 'How far the world and the people in it are drawn, with the fog where you want it.',
@@ -38,7 +38,7 @@ def gh(*args):
     return json.loads(subprocess.check_output(['gh', *args, '-R', REPOSITORY]))
 
 # An addon's name before it was renamed, for the releases made under it
-FORMER = {'winplates': 'name', 'winchat': 'chatbox'}
+FORMER = {'winplates': 'name', 'winchat': 'chatbox', 'winparty': 'party'}
 
 
 def carries(extras):

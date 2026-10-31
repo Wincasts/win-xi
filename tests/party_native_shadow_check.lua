@@ -1,4 +1,4 @@
--- Run with tests/harness.lua party addons/party/party.lua.
+-- Run with tests/harness.lua winparty addons/winparty/winparty.lua.
 H.load()
 local imgui, theme = require('imgui'), require('winxi.theme')
 local shadow = require('winxi.shadow')

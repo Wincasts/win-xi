@@ -8,7 +8,7 @@ from pathlib import Path
 import math
 from PIL import Image, ImageDraw, ImageFont
 
-ROOT = Path(__file__).resolve().parents[1] / 'addons/party/assets/bars'
+ROOT = Path(__file__).resolve().parents[1] / 'addons/winparty/assets/bars'
 S = 4
 WINXI = Path(__file__).resolve().parents[1] / 'addons/libs/winxi/assets/bars'
 STYLES = ('glass', 'detailed', 'crystal', 'satin', 'runic', 'classic', 'radiant', 'chrome', 'flat', 'segmented', 'ember', 'kingdom', 'magitek', 'aether', 'elven', 'gothic',

@@ -73,7 +73,7 @@ luajit tests/chatbox_translate_check.lua || exit 1
 luajit tests/chatbox_known_check.lua || exit 1
 luajit tests/chatbox_layout_check.lua || exit 1
 luajit tests/chatbox_browse_check.lua || exit 1
-luajit tests/harness.lua party addons/party/party.lua tests/winxi_capture_check.lua || exit 1
+luajit tests/harness.lua winparty addons/winparty/winparty.lua tests/winxi_capture_check.lua || exit 1
 luajit tests/infopanel_source_check.lua || exit 1
 luajit tests/infopanel_tooltips_check.lua || exit 1
 luajit tests/infopanel_subzone_check.lua || exit 1
@@ -123,38 +123,39 @@ run game       tests/empty.lua          winxi_game_check.lua
 run widgets    tests/empty.lua          winxi_widgets_check.lua
 luajit tests/winxi_statusdat_check.lua || exit 1
 run statusicons tests/empty.lua         winxi_statusicons_mixed_check.lua
-run party      addons/party/party.lua party_check.lua
-run party      addons/party/party.lua party_lifecycle_check.lua
-run party      addons/party/party.lua party_solo_state_check.lua
-run party      addons/party/party.lua party_performance_check.lua
-run party      addons/party/party.lua party_optimization_check.lua
-run party      addons/party/party.lua party_customization_check.lua
-run party      addons/party/party.lua party_fantasy_styles_check.lua
-run party      addons/party/party.lua party_bar_finish_check.lua
-run party      addons/party/party.lua party_organize_statuses_check.lua
-run party      addons/party/party.lua party_tracking_check.lua
-run party      addons/party/party.lua party_borders_check.lua
-run party      addons/party/party.lua party_resolution_check.lua
-run party      addons/party/party.lua party_rearrange_check.lua
+run winparty      addons/winparty/winparty.lua party_check.lua
+run winparty      addons/winparty/winparty.lua party_lifecycle_check.lua
+run winparty      addons/winparty/winparty.lua party_solo_state_check.lua
+run winparty      addons/winparty/winparty.lua party_performance_check.lua
+run winparty      addons/winparty/winparty.lua party_optimization_check.lua
+run winparty      addons/winparty/winparty.lua party_customization_check.lua
+run winparty      addons/winparty/winparty.lua party_fantasy_styles_check.lua
+run winparty      addons/winparty/winparty.lua party_bar_finish_check.lua
+run winparty      addons/winparty/winparty.lua party_organize_statuses_check.lua
+run winparty      addons/winparty/winparty.lua party_tracking_check.lua
+run winparty      addons/winparty/winparty.lua party_borders_check.lua
+run winparty      addons/winparty/winparty.lua party_resolution_check.lua
+run winparty      addons/winparty/winparty.lua party_rearrange_check.lua
 luajit tests/party_hook_check.lua
 luajit tests/party_hook_performance_check.lua
-run party      addons/party/party.lua party_hook_integration_check.lua
-run party      addons/party/party.lua party_native_shadow_check.lua
-run party      addons/party/party.lua party_native_positioning_check.lua
-run party      addons/party/party.lua party_shift_drag_check.lua
-run party      addons/party/party.lua party_clickthrough_hover_check.lua
-run party      addons/party/party.lua party_value_offsets_check.lua
-run party      addons/party/party.lua party_name_colors_check.lua
-run party      addons/party/party.lua party_fishing_check.lua
-run party      addons/party/party.lua party_lock_brackets_check.lua
-run party      addons/party/party.lua party_monster_letters_check.lua
-run party      addons/party/party.lua party_marks_check.lua
-run party      addons/party/party.lua party_cursor_check.lua
-run party      addons/party/party.lua party_dropdowns_check.lua
-run party      addons/party/party.lua party_cast_bars_check.lua
-run party      addons/party/party.lua winxi_fonts_check.lua
-run party      addons/party/party.lua winxi_settings_window_check.lua
-run party      addons/party/party.lua winxi_backgrounds_check.lua
+run winparty      addons/winparty/winparty.lua party_hook_integration_check.lua
+run winparty      addons/winparty/winparty.lua party_native_shadow_check.lua
+run winparty      addons/winparty/winparty.lua party_native_positioning_check.lua
+run winparty      addons/winparty/winparty.lua party_shift_drag_check.lua
+run winparty      addons/winparty/winparty.lua party_clickthrough_hover_check.lua
+run winparty      addons/winparty/winparty.lua party_value_offsets_check.lua
+run winparty      addons/winparty/winparty.lua party_name_colors_check.lua
+run winparty      addons/winparty/winparty.lua party_fishing_check.lua
+run winparty      addons/winparty/winparty.lua party_lock_brackets_check.lua
+run winparty      addons/winparty/winparty.lua party_monster_letters_check.lua
+run winparty      addons/winparty/winparty.lua party_marks_check.lua
+run winparty      addons/winparty/winparty.lua party_cursor_check.lua
+run winparty      addons/winparty/winparty.lua winparty_former_check.lua
+run winparty      addons/winparty/winparty.lua party_dropdowns_check.lua
+run winparty      addons/winparty/winparty.lua party_cast_bars_check.lua
+run winparty      addons/winparty/winparty.lua winxi_fonts_check.lua
+run winparty      addons/winparty/winparty.lua winxi_settings_window_check.lua
+run winparty      addons/winparty/winparty.lua winxi_backgrounds_check.lua
 run inventory  addons/inventory/inventory.lua winxi_tabs_check.lua
 run inventory  addons/inventory/inventory.lua winxi_child_background_check.lua
 luajit tests/winxi_mapdat_check.lua
@@ -253,7 +254,7 @@ echo
 # that is meant to alter what is drawn, look the difference over and keep the new copy with
 #   ./tests/run.sh keep
 scene() {
-    local out; out="$(luajit tests/capture.lua party addons/party/party.lua tests/party_scene.lua tests/fixtures/party_v1_settings.lua "$1" 2>&1)"
+    local out; out="$(luajit tests/capture.lua winparty addons/winparty/winparty.lua tests/party_scene.lua tests/fixtures/party_v1_settings.lua "$1" 2>&1)"
     if [[ "$2" == keep ]]; then echo "$out" > "tests/golden/party_scene_$1.txt"; echo "party drawn ($1): kept"; return; fi
     if diff <(echo "$out") "tests/golden/party_scene_$1.txt" > /tmp/party_scene_diff.$$ 2>&1; then echo "party drawn ($1): as kept	true"
     else echo "party drawn ($1): as kept	false"; head -20 /tmp/party_scene_diff.$$; fi
@@ -262,7 +263,7 @@ scene() {
 # What a frame of party costs, counted over the same scene:
 #   ./tests/run.sh measure
 if [[ "$1" == measure ]]; then
-    luajit tests/capture.lua party addons/party/party.lua tests/party_scene.lua tests/fixtures/party_v1_settings.lua plain measure 2>&1
+    luajit tests/capture.lua winparty addons/winparty/winparty.lua tests/party_scene.lua tests/fixtures/party_v1_settings.lua plain measure 2>&1
     exit
 fi
 echo "== party scene"

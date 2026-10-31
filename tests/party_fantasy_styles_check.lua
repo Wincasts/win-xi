@@ -17,13 +17,13 @@ for _, key in ipairs({ 'kingdom', 'magitek', 'aether', 'elven', 'gothic' }) do
         for _, layer in ipairs({ 'back', 'fill', 'front' }) do
             local path = 'bars/' .. key .. '/' .. kind .. '_' .. layer .. '.png'
             assert(loaded[path], 'renderer loads ' .. path)
-            local file = assert(io.open('addons/party/assets/' .. path, 'rb'))
+            local file = assert(io.open('addons/winparty/assets/' .. path, 'rb'))
             assert(file:read(8) == '\137PNG\r\n\26\n'); file:close()
         end
     end
     local path = 'bookends/' .. key .. '.png'
     assert(loaded[path], 'renderer loads independent ornament ' .. key)
-    local file = assert(io.open('addons/party/assets/' .. path, 'rb'))
+    local file = assert(io.open('addons/winparty/assets/' .. path, 'rb'))
     assert(file:read(8) == '\137PNG\r\n\26\n'); file:close()
 end
 H.print('fantasy styles: dropdown registration, HP/MP layers, independent bookends and bundled PNGs', true)

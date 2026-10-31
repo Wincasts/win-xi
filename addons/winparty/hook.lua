@@ -26,7 +26,7 @@ local owned = false
 local reasonParty, reasonTarget
 local passing = false -- the party windows' replacement lets the game's drawing outside them through
 local PASS_OUTSIDE, PASS_SUPPORTED = 4, 0x10
-local reason = 'Load /load uihook, then /pt native on. Unload hideparty first.'
+local reason = 'Load /load uihook, then /winparty native on. Unload hideparty first.'
 local presence = require('winxi.presence')
 
 local function Find()

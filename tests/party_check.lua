@@ -135,7 +135,7 @@ do
     for index = 3, #require('winxi.theme').BookendStyles do
         local choice = require('winxi.theme').BookendStyles[index].key
         styles[#styles + 1] = choice
-        local image = io.open(('addons/party/assets/bookends/%s.png'):format(choice), 'rb')
+        local image = io.open(('addons/winparty/assets/bookends/%s.png'):format(choice), 'rb')
         assert(image, 'no bookend for ' .. choice)
         image:close()
     end
@@ -236,7 +236,7 @@ do
     struct.unpack = realUnpack
     draw.Texture, draw.Image = texture, image
     for _, file in ipairs({ 'invite', 'treasure' }) do
-        local found = io.open(('addons/party/assets/notices/%s.png'):format(file), 'rb')
+        local found = io.open(('addons/winparty/assets/notices/%s.png'):format(file), 'rb')
         assert(found, 'no image for ' .. file)
         found:close()
     end
@@ -264,6 +264,7 @@ H.print('settings window drawn', (H.calls.Begin or 0) > before)
 H.print('/xif closes it', H.command('/xif') and o.showConfig[1] == false, '| /ptx is left alone', H.command('/ptx') == false,
     '| old /xiframes is left alone', H.command('/xiframes') == false,
     '| /party (the game\'s party chat) is left alone', H.command('/party hello') == false)
+H.print('/winparty opens and closes it', H.command('/winparty') and o.showConfig[1] == true, H.command('/WinParty') and o.showConfig[1] == false)
 H.unload(); H.print('unload ran; saves', H.saves() > 0)
 
 -- Alliance Scale: the alliance's other two parties drawn at it, on top of the Scale; the player's own party not

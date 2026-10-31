@@ -29,12 +29,12 @@ Each addon's folder has a README with all of its commands and settings.
 
 ## Installing
 
-**buff**, **inventory**, **occlusionfix**, **parse**, **party**, **sct**, **trigger**,
-**vis**, **winchat**, **winplates** and **zone**, the **lens** plugin and **mobdb**'s Phoenix data are released one at a time, on the
+**buff**, **inventory**, **occlusionfix**, **parse**, **sct**, **trigger**,
+**vis**, **winchat**, **winparty**, **winplates** and **zone**, the **lens** plugin and **mobdb**'s Phoenix data are released one at a time, on the
 [Releases](https://github.com/Wincasts/win-xi/releases) page. The newest of each is listed on one page,
 [DOWNLOADS.md](DOWNLOADS.md). Each zip has everything the addon needs:
 the `winxi` library and `wxi`; with winplates, the `namehook` plugin; and with buff, winchat and
-party, the `uihook` plugin. vis and zone carry their own copy of the parts of winxi they use, so they
+winparty, the `uihook` plugin. vis and zone carry their own copy of the parts of winxi they use, so they
 need nothing else. occlusionfix needs nothing at all. Extract the zip into your Ashita folder (the one
 that holds `addons`, `plugins` and `config`). Merge folders when asked. Then follow
 `addons/<the addon>/INSTALL.txt`. If an addon says it needs a newer winxi, install the newest release
@@ -49,15 +49,15 @@ except occlusionfix needs the `winxi` library. Copy these into your Ashita folde
 - `addons/<the addon>` for each one you want
 - `addons/wxi`, to change the shared look
 - for `winplates`, also `plugins/namehook.dll` (see [plugins/namehook](plugins/namehook))
-- for `buff`, `winchat` or native `party` replacement, also `plugins/uihook.dll` (build/install:
+- for `buff`, `winchat` or native `winparty` replacement, also `plugins/uihook.dll` (build/install:
   [plugins/uihook](plugins/uihook))
 - `plugins/lens.dll`: shows the world through a Panini or cylindrical projection for wide screens, adds
   anti-aliasing for the world, sets the field of view and the true proportions the world is drawn with,
   and sets the camera's distance in battle (experimental, see [plugins/lens](plugins/lens))
 
 Then, in game: `/addon load <the addon>`. For `winplates`, run `/load namehook` first. For `buff` or native
-`party`, run `/load uihook` first. Uihook replaces the retired `buffhook` and `partyhook` plugins:
-unload those before loading it, and remove their startup commands. Native rendering for party is
+`winparty`, run `/load uihook` first. Uihook replaces the retired `buffhook` and `partyhook` plugins:
+unload those before loading it, and remove their startup commands. Native rendering for winparty is
 still opt-in; unload `hideparty` before turning it on.
 [Winchat](addons/winchat/README.md) includes a native-backed WinXI input bar. It needs winxi 22 and
 uihook 0.5 with chat ABI 13 (0.6 for native action-menu anchoring above the panel, for the expanded log
@@ -69,7 +69,7 @@ See the uihook README for migration and testing steps.
 
 ## What else is here
 
-- `addons/` also holds addons built on other people's work (simplelog, targetlines, inventory, party),
+- `addons/` also holds addons built on other people's work (simplelog, targetlines, inventory, winparty),
   and `forks/addons` holds copies of other people's addons with changes made here (cbind, hideparty,
   cooldowns (formerly imrecast), mobdb, tcrossbar). Both are under their authors' terms, not the license below.
 - `archive/` holds retired addons and their checks, including [treas](archive/addons/treas).

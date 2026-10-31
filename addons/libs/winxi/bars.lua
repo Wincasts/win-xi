@@ -8,7 +8,7 @@
 -- The theme's Fill End Glow lights the end of the fill (assets\bars\glow.png, in white), and with
 -- Custom Bar Backdrop the empty part of the bar is in Bar Backdrop Color.
 --
--- The art is party's HP bar of each set (addons/party/assets/bars, made by tools/generate_party_bars.py
+-- The art is party's HP bar of each set (addons/winparty/assets/bars, made by tools/generate_party_bars.py
 -- from XivParty's; LICENSE.txt in the folder), in libs\winxi\assets\bars\<set>\: a back, a fill and a
 -- front, 28 pixels high. Its ends keep their shape whatever the bar's length (the image's first and last
 -- few pixels are drawn at the height's scale and the middle stretched), and the fill lies inside them.

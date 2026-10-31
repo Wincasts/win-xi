@@ -215,7 +215,7 @@ release replaced badge atlases promptly rather than waiting for Lua GC.
 | Bar Width / Height (px, Bars → Shared Bar Settings) | One pair for the HP and cast rows of all types: the bar's size under a name at its largest. It shrinks with the name as the name goes further away, and grows with a hunted or sub-targeted one. Defaults to **60 × 6 px**, including the border. Width: 12–300; height: 3–40. Saved per character |
 | Bold | Makes names and check-detail text heavier. Each letter is drawn twice, a pixel apart. On in the preferred defaults; icons and stars do not change |
 | Smooth Font (beside Bold) | Off by default. Uses a cached, area-filtered text atlas made from 4× rasterised glyphs, with transparent edge guards. The native layout metrics and Bold's one-pixel stroke are kept; icons and badges do not change. It uses more atlas memory and has a one-time build cost. Direct rendering is used while it is being prepared or is unavailable |
-| Bar Texture (Bars → Health Bars, Cast Bars) | What the bars are drawn in, each kind its own: **Plain** (the dark-bordered bar, to begin with) or one of WinXI's Bar Textures, party's HP art, tinted the name's colour. Drawn from a sheet Winplates makes of the sets in use and its own signs, at full, half and quarter size, so small bars stay clean. The fill's end is softened with namehook 1.37. Art that will not load leaves the bar Plain |
+| Bar Texture (Bars → Health Bars, Cast Bars) | What the bars are drawn in, each kind its own: **Plain** (the dark-bordered bar, to begin with) or one of WinXI's Bar Textures, winparty's HP art, tinted the name's colour. Drawn from a sheet Winplates makes of the sets in use and its own signs, at full, half and quarter size, so small bars stay clean. The fill's end is softened with namehook 1.37. Art that will not load leaves the bar Plain |
 | Preview (Bars → Shared Bar Settings) | For this session only: every bar that is on is shown while the section is open. Each name that can have a health bar shows one, emptying and filling again, at full health and out of combat too (Entity Types still apply). With cast bars on, a sample cast runs under the names. Never saved |
 | Combat Only (Health Bars) | Off by default. Needs each entity's own Engaged status (1) and HP above zero. Missing or invalid data hides the bar. Applies to players, enemies, pets, trusts and NPCs |
 | Maximum Name Size (px, General) | The shared text height when near, 6–48 pixels, for every entity type. It does not depend on the bar size |
@@ -431,7 +431,7 @@ way than through a placeholder (timed, forced or scripted spawns) has none liste
 ### Statuses over a name
 
 The **Statuses** tab puts a row of status icons above or below a name, for the statuses ticked there and no
-others. To begin with the icons are drawn as the party and buff addons draw them, by Custom Icons in wxi
+others. To begin with the icons are drawn as the winparty and buff addons draw them, by Custom Icons in wxi
 (`/wxi`). With it on, the chosen set's icons (FFXIV, `libs\winxi\statusicons\ffxiv`, to start) are used where the set has an
 icon for the status, and the game's where it has not. With it off, the game's icons are used. `libs/winxi` has to be deployed
 with its `statusicons` folder. The set's icons are as narrow as the set has them; the game's are square.

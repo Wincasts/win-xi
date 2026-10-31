@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.0
+
+- Renamed winparty: the addon is `winparty` (`addons\winparty`, `/addon load winparty`), its settings window Winparty Settings, and `/winparty` opens it as `/pt` and `/xif` still do. Each character's settings are brought over from `config\addons\party` the first time it logs in, as xiframes' once were; its messages say `[winparty]`. Remove the old `addons\party` folder.
+
 ## 0.4.0
 
 - **Show Cast Bars** (Party → Casting, on to begin with): while a member of the party or the alliance casts a spell, their HP bar is a cast bar, filling as the cast goes, their name is the spell's, and the time left is where their HP was; the spell finishing, being interrupted, the member dying or the area changing gives them their HP bar back. The casts are winxi 67's `winxi.castbar`, which name's cast bars use. While organizing, a sample member casts. Requires winxi 67.

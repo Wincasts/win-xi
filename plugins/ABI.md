@@ -29,7 +29,7 @@ plugins' own compiled sources (`tools/abi_check.py --freeze`, once, for 1.0; nev
 | namehook | `NAMEHOOKLAYERS` | 1 | `HookLayers` | 176 | `HookLayerSlot` | `addons/libs/winxi/layers.lua` |
 | namehook | `HookLayers` slots | — | `HookLayerDraw` | 417,944 | `HookLayerDrawing`, `HookQuad` | `addons/libs/winxi/layers.lua` |
 | uihook | `BUFFHOOK-SHARED` | 4 | `BuffShared` | 41,228 | `BuffQuad` | `addons/buff/hook.lua` |
-| uihook | `PARTYHOOK` | 3 | `PartyShared` | 168 | `NativeRect` | `addons/party/hook.lua` |
+| uihook | `PARTYHOOK` | 3 | `PartyShared` | 168 | `NativeRect` | `addons/winparty/hook.lua` |
 | uihook | `UIHOOK-CHAT` | 13 | `ChatShared` | 71,684 | `ChatTab`, `ChatTextRow` | `addons/libs/winxi/nativechat.lua` |
 | uihook | `UIHOOK-HUD` | 6 | `HudShared` | 164 | — | `addons/libs/winxi/nativehud.lua` |
 | uihook | `UIHOOK-MENUS` | 1 | `MenuShared` | 108 | — | `addons/libs/winxi/nativemenus.lua` |

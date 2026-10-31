@@ -1,4 +1,9 @@
-# party
+# winparty
+
+Up to 0.4 this addon was called party. Load `winparty` in place of `party` and remove the old
+`addons\party` folder: each character's settings are brought over from `party` the first time it logs in.
+`/pt` and `/xif` still open the settings, as `/winparty` does.
+
 Party, target and pet frames in winxi's themed windows. They have bars, and their layout follows
 the compact one of the Windower addon [XivParty](https://github.com/Tylas11/XivParty).
 
@@ -33,7 +38,7 @@ the compact one of the Windower addon [XivParty](https://github.com/Tylas11/XivP
 - **Pets**: your pet, and your party members' pets, listed under your party below a line.
 
 ## usage
-`/pt` (or `/xif`) opens the settings. `/party` is left alone for the game's own party chat;
+`/winparty` (or `/pt`, or `/xif`) opens the settings. `/party` is left alone for the game's own party chat;
 `/xiframes` is no longer used. The Style tab sets how every frame is drawn (sizes,
 fonts, bars, statuses). The Party, Target and Pets tabs have what belongs to each one. The dark edge round names
 and values is Winxi Theme's Text Outline, set in wxi for every addon.
@@ -41,9 +46,9 @@ and values is Winxi Theme's Text Outline, set in wxi for every addon.
 **Mouse Interaction**. **Visibility**, the last tab, has the hiding rules (**Hide Windows**), **Fade When Idle** and which windows fade (**Fading**).
 There is no Winxi Theme tab in Party. Use **wxi** for shared colours, padding, shadows,
 window borders, bar textures, bookends and custom status icons. Organize, at the foot of the window, fills the frames with sample data so you can drag them into place.
-`/pt perf` measures five seconds of render and packet-handler CPU time: average, median, p95,
+`/winparty perf` measures five seconds of render and packet-handler CPU time: average, median, p95,
 p99 and worst latency. Memory is a **GC-sensitive net-growth estimate**, excluding negative deltas,
-not an exact allocation count. `/pt perf counters` also counts addon-local entity reads, text
+not an exact allocation count. `/winparty perf counters` also counts addon-local entity reads, text
 measurements, image submissions, texture-load attempts and status reorderings; not all shared Winxi internals are counted.
 These measurements do not include GPU execution. Percentile samples are capped at the first 16,384
 calls per category; averages and maxima cover the full interval.
@@ -107,18 +112,18 @@ are enabled again, tracking starts with only newly seen effects, never a rebuilt
 
 ### Live validation
 
-After reloading Party in Ashita, run `/pt perf` with the settings closed for these cases: solo, full party, full alliance,
-many pets, and target debuffs. Repeat with `/pt perf counters` when you are looking into work counts.
+After reloading Winparty in Ashita, run `/winparty perf` with the settings closed for these cases: solo, full party, full alliance,
+many pets, and target debuffs. Repeat with `/winparty perf counters` when you are looking into work counts.
 Compare Full, Simple and Off bar shadows under the same conditions. Check six-pet positioning, theme-font
 switches, status overflow near both screen edges, two-row icons, tooltips, and
 zone/disable/re-enable tracking. Offline checks cannot test real GPU performance, DPI or mouse
 behaviour in the game.
 
 ## once called xiframes
-The addon was called xiframes until it was renamed party. The first time each character logs in with it,
+The addon was called xiframes until it was renamed party (now winparty). The first time each character logs in with it,
 what xiframes kept for them (`config\addons\xiframes`) is taken up as party's settings, so you need not
-copy anything by hand; xiframes' folder is left as it was. Unload xiframes and load party in its
-place (and change `xiframes` to `party` in any script that loads it).
+copy anything by hand; xiframes' folder is left as it was. Unload xiframes and load winparty in its
+place (and change `xiframes` to `winparty` in any script that loads it).
 
 ## the code
 | file | what it does |
@@ -132,7 +137,7 @@ place (and change `xiframes` to `party` in any script that loads it).
 | `options.lua` | the settings, each an entry in a list: defaults and the settings tabs come from it |
 | `config.lua` | the settings window |
 | `draw.lua`, `colors.lua`, `game.lua`, `packets.lua` | drawing on a draw list, the colours that mean something, small things asked of the game, and the packets read |
-| `perf.lua` | `/pt perf`: render/packet CPU statistics and optional operation counters |
+| `perf.lua` | `/winparty perf`: render/packet CPU statistics and optional operation counters |
 | `geometry.lua` | cached automatic-layout reservations |
 | `statuses.lua`, `details.lua` | status filtering, screen capacity and hover details |
 
@@ -141,11 +146,11 @@ call, with a kept copy.
 
 ### Offline QA
 
-From the repository root, run Party's checks on their own with:
+From the repository root, run Winparty's checks on their own with:
 
 ```sh
 for check in tests/party*_check.lua; do
-    luajit tests/harness.lua party addons/party/party.lua "$check" || exit 1
+    luajit tests/harness.lua winparty addons/winparty/winparty.lua "$check" || exit 1
 done
 ```
 
@@ -232,20 +237,20 @@ range colours, rapid switching/despawns/doors, cutscenes, interface hide/show an
 Build/install/update: [plugins/uihook](../../plugins/uihook/README.md) (party shared ABI 3).
 Unload Party and partyhook before you replace the DLL; keep hideparty unloaded.
 
-- `/pt native on|off`: party/alliance lists, including embedded pet rows.
-- `/pt native target on|off`: target replacement on its own. It captures the main, sub-target and target-of-target
+- `/winparty native on|off`: party/alliance lists, including embedded pet rows.
+- `/winparty native target on|off`: target replacement on its own. It captures the main, sub-target and target-of-target
   windows together at the native target-box stage; the normal Target settings still choose which are shown.
-- `/pt native status`: a short mode/readiness status; cumulative debug counters are hidden.
+- `/winparty native status`: a short mode/readiness status; cumulative debug counters are hidden.
 - **Behavior → uihook**, between Positioning and Mouse Interaction, shows only while uihook (or partyhook) is loaded. Its title is followed in green by the plugin found
   and its version, e.g. `[uihook 1.60 found]`. **Use uihook** turns the
   hooking on or off as a whole. While it is on, **Party** and **Target** choose which windows the plugin
   draws in the game's place, and **Follow Default UI Behavior** sits with them, greyed until Use uihook is on; each row's sentence says what it does. Pets are rows of the
-  Party windows and go with Party. The choices are kept while the plugin is not loaded. `/pt native on` turns Use uihook on too; `/pt native status` says how the hooking is doing.
+  Party windows and go with Party. The choices are kept while the plugin is not loaded. `/winparty native on` turns Use uihook on too; `/winparty native status` says how the hooking is doing.
 
 While a fish is on the line, party mode lets through what the game's own party list draws outside the list,
 because the game draws the fish's stamina gauge with it (in the middle of the screen, not where the list sits).
-So the gauge shows and Party's windows stay. This needs uihook 1.65. With an older uihook, the game's whole party
-list is given back for the fight instead, and Party's party windows step aside so the party is not shown twice. This lasts from the bite (packet 0x115)
+So the gauge shows and Winparty's windows stay. This needs uihook 1.65. With an older uihook, the game's whole party
+list is given back for the fight instead, and Winparty's party windows step aside so the party is not shown twice. This lasts from the bite (packet 0x115)
 until the fight ends (the client's fishing packet ending or releasing the catch, a change of area, or the
 fight's time limit passing).
 
@@ -288,7 +293,7 @@ with the name text. It lies over the frame to the left of the name, without inde
 changing where it is cut short; it may overlap other elements. No replacement cursor PNG is bundled.
 Reload Party after changing the DAT or its overlay. If the DAT, sprites or texture cannot load,
 Party falls back to `>>` for the target and `>` for subtarget/party-cursor selection, and retries
-now and then. `/pt cursor` retries at once and reports whether loading failed at DAT read,
+now and then. `/winparty cursor` retries at once and reports whether loading failed at DAT read,
 DAT parsing or texture upload (or confirms that it loaded). This only draws a marker;
 it does not move or change the game's cursor.
 
@@ -308,7 +313,7 @@ This is separate from the addon's Organize mode and does not change the target o
 
 Party draws in ImGui output/display pixels, not in the game's background-render or native-menu
 coordinate space. Frame sizes use the saved style scale; changing the aspect ratio does not
-stretch the bars. Background supersampling and the native menu resolution are not inputs to Party's
+stretch the bars. Background supersampling and the native menu resolution are not inputs to Winparty's
 layout. The real presentation and Windows DPI behaviour still need checking in game.
 
 Turn on **Behavior → Positioning → Automatic Positioning** for the edge-relative layout
@@ -449,7 +454,7 @@ Its version stays a number (1.70), because Ashita's API gives a plugin a number,
 
 What a round of party covers before a release candidate is cut:
 
-- **Loading**: `/addon load party` alone (the overlay windows), then with `/load uihook` (the native
+- **Loading**: `/addon load winparty` alone (the overlay windows), then with `/load uihook` (the native
   windows, Use uihook on); unload and load each again while the other stays. With hideparty loaded too,
   party refuses its native windows and says so.
 - **The windows**: your party, an alliance's other two parties, pets, the target, sub-target and target
@@ -461,7 +466,7 @@ What a round of party covers before a release candidate is cut:
   reloading the character's settings.
 - **Offline first**: the checks in the Offline QA section above pass from the repository root.
 - **What to send**: a screenshot of the window in question, your settings file
-  (`config\addons\party\<character>.lua`, nothing private in it but the character's name), and the
+  (`config\addons\winparty\<character>.lua`, nothing private in it but the character's name), and the
   lines of Ashita's log around any error. Say which pre-release: the version in `/addon list`.
 
 A finding fixed within the round makes the next pre-release (`-pre2`); a round with nothing to fix

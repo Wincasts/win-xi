@@ -1,6 +1,6 @@
-addon.name    = 'party'
+addon.name    = 'winparty'
 addon.author  = 'lin, win'
-addon.version = '0.4.0-pre1'
+addon.version = '0.5.0'
 addon.desc    = 'Party, target and pet frames in the style of XivParty'
 
 -- The addon in outline:
@@ -423,7 +423,7 @@ ashita.events.register('command', 'command_handler', function(e)
         return
     end
     cmd = cmd:lower()
-    if cmd ~= '/pt' and cmd ~= '/xif' then
+    if cmd ~= '/winparty' and cmd ~= '/pt' and cmd ~= '/xif' then
         return
     end
     e.blocked = true
@@ -438,31 +438,31 @@ ashita.events.register('command', 'command_handler', function(e)
             if choice == 'on' then saved.nativeHook[1] = true end
             if nativeHook and choice == 'off' then nativeHook.Disable(isTarget) end
             settings.save()
-            print(('[party] Native %s replacement %s. Unload hideparty before enabling; /pt native status for diagnostics.'):format(isTarget and 'target' or 'party', choice))
+            print(('[winparty] Native %s replacement %s. Unload hideparty before enabling; /winparty native status for diagnostics.'):format(isTarget and 'target' or 'party', choice))
         elseif choice ~= 'status' then
-            print('[party] Usage: /pt native [target] on|off|status')
+            print('[winparty] Usage: /winparty native [target] on|off|status')
             return
         end
         nativeHook = nativeHook or require('hook')
-        print('[party] ' .. nativeHook.Status())
+        print('[winparty] ' .. nativeHook.Status())
         return
     elseif subcommand == 'menu' then
-        print(('[party] Current native menu: %q'):format(winxiGame.MenuName()))
+        print(('[winparty] Current native menu: %q'):format(winxiGame.MenuName()))
         return
     elseif subcommand == 'perf' then
-        print('[party] Measuring for five seconds...')
+        print('[winparty] Measuring for five seconds...')
         perf.Start(function(words)
-            print('[party] ' .. words .. (saved.showConfig[1] and ' (the settings window was open)' or ''))
+            print('[winparty] ' .. words .. (saved.showConfig[1] and ' (the settings window was open)' or ''))
         end, e.command:lower():match('%s+counters%s*$') ~= nil)
         return
     elseif subcommand == 'cursor' then
         local ok, handle, detail = pcall(require('winxi.cursor').Get, true)
         if not ok then
-            print('[party] Native cursor error: ' .. tostring(handle))
+            print('[winparty] Native cursor error: ' .. tostring(handle))
         elseif handle then
-            print(('[party] Native cursor loaded: %dx%d sprite from ROM/119/51.DAT'):format(detail[5], detail[6]))
+            print(('[winparty] Native cursor loaded: %dx%d sprite from ROM/119/51.DAT'):format(detail[5], detail[6]))
         else
-            print('[party] Native cursor unavailable: ' .. tostring(detail))
+            print('[winparty] Native cursor unavailable: ' .. tostring(detail))
         end
         return
     end

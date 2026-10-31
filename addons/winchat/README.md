@@ -521,7 +521,7 @@ luajit tests/nativehistory_check.lua
 luajit tests/chatbox_input_check.lua
 luajit tests/chatbox_translate_check.lua
 luajit tests/chatbox_layout_check.lua
-luajit tests/harness.lua party addons/party/party.lua tests/winxi_capture_check.lua
+luajit tests/harness.lua winparty addons/winparty/winparty.lua tests/winxi_capture_check.lua
 luajit tests/winxi_version_check.lua
 plugins/uihook/tests/run.sh
 ```

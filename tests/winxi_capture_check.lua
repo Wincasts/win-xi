@@ -1,4 +1,4 @@
--- Run through tests/harness.lua party addons/party/party.lua.
+-- Run through tests/harness.lua winparty addons/winparty/winparty.lua.
 H.load()
 local imgui = require('imgui')
 local window = require('winxi.window')

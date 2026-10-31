@@ -34,7 +34,7 @@ ashita={memory={find=function(module, offset, pattern)
 end, get_base=function() return moduleBase end}}
 local hidepartyLoaded=false
 package.loaded['winxi.presence']={ Present=function(name) return name=='hideparty' and hidepartyLoaded end }
-local hook=dofile('addons/party/hook.lua')
+local hook=dofile('addons/winparty/hook.lua')
 assert(not hook.Begin(true) and #calls==0,'unloaded DLL is not touched')
 loaded=true
 fake.Version=2
