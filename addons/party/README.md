@@ -36,10 +36,10 @@ the compact one of the Windower addon [XivParty](https://github.com/Tylas11/XivP
 `/pt` (or `/xif`) opens the settings. `/party` is left alone for the game's own party chat;
 `/xiframes` is no longer used. The Style tab sets how every frame is drawn (sizes,
 fonts, bars, statuses). The Party, Target and Pets tabs have what belongs to each one. The dark edge round names
-and values is Winxi Theme's Text Outline, set in winxisettings for every addon.
+and values is Winxi Theme's Text Outline, set in wxi for every addon.
 **Behavior** has **Positioning** (with the optional **Automatic Positioning**), then uihook while it is loaded, then
 **Mouse Interaction**. **Visibility**, the last tab, has the hiding rules (**Hide Windows**), **Fade When Idle** and which windows fade (**Fading**).
-There is no Winxi Theme tab in Party. Use **winxisettings** for shared colours, padding, shadows,
+There is no Winxi Theme tab in Party. Use **wxi** for shared colours, padding, shadows,
 window borders, bar textures, bookends and custom status icons. Organize, at the foot of the window, fills the frames with sample data so you can drag them into place.
 `/pt perf` measures five seconds of render and packet-handler CPU time: average, median, p95,
 p99 and worst latency. Memory is a **GC-sensitive net-growth estimate**, excluding negative deltas,
@@ -87,7 +87,7 @@ calls per category; averages and maxima cover the full interval.
   on until you let go of the mouse. Without Shift the windows stay put, so a click on them does not move them.
   With Lock Windows on they cannot be dragged, except while organizing. A window placed by Automatic
   Positioning or by uihook, or linked to another, is not moved this way (Organize unlinks it).
-  Tooltips follow **winxisettings → Tooltips**, including visibility, delay and appearance.
+  Tooltips follow **wxi → Tooltips**, including visibility, delay and appearance.
   Tooltips with an enemy's durations say plainly that they are estimates, not exact server timers.
   There is no click to target.
 - **Style → Names → Short Zone Names**, on by default: a member in another zone has the game's own short
@@ -191,7 +191,7 @@ not an in-game FPS benchmark. Check zoning, character switches, native selection
 and the real rendering in Ashita before you treat live QA as complete.
 
 ## window borders
-In **winxisettings → Styles → Window Border**, choose **Theme** (the existing border), **Brushed Silver**,
+In **wxi → Styles → Window Border**, choose **Theme** (the existing border), **Brushed Silver**,
 **Bronze**, **FFXI-inspired** (a cool silver and lavender bevel that recalls the base UI),
 **Crystal** (icy blue facets), **Royal Gold** (warm gilding with tiny inlaid corner ornaments),
 **Obsidian** (dark violet metal with platinum corner highlights), **Plain Obsidian** (the same without
@@ -341,7 +341,7 @@ handling. It does not emulate
 the native game's renderer, and does not prove that every layout fits on every screen.
 
 ## window backgrounds
-In **winxisettings → Styles → Window Background**, choose **Plain** (the flat Background
+In **wxi → Styles → Window Background**, choose **Plain** (the flat Background
 Color, the default), **Gradient** (lighter at the top, darker at the bottom), **FFXI-inspired** (that
 gradient with a fine dark line on every other row, after the look of the game's own windows),
 **Grain** (soft stone), **Marble** (faint veins), **Weave** (linen) or **Brushed Metal**.
@@ -353,7 +353,7 @@ Regenerate the tiles with `python3 tools/generate_winxi_backgrounds.py` (Pillow 
 art is used.
 
 ## bar textures
-In **winxisettings → Styles → Bar Texture**, choose:
+In **wxi → Styles → Bar Texture**, choose:
 - **Original**: the bundled classic textures.
 - **Glass**: glossy reflections and beveled edges.
 - **Detailed**: metal bevels and a subtle segmented fill.
@@ -405,7 +405,7 @@ into `libs/winxi/assets/bars` for `winxi.bars`. The preview is only for show,
 not an in-game screenshot.
 
 ## matching bookends
-Turn on **winxisettings → Styles → Bar Bookends**, then choose **Bookend Style**:
+Turn on **wxi → Styles → Bar Bookends**, then choose **Bookend Style**:
 - **Bar Texture** uses the chosen bar's existing cap (the default).
 - **Match Border** follows the Window Border: each border has its own ornament. With the plain
   Theme border it uses the bar texture cap.

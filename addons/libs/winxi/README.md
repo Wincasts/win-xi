@@ -48,7 +48,7 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 | `winxi.cursor` | The game's animated cursors, loaded from the client's menu DAT through the pivot-aware map reader. `Get(forceRetry, group, neutral)` returns a texture handle and the current frame (or nil and why): its UVs, its pixel rect in the atlas, and the corners it is drawn to around its pivot. `group` is `anc_s` (the right-pointing party cursor, the default) or `anc_l` (the downward target cursor); `neutral` gives a grey copy to tint. `Parse(buffer, length, group)` validates the `anc` DXT3 atlas and the group. Used by Party instead of text arrows, with text fallback if unavailable, and by hideparty for the target cursor it hides |
 | `winxi.mapdat` | The game's own map pictures as a texture to draw: `Load(dat)` with a map's file by its place under the game's folder (`'ROM/283/75.DAT'`), read the way pivot turns towards its overlays, so with XICombinedMaps installed it is the pack's 2048-pixel picture and without it the game's own. DXT and 8-bit bitmaps. `Load(dat, mask)` multiplies the picture's alpha by a mask (`{ width, height, values }`, 0 to 255 a pixel, laid over the whole picture), for DXT3 and bitmaps; `mapoverlay` uses it to show only a map's walkable ground |
 | `winxi.tips` | Editable tooltip content: `Get('name.appearance.bold')` returns plain text from generated catalogues; optional named values replace `{placeholders}`. Content only, independent of rendering. Start with [tooltip editing instructions](../../../tooltips/README.md). |
-| `winxi.tooltip` | Tooltips in winxi's look: `Hover(text)` after a control, `Show(text)`, or `Begin()` / `End()` around anything else. Whether they show, their delay, colours, padding, text size and width are the shared theme's Tooltip values, set in winxisettings' Tooltips tab, whether or not the addon follows the shared theme |
+| `winxi.tooltip` | Tooltips in winxi's look: `Hover(text)` after a control, `Show(text)`, or `Begin()` / `End()` around anything else. Whether they show, their delay, colours, padding, text size and width are the shared theme's Tooltip values, set in wxi's Tooltips tab, whether or not the addon follows the shared theme |
 | `winxi.nativechat` | The `uihook` plugin's chat slots (primary log, split log, input): `new(slot)` gives `Begin`, `Capture` (inside a window, from its `capture` option, after its border and title; for the expanded log, with the theme colours for the game's controls and which of them, tabs, scrollbar or text, the addon draws itself), `Stop`, `Rect`, `Tabs`, `Scrollbar` and `Rows` (where the game drew its own, as uihook measured them; the rows with their text, as the game was given it), `Routes` and `Shows` (which of the game's two log windows shows a message of a chat mode, as the game's Log Window settings route it; `Rect` on the split slot is the second window's place), `Lines` (a window's lines as the game grows and shrinks it), `Colors` (the game's chat colours as configured: a mode's, and what a 1E or 1F code names), `State` and `Status`, for an addon that draws its own chat in the game's place, as chatbox does |
 | `winxi.debounce` | Running a function once things have gone quiet |
 | `winxi.quests` | Quest identities by log/ID, hidden interactions, NPC/zone references, declared reward tables, factory metadata and enabled module/source evidence. `Get`, `GetBySymbol`, `Search`, `ForZone`, `ForNpc`, `ForReward`, `Tooltip`. Winxi 30. See [Quest catalog](quests.md) |
@@ -56,7 +56,7 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 | `winxi.jobs`, `skills`, `elements` | Server reference enums; jobs' related actions; skill ranks/caps including enabled YAML overlays. Winxi 29. See [Shared catalogs](catalogs.md) |
 | `winxi.autotranslate` | Installed-client English/Japanese phrase dictionary, categories, search, exact phrase/item/key-item tokens, decoding and game expansion. Winxi 29. See [Shared catalogs](catalogs.md#auto-translate) |
 | `winxi.items` | Shared Phoenix item catalog: `Get(id)`, `Ids()`, `Tooltip(id, optionalClientResource)`, `Index()`, `Script(path)`, `ModName(id)`, `Clear()`. Winxi 28. See [Item data](items.md) for fields, units, provenance and coverage limits |
-| `winxi.gamedata` | What is known of the game that the client does not say, made from a server's data by `tools/build_winxi_data.py` (a profile per server in `tools/phoenix/profiles.py`) and kept in `data\<server>\<set>\<key>.lua`: `Read(set, key)` (the chosen server's folder, else `data`'s own, for what is no server's and for the older flat layout), `Manifest()` (the server's name, repository, branch, commit, the sets), `Datasets()`, `Dataset()`, `UseDataset(key)` (kept in `config\addons\winxi\dataset.lua` for every addon, chosen in winxisettings' Server Data tab), `OnChange(fn)` (the readers clear their pages), `Root(path)` |
+| `winxi.gamedata` | What is known of the game that the client does not say, made from a server's data by `tools/build_winxi_data.py` (a profile per server in `tools/phoenix/profiles.py`) and kept in `data\<server>\<set>\<key>.lua`: `Read(set, key)` (the chosen server's folder, else `data`'s own, for what is no server's and for the older flat layout), `Manifest()` (the server's name, repository, branch, commit, the sets), `Datasets()`, `Dataset()`, `UseDataset(key)` (kept in `config\addons\winxi\dataset.lua` for every addon, chosen in wxi's Server Data tab), `OnChange(fn)` (the readers clear their pages), `Root(path)` |
 | `winxi.mobs` | An area's monsters as the server has them (levels, aggro and senses, links, family, drops, spells), from `gamedata`'s `mobs` set: `Zone(zone, subZone)`, `Find(tables, index, name)`, and each notorious monster's placeholders, `Placeholders(zone)`. Winxi 27 |
 | `winxi.mob_letters` | The spawn letters name writes after a monster's name: `Set(names, zone)` with an area's `{ [index] = name }`, then `Of(index, name, serverId)`, `a` to `z` among the slots of one name by index (or double letters, `Double(on)`), `''` where the list has not that name there. The same for every player of a server. `Problem()` says when the list differs from what the game shows, which is also printed once unless `Quiet`. Winxi 52 |
 | `winxi.zone_names` | `Read(zone)`: the game's own list of an area's names by entity index, read from its files (`{ [index] = name }`, or nil and why not); `Parse(bytes, zone)`. Winxi 52 |
@@ -118,7 +118,7 @@ The theme keeps the two apart: a settings window's colours, padding, font and fo
 its own (`theme.SettingsKeys`: `SettingsBackgroundColor` for `BackgroundColor`, and so on, with
 `ThemeTabColor` a settings window's alone), and `theme.For(key, settingsKind)` gives either. So what is
 chosen for the game's windows does not change the window it is chosen in. `widgets.Appearance` sets the
-game's windows, `widgets.SettingsAppearance` the settings windows; the `winxisettings` addon has both,
+game's windows, `widgets.SettingsAppearance` the settings windows; the `wxi` addon has both,
 a tab each. A theme saved before the two were apart gives its colours and font to both. `winxi.shell`'s settings window is one already.
 
 A settings window can always be resized, whatever flags it is given (`AlwaysAutoResize` and
@@ -629,13 +629,13 @@ Rows are 30 text heights of name and sentence, a gap, and 13 of control (`widget
 [+] is at the same x whatever a row's indentation; an indented sentence wraps that much sooner. A
 settings window fits itself to them, and one that has been resized keeps the control column and gives
 the sentence what is left. How a settings window opens is the theme's, on
-winxisettings' Settings Windows tab: Minimum Width (Fit To Content, or at least so many pixels wide),
+wxi's Settings Windows tab: Minimum Width (Fit To Content, or at least so many pixels wide),
 Starting Height (Fit To Content, or a height in pixels that its content scrolls within), and a button
 that takes both from that window as it stands. The section titles are written in the theme's Header
 Font at its Header Size there, or the window's own.
 
 On rows so far: the theme's own sections, the shell's Visibility and Controller rows, and the buff, sct,
-atlas, mark and winxisettings addons. The rest (party, name, chatbox, inventory, zone and the others)
+atlas, mark and wxi addons. The rest (party, name, chatbox, inventory, zone and the others)
 still draw labelled columns with `widgets.Label`, which stays until they are converted.
 
 ## Converting an addon: checklist
@@ -657,7 +657,7 @@ An addon with one main window can use `winxi.shell` (above), which does all of t
 ## Custom icons
 
 A status's icon can be the game's own or one of a set of custom icons, chosen under **Custom Icons**
-(winxisettings' Icons tab, under HQ Icons; Styles in an addon's own Winxi Theme tab): **None** for the
+(wxi's Icons tab, under HQ Icons; Styles in an addon's own Winxi Theme tab): **None** for the
 game's own, or a set. A set is a folder of `libs\winxi\statusicons` holding `<status number>.png`
 for each status it has an icon for (`1.png` for Poison, `33.png` for Haste, and so on); a status the
 set has no file for keeps the game's icon. **FFXIV**, the `ffxiv` folder, is the set winxi comes with.
@@ -689,7 +689,7 @@ end
 
 A header whose return is not used still shows `[-]`, but collapsing it hides nothing: always draw a
 section inside its `if`. Which sections are collapsed is kept while the addon is loaded. The titles are
-in the theme's `SettingsHeaderColor`, Sub-Category Color on winxisettings' Settings Windows tab.
+in the theme's `SettingsHeaderColor`, Sub-Category Color on wxi's Settings Windows tab.
 
 ## Checks
 

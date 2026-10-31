@@ -18,7 +18,7 @@
 -- additional effect, for as long as the server's scripts say it usually lasts, or until the server
 -- says it wore off.
 --
--- The icons are as party and buff draw them (winxi.statusicons): with Custom Icons on in winxisettings,
+-- The icons are as party and buff draw them (winxi.statusicons): with Custom Icons on in wxi,
 -- the chosen set's where it has one and the game's where it has not; off, the game's. All are from
 -- the one sheet: the plugin draws from eight pictures and no more, and the others are taken.
 local bit         = require('bit');

@@ -183,7 +183,7 @@ local function DrawMinimalSettings(options)
         if imgui.SliderInt('Rows##parse.minimal', options.minimalRows, 1, 18) then app.save() end
         if widgets.FontFile(options, 'minimalFontFile', '##parse.minimal.fontFile', { tooltip = 'The overlay\'s font: Theme Font follows Winxi Theme, or one of C:\\Windows\\Fonts.' }) then app.save() end
         if widgets.FontSize(options, 'minimalFontSize', '##parse.minimal.fontSize', { min = 10, max = 18, tooltip = 'How large the overlay\'s text is, in pixels.' }) then app.save() end
-        imgui.TextDisabled('The dark edge round the text is Winxi Theme\'s Text Outline, in winxisettings.')
+        imgui.TextDisabled('The dark edge round the text is Winxi Theme\'s Text Outline, in wxi.')
         if widgets.Lock(options.minimalLocked, '##parse.minimal.locked') then app.save() end
         if imgui.SliderInt('Name width##parse.minimal', options.minimalNameWidth, 60, 220) then app.save() end
         if imgui.SliderInt('Row spacing##parse.minimal', options.minimalRowSpacing, 0, 6) then app.save() end

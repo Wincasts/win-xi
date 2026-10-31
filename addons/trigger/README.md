@@ -17,7 +17,7 @@ optional "Twister" voice clips keep their original filenames and spoken words.
 
 ## WinXI Appearance
 
-The look is set for every addon at once, through the **winxisettings** addon. Trigger always follows
+The look is set for every addon at once, through the **wxi** addon. Trigger always follows
 the shared theme. It has no Winxi Theme tab and no theme of its own.
 The settings have three tabs: **Notifications** for the standard events and playback, **Triggers**
 for your own mob-action triggers, and **Toast** for the on-screen notification window. Every setting

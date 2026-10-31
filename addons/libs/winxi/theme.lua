@@ -105,7 +105,7 @@ for _, key in pairs(theme.SettingsKeys) do
     theme.SettingsWindowKeys[#theme.SettingsWindowKeys + 1] = key;
 end
 table.sort(theme.SettingsWindowKeys);
--- The icons' values, which winxisettings has on a tab of their own
+-- The icons' values, which wxi has on a tab of their own
 theme.IconKeys = { 'StatusIcons', 'StatusIconSet' };
 theme.TooltipKeys = {};
 for key in pairs(theme.Defaults) do

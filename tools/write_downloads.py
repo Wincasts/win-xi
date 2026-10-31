@@ -48,8 +48,8 @@ def carries(extras):
     if extras.get('standalone'):
         return 'Everything it needs'
     if extras.get('plugin'):
-        return f"winxi, winxisettings and the {extras['plugin']} plugin"
-    return 'winxi and winxisettings'
+        return f"winxi, wxi and the {extras['plugin']} plugin"
+    return 'winxi and wxi'
 
 
 def main():

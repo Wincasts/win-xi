@@ -100,7 +100,7 @@ local previews, selected = {}, {}
 local picks = { BorderStyle = 'Crystal', BarTexture = 'Satin', BarFrame = 'Capsule Outline', BookendStyle = 'Royal Silver', BackgroundStyle = 'FFXI-inspired', TabStyle = 'Brushed Metal', TitleStyle = 'Plate' }
 imgui.BeginCombo = function(id, preview)
     current = id:match('^##winxi%.(.+)$')
-    if current == 'FontFile' or current == 'TitleFontFile' or current == 'StatusIconSet' then return false end -- the fonts' (winxi_fonts_check) and the icons' (winxisettings_check)
+    if current == 'FontFile' or current == 'TitleFontFile' or current == 'StatusIconSet' then return false end -- the fonts' (winxi_fonts_check) and the icons' (wxi_check)
     assert(current and picks[current], id)
     previews[current] = preview
     opened = opened + 1

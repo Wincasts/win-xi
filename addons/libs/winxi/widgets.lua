@@ -1057,7 +1057,7 @@ function widgets.SettingsAppearance(appearanceHooks)
 end
 
 -- Every tooltip's values (winxi.tooltip): whether they show, how soon, their colours, padding, text
--- size and width. Tooltips are always the shared theme's, so this is for winxisettings, which follows it.
+-- size and width. Tooltips are always the shared theme's, so this is for wxi, which follows it.
 local tooltipSample = 'A tooltip looks like this. Its words go on to another line once they reach the Max Width set above, so a long one stays readable.';
 local sampleWords = 'Hover Here';
 

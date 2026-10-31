@@ -22,7 +22,7 @@ settings window.
 | [puppet](addons/puppet) | The next enfeebles and weapon skill an automaton will use | `/puppet` |
 | [tempo](addons/tempo) | Bars that show when your next auto attack comes and when your next resting tick lands, about how much it restores, and when HP and MP will be full. A basic take on cadence | `/tempo` |
 | [trigger](addons/trigger) | Plays a sound when something happens: a tell, an invite, a trade, an item dropping, low HP and the like | `/trigger` |
-| [winxisettings](addons/winxisettings) | The look shared by every winxi addon, in one settings window | `/winxi` |
+| [wxi](addons/wxi) | The look shared by every winxi addon, in one settings window | `/winxi` |
 | [zone](addons/zone) | Zone, region and weather banners, and a location line | `/zone` |
 
 Each addon's folder has a README with all of its commands and settings.
@@ -33,7 +33,7 @@ Each addon's folder has a README with all of its commands and settings.
 **vis** and **zone**, the **lens** plugin and **mobdb**'s Phoenix data are released one at a time, on the
 [Releases](https://github.com/Wincasts/win-xi/releases) page. The newest of each is listed on one page,
 [DOWNLOADS.md](DOWNLOADS.md). Each zip has everything the addon needs:
-the `winxi` library and `winxisettings`; with name, the `namehook` plugin; and with buff, chatbox and
+the `winxi` library and `wxi`; with name, the `namehook` plugin; and with buff, chatbox and
 party, the `uihook` plugin. vis and zone carry their own copy of the parts of winxi they use, so they
 need nothing else. occlusionfix needs nothing at all. Extract the zip into your Ashita folder (the one
 that holds `addons`, `plugins` and `config`). Merge folders when asked. Then follow
@@ -47,7 +47,7 @@ except occlusionfix needs the `winxi` library. Copy these into your Ashita folde
 
 - `addons/libs/winxi`
 - `addons/<the addon>` for each one you want
-- `addons/winxisettings`, to change the shared look
+- `addons/wxi`, to change the shared look
 - for `name`, also `plugins/namehook.dll` (see [plugins/namehook](plugins/namehook))
 - for `buff`, `chatbox` or native `party` replacement, also `plugins/uihook.dll` (build/install:
   [plugins/uihook](plugins/uihook))

@@ -1,6 +1,6 @@
-addon.name    = 'winxisettings'
+addon.name    = 'wxi'
 addon.author  = 'win'
-addon.version = '1.2'
+addon.version = '1.3'
 addon.desc    = 'The look shared by every winxi addon, in one settings window of its own.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -53,7 +53,7 @@ local rowIds = {} -- a layout's name -> its buttons' labels
 local function DrawLayouts()
     kept = kept or layouts.List()
     local resolution = layouts.Resolution() or '?'
-    widgets.BeginLabels('winxisettings.layouts')
+    widgets.BeginLabels('wxi.layouts')
 
     if widgets.Header('Layouts', true) then
         widgets.BeginRow('Resolution', 'The size of the game window now. Each layout is kept for one resolution.')
@@ -62,7 +62,7 @@ local function DrawLayouts()
         widgets.EndRow()
 
         automatic[1] = layouts.IsAutomatic()
-        if widgets.Check('Switch With Resolution', 'Starting the game at another resolution loads the layout kept for it, if there is one.', automatic, '##winxisettings.automatic') then
+        if widgets.Check('Switch With Resolution', 'Starting the game at another resolution loads the layout kept for it, if there is one.', automatic, '##wxi.automatic') then
             layouts.SetAutomatic(automatic[1])
         end
 
@@ -72,7 +72,7 @@ local function DrawLayouts()
             imgui.AlignTextToFramePadding()
             imgui.Text(pending)
             imgui.SameLine()
-            if imgui.Button('Cancel##winxisettings.cancelPending') then
+            if imgui.Button('Cancel##wxi.cancelPending') then
                 layouts.CancelPending()
             end
             widgets.EndRow()
@@ -84,7 +84,7 @@ local function DrawLayouts()
             sentence = ('Saves every addon\'s settings and the Winxi Theme as they are now, as the layout for %s.'):format(resolution)
             saveSentences[resolution] = sentence
         end
-        if widgets.Action('Save Layout', sentence, 'Save Layout##winxisettings.save') and resolution ~= '?' then
+        if widgets.Action('Save Layout', sentence, 'Save Layout##wxi.save') and resolution ~= '?' then
             Say(('Kept %d settings files as the layout for %s.'):format(layouts.Save(resolution), resolution))
             kept = nil
         end
@@ -97,7 +97,7 @@ local function DrawLayouts()
         for _, name in ipairs(kept or {}) do
             local ids = rowIds[name]
             if ids == nil then
-                ids = { name .. ' (this resolution)', 'Use##winxisettings.use.' .. name, 'Remove##winxisettings.remove.' .. name }
+                ids = { name .. ' (this resolution)', 'Use##wxi.use.' .. name, 'Remove##wxi.remove.' .. name }
                 rowIds[name] = ids
             end
             widgets.BeginRow(name == resolution and ids[1] or name, nil)
@@ -111,21 +111,21 @@ local function DrawLayouts()
             imgui.SameLine()
             if imgui.Button(ids[3]) then
                 removing = name
-                imgui.OpenPopup('Remove Layout?##winxisettings.remove')
+                imgui.OpenPopup('Remove Layout?##wxi.remove')
             end
             widgets.EndRow()
         end
 
-        if imgui.BeginPopup('Remove Layout?##winxisettings.remove') then
+        if imgui.BeginPopup('Remove Layout?##wxi.remove') then
             imgui.Text(('Remove the layout kept for %s?'):format(removing or '?'))
             imgui.Separator()
-            if imgui.Button('Remove##winxisettings.remove.confirm') then
+            if imgui.Button('Remove##wxi.remove.confirm') then
                 if removing then layouts.Delete(removing) end
                 removing, kept = nil, nil
                 imgui.CloseCurrentPopup()
             end
             imgui.SameLine()
-            if imgui.Button('Cancel##winxisettings.remove.cancel') then
+            if imgui.Button('Cancel##wxi.remove.cancel') then
                 removing = nil
                 imgui.CloseCurrentPopup()
             end
@@ -136,7 +136,7 @@ end
 
 -- The Server Data tab: the servers there is data for, the one every addon reads, and what it was made from
 local function DrawServerData()
-    widgets.BeginLabels('winxisettings.server')
+    widgets.BeginLabels('wxi.server')
     if widgets.Header('Server Data', true) then
         local choices = {}
         for _, dataset in ipairs(gamedata.Datasets()) do
@@ -148,7 +148,7 @@ local function DrawServerData()
             widgets.EndRow()
         else
             local chosen = widgets.Dropdown('Server', 'Whose data every winxi addon reads: its monsters, spells, statuses and rules, as that server has them.',
-                choices, gamedata.Dataset(), '##winxisettings.dataset')
+                choices, gamedata.Dataset(), '##wxi.dataset')
             if chosen ~= nil and chosen ~= gamedata.Dataset() and gamedata.UseDataset(chosen) then
                 Say(('Every winxi addon now reads %s\'s data.'):format(chosen))
             end
@@ -183,7 +183,7 @@ local app = shell.New({
 -- loaded to be used: the window is open from the start
 app.showConfig[1] = true
 
-ashita.events.register('d3d_present', 'winxisettings_present', function()
+ashita.events.register('d3d_present', 'wxi_present', function()
     local said = layouts.Start()
     if said then
         Say(said)

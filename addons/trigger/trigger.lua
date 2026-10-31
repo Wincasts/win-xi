@@ -157,7 +157,7 @@ end
 
 -- Whatever saved settings lack, or have as the wrong kind of thing
 local function Complete(options)
-    -- Appearance is managed globally by winxisettings, including for older saved profiles.
+    -- Appearance is managed globally by wxi, including for older saved profiles.
     options.useSharedTheme = true
     if type(options.events) ~= 'table' then options.events = T{ } end
     for _, event in ipairs(events) do

@@ -23,7 +23,7 @@ and `config`). Then, in game:
 
 Zone needs nothing else. `addons/zone/winxi` is its own copy of the parts of winxi it
 uses. Winxi is the library behind the winxi addons. If you use other winxi addons, the
-look they share (set with winxisettings and `/winxi`) is zone's look too.
+look they share (set with wxi and `/winxi`) is zone's look too.
 
 ## Using it
 
@@ -188,7 +188,7 @@ chat log is open, while loading, during events, with the game interface hidden).
 **Appearance** holds how the banner looks: its style and opacity, text, position
 and backdrop.
 There is no Winxi Theme tab. The theme, window and style settings zone follows
-are set in **winxisettings**. Zone-entry popups never include a sub-zone line.
+are set in **wxi**. Zone-entry popups never include a sub-zone line.
 Sub-zone popups show the area's name as the title, without a separate category
 label, and the zone's name under it with **Show Zone Name**.
 **Show Sub-zone Popups** is on by default. `/zone subzones` turns it off and on.

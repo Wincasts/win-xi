@@ -13,7 +13,7 @@
 --     end
 --
 -- How every tooltip looks and behaves is the shared theme's (winxi.theme's Tooltip keys, set in
--- winxisettings), whether or not the addon follows the shared theme for its windows: whether tooltips
+-- wxi), whether or not the addon follows the shared theme for its windows: whether tooltips
 -- are shown at all, how long the mouse rests before one shows, its colours, padding, text size and how
 -- wide it grows before its words go on to another line.
 local imgui = require('imgui');

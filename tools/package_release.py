@@ -21,7 +21,7 @@ Each zip holds the addon, everything it needs and nothing else:
                                  (Ashita looks in the addon's folder before addons/libs), checked by running
                                  the addon's checks against the packaged files with no addons/libs/winxi
     addons/libs/winxi/           the shared library, in every zip but a standalone one (winxi.version says which it is)
-    addons/winxisettings/        the shared look's settings window, in every zip but a standalone one
+    addons/wxi/                  the shared look's settings window, in every zip but a standalone one
     plugins/namehook.dll         with name, built here, with its GPL license and where its source is
     plugins/uihook.dll           with buff/chatbox/party, built here, with its MIT license and where its source is
 
@@ -51,7 +51,7 @@ from build_tooltips import references as tooltip_references
 ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY = 'Wincasts/win-xi'
 
-# What each release brings besides the addon, winxi and winxisettings; standalone leaves out those two
+# What each release brings besides the addon, winxi and wxi; standalone leaves out those two
 RELEASES = {
     'buff': {'plugin': 'uihook'},
     'chatbox': {'plugin': 'uihook'},
@@ -83,7 +83,7 @@ RELEASES = {
                         ('zoneinfo-styles', 'tests/zoneinfo_fixture.lua', 'zoneinfo_styles_check.lua')]},
 }
 # MIT, as the repository's LICENSE says: each is given a copy of it. The others keep their own terms.
-MIT = {'addons/libs/winxi', 'addons/winxisettings', 'addons/buff', 'addons/name', 'addons/occlusionfix',
+MIT = {'addons/libs/winxi', 'addons/wxi', 'addons/buff', 'addons/name', 'addons/occlusionfix',
        'addons/trigger', 'addons/zone', 'addons/zone/winxi', 'addons/vis/winxi', 'addons/chatbox', 'addons/parse', 'addons/sct', 'addons/vis'}
 # The art a winxi module draws, which goes with it into an addon's own copy
 WINXI_ART = {'backgrounds': 'assets/backgrounds', 'borders': 'assets/borders', 'bars': 'assets/bars'}
@@ -260,9 +260,9 @@ def private_winxi(addon, tree, staging):
     (target / 'README.txt').write_text(
         f'The parts of winxi {number} that {addon} uses, and their art: its own copy, used by {addon} alone.\n'
         f'Ashita looks in addons/{addon} before addons/libs, so a winxi installed by another addon is left\n'
-        f'to that addon. The look follows the shared theme (config/addons/winxi) where winxisettings has\n'
+        f'to that addon. The look follows the shared theme (config/addons/winxi) where wxi has\n'
         f'set one, and winxi\'s own otherwise. Its data (data/<server>/<set>) is the sets {addon} reads, for each\n'
-        f'server there is data for: the server whose data is used is chosen in winxisettings, for every winxi addon.\n'
+        f'server there is data for: the server whose data is used is chosen in wxi, for every winxi addon.\n'
         f'winxi is at https://github.com/{REPOSITORY}/tree/main/addons/libs/winxi\n')
     return names
 
@@ -302,13 +302,13 @@ def install_text(addon, version, extras):
         lines += [
             '',
             f'{addon} needs nothing else: addons/{addon}/winxi is its own copy of the parts of winxi it uses.',
-            f'If you use other winxi addons, the look they share (set with winxisettings and /winxi) is {addon}\'s too.',
+            f'If you use other winxi addons, the look they share (set with wxi and /winxi) is {addon}\'s too.',
         ]
     if extras.get('standalone'):
         return '\n'.join(lines) + '\n'
     lines += [
         '',
-        'and for the look every winxi addon shares: /addon load winxisettings, then /winxi.',
+        'and for the look every winxi addon shares: /addon load wxi, then /winxi.',
         '',
         'Every winxi addon comes with its own copy of addons/libs/winxi. If an addon says it needs a',
         'newer winxi, install the newest release of any winxi addon.',
@@ -319,7 +319,7 @@ def install_text(addon, version, extras):
 def stage(addon, extras, staging, commit):
     paths = ['LICENSE', f'addons/{addon}']
     if not extras.get('standalone'):
-        paths += ['addons/libs/winxi', 'addons/winxisettings']
+        paths += ['addons/libs/winxi', 'addons/wxi']
     elif extras.get('private_winxi'):
         paths += ['addons/libs/winxi']
     paths += list(extras.get('addons', {}).values())
@@ -516,7 +516,7 @@ def package(addon, output, wanted=None):
     elif extras.get('standalone'):
         comes = 'Needs nothing else.'
     else:
-        bundled = [f'winxi {winxi}', 'winxisettings', *extras.get('addons', {})]
+        bundled = [f'winxi {winxi}', 'wxi', *extras.get('addons', {})]
         if extras.get('plugin'):
             bundled.append(f"the {extras['plugin']} plugin")
         comes = f"Comes with {', '.join(bundled[:-1])} and {bundled[-1]}."

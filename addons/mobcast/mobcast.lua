@@ -174,7 +174,7 @@ end
 
 -- Whatever saved settings lack, or have as the wrong kind of thing
 local function Complete(options)
-    -- Appearance is managed globally by winxisettings, including for older saved profiles.
+    -- Appearance is managed globally by wxi, including for older saved profiles.
     options.useSharedTheme = true
     Boxed(options, 'showSpells', 'boolean', true)
     Boxed(options, 'showSkills', 'boolean', true)

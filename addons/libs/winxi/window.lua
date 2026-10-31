@@ -21,7 +21,7 @@
 -- narrowing to fit it (winxi.widgets) and its content scrolling where it is still too big. A
 -- double-click on a grip or an edge fits it to its content again. A fitted window is never taller than
 -- window.FitHeightShare of the screen (three quarters), its content scrolling below that. With the
--- theme's Starting Height set (SettingsWindowHeight, winxisettings' Settings Windows tab), a fitted
+-- theme's Starting Height set (SettingsWindowHeight, wxi's Settings Windows tab), a fitted
 -- window is that tall rather than as tall as its content; its width still fits, but is never less than
 -- the theme's Minimum Width (SettingsMinWidth). Fitted or not, it is never bigger
 -- than the screen. window.IsResized() says, while a window's content is drawn, whether it is a

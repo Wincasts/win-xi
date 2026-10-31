@@ -55,7 +55,7 @@ each where the game's are.
 ```text
 addons/chatbox/          this directory
 addons/libs/winxi/       WinXI 24 or newer (including infopanel code and bundled icons)
-addons/winxisettings/    shared theme settings (optional)
+addons/wxi/    shared theme settings (optional)
 plugins/uihook.dll       0.5 or newer, chat ABI 13 (native content, the tab strip, scrollbar and rows of text measured, the two log windows' routing and lines, the game's colours); 0.8 or newer reads each chat line after every addon, so the addon load order does not matter
 ```
 
@@ -207,7 +207,7 @@ the info panel (Anchor Above Info Panel, removed in 0.15.0).
 /chatbox clock        toggle hiding the game's clock (hide or show to set it)
 /chatbox compass      toggle hiding the game's compass (hide or show to set it)
 /uihook chat      native recognition, focus/expansion flags, cursor, page, scroll and filter
-/winxi            the shared WinXI look, with winxisettings installed
+/winxi            the shared WinXI look, with wxi installed
 ```
 
 ## Settings

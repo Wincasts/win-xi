@@ -72,7 +72,7 @@ bottom. When you lose one, `- [icon] Name` does the same.
 - **Buff Color**, **Enfeeble Color**, **Lost Color**: the colour of each kind of line.
 - **Icon Size**: how tall the icon is.
 - **Font**, **Font Size**: the lines' font. Theme Font and 0 (Theme Size) follow Winxi Theme.
-- The dark edge round the text is Winxi Theme's Text Outline. You set it in winxisettings, for every
+- The dark edge round the text is Winxi Theme's Text Outline. You set it in wxi, for every
   addon.
 
 Lines that come at the same time wait for the one before to move down by its height plus the Line

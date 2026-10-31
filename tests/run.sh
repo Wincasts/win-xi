@@ -170,7 +170,7 @@ luajit tests/hideparty_cursor_check.lua
 luajit tests/winxi_lens_check.lua || exit 1
 luajit tests/map_files_check.lua
 echo
-run winxisettings addons/winxisettings/winxisettings.lua winxisettings_check.lua
+run wxi addons/wxi/wxi.lua wxi_check.lua
 run trigger    addons/trigger/trigger.lua trigger_check.lua
 run trigger-winxi addons/trigger/trigger.lua trigger_winxi_check.lua
 luajit tests/trigger_queue_check.lua

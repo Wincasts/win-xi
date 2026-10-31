@@ -64,7 +64,7 @@ sample line of each kind when it has nothing to say, so that it can be dragged w
 - The hiding rules every winxi addon has: while the map is open, the chat log opened out, changing
   area, during events, and with the game's interface hidden.
 
-The box uses the game-window theme, border, background, frame title and font set in winxisettings,
+The box uses the game-window theme, border, background, frame title and font set in wxi,
 and the lines have the theme's Text Outline. The settings window uses winxi's settings appearance.
 
 ## What it reads

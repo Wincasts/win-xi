@@ -104,7 +104,7 @@ statusicons.MixedPlace = function(id)
     return place, place ~= nil
 end
 local look = require('winxi.theme').Get()
-H.print('icons as party and buff draw them: Custom Icons on in winxisettings', look.StatusIcons == true)
+H.print('icons as party and buff draw them: Custom Icons on in wxi', look.StatusIcons == true)
 -- the row's place is looked at centred first, and at each of the others further down
 local startAlign = o.statusAlign[1]
 o.statusAlign[1] = 'center'

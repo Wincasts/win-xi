@@ -54,7 +54,7 @@ In `/parse config` → **Minimal**, change the text opacity (20–100%), row cou
 (1–18), font size (10–18px), name-column width (60–220 at 12px), and row spacing (0–6px).
 Choose a font from **Windows Fonts**, or keep **Theme Font**. A missing font, or one that
 cannot be loaded, falls back to the theme font. The dark edge round all minimal text, including
-the summaries and status labels, is Winxi Theme's **Text Outline** (winxisettings, Game Windows),
+the summaries and status labels, is Winxi Theme's **Text Outline** (wxi, Game Windows),
 shared by every addon. It fades with the text opacity. The font choice is saved per character
 and does not affect the full view or the settings window.
 

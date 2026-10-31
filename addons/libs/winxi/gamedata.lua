@@ -10,7 +10,7 @@
 --     gamedata.Manifest()       the chosen server's manifest.lua: Source (Name, Key, Repository, Branch,
 --                               Commit, Built) and each set's file count (Sets), or {}
 --     gamedata.Datasets()       the servers there is data for: { { Key, Name }, ... } (data\datasets.lua)
---     gamedata.Dataset()        the chosen server's key: the one chosen in winxisettings (kept in
+--     gamedata.Dataset()        the chosen server's key: the one chosen in wxi (kept in
 --                               config\addons\winxi\dataset.lua, for every addon), or the first there is
 --     gamedata.UseDataset(key)  choose a server's data, for every addon: kept, and each addon's readers
 --                               told within a few seconds
@@ -143,7 +143,7 @@ function gamedata.UseDataset(key)
         if (file == nil) then
             return false;
         end
-        file:write('-- The server whose data every winxi addon reads. Written by winxi: choose it in winxisettings.\n');
+        file:write('-- The server whose data every winxi addon reads. Written by winxi: choose it in wxi.\n');
         file:write(('return { Key = %q };\n'):format(key));
         file:close();
     end

@@ -1,7 +1,8 @@
-# winxisettings
+# wxi
 
 One window for the look shared by every addon that draws with `winxi` (`addons/libs/winxi`). The
-window is drawn with winxi itself. It opens when the addon loads.
+window is drawn with winxi itself. It opens when the addon loads. It was called winxisettings before:
+load `wxi` in its place, and remove the old `addons\winxisettings` folder.
 
 - `/winxi` or `/wxi` opens or closes the window
 
@@ -46,8 +47,8 @@ place at once. With a character logged in, it is used the next time the game sta
 With **Switch With Resolution** on, starting the game at a different resolution than last time does
 two things. It keeps every addon's settings as the layout for the old resolution. Then it uses the
 layout kept for the new resolution, if there is one. If there is none, the settings stay as they were,
-so you can move them for it. For this to work, winxisettings has to be loaded as the game starts: put
-`/addon load winxisettings` in `scripts\default.txt`.
+so you can move them for it. For this to work, wxi has to be loaded as the game starts: put
+`/addon load wxi` in `scripts\default.txt`.
 
 To try another resolution: Save Layout for this one, close the game, change the resolution and start
 again. When you go back to it later, what was saved comes back. The new resolution's layout is kept as

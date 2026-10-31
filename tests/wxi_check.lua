@@ -1,4 +1,4 @@
--- winxisettings: winxi's appearance options in a window of their own, one tab for the windows on the
+-- wxi: winxi's appearance options in a window of their own, one tab for the windows on the
 -- game screen and one for the settings windows; and the theme's two sets of values behind them
 H.load()
 local imgui = require('imgui')
@@ -42,7 +42,7 @@ H.frames(1)
 assert(colors['##winxi.SettingsBackgroundColor'] and colors['##winxi.SettingsTextColor'] and colors['##winxi.ThemeTabColor'], 'Settings Windows: their colours')
 assert(not colors['##winxi.BackgroundColor'] and not colors['##winxi.TitleColor'], 'Settings Windows: no game window colours')
 H.tab(1)
-H.print('winxisettings: open on load; Game Windows, Icons and Settings Windows tabs, each with its own values', true)
+H.print('wxi: open on load; Game Windows, Icons and Settings Windows tabs, each with its own values', true)
 
 -- each kind of window has its own background
 local current = theme.Get()
@@ -146,7 +146,7 @@ H.tab(1)
 for _, key in ipairs(theme.TooltipKeys) do
     for _, other in ipairs(theme.GameWindowKeys) do assert(key ~= other, 'a game window key: ' .. key) end
 end
-H.print('winxisettings: a Tooltips tab with its own values, apart from the game windows\'', true)
+H.print('wxi: a Tooltips tab with its own values, apart from the game windows\'', true)
 
 -- winxi.tooltip: drawn in the tooltip colours, wrapped, balanced, and not before the delay
 do
@@ -289,6 +289,6 @@ H.command('/winxi')
 H.tab(5)
 H.frames(1)
 local saveShown = false
-for _, label in ipairs(buttons) do saveShown = saveShown or label == 'Save Layout##winxisettings.save' end
-H.print('Layouts: the resolution, Switch With Resolution and Save Layout', saveShown and checks['##winxisettings.automatic'] == true)
+for _, label in ipairs(buttons) do saveShown = saveShown or label == 'Save Layout##wxi.save' end
+H.print('Layouts: the resolution, Switch With Resolution and Save Layout', saveShown and checks['##wxi.automatic'] == true)
 imgui.Button, imgui.Checkbox = realButton, realCheckbox

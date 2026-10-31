@@ -429,7 +429,7 @@ way than through a placeholder (timed, forced or scripted spawns) has none liste
 ### Statuses over a name
 
 The **Statuses** tab puts a row of status icons above or below a name, for the statuses ticked there and no
-others. To begin with the icons are drawn as the party and buff addons draw them, by Custom Icons in winxisettings
+others. To begin with the icons are drawn as the party and buff addons draw them, by Custom Icons in wxi
 (`/wxi`). With it on, the chosen set's icons (FFXIV, `libs\winxi\statusicons\ffxiv`, to start) are used where the set has an
 icon for the status, and the game's where it has not. With it off, the game's icons are used. `libs/winxi` has to be deployed
 with its `statusicons` folder. The set's icons are as narrow as the set has them; the game's are square.
