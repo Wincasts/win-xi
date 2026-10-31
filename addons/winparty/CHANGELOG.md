@@ -2,7 +2,7 @@
 
 ## 0.5.0
 
-- Renamed winparty: the addon is `winparty` (`addons\winparty`, `/addon load winparty`), its settings window Winparty Settings, and `/winparty` opens it as `/pt` and `/xif` still do. Each character's settings are brought over from `config\addons\party` the first time it logs in, as xiframes' once were; its messages say `[winparty]`. Remove the old `addons\party` folder.
+- Renamed winparty: the addon is `winparty` (`addons\winparty`, `/addon load winparty`), its settings window winparty Settings, and `/winparty` opens it as `/pt` and `/xif` still do. Each character's settings are brought over from `config\addons\party` the first time it logs in, as xiframes' once were; its messages say `[winparty]`. Remove the old `addons\party` folder.
 
 ## 0.4.0
 

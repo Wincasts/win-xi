@@ -1,4 +1,4 @@
--- Winchat's Info Panel tab. Layout/data/icon placement controls are shared with clock. Its own settings are
+-- winchat's Info Panel tab. Layout/data/icon placement controls are shared with clock. Its own settings are
 -- described rows (winxi 65); their specs, choices and sentences are made once, here.
 local imgui=require('imgui')
 local widgets=require('winxi.widgets')

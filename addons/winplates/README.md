@@ -1,4 +1,4 @@
-# Winplates
+# winplates
 
 Up to 1.86 this addon was called name, and up to 1.5 nametoggle. Load `winplates` in place of `name`
 and remove the old `addons\name` folder: each character's settings are brought over from `name` the first
@@ -15,7 +15,7 @@ loaded.
 ```
 
 - `/winplates`: opens or closes the settings. It is the only command, apart from `/winplates diag` (see
-  [Diagnostics](#diagnostics)). Anything else after it only brings up this help. Use Visibility to choose which names appear. Unload Winplates to get the game's names back.
+  [Diagnostics](#diagnostics)). Anything else after it only brings up this help. Use Visibility to choose which names appear. Unload winplates to get the game's names back.
 
 ## Settings
 
@@ -45,7 +45,7 @@ The tabs are **General → Names → Bars → Check Details → Statuses → Vis
 statuses) is turned on and off in its own section, with **Enabled** at the top. Health and cast bars
 share the **Bars** tab.
 
-- **General:** **Enable Winplates** first, then **Preset**, a premade look to start from.
+- **General:** **Enable winplates** first, then **Preset**, a premade look to start from.
   A preset sets the three formats, the check line, Health Bars and Combat Only, Status Icons and
   Check Details. Font, sizes, colours, visibility and the chosen statuses are left as they are. The
   list says **Custom** when the settings match none of them.
@@ -57,25 +57,25 @@ share the **Bars** tab.
   | Robust | `[party: space=2][icons: space=4][name]` | `[aggro: space=4]Lv [level]. [name] [letters] ([distance: decimals=1]y)` | Always | On | On |
   | Immersive | `[party: space=2][icons: space=4][name]` | `[name]` | In combat | Off | Off |
 
-  NPCs are `[vendor: space=4][name]` in each preset but Minimal, where they are `[name]`. **Enable Winplates**
-  is at the top of General and on to begin with. It means Winplates draws the names. Turn it off and
-  Winplates lets them go at once. The game then draws its own names, at the size namehook gives them
-  (`/namehook fontsize`), unstretched. Visibility still says which are shown. Winplates' health bars and
-  status icons are not drawn while it is off. All other Winplates settings are greyed out across the tabs
+  NPCs are `[vendor: space=4][name]` in each preset but Minimal, where they are `[name]`. **Enable winplates**
+  is at the top of General and on to begin with. It means winplates draws the names. Turn it off and
+  winplates lets them go at once. The game then draws its own names, at the size namehook gives them
+  (`/namehook fontsize`), unstretched. Visibility still says which are shown. winplates' health bars and
+  status icons are not drawn while it is off. All other winplates settings are greyed out across the tabs
   until you turn it on again. Saved values are kept.
 
 - **Rendering readability:** namehook **1.32** adds a smoother eight-direction text
   halo with a soft downward shadow, and antialiased HP-bar edges that stay smooth
   under Lens counter-transformation. Nearby font size, name placement, colours and
   format strings do not change. Small names keep more outline contrast. Install
-  the updated `namehook.dll` as well as Winplates and WinXI. Older plugins still draw
+  the updated `namehook.dll` as well as winplates and WinXI. Older plugins still draw
   bars, but with their old hard edges. Outline 0 still turns off the halo and shadow.
   Letter badges also use a 4×4 area-sampled box/cutout mask and a transparent
   texture guard, so filtering can smooth their straight sides as well as their rounded
   corners. The guard does not count in the visible size, text advance or baseline.
   Single and double badge spacing, tint and nameplate centring do not change. This
   badge pass is built once per cached atlas, not every frame, and needs no
-  plugin update beyond the halo changes above. Winplates text still uses its existing
+  plugin update beyond the halo changes above. winplates text still uses its existing
   glyph atlas by default. **Smooth Font**, beside **Bold**, is optional. It builds a cached
   atlas by area-averaging a 4× glyph raster down to native drawing pixels at each
   existing distance-size rung. Transparent guards allow edge filtering without
@@ -88,7 +88,7 @@ share the **Bars** tab.
   until the font, size, source texture or glyph UVs change. While a build is being prepared, or after
   a build fails, direct glyph rendering is used instead. Failures are reported once and
   retried at most once a second while the source is unchanged. Switching Smooth Font off
-  releases Winplates' generated texture and high-resolution glyph-cache handles.
+  releases winplates' generated texture and high-resolution glyph-cache handles.
   Switching it back on builds a fresh atlas. ImGui owns the shared source atlas
   and may keep that allocation until it reclaims or rebuilds it. No further plugin
   update is needed for filtered text.
@@ -102,10 +102,10 @@ share the **Bars** tab.
   badges are not affected. Width follows the existing resolution and distance scaling;
   small names may use a thinner edge. Aggro/passive and tracked-monster glyphs
   still have no shadow, but now follow the width you chose instead of a fixed cap.
-  Winplates 1.64 needs **namehook 1.35** and **WinXI 47**. A capability check stops
+  winplates 1.64 needs **namehook 1.35** and **WinXI 47**. A capability check stops
   older ABI-compatible plugins from silently ignoring the independent width. Plugins that do not
   support it keep the stock names and visibility controls, with a warning to update.
-  `./deploy.sh push winplates` includes changed WinXI and the built DLL before Winplates;
+  `./deploy.sh push winplates` includes changed WinXI and the built DLL before winplates;
   reload every addon that uses WinXI, plus namehook. Deployment still asks for confirmation
   and makes backups. Nothing is compiled or written live while developing.
 - **General Name Appearance:** the shared Font, Bold, Maximum/Minimum Name Size,
@@ -188,20 +188,20 @@ Settings a character already has are kept.
 
 A name over someone under Invisible is never drawn, whatever the settings above say. This includes the
 target and whitelisted players. Who is invisible is read from the server's updates (another player's
-0x0D, your own 0x37), so someone who is already invisible when Winplates is loaded keeps their name until their
-next update. With Enable Winplates off the game draws its own names, and this is left to it.
+0x0D, your own 0x37), so someone who is already invisible when winplates is loaded keeps their name until their
+next update. With Enable winplates off the game draws its own names, and this is left to it.
 
 Names In View, under General → Diagnostics, counts the names shown and hidden last frame.
 Diagnostics is collapsed by default and has an Enable Diagnostics checkbox.
 
 ## Custom names
 
-Enable Winplates in General chooses between Winplates' own drawing and the game's own names.
+Enable winplates in General chooses between winplates' own drawing and the game's own names.
 The Names tab sets up WinXI text, in the game's colours, with icons wherever
 `[icons]` appears in its format. Visibility still decides which names are shown.
-Winplates' own drawing needs namehook 1.35 or newer and WinXI 47 or newer.
-Turning Winplates off, losing the plugin, reloading settings or changing profile releases the
-generated atlases and file textures Winplates owns. Cleaning up twice does no harm. Unloading the addon also
+winplates' own drawing needs namehook 1.35 or newer and WinXI 47 or newer.
+Turning winplates off, losing the plugin, reloading settings or changing profile releases the
+generated atlases and file textures winplates owns. Cleaning up twice does no harm. Unloading the addon also
 invalidates the last submission and gives up the claim before releasing textures,
 including textures the plugin has not yet consumed. ImGui still owns its shared font atlas.
 The draw buffer and cached DLL writers are invalidated before the GPU owners are freed,
@@ -215,7 +215,7 @@ release replaced badge atlases promptly rather than waiting for Lua GC.
 | Bar Width / Height (px, Bars → Shared Bar Settings) | One pair for the HP and cast rows of all types: the bar's size under a name at its largest. It shrinks with the name as the name goes further away, and grows with a hunted or sub-targeted one. Defaults to **60 × 6 px**, including the border. Width: 12–300; height: 3–40. Saved per character |
 | Bold | Makes names and check-detail text heavier. Each letter is drawn twice, a pixel apart. On in the preferred defaults; icons and stars do not change |
 | Smooth Font (beside Bold) | Off by default. Uses a cached, area-filtered text atlas made from 4× rasterised glyphs, with transparent edge guards. The native layout metrics and Bold's one-pixel stroke are kept; icons and badges do not change. It uses more atlas memory and has a one-time build cost. Direct rendering is used while it is being prepared or is unavailable |
-| Bar Texture (Bars → Health Bars, Cast Bars) | What the bars are drawn in, each kind its own: **Plain** (the dark-bordered bar, to begin with) or one of WinXI's Bar Textures, winparty's HP art, tinted the name's colour. Drawn from a sheet Winplates makes of the sets in use and its own signs, at full, half and quarter size, so small bars stay clean. The fill's end is softened with namehook 1.37. Art that will not load leaves the bar Plain |
+| Bar Texture (Bars → Health Bars, Cast Bars) | What the bars are drawn in, each kind its own: **Plain** (the dark-bordered bar, to begin with) or one of WinXI's Bar Textures, winparty's HP art, tinted the name's colour. Drawn from a sheet winplates makes of the sets in use and its own signs, at full, half and quarter size, so small bars stay clean. The fill's end is softened with namehook 1.37. Art that will not load leaves the bar Plain |
 | Preview (Bars → Shared Bar Settings) | For this session only: every bar that is on is shown while the section is open. Each name that can have a health bar shows one, emptying and filling again, at full health and out of combat too (Entity Types still apply). With cast bars on, a sample cast runs under the names. Never saved |
 | Combat Only (Health Bars) | Off by default. Needs each entity's own Engaged status (1) and HP above zero. Missing or invalid data hides the bar. Applies to players, enemies, pets, trusts and NPCs |
 | Maximum Name Size (px, General) | The shared text height when near, 6–48 pixels, for every entity type. It does not depend on the bar size |
@@ -257,7 +257,7 @@ clearly labelled animated sample cast runs under visible names, using the real b
 layout, and switching between spell and TP styles with Show Weaponskills. With health bars on, a bar
 runs under every name that can have one, emptying and filling. Real actions come first.
 Samples send no packets and make no observed actor records. The preview stops shortly after you leave the
-section or window, and resets when Winplates is turned off or the profile is reloaded. The switch is never saved.
+section or window, and resets when winplates is turned off or the profile is reloaded. The switch is never saved.
 
 Cast bars apply to visible names with a matching live
 entity identity. The Entity Types and Combat Only controls still filter
@@ -295,7 +295,7 @@ When the estimate runs out first, a full bar says **Waiting** until the result o
 bounded safety timeout. Unknown timings show **+elapsed seconds** with an empty bar,
 not an invented percentage. Completed and instant weaponskills briefly show a full bar,
 the observed name and **Used**, never a made-up ready phase. Completed spells
-clear at once. Death, despawn, zone and profile changes, turning off Winplates or cast bars, and
+clear at once. Death, despawn, zone and profile changes, turning off winplates or cast bars, and
 plugin loss clear tracked actions. Actors are keyed by server ID, checked against
 live entity identity, and limited to 256 records. A cast already running cannot be
 picked up if its start packet was missed.
@@ -741,7 +741,7 @@ a name hides it, or the part of it that it covers, as it hides the game's.
 
 The letters are those of imgui's font. Where the game's picture is larger than its window (a
 background resolution above the window's) they are made larger to match, so that they are as sharp as
-the rest of the picture. Every frame, Winplates reads the plugin's world render-target size and ImGui's
+the rest of the picture. Every frame, winplates reads the plugin's world render-target size and ImGui's
 live output size. The horizontal and vertical ratios are applied separately, so fonts, icons and
 spacing do not stretch when the background aspect ratio differs, or the client's menu resolution
 is different from the output resolution. The updated `namehook.dll` also applies the horizontal
@@ -799,14 +799,14 @@ suppresses the stale label. Missing render-flag data alone does not start a disa
 - **Custom**: loads `addons/winplates/assets/player-icons-custom.png`. Copy `player-icons.png` as a template:
   keep its proportional atlas layout, including the composite pieces. Higher-resolution versions of
   the same layout work too. Custom PNGs use normal PNG alpha, not DAT's doubled alpha. If the file
-  cannot load, Winplates falls back to Bundled. Different custom layouts and mappings are not yet supported.
+  cannot load, winplates falls back to Bundled. Different custom layouts and mappings are not yet supported.
 
 The linkshell pearl keeps its linkshell's colour, and two-part icons keep their overlay. The
 choice does not change party and alliance role icons, vendor icons, or monster aggro and sense icons.
 The UI reports a fallback and gives its reason on hover. Successful DAT reads and uploads are cached,
 not repeated every frame; failures retry at most every ten seconds. Switching sources releases the
 owned DAT texture and retries on returning to Game DATs. PNG failures retry once a second through the
-shared image loader. Reload Winplates after changing an image that is already loaded, or after changing Pivot packs.
+shared image loader. Reload winplates after changing an image that is already loaded, or after changing Pivot packs.
 No signatures, game font-memory scans, borrowed textures or Python are needed at runtime.
 
 The atlas and mapping were exported from the installed client's high-resolution `ustatshd` and
@@ -838,7 +838,7 @@ so, and what is set is given to the plugin when it is.
 ## Diagnostics
 
 **Write Report** in General → Diagnostics makes a support summary you can share, with one
-click, without turning on diagnostic recording. `/winplates report` also works with Enable Winplates
+click, without turning on diagnostic recording. `/winplates report` also works with Enable winplates
 off. Files are `config\\addons\\winplates\\logs\\winplates-report-<date>-<time>-<sequence>.txt`.
 Nothing is uploaded. Reports include the addon, library and capability-build versions, capability
 flags, display and draw counts, generated font and badge atlas sizes, the active artwork source
@@ -855,8 +855,8 @@ Detailed diagnostic recording is off unless you turn it on, for testers:
 /winplates diag log      writes a log now, on or off (with diagnostics off it has no history)
 ```
 
-While they are on, General → Diagnostics shows whether Winplates is drawing the names (**Custom Names**).
-When Winplates stops claiming the names for more than half a second, at any frame rate, the game draws
+While they are on, General → Diagnostics shows whether winplates is drawing the names (**Custom Names**).
+When winplates stops claiming the names for more than half a second, at any frame rate, the game draws
 its own names again. The reason is said once in the chat log and a log is written, once a session for each reason.
 The reasons:
 

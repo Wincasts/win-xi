@@ -112,7 +112,7 @@ are enabled again, tracking starts with only newly seen effects, never a rebuilt
 
 ### Live validation
 
-After reloading Winparty in Ashita, run `/winparty perf` with the settings closed for these cases: solo, full party, full alliance,
+After reloading winparty in Ashita, run `/winparty perf` with the settings closed for these cases: solo, full party, full alliance,
 many pets, and target debuffs. Repeat with `/winparty perf counters` when you are looking into work counts.
 Compare Full, Simple and Off bar shadows under the same conditions. Check six-pet positioning, theme-font
 switches, status overflow near both screen edges, two-row icons, tooltips, and
@@ -146,7 +146,7 @@ call, with a kept copy.
 
 ### Offline QA
 
-From the repository root, run Winparty's checks on their own with:
+From the repository root, run winparty's checks on their own with:
 
 ```sh
 for check in tests/party*_check.lua; do
@@ -249,8 +249,8 @@ Unload Party and partyhook before you replace the DLL; keep hideparty unloaded.
 
 While a fish is on the line, party mode lets through what the game's own party list draws outside the list,
 because the game draws the fish's stamina gauge with it (in the middle of the screen, not where the list sits).
-So the gauge shows and Winparty's windows stay. This needs uihook 1.65. With an older uihook, the game's whole party
-list is given back for the fight instead, and Winparty's party windows step aside so the party is not shown twice. This lasts from the bite (packet 0x115)
+So the gauge shows and winparty's windows stay. This needs uihook 1.65. With an older uihook, the game's whole party
+list is given back for the fight instead, and winparty's party windows step aside so the party is not shown twice. This lasts from the bite (packet 0x115)
 until the fight ends (the client's fishing packet ending or releasing the catch, a change of area, or the
 fight's time limit passing).
 
@@ -313,7 +313,7 @@ This is separate from the addon's Organize mode and does not change the target o
 
 Party draws in ImGui output/display pixels, not in the game's background-render or native-menu
 coordinate space. Frame sizes use the saved style scale; changing the aspect ratio does not
-stretch the bars. Background supersampling and the native menu resolution are not inputs to Winparty's
+stretch the bars. Background supersampling and the native menu resolution are not inputs to winparty's
 layout. The real presentation and Windows DPI behaviour still need checking in game.
 
 Turn on **Behavior → Positioning → Automatic Positioning** for the edge-relative layout

@@ -647,15 +647,15 @@ imgui.Selectable=function() return false end
 imgui.EndCombo=function() end
 imgui.BeginCombo=function() return true end
 spec.drawSettings(app.options)
-assert(table.concat(opened,',')=='Winchat,Layout,Activity,Look','WinXI Skin, collapsed: the Winchat section and the skin\'s three')
+assert(table.concat(opened,',')=='winchat,Layout,Activity,Look','WinXI Skin, collapsed: the winchat section and the skin\'s three')
 for _,name in ipairs(opened) do headers[name]=true end
 headers['Chat Log Window'], headers['Input Text Box'] = true, true
 opened={}
 spec.drawSettings(app.options)
-assert(table.concat(opened,',')=='Winchat,Layout,Activity,Look','open: settings sections without per-window colour overrides')
+assert(table.concat(opened,',')=='winchat,Layout,Activity,Look','open: settings sections without per-window colour overrides')
 app.options.mode[1]='game'; opened={}
 spec.drawSettings(app.options)
-assert(table.concat(opened,',')=='Winchat,Look','Follow Game: the Winchat and Look sections; no Layout or Activity')
+assert(table.concat(opened,',')=='winchat,Look','Follow Game: the winchat and Look sections; no Layout or Activity')
 app.options.mode[1]='skin'
 -- Each control in its section: Layout the sizes and the expanded log's place, Activity each window's, Look the rest.
 -- A window's Animate Resize, Resize Duration, Minimum Rows and Fade Duration are rows under their switch, greyed
@@ -673,8 +673,8 @@ imgui.Checkbox,imgui.SliderInt,imgui.SliderFloat=recordControl,recordControl,rec
 spec.drawSettings(app.options)
 assert(controlOrder[1]=='##chatbox.enabled' and controlOrder[2]=='##chatbox.replaceNativeChat' and controlOrder[3]=='##chatbox.autoTranslate',
     'Enable, Replace Native Chat, then Auto-Translate')
-assert(controlGroups['##chatbox.enabled']=='Winchat' and controlGroups['##chatbox.timestamps']=='Winchat',
-    'the switches in the Winchat section (the font is winxi\'s widget, not recorded here)')
+assert(controlGroups['##chatbox.enabled']=='winchat' and controlGroups['##chatbox.timestamps']=='winchat',
+    'the switches in the winchat section (the font is winxi\'s widget, not recorded here)')
 assert(controlGroups['##chatbox.chatTooltips']==nil and controlGroups['##chatbox.tooltipNotes']==nil,
     'tooltip controls no longer appear in the main Settings tab')
 headers['Chat Tooltips']=true
@@ -1005,7 +1005,7 @@ assert(text[1].text == 'wheel 1' and text[10].text == 'wheel 10', 'scroll clamps
 -- No destructive clear button in settings; the explicit command still resets scrolling.
 do local oldSmall=imgui.SmallButton; imgui.SmallButton=function(label)
         assert(not label:find('chatbox.clear',1,true),'history clear button removed'); return false end
-    headers['Winchat']=true; spec.drawSettings(app.options); headers['Winchat']=nil; imgui.SmallButton=oldSmall end
+    headers['winchat']=true; spec.drawSettings(app.options); headers['winchat']=nil; imgui.SmallButton=oldSmall end
 spec.commands.clear()
 for i=1,80 do message('wheel ' .. i) end; frame() -- no frame between: nothing has clamped the old scroll away
 assert(text[10].text == 'wheel 80', 'the clear command forgets the scroll as well, so the newest line is at the bottom again')
@@ -2290,13 +2290,13 @@ assert(app.options.controllerType=='auto' and pad.IsAutomatic() and pad.GetLayou
 imgui.BeginCombo=function(id,label) if id=='##chatbox.controllerType' then padLabel=label end; return id=='##chatbox.controllerType' end
 imgui.Selectable=function(label) return label:find('##chatbox.controllerType.xinput',1,true)~=nil end
 local savesBefore=saves
-headers['Winchat']=true
+headers['winchat']=true
 spec.drawSettings(app.options)
 assert(padLabel=='Automatic' and app.options.controllerType=='xinput' and pad.GetLayout()=='xinput' and not pad.IsAutomatic() and saves==savesBefore+1,
     'XInput chosen over Automatic: set and saved')
 imgui.Selectable=function(label) return label:find('##chatbox.controllerType.auto',1,true)~=nil end
 spec.drawSettings(app.options)
-headers['Winchat']=nil
+headers['winchat']=nil
 assert(app.options.controllerType=='auto' and pad.IsAutomatic() and pad.GetLayout()=='playstation' and saves==savesBefore+2,'Automatic chosen again')
 imgui.BeginCombo,imgui.Selectable=oldCombo,oldSelectable
 app.options.controllerType='playstation'; spec.onSettings(app.options)

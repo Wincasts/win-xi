@@ -627,12 +627,12 @@ app = shell.New({
     command = '/winchat',
     aliases = { '/chatbox' },
     formerName = 'chatbox',
-    configTitle = 'Winchat Settings',
+    configTitle = 'winchat Settings',
     hideAppearance = true,
     help = '/winchat opens settings; /winchat on, off, clear, status, modes, bytes; /winchat timestamps [on|off] shows or hides the timestamps SimpleLog or the timestamp addon write; /winchat panel [on|off|reset] controls the optional info panel; /winchat clock and /winchat compass [hide|show] the game\'s; /winchat translate [on|off] turns winchat\'s own auto-translate list on Tab on or off.',
     drawSettings = function(options)
         local game = Game(options)
-        if widgets.Header('Winchat', true) then
+        if widgets.Header('winchat', true) then
             if widgets.Check('Enable', 'Draws the chat log, input bar and expanded log in the Winxi look instead of the game default. /winchat on and off switch it too.', options.enabled, '##chatbox.enabled') then
                 if not options.enabled[1] then Release() end
                 app.save()

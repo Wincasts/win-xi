@@ -230,7 +230,7 @@ local function snapshot(lines)
             local d = nameplates.Dropped(hook);
             local plugin = d.namesDropped ~= nil and ('%d names last frame had no room in the list, %d drawings refused since load'):format(d.namesDropped, d.drawingsRefused)
                 or 'namehook before 1.42 does not count';
-            return ('%s; Winplates could not hand over %d names and %d quads since load'):format(plugin, d.namesRefused, d.quadsRefused);
+            return ('%s; winplates could not hand over %d names and %d quads since load'):format(plugin, d.namesRefused, d.quadsRefused);
         end);
         -- the texture the plugin read for the font's mark, as it last drew the names: 0 for none
         try(lines, 'Font texture drawn', function () return '0x' .. bit.tohex(hook.FontTexture); end);
@@ -346,7 +346,7 @@ end
 local lastReportPath, reportNumber = nil, 0;
 function diag.LastReportPath() return lastReportPath; end
 function diag.ReportText()
-    local lines = { ('Winplates %s support report'):format(addon.version),
+    local lines = { ('winplates %s support report'):format(addon.version),
         'Privacy: no character names, chat, paths, formats, raw errors or history.', '' };
     local function safe(label, read)
         local ok,value=pcall(read);

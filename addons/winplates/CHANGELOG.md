@@ -2,7 +2,7 @@
 
 ## 1.87
 
-- Renamed Winplates: the addon is `winplates` (`addons\winplates`, `/addon load winplates`), its settings window Winplates Settings and its command `/winplates`, with `/name` kept as another way in. Each character's settings are brought over from `config\addons\name` the first time it logs in (winxi.shell's formerName). Logs and support reports go to `config\addons\winplates\logs` as `winplates-…txt`, and Enable Name is Enable Winplates. Remove the old `addons\name` folder.
+- Renamed winplates: the addon is `winplates` (`addons\winplates`, `/addon load winplates`), its settings window winplates Settings and its command `/winplates`, with `/name` kept as another way in. Each character's settings are brought over from `config\addons\name` the first time it logs in (winxi.shell's formerName). Logs and support reports go to `config\addons\winplates\logs` as `winplates-…txt`, and Enable Name is Enable winplates. Remove the old `addons\name` folder.
 
 ## 1.86
 

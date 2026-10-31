@@ -235,7 +235,7 @@ local trackingTab = { label = 'NM Tracking', draw = WhenEnabled(customSettings.D
 -- The settings, the settings window and the command are the shell's
 app = shell.New({
     defaults     = defaults,
-    configTitle  = 'Winplates Settings',
+    configTitle  = 'winplates Settings',
     hideAppearance = true,
     menuOnlyCommands = true,
     command      = '/winplates',
@@ -289,7 +289,7 @@ app = shell.New({
             options.diagnostics[1] = on;
             diag.Enable(on);
             app:Save();
-            app:Say(on and 'Diagnostics on: if the names Winplates draws stop, the reason is said and a log written to config\\addons\\winplates\\logs. /winplates diag log writes one now; /winplates diag off stops.'
+            app:Say(on and 'Diagnostics on: if the names winplates draws stop, the reason is said and a log written to config\\addons\\winplates\\logs. /winplates diag log writes one now; /winplates diag off stops.'
                 or 'Diagnostics off.');
         end,
     },

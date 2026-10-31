@@ -59,7 +59,7 @@ Then, in game: `/addon load <the addon>`. For `winplates`, run `/load namehook` 
 `winparty`, run `/load uihook` first. Uihook replaces the retired `buffhook` and `partyhook` plugins:
 unload those before loading it, and remove their startup commands. Native rendering for winparty is
 still opt-in; unload `hideparty` before turning it on.
-[Winchat](addons/winchat/README.md) includes a native-backed WinXI input bar. It needs winxi 22 and
+[winchat](addons/winchat/README.md) includes a native-backed WinXI input bar. It needs winxi 22 and
 uihook 0.5 with chat ABI 13 (0.6 for native action-menu anchoring above the panel, for the expanded log
 drawn wholly by winchat and opened in place, and for the game's history read at start).
 Its optional Info Panel belongs to winchat and does not hide with the native clock.

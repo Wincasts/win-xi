@@ -18,7 +18,7 @@ each where the game's are.
   to begin with). Linkshells show `Linkshell 1: Name` or `Linkshell 2: Name`, from the equipped
   pearl. If you loaded winchat mid-session and names are missing, re-equip your pearls, because the game
   sends their slots on login and equip.
-  **Window Title** in the Winchat section puts your own words there instead; left empty, the channel.
+  **Window Title** in the winchat section puts your own words there instead; left empty, the channel.
 - Native and SimpleLog inline colours are always kept; text with no colour of its own takes its native chat-mode
   colour. The colours are the game's own, as you have set them, read through uihook; without uihook, close
   approximations.
@@ -75,7 +75,7 @@ hidechatbg or other addons that write the native chat's visibility alongside it.
 ```
 
 With uihook 0.8 or newer loaded after `addons` (as `/load addons` then `/load uihook`), the addon
-load order does not matter. Winchat reads each chat line through uihook as it stands after every
+load order does not matter. winchat reads each chat line through uihook as it stands after every
 addon, so SimpleLog's timestamps and a filter's blocks reach it whether SimpleLog is loaded before or
 after it (`/winchat status` says "Lines: read through uihook after every addon"). Where uihook is
 loaded before `addons`, its copy is the game's original, and winchat keeps its own copy of a line an
@@ -84,7 +84,7 @@ SimpleLog among them, **before** winchat. It then reads `text_in`'s modified tex
 blocked messages, but cannot see changes made by handlers that run after its own. An alphabetical
 `scripts/default.txt` loads winchat before simplelog, so move simplelog's line above winchat's, or
 every game start puts them back (SimpleLog's timestamps then reach the game's log but not winchat's;
-`/winchat bytes` says so). Winchat never blocks or rewrites a message, so the game's history keeps
+`/winchat bytes` says so). winchat never blocks or rewrites a message, so the game's history keeps
 everything and is there if replacement stops. SimpleLog's multi-hit and critical tags, aggregation,
 actor filters, timestamps and job profiles come through that way; there is no second combat
 formatter or filter.
@@ -169,14 +169,14 @@ of a clock panel you already have.
   winchat off, or when no valid native layout or capture is available. Custom positioning does not override these rules.
 - Time, zone and EXP data do not need the native clock to be drawn. Weather uses the login and weather packets,
   then fresh native data or a direct read of the game's weather state. Its icon stays available while
-  fishing, in events, or when the native clock is hidden, even when Winchat loads mid-session.
+  fishing, in events, or when the native clock is hidden, even when winchat loads mid-session.
   A passing read failure keeps the last known weather; leaving a zone and character resets clear it.
   Clear skies are a real value, never a guessed fallback. `{grid}` likewise falls back to the game's
   own grid function while the clock is hidden; zones without a grid still omit it.
 
 **Switching from clock:** install this winchat and the full updated Winxi library, including the
 shared panel icons. `/addon unload clock`, `/addon reload winchat`, then `/winchat panel on`.
-Winchat does not need the clock addon or its folder; existing clock settings are left as they are
+winchat does not need the clock addon or its folder; existing clock settings are left as they are
 and are not imported. Use `/winchat panel off` before you go back to clock.
 
 **Hide Game Clock** (Info Panel → General, off by default; `/winchat clock [hide|show]`) hides the
@@ -219,11 +219,11 @@ the info panel (Anchor Above Info Panel, removed in 0.15.0).
 
 `/winchat` opens the Settings, Info Panel and Tooltips tabs. Every setting is a described row: its name, a sentence under it
 saying what it does, and its control at the right (winxi 65). There is no Winxi Theme tab. Settings are kept for each character. The
-Winchat and Look sections apply in both modes. The Layout and Activity sections belong to the WinXI Skin and
+winchat and Look sections apply in both modes. The Layout and Activity sections belong to the WinXI Skin and
 show only in it (their settings are kept, and ignored, in Follow Game). The look is WinXI's in both:
 the mode is how the boxes behave and where they stand.
 
-**Winchat**
+**winchat**
 
 - **Enable** (on to begin with): turns on winchat's log and input bar. Off, the native log and input
   come back, and all the other controls in Settings, Info Panel and Tooltips are greyed out. Saved settings

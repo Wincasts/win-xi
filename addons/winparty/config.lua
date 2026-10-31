@@ -358,7 +358,7 @@ function config.Draw(saved)
     flags = flags or ImGuiWindowFlags_NoSavedSettings
     drawing = saved
     imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, windows.ItemSpacing)
-    window.Full('Winparty Settings', saved.showConfig, flags, DrawContent, style)
+    window.Full('winparty Settings', saved.showConfig, flags, DrawContent, style)
     imgui.PopStyleVar()
 
     if not saved.showConfig[1] then

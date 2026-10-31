@@ -93,7 +93,7 @@ local presetSpec = {};
 function general.DrawSettings(options, save)
     local changed = false;
     if (controls.Section('General', true)) then
-        if (controls.Checkbox('Enable Winplates', '##name.drawNames', options.drawNames,
+        if (controls.Checkbox('Enable winplates', '##name.drawNames', options.drawNames,
                 'Draws the names over heads in this addon\'s style. Off, the game draws its own and the other tabs wait.')) then
             changed = true;
         end

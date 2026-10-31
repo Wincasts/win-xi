@@ -761,7 +761,7 @@ window AddText (383,193) #F0E6C2FF Target
 window PopClipRect
 imgui End
 ## filled with sample data, the settings open (bare): 649 calls
-imgui Begin Winparty Settings
+imgui Begin winparty Settings
 window AddRectFilled (10,17) (210,39) #B0ADC738
 window AddRectFilled (10,37) (210,39) #B0ADC766
 imgui TextColored (1,0.75,0.55,1) Positioning
