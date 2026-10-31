@@ -1,4 +1,4 @@
-package.path = 'addons/name/?.lua;addons/libs/?.lua;' .. package.path -- levels reads winxi.mobs
+package.path = 'addons/winplates/?.lua;addons/libs/?.lua;' .. package.path -- levels reads winxi.mobs
 local letters = require('winxi.mob_letters')
 local indices = {}
 for ordinal = 28, 1, -1 do indices[ordinal * 3] = { Name = 'Goblin' } end
@@ -63,7 +63,7 @@ listFile:write(table.concat(listed))
 listFile:close()
 local asked = {}
 local events = {}
-addon = { path = 'addons/name/' }
+addon = { path = 'addons/winplates/' }
 ashita = { fs = { exists = function(path)
     local file = io.open(path, 'r')
     if file then file:close(); return true end

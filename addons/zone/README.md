@@ -497,14 +497,14 @@ the sprite, without rebuilding textures.
 
 The addon includes its own `gdifonts/` Lua files, `gdifonttexture.dll` and MIT
 license. It uses a private manager and explicit drawing instead of sharing
-`name`'s GDI module or an automatic render tick. The texture-pointer lifetime fix
-from `name` is kept. Deploy the **whole zone addon**, not just the Lua
+`winplates`' GDI module or an automatic render tick. The texture-pointer lifetime fix
+from `winplates` is kept. Deploy the **whole zone addon**, not just the Lua
 entrypoint, and reload it before testing.
 
 **Experimental native code:** the DLL needs Windows and Ashita's Direct3D 8
 client. Lua error handling cannot recover from a native access violation, or
 prove that device loss is handled. Offline tests use a mocked renderer. Native
-font quality, placement and use at the same time as `name` still need checking
+font quality, placement and use at the same time as `winplates` still need checking
 in game. `gdi-diagnostic.txt` records initialization and texture-build
 checkpoints, to help look into a native failure. Cached frames do not log.
 

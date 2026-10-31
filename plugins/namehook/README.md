@@ -66,7 +66,7 @@ For example, to see only your party's names among players: `/nh hide players all
 
 Settings changed by a command last until the plugin is unloaded, unless you save them. The settings and the whitelist are read from `config\namehook` alone. What the plugin kept under its old name, nameplatehook, and nameplatew's files, were read until 1.28. `/namehook save` writes `defaults.ini` where it is wanted, and `whitelist add` writes the list.
 
-The `name` addon, in `addons/name` of this project, is a settings window for the categories. It keeps them for each character.
+The `winplates` addon, in `addons/winplates` of this project, is a settings window for the categories. It keeps them for each character.
 
 ## For addons
 
@@ -212,7 +212,7 @@ What is set out goes in `HookDraw` (`src/Nameplate.h`), at the address in the bl
 | `Quads` | Each a rectangle: its corners `X0`, `Y0`, `X1`, `Y1` in pixels of the client's picture, measured from the point the client puts the name at; the same corners in its texture, `U0`, `V0`, `U1`, `V1`; `Color` as 0xAARRGGBB; `Texture`, which of the textures; and `Flags`, 1 if it is given the edge |
 | `TexturesExtra` | 1.43: 24 more textures, a quad's `Texture` 8 to 31, as `Textures`. This buffer has no `Size` of its own, so an addon writes them only with `FEATURE_TEXTURES_32` (32) in the capabilities (`nameplates.TextureSlots`). `HookPopupDraw` has them too. |
 
-The quads are in pixels of the client's picture, not of its window. `BeginDrawing(hook, true)` returns `TargetHeight / DisplaySize.y` for a uniform vertical layout; `Quad` separately fits X coordinates by `(TargetWidth / DisplaySize.x) / (TargetHeight / DisplaySize.y)`. It also publishes that ratio for native outline offsets and bounds. This keeps text, icons, spacing and outlines in proportion on nonuniform background targets, whatever the menu resolution. The corrected outlines need the updated plugin; older plugins still draw corrected quads but ignore the outline ratio. Calls without the opt-in keep the legacy horizontal scale and unmodified target coordinates. `winxi.nameplates` does the bookkeeping (`BeginDrawing`, `SetTexture`, `BeginName`, `Quad`, `EndName`), and `addons/name/custom.lua` sets names out this way, from imgui's font.
+The quads are in pixels of the client's picture, not of its window. `BeginDrawing(hook, true)` returns `TargetHeight / DisplaySize.y` for a uniform vertical layout; `Quad` separately fits X coordinates by `(TargetWidth / DisplaySize.x) / (TargetHeight / DisplaySize.y)`. It also publishes that ratio for native outline offsets and bounds. This keeps text, icons, spacing and outlines in proportion on nonuniform background targets, whatever the menu resolution. The corrected outlines need the updated plugin; older plugins still draw corrected quads but ignore the outline ratio. Calls without the opt-in keep the legacy horizontal scale and unmodified target coordinates. `winxi.nameplates` does the bookkeeping (`BeginDrawing`, `SetTexture`, `BeginName`, `Quad`, `EndName`), and `addons/winplates/custom.lua` sets names out this way, from imgui's font.
 
 The plugin draws a name when all of these hold: its category is claimed, it is wanted, and the addon set it out within the last 8 frames. It is then listed with the custom flag. A claimed name that was not set out is not drawn at all. What is set out in one frame is drawn in the next, where the client then puts the name: the name's place is never a frame behind, only what it looks like.
 
@@ -363,7 +363,7 @@ The blocks this plugin shares with addons are frozen at their 1.0 layout until 2
 
 ## Pre-releases and release candidates
 
-namehook is released inside name's package. A pre-release of name (`name-v1.86-pre1`) is a
+namehook is released inside winplates' package. A pre-release of winplates (`winplates-v<version>-pre1`) is a
 pre-release of the namehook it carries, built from the same commit (`plugins/namehook-SOURCE.txt` in the
 zip). The plugin's own version stays a number, as Ashita's API has it. What a round covers, and what to
-send, is in [name's README](../../addons/name/README.md#pre-releases-and-release-candidates).
+send, is in [winplates' README](../../addons/winplates/README.md#pre-releases-and-release-candidates).

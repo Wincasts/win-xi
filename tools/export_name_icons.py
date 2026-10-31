@@ -100,6 +100,6 @@ def export(source, destination):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source')
-    parser.add_argument('--output', default='addons/name/assets')
+    parser.add_argument('--output', default='addons/winplates/assets')
     args = parser.parse_args()
     export(args.source, args.output)

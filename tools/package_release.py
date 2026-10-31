@@ -67,7 +67,7 @@ RELEASES = {
     'vis': {'standalone': True, 'private_winxi': True,
             'checks': [('vis', 'addons/vis/vis.lua', 'vis_check.lua'), ('vis', 'addons/vis/vis.lua', 'vis_game_check.lua')]},
     'inventory': {},
-    'name': {'plugin': 'namehook'},
+    'winplates': {'plugin': 'namehook'},
     'occlusionfix': {'standalone': True},
     'party': {'plugin': 'uihook'},
     'trigger': {},
@@ -83,7 +83,7 @@ RELEASES = {
                         ('zoneinfo-styles', 'tests/zoneinfo_fixture.lua', 'zoneinfo_styles_check.lua')]},
 }
 # MIT, as the repository's LICENSE says: each is given a copy of it. The others keep their own terms.
-MIT = {'addons/libs/winxi', 'addons/wxi', 'addons/buff', 'addons/name', 'addons/occlusionfix',
+MIT = {'addons/libs/winxi', 'addons/wxi', 'addons/buff', 'addons/winplates', 'addons/occlusionfix',
        'addons/trigger', 'addons/zone', 'addons/zone/winxi', 'addons/vis/winxi', 'addons/chatbox', 'addons/parse', 'addons/sct', 'addons/vis'}
 # The art a winxi module draws, which goes with it into an addon's own copy
 WINXI_ART = {'backgrounds': 'assets/backgrounds', 'borders': 'assets/borders', 'bars': 'assets/bars'}

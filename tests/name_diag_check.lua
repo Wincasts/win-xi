@@ -41,10 +41,10 @@ H.print('off by default', options.diagnostics[1] == false, diag.Enabled() == fal
 for _ = 1, 40 do diag.Frame('texture') end
 diag.Frame(nil)
 H.print('off: a long pause is not written or said', #written == 0, diag.Status() == 'Drawing')
-H.command('/name custom off')
-H.print('other verbs still only say the help', H.printed[#H.printed]:find('Use /name to open', 1, true) ~= nil)
-H.command('/name diag')
-H.print('/name diag turns it on, and it is kept', options.diagnostics[1] == true, diag.Enabled(), H.saves() > 0)
+H.command('/winplates custom off')
+H.print('other verbs still only say the help', H.printed[#H.printed]:find('Use /winplates to open', 1, true) ~= nil)
+H.command('/winplates diag')
+H.print('/winplates diag turns it on, and it is kept', options.diagnostics[1] == true, diag.Enabled(), H.saves() > 0)
 
 -- a pause too short to be seen is only counted
 for _ = 1, 5 do diag.Frame(nil) end
@@ -55,7 +55,7 @@ H.print('short pause: nothing said or written', #written == 0)
 -- one long enough that the game's names come back is said once and written once
 local before = #H.printed
 for _ = 1, 40 do diag.Frame('texture') end
-H.print('long pause: written once', #written == 1, written[1] and written[1].path:match('config\\addons\\name\\logs\\name%-[%d%-]+%.txt$') ~= nil)
+H.print('long pause: written once', #written == 1, written[1] and written[1].path:match('config\\addons\\winplates\\logs\\winplates%-[%d%-]+%.txt$') ~= nil)
 H.print('and said', #H.printed == before + 1 and H.printed[#H.printed]:find('Custom names stopped', 1, true) ~= nil)
 H.print('status while stopped', diag.Status():match('^Stopped for') ~= nil)
 diag.Frame(nil)
@@ -83,8 +83,8 @@ H.print('log has the reason, pauses, error, history and settings',
     text:find('fontSize               28', 1, true) ~= nil)
 if os.getenv('SHOW_LOG') then H.print(text) end
 local count = #written
-H.command('/name diag log')
-H.print('/name diag log writes one', #written == count + 1, H.printed[#H.printed]:find('Log written to', 1, true) ~= nil)
-H.command('/name diag off')
-H.print('/name diag off', options.diagnostics[1] == false, diag.Enabled() == false)
+H.command('/winplates diag log')
+H.print('/winplates diag log writes one', #written == count + 1, H.printed[#H.printed]:find('Log written to', 1, true) ~= nil)
+H.command('/winplates diag off')
+H.print('/winplates diag off', options.diagnostics[1] == false, diag.Enabled() == false)
 io.open = realOpen

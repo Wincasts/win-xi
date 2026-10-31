@@ -25,14 +25,14 @@ local text=diag.ReportText()
 for _,secret in ipairs({'SecretCharacter','SecretUser','SecretChat','SecretMonster','C:\\Users','traceback','[name]'}) do
     assert(not text:find(secret,1,true),'privacy leak: '..secret)
 end
-for _,expected in ipairs({'Name '..addon.version,'WinXI',tostring(require('winxi.version').Number),'1.35','API 1; mask 0x7','Filtered font','Letter badge atlas',
+for _,expected in ipairs({'Winplates '..addon.version,'WinXI',tostring(require('winxi.version').Number),'1.35','API 1; mask 0x7','Filtered font','Letter badge atlas',
     'bundled fallback','source failure (details omitted)','Lua errors recorded: 2','texture: 1 brief'}) do
     assert(text:find(expected,1,true),'missing fact: '..expected)
 end
 local originalOpen=io.open
 local files={}
 io.open=function(path,mode)
-    assert(mode=='w' and path:find('\\logs\\name-report-',1,true),'only explicitly requested reports may be written')
+    assert(mode=='w' and path:find('\\logs\\winplates-report-',1,true),'only explicitly requested reports may be written')
     local f={path=path,body=''};files[#files+1]=f
     f.write=function(self,value) self.body=self.body..value;return self end
     f.close=function() return true end
@@ -42,7 +42,7 @@ local path=assert(diag.Report())
 assert(path==diag.LastReportPath() and files[1].body==text)
 local second=assert(diag.Report());assert(second~=path,'repeat clicks must not overwrite a same-second report')
 options.drawNames[1]=false
-H.command('/name report')
+H.command('/winplates report')
 assert(#files==3 and files[3].body:find('disabled',1,true),'report command works with Name off')
 io.open=function() return nil,'denied' end
 local failed,why=diag.Report()

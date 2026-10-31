@@ -1,5 +1,5 @@
 -- Run with luajit tests/name_icons_check.lua; no game or Direct3D device needed.
-package.path = 'addons/name/?.lua;' .. package.path
+package.path = 'addons/winplates/?.lua;' .. package.path
 ashita = { memory = setmetatable({}, { __index = function() error('must not scan game memory') end }) }
 package.preload.d3d8 = function() error('PNG icons must use the shared sheet loader') end
 local loads, releases, gameReady = 0, 0, false

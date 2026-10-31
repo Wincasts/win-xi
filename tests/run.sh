@@ -215,37 +215,37 @@ run zoneinfo-features tests/zoneinfo_background_fixture.lua zoneinfo_features_ch
 run zoneinfo-settings tests/zoneinfo_fixture.lua zoneinfo_settings_ui_check.lua
 run zoneinfo-more tests/zoneinfo_fixture.lua zoneinfo_more_styles_check.lua
 echo
-run name addons/name/name.lua name_check.lua
+run winplates addons/winplates/winplates.lua name_check.lua
 run damage addons/damage/damage.lua damage_check.lua
 run damage addons/damage/damage.lua damage_absent_check.lua
 run namehooktest addons/namehooktest/namehooktest.lua namehooktest_check.lua
-run name addons/name/name.lua name_token_options_check.lua
-run name addons/name/name.lua name_types_check.lua
-run name addons/name/name.lua name_colours_check.lua
-run name-extensions addons/name/name.lua name_extensions_check.lua
-run name addons/name/name.lua name_healthbar_check.lua
-run name addons/name/name.lua name_healthbar_render_check.lua
-run name-smooth-font addons/name/name.lua name_smooth_font_check.lua
-run name-resolution addons/name/name.lua name_resolution_check.lua
-run name-performance addons/name/name.lua name_performance_check.lua
-run name-menus addons/name/name.lua name_menu_check.lua
-run name-tracking addons/name/name.lua name_track_check.lua
-run name-statuses addons/name/name.lua name_statuses_check.lua
-run name-diag  addons/name/name.lua name_diag_check.lua
-echo '== name bundled player icons'
+run winplates addons/winplates/winplates.lua name_token_options_check.lua
+run winplates addons/winplates/winplates.lua name_types_check.lua
+run winplates addons/winplates/winplates.lua name_colours_check.lua
+run winplates-extensions addons/winplates/winplates.lua name_extensions_check.lua
+run winplates addons/winplates/winplates.lua name_healthbar_check.lua
+run winplates addons/winplates/winplates.lua name_healthbar_render_check.lua
+run winplates-smooth-font addons/winplates/winplates.lua name_smooth_font_check.lua
+run winplates-resolution addons/winplates/winplates.lua name_resolution_check.lua
+run winplates-performance addons/winplates/winplates.lua name_performance_check.lua
+run winplates-menus addons/winplates/winplates.lua name_menu_check.lua
+run winplates-tracking addons/winplates/winplates.lua name_track_check.lua
+run winplates-statuses addons/winplates/winplates.lua name_statuses_check.lua
+run winplates-diag  addons/winplates/winplates.lua name_diag_check.lua
+echo '== winplates bundled player icons'
 luajit tests/name_icons_check.lua
 luajit tests/name_playerdat_check.lua
 luajit tests/namehook_capabilities_check.lua
-luajit tests/harness.lua name addons/name/name.lua tests/name_lifecycle_check.lua
-luajit tests/harness.lua name addons/name/name.lua tests/name_readability_check.lua || exit 1
-luajit tests/harness.lua name addons/name/name.lua tests/name_report_check.lua || exit 1
-luajit tests/harness.lua name addons/name/name.lua tests/name_castbar_check.lua || exit 1
-luajit tests/harness.lua name addons/name/name.lua tests/name_castbar_render_check.lua || exit 1
+luajit tests/harness.lua winplates addons/winplates/winplates.lua tests/name_lifecycle_check.lua
+luajit tests/harness.lua winplates addons/winplates/winplates.lua tests/name_readability_check.lua || exit 1
+luajit tests/harness.lua winplates addons/winplates/winplates.lua tests/name_report_check.lua || exit 1
+luajit tests/harness.lua winplates addons/winplates/winplates.lua tests/name_castbar_check.lua || exit 1
+luajit tests/harness.lua winplates addons/winplates/winplates.lua tests/name_castbar_render_check.lua || exit 1
 luajit tests/name_format_check.lua
 luajit tests/name_filtered_text_check.lua || exit 1
 luajit tests/name_letters_check.lua
 luajit tests/name_badges_check.lua
-echo '== name badge atlas'
+echo '== winplates badge atlas'
 luajit tests/name_gdi_texture_check.lua
 echo
 

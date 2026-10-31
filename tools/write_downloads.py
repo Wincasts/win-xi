@@ -21,7 +21,7 @@ WHAT = {
     'buff': 'The statuses you are under, in a window, with the time each has left.',
     'chatbox': 'A replacement chat log and input bar, with an info panel. Experimental.',
     'inventory': 'Your bags in a window, by mouse or controller, with the treasure pool and an equipment monitor.',
-    'name': 'The names over players, NPCs and monsters, drawn your way, with health and cast bars.',
+    'winplates': 'The names over players, NPCs and monsters, drawn your way, with health and cast bars.',
     'occlusionfix': 'Stops characters near walls and door frames from blinking out of view.',
     'parse': 'A combat parser: damage, hit rates and DPS for everyone in the fight.',
     'party': 'Party, target and pet frames in the style of XivParty.',
@@ -36,6 +36,9 @@ WHAT = {
 
 def gh(*args):
     return json.loads(subprocess.check_output(['gh', *args, '-R', REPOSITORY]))
+
+# An addon's name before it was renamed, for the releases made under it
+FORMER = {'winplates': 'name'}
 
 
 def carries(extras):
@@ -58,6 +61,12 @@ def main():
     for package, extras in sorted(RELEASES.items()):
         prefix = f'{package}-data-v' if extras.get('kind') == 'data' else f'{package}-v'
         found = [r for r in releases if r['tagName'].startswith(prefix) and not r['isDraft']]
+        shown = package
+        if not found and package in FORMER:
+            # not yet released under its new name: the newest under its old one
+            shown = FORMER[package]
+            prefix = f'{shown}-v'
+            found = [r for r in releases if r['tagName'].startswith(prefix) and not r['isDraft']]
         if not found:
             continue
         newest = max(found, key=lambda r: r['publishedAt'])
@@ -76,7 +85,7 @@ def main():
             kind = ' (pre-release)'
         size = f"{zips[0]['size'] / 1_000_000:.1f} MB" if zips[0]['size'] >= 1_000_000 else f"{zips[0]['size'] / 1000:.0f} KB"
         checksum = f" · [sha256]({sums[0]['url']})" if sums else ''
-        rows.append(f"| **{package}** | {version}{kind} | [{zips[0]['name']}]({zips[0]['url']}) ({size}){checksum} "
+        rows.append(f"| **{shown}** | {version}{kind} | [{zips[0]['name']}]({zips[0]['url']}) ({size}){checksum} "
                     f"| {WHAT.get(package, '')} | {carries(extras)} | [notes](https://github.com/{REPOSITORY}/releases/tag/{tag}) |")
     when = datetime.now(timezone.utc).strftime('%Y-%m-%d')
     text = f'''# Downloads

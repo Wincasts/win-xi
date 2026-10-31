@@ -64,12 +64,12 @@ local function sentences()
         end
     end
 end
-H.tab(2); H.command('/name'); H.frames(1)
-clear(); H.frames(1); H.command('/name')
+H.tab(2); H.command('/winplates'); H.frames(1)
+clear(); H.frames(1); H.command('/winplates')
 assert(table.concat(tabs, '|') == 'General|Names|Bars|Check Details|Statuses|Visibility', 'NM Tracking waits for /name dev')
-H.command('/name dev'); H.command('/name'); clear(); H.frames(1); H.command('/name')
-assert(table.concat(tabs, '|') == 'General|Names|Bars|Check Details|Statuses|Visibility|NM Tracking', '/name dev shows NM Tracking')
-H.command('/name dev'); H.command('/name'); clear(); H.frames(1); H.command('/name')
+H.command('/winplates dev'); H.command('/winplates'); clear(); H.frames(1); H.command('/winplates')
+assert(table.concat(tabs, '|') == 'General|Names|Bars|Check Details|Statuses|Visibility|NM Tracking', '/winplates dev shows NM Tracking')
+H.command('/winplates dev'); H.command('/winplates'); clear(); H.frames(1); H.command('/winplates')
 assert(table.concat(tabs, '|') == 'General|Names|Bars|Check Details|Statuses|Visibility', 'a second /name dev hides it')
 assert(table.concat(headers, '|') == 'Appearance|Player Names|Enemy Names|NPC Names|Distance Thresholds')
 assert(table.concat(subs, '|') == 'Font|Size|Outlines|Format Tokens|Colour Overrides|Format Tokens|Colour Overrides|Format Tokens|Colour Overrides',
@@ -248,7 +248,7 @@ imgui.BeginCombo = recorder('BeginCombo')
 H.print('Category format editors/reset preserve each other', true)
 
 options.showHealthBar[1], options.showCastBar[1] = false, false
-H.tab(3); H.command('/name'); clear(); H.frames(1); H.command('/name')
+H.tab(3); H.command('/winplates'); clear(); H.frames(1); H.command('/winplates')
 assert(table.concat(headers, '|') == 'Shared Bar Settings|Health Bars|Cast Bars|Cast Text',
     'what the bars share first, then each kind; Cast Text waits, greyed, for Enabled')
 assert(table.concat(subs, '|') == 'Entity Types', 'the kinds with a health bar, under Health Bars')
@@ -310,7 +310,7 @@ imgui.Checkbox = recorder('Checkbox')
 assert(et.Settle(T{ 'bad' })[1] == 0xFF and et.Settle(nil)[1] == 0xFF and et.Settle(T{ 0x1FF })[1] == 0xFF and et.Settle(T{ 0x12 })[1] == 0x12, 'a bad mask is every kind')
 H.print('Bars: cast bars enable the shared settings, Cast Text, and one preview for both', true)
 
-H.tab(4); H.command('/name'); clear(); H.frames(1); H.command('/name')
+H.tab(4); H.command('/winplates'); clear(); H.frames(1); H.command('/winplates')
 assert(table.concat(headers, '|') == 'Check Details')
 sentences()
 for _, id in ipairs({ '##name.showCheckDetails', '##name.checkSize', '##name.abbreviateDifficulty', '##name.checkDetailsInWords' }) do
@@ -328,7 +328,7 @@ H.print('Check Details: a tab of its own, fifth, with Enabled, Size, Abbreviate 
 
 -- General: Enable Name first, then the preset; each part is switched on in its own tab
 local general = require('general')
-H.tab(1); H.command('/name'); clear(); H.frames(1); H.command('/name')
+H.tab(1); H.command('/winplates'); clear(); H.frames(1); H.command('/winplates')
 assert(table.concat(headers, '|') == 'General|Diagnostics', 'Diagnostics is under General')
 sentences()
 for _, id in ipairs({ '##name.preset', '##name.drawNames' }) do
@@ -364,7 +364,7 @@ assert(not disabledIds['##name.drawNames'], 'Enable Name remains usable while of
 assert(disabledIds['##name.preset'], 'all other General settings wait for Enable Name')
 options.drawNames[1] = true
 H.print('General: Enable Name first; the preset greyed under it while off', true)
-H.tab(6); H.command('/name'); clear(); H.frames(1); H.command('/name')
+H.tab(6); H.command('/winplates'); clear(); H.frames(1); H.command('/winplates')
 assert(table.concat(headers, '|') == 'Names Shown|Crowd Decluttering', 'Visibility: the kinds shown, then the crowd')
 assert(table.concat(subs, '|') == 'Players|Pets|NPCs & Monsters', 'the kinds in three families')
 sentences()
@@ -372,16 +372,16 @@ assert(ids['##name.showSelf'] and subOf['##name.showSelf'] == 'Players' and subO
 assert(ids['##name.alwaysTarget'] and locations['##name.alwaysTarget'] == 'Names Shown' and subOf['##name.alwaysTarget'] == 'NPCs & Monsters',
     'Always Show Target is a row of Names Shown after its families')
 assert(ids['##name.crowdDeclutter'] and disabledIds['##name.crowdThreshold'] and locations['##name.crowdHold'] == 'Crowd Decluttering')
-H.command('/name diag on')
+H.command('/winplates diag on')
 expanded.Diagnostics = true
-H.tab(1); H.command('/name'); clear(); H.frames(1); H.command('/name')
+H.tab(1); H.command('/winplates'); clear(); H.frames(1); H.command('/winplates')
 assert(ids['##name.diagnosticsEnabled'] and ids['Write Log##name.diag.write'] and ids['Write Report##name.diag.report'])
 assert(kinds['Write Log##name.diag.write'] == 'Button' and locations['Write Log##name.diag.write'] == 'Diagnostics', 'the logs are action rows of Diagnostics')
 sentences()
-H.command('/name diag off')
+H.command('/winplates diag off')
 imgui.GetFrameHeightWithSpacing = function() return 20 end
 AshitaCore.GetResourceManager = function() return { GetString = function() return '' end } end
-H.tab(5); H.command('/name'); clear(); H.frames(1); H.command('/name')
+H.tab(5); H.command('/winplates'); clear(); H.frames(1); H.command('/winplates')
 assert(table.concat(headers, '|') == 'Display|Entity Types|Selected Statuses')
 sentences()
 for _, key in ipairs({ 'self', 'party', 'alliance', 'players', 'myPet', 'pets', 'npcs', 'monsters' }) do
@@ -395,7 +395,7 @@ clear(); require('statuses').DrawSettings(options)
 assert(ids['##name.statusIcons'] and disabledIds['##name.statusIcons'] and disabledIds['##name.statusTypes.monsters'] and not disabledIds['##name.showStatuses'],
     'the rest wait, greyed, for Enabled')
 options.showStatuses[1] = true
-H.command('/name dev'); H.tab(7); H.command('/name'); clear(); H.frames(1); H.command('/name')
+H.command('/winplates dev'); H.tab(7); H.command('/winplates'); clear(); H.frames(1); H.command('/winplates')
 assert(table.concat(headers, '|') == 'Tracked Monster')
 sentences()
 assert(ids['##name.huntScale'] and disabledIds['##name.huntScale'] and not ids['##name.labelPlaceholders'], 'the size waits for a tracked monster; placeholders need one with some')
@@ -422,17 +422,17 @@ for tab, expected in ipairs({
     { '##name.showSelf', '##name.alwaysTarget' },
     { '##name.trackedNm' },
 }) do
-    H.tab(tab); H.command('/name'); clear(); H.frames(1); H.command('/name')
+    H.tab(tab); H.command('/winplates'); clear(); H.frames(1); H.command('/winplates')
     for _, id in ipairs(expected) do
         assert(ids[id] and disabledIds[id], 'disabled while Name is off: ' .. id)
     end
     assert(#disabledStack == 0 and not disabled, 'no disabled state leaks between tabs')
 end
-H.tab(1); H.command('/name'); clear(); H.frames(1); H.command('/name')
+H.tab(1); H.command('/winplates'); clear(); H.frames(1); H.command('/winplates')
 assert(ids['##name.diagnosticsEnabled'] and not disabledIds['##name.diagnosticsEnabled'], 'diagnostics work while Name is off')
 assert(formatsBefore == options.nameFormat[1] .. options.monsterFormat[1] .. options.npcFormat[1], 'disabling keeps saved formats')
 options.drawNames[1] = true
-H.tab(2); H.command('/name'); clear(); H.frames(1); H.command('/name')
+H.tab(2); H.command('/winplates'); clear(); H.frames(1); H.command('/winplates')
 assert(not disabledIds['##name.font'] and not disabledIds['##name.nameFormat']
     and not disabledIds['##name.fontSmooth'], 'settings are editable again after enabling')
 local boldBeforeSmooth = options.fontBold[1]

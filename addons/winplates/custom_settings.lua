@@ -4,7 +4,7 @@
 --   settings.DrawSettings(options, save)    the Names tab
 --   settings.DrawBars(options, save)        the Bars tab: health and cast bars
 --   settings.DrawCheck(options, save)       the Check Details tab
---   settings.DrawTracking(options, save)    the NM Tracking tab, after /name dev
+--   settings.DrawTracking(options, save)    the NM Tracking tab, after /winplates dev
 local imgui = require('imgui');
 local widgets    = require('winxi.widgets');
 local nameplates = require('winxi.nameplates');

@@ -1,7 +1,7 @@
 -- winxi.castbar: packet-observed casts, keyed by server ID (never by a reusable entity index).
 -- Start packets identify the action but do NOT transmit its effective duration.
 -- Known base durations are explicitly estimated (~); finishes/interrupts win.
--- Used by name (its cast bars) and party (a member's cast in place of their HP bar). Each addon has
+-- Used by winplates (its cast bars) and party (a member's cast in place of their HP bar). Each addon has
 -- its own: it switches tracking with Configure(on, withSkills), feeds every inbound packet to
 -- HandlePacket(e) and asks Of(who, entities, now, dead) for an actor's cast, who being any table
 -- with ServerId and EntityIndex.

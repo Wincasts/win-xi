@@ -1,5 +1,5 @@
 -- Exact area filtering, transparent padding and bounded GPU/cache lifecycle.
-package.path = 'addons/name/?.lua;' .. package.path
+package.path = 'addons/winplates/?.lua;' .. package.path
 local ffi = require('ffi')
 ffi.cdef('typedef struct IDirect3DTexture8 IDirect3DTexture8;')
 local image = require('gdi.image')

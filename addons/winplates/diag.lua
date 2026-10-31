@@ -1,5 +1,5 @@
 -- What name has been doing, kept for testers to send in: why the names it draws stopped, if they
--- did, and a short history of what happened around it. Off unless turned on, with /name diag:
+-- did, and a short history of what happened around it. Off unless turned on, with /winplates diag:
 -- while off, no diagnostic history is collected; Write and Report work on demand.
 --
 --   diag.Enabled(), diag.Enable(on)
@@ -19,7 +19,7 @@
 -- The plugin draws the game's names again when a claim is not made for HOOK_CLAIM_TIME (half a
 -- second). A pause shorter than that is not seen and is only counted; a longer one is put in the
 -- history, said once in the chat log, and written to a file of its own, once a session for each reason.
--- Logs go to config\addons\name\logs.
+-- Logs go to config\addons\winplates\logs.
 local bit = require('bit');
 local ffi = require('ffi');
 local imgui = require('imgui');
@@ -230,7 +230,7 @@ local function snapshot(lines)
             local d = nameplates.Dropped(hook);
             local plugin = d.namesDropped ~= nil and ('%d names last frame had no room in the list, %d drawings refused since load'):format(d.namesDropped, d.drawingsRefused)
                 or 'namehook before 1.42 does not count';
-            return ('%s; Name could not hand over %d names and %d quads since load'):format(plugin, d.namesRefused, d.quadsRefused);
+            return ('%s; Winplates could not hand over %d names and %d quads since load'):format(plugin, d.namesRefused, d.quadsRefused);
         end);
         -- the texture the plugin read for the font's mark, as it last drew the names: 0 for none
         try(lines, 'Font texture drawn', function () return '0x' .. bit.tohex(hook.FontTexture); end);
@@ -285,7 +285,7 @@ function diag.Write(why)
     -- the install path has a backslash at its end, or may not
     local install = tostring(AshitaCore:GetInstallPath()):gsub('[\\/]$', '');
     local folder = ('%s\\config\\addons\\%s\\logs\\'):format(install, addon.name);
-    local path = folder .. ('name-%s.txt'):format(os.date('%Y%m%d-%H%M%S'));
+    local path = folder .. ('winplates-%s.txt'):format(os.date('%Y%m%d-%H%M%S'));
 
     local lines = {
         ('name %s diagnostic log'):format(addon.version),
@@ -346,7 +346,7 @@ end
 local lastReportPath, reportNumber = nil, 0;
 function diag.LastReportPath() return lastReportPath; end
 function diag.ReportText()
-    local lines = { ('Name %s support report'):format(addon.version),
+    local lines = { ('Winplates %s support report'):format(addon.version),
         'Privacy: no character names, chat, paths, formats, raw errors or history.', '' };
     local function safe(label, read)
         local ok,value=pcall(read);
@@ -410,7 +410,7 @@ function diag.Report()
         local install=tostring(AshitaCore:GetInstallPath()):gsub('[\\/]$','');
         local folder=('%s\\config\\addons\\%s\\logs\\'):format(install,addon.name);
         reportNumber=reportNumber+1;
-        local path=folder..('name-report-%s-%03d.txt'):format(os.date('%Y%m%d-%H%M%S'),reportNumber);
+        local path=folder..('winplates-report-%s-%03d.txt'):format(os.date('%Y%m%d-%H%M%S'),reportNumber);
         local text=diag.ReportText();
         makeFolder(folder);
         local file,problem=io.open(path,'w');

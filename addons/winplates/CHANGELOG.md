@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.87
+
+- Renamed Winplates: the addon is `winplates` (`addons\winplates`, `/addon load winplates`), its settings window Winplates Settings and its command `/winplates`, with `/name` kept as another way in. Each character's settings are brought over from `config\addons\name` the first time it logs in (winxi.shell's formerName). Logs and support reports go to `config\addons\winplates\logs` as `winplates-…txt`, and Enable Name is Enable Winplates. Remove the old `addons\name` folder.
+
 ## 1.86
 
 - A distant name's outline fades rather than thins. Text, icon and bar outlines stepped from one whole pixel thickness to the next as a name went further off (2 px close to 1 px far), so the edge popped; now each keeps its chosen thickness at every distance and grows fainter instead, as solid as the thinner edge would have been.

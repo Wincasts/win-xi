@@ -21,7 +21,7 @@ Each icon, 48 by 64 with its own transparency, is put in the middle of a square 
 (a size a graphics card takes without stretching it) and written to
 addons/libs/winxi/statusicons/ffxiv/<ffxi_id>.png, and the numbers found for names are written back to
 the csv. They are all put in one picture as well, sheet.png beside them, for what can draw from
-only a few pictures at once (the name addon, through the namehook plugin): each as it is, 48 by 64,
+only a few pictures at once (the winplates addon, through the namehook plugin): each as it is, 48 by 64,
 in the place its number gives it, SHEET_COLUMNS to a row, which winxi.statusicons knows the same
 way. --sheet <file> also draws every status beside its icon, to look the choices over,
 and --page writes mapping.html beside the FFXIV icons: each status's FFXI icon (XivParty's

@@ -109,7 +109,7 @@ function text.Prepare(address, definitions)
     if not ok then
         failed, retry = pending, os.clock() + 1;
         if not warned then
-            print('[name] Smooth Font filtering unavailable; using direct glyphs: ' .. tostring(result));
+            print('[winplates] Smooth Font filtering unavailable; using direct glyphs: ' .. tostring(result));
             diag.Note('Filtered text unavailable; using direct glyphs: %s', tostring(result));
             warned = true;
         end

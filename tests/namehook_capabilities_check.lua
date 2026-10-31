@@ -112,6 +112,6 @@ end
 
 package.loaded['winxi.version']={Number=45}
 addon={}
-local ok,reason=pcall(dofile,'addons/name/name.lua')
+local ok,reason=pcall(dofile,'addons/winplates/winplates.lua')
 assert(not ok and tostring(reason):match('needs winxi %d+ or newer'), 'outdated WinXI must fail before loading newer modules')
 print('namehook capabilities: old ABI retained, missing/malformed/unknown features rejected, bounded scans, lookup ownership, stale writers and reload recovery passed')

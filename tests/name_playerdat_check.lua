@@ -1,5 +1,5 @@
 -- CPU DAT parser plus mocked upload/read path; optional argument checks a real menu DAT.
-package.path = 'addons/name/?.lua;addons/libs/?.lua;' .. package.path
+package.path = 'addons/winplates/?.lua;addons/libs/?.lua;' .. package.path
 local ffi = require('ffi')
 local mapdat = require('winxi.mapdat')
 local dat = require('playerdat')

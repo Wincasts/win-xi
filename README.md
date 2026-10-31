@@ -16,7 +16,7 @@ settings window.
 | [mark](addons/mark) | Pick a notorious monster and see its placeholders, their respawns, where it spawns on the map, its window and its drops | `/mark` |
 | [mobcast](addons/mobcast) | Shows what the enemies around you are casting, readying and using, in a small window, worded as the chat log says it | `/mobcast` |
 | [nativeui](addons/nativeui) | Gives the game's own menus a uihook skin (the winxi look), and moves the menus the game stacks over the chat log (the command menu, shops, yes-or-no, item descriptions) to where you want them. Needs `uihook` | `/nativeui` |
-| [name](addons/name) | Shows and hides the names over characters' heads by what they are, and draws them in winxi's style. Needs the `namehook` plugin | `/name` |
+| [winplates](addons/winplates) | Shows and hides the names over characters' heads by what they are, and draws them in winxi's style. Needs the `namehook` plugin | `/winplates` |
 | [occlusionfix](addons/occlusionfix) | Stops characters near walls, door frames and counters blinking out of view. Needs nothing else | `/occlusionfix` |
 | [parse](addons/parse) | Experimental packet-based damage, observed hit rates and manual encounter DPS, with capture/replay diagnostics | `/parse` |
 | [puppet](addons/puppet) | The next enfeebles and weapon skill an automaton will use | `/puppet` |
@@ -29,11 +29,11 @@ Each addon's folder has a README with all of its commands and settings.
 
 ## Installing
 
-**buff**, **chatbox**, **inventory**, **name**, **occlusionfix**, **parse**, **party**, **sct**, **trigger**,
-**vis** and **zone**, the **lens** plugin and **mobdb**'s Phoenix data are released one at a time, on the
+**buff**, **chatbox**, **inventory**, **occlusionfix**, **parse**, **party**, **sct**, **trigger**,
+**vis**, **winplates** and **zone**, the **lens** plugin and **mobdb**'s Phoenix data are released one at a time, on the
 [Releases](https://github.com/Wincasts/win-xi/releases) page. The newest of each is listed on one page,
 [DOWNLOADS.md](DOWNLOADS.md). Each zip has everything the addon needs:
-the `winxi` library and `wxi`; with name, the `namehook` plugin; and with buff, chatbox and
+the `winxi` library and `wxi`; with winplates, the `namehook` plugin; and with buff, chatbox and
 party, the `uihook` plugin. vis and zone carry their own copy of the parts of winxi they use, so they
 need nothing else. occlusionfix needs nothing at all. Extract the zip into your Ashita folder (the one
 that holds `addons`, `plugins` and `config`). Merge folders when asked. Then follow
@@ -48,14 +48,14 @@ except occlusionfix needs the `winxi` library. Copy these into your Ashita folde
 - `addons/libs/winxi`
 - `addons/<the addon>` for each one you want
 - `addons/wxi`, to change the shared look
-- for `name`, also `plugins/namehook.dll` (see [plugins/namehook](plugins/namehook))
+- for `winplates`, also `plugins/namehook.dll` (see [plugins/namehook](plugins/namehook))
 - for `buff`, `chatbox` or native `party` replacement, also `plugins/uihook.dll` (build/install:
   [plugins/uihook](plugins/uihook))
 - `plugins/lens.dll`: shows the world through a Panini or cylindrical projection for wide screens, adds
   anti-aliasing for the world, sets the field of view and the true proportions the world is drawn with,
   and sets the camera's distance in battle (experimental, see [plugins/lens](plugins/lens))
 
-Then, in game: `/addon load <the addon>`. For `name`, run `/load namehook` first. For `buff` or native
+Then, in game: `/addon load <the addon>`. For `winplates`, run `/load namehook` first. For `buff` or native
 `party`, run `/load uihook` first. Uihook replaces the retired `buffhook` and `partyhook` plugins:
 unload those before loading it, and remove their startup commands. Native rendering for party is
 still opt-in; unload `hideparty` before turning it on.
@@ -77,7 +77,7 @@ See the uihook README for migration and testing steps.
 - `tests/` runs the addons against a stand-in for Ashita: `tests/run.sh`.
 - `tools/` builds the data and art the addons use.
 - `deploy.sh` copies addons and built plugins between this folder and a live install,
-  for development. `./deploy.sh push name` includes changed WinXI and namehook before
+  for development. `./deploy.sh push winplates` includes changed WinXI and namehook before
   the addon, even when only a dependency changed. Build it first with
   `bash plugins/namehook/build.sh`. `./deploy.sh -a push` includes built namehook
   even on a fresh install. Both keep the terminal safeguards and per-target backups.

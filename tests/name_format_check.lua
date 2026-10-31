@@ -1,4 +1,4 @@
-package.path = 'addons/name/?.lua;' .. package.path
+package.path = 'addons/winplates/?.lua;' .. package.path
 local format = require('format')
 local function display(parts)
     local result = {}

@@ -1,6 +1,6 @@
-addon.name    = 'name';
+addon.name    = 'winplates';
 addon.author  = 'win';
-addon.version = '1.86-pre1';
+addon.version = '1.87';
 addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the namehook plugin.';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
@@ -60,7 +60,7 @@ local rows = {
 
 local defaults = T{
     alwaysTarget = T{ false }, -- the target's name is shown whatever it is over
-    diagnostics  = T{ false }, -- /name diag: why the names stopped, kept and written to logs
+    diagnostics  = T{ false }, -- /winplates diag: why the names stopped, kept and written to logs
 };
 for _, row in ipairs(rows) do
     defaults[row.key] = T{ true };
@@ -175,7 +175,7 @@ local function DrawDiagnostics(options)
     local hooked = nameplates.Hook() ~= nil;
     if (controls.Section('Diagnostics', false, true)) then
         if (controls.Checkbox('Enable Diagnostics', '##name.diagnosticsEnabled', options.diagnostics,
-                'Keeps a record of drawing problems, and writes a log when the names stop. /name diag switches it too.')) then
+                'Keeps a record of drawing problems, and writes a log when the names stop. /winplates diag switches it too.')) then
             diag.Enable(options.diagnostics[1]);
             app:Save();
         end
@@ -193,7 +193,7 @@ local function DrawDiagnostics(options)
             widgets.EndRow();
         end
 
-        if widgets.Action('Support Report', 'Writes a report for sharing to config\\addons\\name\\logs: versions, counts and what the plugin can do, with no names, chat or paths. /name report does the same.', 'Write Report##name.diag.report') then
+        if widgets.Action('Support Report', 'Writes a report for sharing to config\\addons\\winplates\\logs: versions, counts and what the plugin can do, with no names, chat or paths. /winplates report does the same.', 'Write Report##name.diag.report') then
             local path, problem = diag.Report();
             app:Say(path and ('Support report written to ' .. path) or ('Could not write support report: ' .. tostring(problem)));
         end
@@ -207,7 +207,7 @@ local function DrawDiagnostics(options)
             imgui.Text(diag.Status());
             widgets.EndRow();
 
-            if widgets.Action('Diagnostic Log', 'Writes what this addon and namehook are doing to config\\addons\\name\\logs. It can hold character names, paths and errors.', 'Write Log##name.diag.write') then
+            if widgets.Action('Diagnostic Log', 'Writes what this addon and namehook are doing to config\\addons\\winplates\\logs. It can hold character names, paths and errors.', 'Write Log##name.diag.write') then
                 local path, problem = diag.Write('written from the settings');
                 app:Say(path and ('Log written to ' .. path) or ('The log could not be written: ' .. tostring(problem)));
             end
@@ -229,17 +229,19 @@ local function WhenEnabled(draw)
     end;
 end
 
--- NM Tracking is a tab only after /name dev, for the session
+-- NM Tracking is a tab only after /winplates dev, for the session
 local trackingTab = { label = 'NM Tracking', draw = WhenEnabled(customSettings.DrawTracking) };
 
 -- The settings, the settings window and the command are the shell's
 app = shell.New({
     defaults     = defaults,
-    configTitle  = 'Name Settings',
+    configTitle  = 'Winplates Settings',
     hideAppearance = true,
     menuOnlyCommands = true,
-    command      = '/name',
-    help         = 'Use /name to open General, Names, Bars, Check Details, Statuses and Visibility. Diagnostics is under General.',
+    command      = '/winplates',
+    aliases      = { '/name' },
+    formerName   = 'name',
+    help         = 'Use /winplates to open General, Names, Bars, Check Details, Statuses and Visibility. Diagnostics is under General.',
     drawSettings = WhenEnabled(DrawSettings),
     settingsLabel = 'Visibility',
     leadingTabs  = {
@@ -254,7 +256,7 @@ app = shell.New({
     },
     tabs         = { },
 
-    -- for testers: /name diag on or off, /name diag log; /name dev shows or hides NM Tracking
+    -- for testers: /winplates diag on or off, /winplates diag log; /winplates dev shows or hides NM Tracking
     commands     = {
         report = function ()
             local path, problem = diag.Report();
@@ -267,13 +269,13 @@ app = shell.New({
                 app:Say('NM Tracking hidden.');
             else
                 tabs[#tabs + 1] = trackingTab;
-                app:Say('NM Tracking is a tab in /name until the addon is reloaded; /name dev hides it.');
+                app:Say('NM Tracking is a tab in /winplates until the addon is reloaded; /winplates dev hides it.');
             end
         end,
         diag = function (options, args)
             local what = args[3] and args[3]:lower() or nil;
             if (what == 'log') then
-                local path, problem = diag.Write('asked for by /name diag log');
+                local path, problem = diag.Write('asked for by /winplates diag log');
                 app:Say(path and ('Log written to ' .. path) or ('The log could not be written: ' .. tostring(problem)));
                 return;
             end
@@ -281,13 +283,13 @@ app = shell.New({
             if (what == 'on' or what == 'off') then
                 on = what == 'on';
             elseif (what ~= nil) then
-                app:Say('/name diag turns diagnostics on or off; /name diag on, /name diag off; /name diag log writes a log.');
+                app:Say('/winplates diag turns diagnostics on or off; /winplates diag on, /winplates diag off; /winplates diag log writes a log.');
                 return;
             end
             options.diagnostics[1] = on;
             diag.Enable(on);
             app:Save();
-            app:Say(on and 'Diagnostics on: if the names Name draws stop, the reason is said and a log written to config\\addons\\name\\logs. /name diag log writes one now; /name diag off stops.'
+            app:Say(on and 'Diagnostics on: if the names Winplates draws stop, the reason is said and a log written to config\\addons\\winplates\\logs. /winplates diag log writes one now; /winplates diag off stops.'
                 or 'Diagnostics off.');
         end,
     },

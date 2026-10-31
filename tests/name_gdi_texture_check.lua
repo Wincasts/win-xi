@@ -1,5 +1,5 @@
 -- Exercise the actual readback helper, including direct vtable descriptor ownership.
-package.path = 'addons/name/?.lua;' .. package.path
+package.path = 'addons/winplates/?.lua;' .. package.path
 local ffi = require('ffi')
 ffi.cdef[[
     enum { S_OK = 0, D3DFMT_A8R8G8B8 = 21 };

@@ -167,7 +167,7 @@ How solid the outline around icons is. 0% hides it. Text outlines are separate.
 Label: Player Icon Source
 Location: Names → Player Names
 
-Where the player icons and mastery stars come from. Game DATs: the game's own artwork, Pivot replacements included. Bundled: the set Name comes with. Custom: addons/name/assets/player-icons-custom.png, laid out like the bundled player-icons.png. A source that cannot be loaded falls back to Bundled. Reload Name after changing the artwork.
+Where the player icons and mastery stars come from. Game DATs: the game's own artwork, Pivot replacements included. Bundled: the set Name comes with. Custom: addons/winplates/assets/player-icons-custom.png, laid out like the bundled player-icons.png. A source that cannot be loaded falls back to Bundled. Reload Name after changing the artwork.
 
 ## name.players.icon_source_fallback
 Label: Player icon fallback
@@ -425,7 +425,7 @@ Whether Name is drawing the names now. When it stops for more than half a second
 Label: Diagnostic Log
 Location: General → Diagnostics
 
-Writes what Name and namehook are doing, and what happened lately, to config\addons\name\logs. It can contain character names, paths, formats and raw errors; for sharing, Write Report leaves those out.
+Writes what Name and namehook are doing, and what happened lately, to config\addons\winplates\logs. It can contain character names, paths, formats and raw errors; for sharing, Write Report leaves those out.
 
 ## name.readability.crowd
 Label: Crowd Decluttering
@@ -479,7 +479,7 @@ The colours of the distance at Warning and at Danger. Nearer than Warning Distan
 Label: Support Report
 Location: General → Diagnostics
 
-Writes a report for sharing to config\addons\name\logs: versions, what the plugin can do, counts of names and draws, the artwork source and failure counts. No character names, chat, paths, formats or errors. Works with diagnostics off; /name report does the same. Nothing is uploaded.
+Writes a report for sharing to config\addons\winplates\logs: versions, what the plugin can do, counts of names and draws, the artwork source and failure counts. No character names, chat, paths, formats or errors. Works with diagnostics off; /winplates report does the same. Nothing is uploaded.
 
 ## name.cast_bars.enabled
 Label: Enabled

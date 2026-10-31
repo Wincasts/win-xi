@@ -212,7 +212,7 @@ function badges.Prepare(texture, definitions, fontKey, immutable)
     if not ok then
         failedKey, nextRetry = key, os.clock() + 1;
         if not warned then
-            print('[name] Letter badges unavailable; using plain letters: ' .. tostring(result));
+            print('[winplates] Letter badges unavailable; using plain letters: ' .. tostring(result));
             diag.Note('Letter badges not built: %s', tostring(result));
             warned = true;
         end
