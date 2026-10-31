@@ -266,6 +266,7 @@ local function GetSampleMember(slot, place)
         mp = 800 - (slot - 1) * 96,
         tp = (slot - 1) * 500,
         noMp = slot == 4, -- the thief: a grey MP bar
+        sampleCast = slot == 5, -- casting, to show Show Cast Bars (casts.lua)
         statusIds = statusIds,
     }
 end

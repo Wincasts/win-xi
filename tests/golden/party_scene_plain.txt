@@ -2399,25 +2399,25 @@ window AddImage hp_back.png (24.4,27.68) (130,41.12) (0,0) (1,1) #FF9597FF
 window AddImage hp_back.png (24.4,57.68) (130,71.12) (0,0) (1,1) #FF9597FF
 window AddImage hp_back.png (24.4,88.68) (130,102.12) (0,0) (1,1) #FF9597FF
 window AddImage hp_back.png (24.4,119.68) (130,133.12) (0,0) (1,1) #FF9597FF
-window AddImage hp_back.png (24.4,149.68) (130,163.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (24.4,149.68) (130,163.12) (0,0) (1,1) #A8B8FFFF
 window AddImage hp_back.png (24.4,180.68) (130,194.12) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (28.24,27.68) (126.16,41.12) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (28.24,57.68) (96.78,71.12) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (28.24,88.68) (114.41,102.12) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (28.24,119.68) (82.1,133.12) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (28.24,149.68) (67.41,163.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,149.68) (109.51,163.12) (0,0) (1,1) #A8B8FFFF
 window AddImage hp_fill.png (28.24,180.68) (52.72,194.12) (0,0) (1,1) #FF9597FF
 window AddImage glow.png (118.77,27.68) (126.16,41.12) (0,0) (1,1) #FFFFFF59
 window AddImage glow.png (89.39,57.68) (96.78,71.12) (0,0) (1,1) #FFFFFF59
 window AddImage glow.png (107.02,88.68) (114.41,102.12) (0,0) (1,1) #FFFFFF59
 window AddImage glow.png (74.7,119.68) (82.1,133.12) (0,0) (1,1) #FFFFFF59
-window AddImage glow.png (60.02,149.68) (67.41,163.12) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (102.12,149.68) (109.51,163.12) (0,0) (1,1) #FFFFFF59
 window AddImage glow.png (45.33,180.68) (52.72,194.12) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (24.4,27.68) (130,41.12) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (24.4,57.68) (130,71.12) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (24.4,88.68) (130,102.12) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (24.4,119.68) (130,133.12) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (24.4,149.68) (130,163.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (24.4,149.68) (130,163.12) (0,0) (0.97,1) #A8B8FFFF
 window AddImage hp_front.png (24.4,180.68) (130,194.12) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (26,29) (29,40) (0.98,0) (1,0.5) #FFFFFFFF
 window AddImage hp_front.png (126,29) (129,40) (0.98,0) (1,0.5) #FFFFFFFF
@@ -2502,11 +2502,11 @@ window AddText (9,113) #000000E6 Healer
 window AddText (11,111) #000000E6 Healer
 window AddText (11,113) #000000E6 Healer
 window AddText (10,112) #FFFFFFFF Healer
-window AddText (9,141) #000000E6 Sample 5
-window AddText (9,143) #000000E6 Sample 5
-window AddText (11,141) #000000E6 Sample 5
-window AddText (11,143) #000000E6 Sample 5
-window AddText (10,142) #FFFFFFFF Sample 5
+window AddText (9,141) #000000E6 Cure IV
+window AddText (9,143) #000000E6 Cure IV
+window AddText (11,141) #000000E6 Cure IV
+window AddText (11,143) #000000E6 Cure IV
+window AddText (10,142) #FFFFFFFF Cure IV
 window AddText (9,172) #000000E6 Sample 6
 window AddText (9,174) #000000E6 Sample 6
 window AddText (11,172) #000000E6 Sample 6
@@ -2564,11 +2564,11 @@ window AddText (52,128) #000000E6 20
 window AddText (54,126) #000000E6 20
 window AddText (54,128) #000000E6 20
 window AddText (53,127) #FFFFFFFF 20
-window AddText (111,144) #000000E6 560
-window AddText (111,146) #000000E6 560
-window AddText (113,144) #000000E6 560
-window AddText (113,146) #000000E6 560
-window AddText (112,145) #F8BA80FF 560
+window AddText (111,144) #000000E6 ~0.5s
+window AddText (111,146) #000000E6 ~0.5s
+window AddText (113,144) #000000E6 ~0.5s
+window AddText (113,146) #000000E6 ~0.5s
+window AddText (112,145) #FFFFFFFF ~0.5s
 window AddText (126,155) #000000E6 416
 window AddText (126,157) #000000E6 416
 window AddText (128,155) #000000E6 416
@@ -2625,25 +2625,25 @@ window AddImage hp_back.png (24.4,27.68) (130,41.12) (0,0) (1,1) #FF9597FF
 window AddImage hp_back.png (24.4,57.68) (130,71.12) (0,0) (1,1) #FF9597FF
 window AddImage hp_back.png (24.4,88.68) (130,102.12) (0,0) (1,1) #FF9597FF
 window AddImage hp_back.png (24.4,119.68) (130,133.12) (0,0) (1,1) #FF9597FF
-window AddImage hp_back.png (24.4,149.68) (130,163.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (24.4,149.68) (130,163.12) (0,0) (1,1) #A8B8FFFF
 window AddImage hp_back.png (24.4,180.68) (130,194.12) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (28.24,27.68) (102.66,41.12) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (28.24,57.68) (58.6,71.12) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (28.24,88.68) (96.78,102.12) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (28.24,119.68) (82.1,133.12) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (28.24,149.68) (67.41,163.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,149.68) (109.51,163.12) (0,0) (1,1) #A8B8FFFF
 window AddImage hp_fill.png (28.24,180.68) (52.72,194.12) (0,0) (1,1) #FF9597FF
 window AddImage glow.png (95.27,27.68) (102.66,41.12) (0,0) (1,1) #FFFFFF59
 window AddImage glow.png (51.2,57.68) (58.6,71.12) (0,0) (1,1) #FFFFFF59
 window AddImage glow.png (89.39,88.68) (96.78,102.12) (0,0) (1,1) #FFFFFF59
 window AddImage glow.png (74.7,119.68) (82.1,133.12) (0,0) (1,1) #FFFFFF59
-window AddImage glow.png (60.02,149.68) (67.41,163.12) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (102.12,149.68) (109.51,163.12) (0,0) (1,1) #FFFFFF59
 window AddImage glow.png (45.33,180.68) (52.72,194.12) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (24.4,27.68) (130,41.12) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (24.4,57.68) (130,71.12) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (24.4,88.68) (130,102.12) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (24.4,119.68) (130,133.12) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (24.4,149.68) (130,163.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (24.4,149.68) (130,163.12) (0,0) (0.97,1) #A8B8FFFF
 window AddImage hp_front.png (24.4,180.68) (130,194.12) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (26,29) (29,40) (0.98,0) (1,0.5) #FFFFFFFF
 window AddImage hp_front.png (126,29) (129,40) (0.98,0) (1,0.5) #FFFFFFFF
@@ -2730,11 +2730,11 @@ window AddText (9,113) #000000E6 Sample 4
 window AddText (11,111) #000000E6 Sample 4
 window AddText (11,113) #000000E6 Sample 4
 window AddText (10,112) #FFFFFFFF Sample 4
-window AddText (9,141) #000000E6 Sample 5
-window AddText (9,143) #000000E6 Sample 5
-window AddText (11,141) #000000E6 Sample 5
-window AddText (11,143) #000000E6 Sample 5
-window AddText (10,142) #FFFFFFFF Sample 5
+window AddText (9,141) #000000E6 Cure IV
+window AddText (9,143) #000000E6 Cure IV
+window AddText (11,141) #000000E6 Cure IV
+window AddText (11,143) #000000E6 Cure IV
+window AddText (10,142) #FFFFFFFF Cure IV
 window AddText (9,172) #000000E6 Sample 6
 window AddText (9,174) #000000E6 Sample 6
 window AddText (11,172) #000000E6 Sample 6
@@ -2792,11 +2792,11 @@ window AddText (52,128) #000000E6 1500
 window AddText (54,126) #000000E6 1500
 window AddText (54,128) #000000E6 1500
 window AddText (53,127) #BEE3FFFF 1500
-window AddText (111,144) #000000E6 560
-window AddText (111,146) #000000E6 560
-window AddText (113,144) #000000E6 560
-window AddText (113,146) #000000E6 560
-window AddText (112,145) #F8BA80FF 560
+window AddText (111,144) #000000E6 ~0.5s
+window AddText (111,146) #000000E6 ~0.5s
+window AddText (113,144) #000000E6 ~0.5s
+window AddText (113,146) #000000E6 ~0.5s
+window AddText (112,145) #FFFFFFFF ~0.5s
 window AddText (126,155) #000000E6 416
 window AddText (126,157) #000000E6 416
 window AddText (128,155) #000000E6 416

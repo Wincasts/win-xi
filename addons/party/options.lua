@@ -97,6 +97,8 @@ options.Tabs = {
           under = function(saved) return saved.party.showInvites[1] or saved.party.showTreasure[1] end,
           sentences = { 'Moves the invite and treasure icons from their corner, to the right. Below 0, to the left.',
                         'Moves them down. Below 0, up.' } },
+        { kind = 'check', section = 'party', key = 'castBars', label = 'Show Cast Bars', default = true,
+          sentence = 'While a member casts a spell, their HP bar fills as the cast goes and their name is the spell\'s, with the time left where their HP was.' },
         { kind = 'check', section = 'party', key = 'sortByRole', label = 'Sort By Role', default = false,
           when = function() return false end, -- hide the control without changing saved behavior
           sentence = 'Lists you first, then tanks, melee, ranged, support, mages and healers. Off, the game default order.' },
@@ -252,6 +254,7 @@ local groups = {
     Party = {
         { 'Visibility', 'enabled', 'hideWhenSolo', 'sortByRole' },
         { 'Notifications', 'showInvites', 'showTreasure', 'iconCorner', 'iconOffset' },
+        { 'Casting', 'castBars' },
         { 'Alliance', 'allianceScale' },
         { 'Positioning', 'pos1', 'pos2', 'pos3' },
         { 'Advanced: Value Positioning', 'hpOffset', 'mpOffset', 'tpOffset', collapsed = true },

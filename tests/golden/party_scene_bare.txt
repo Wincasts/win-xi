@@ -1191,25 +1191,25 @@ window AddImage hp_back.png (31.6,31.52) (190,51.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_back.png (31.6,77.52) (190,97.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_back.png (31.6,123.52) (190,143.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_back.png (31.6,169.52) (190,189.68) (0,0) (1,1) #FF9597FF
-window AddImage hp_back.png (31.6,215.52) (190,235.68) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (31.6,215.52) (190,235.68) (0,0) (1,1) #A8B8FFFF
 window AddImage hp_back.png (31.6,261.52) (190,281.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (37.36,31.52) (184.24,51.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (37.36,77.52) (166.61,97.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (37.36,123.52) (74.08,143.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (37.36,169.52) (140.18,189.68) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (37.36,215.52) (96.11,235.68) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (37.36,215.52) (159.27,235.68) (0,0) (1,1) #A8B8FFFF
 window AddImage hp_fill.png (37.36,261.52) (118.14,281.68) (0,0) (1,1) #FF9597FF
 window AddImage glow.png (173.15,31.52) (184.24,51.68) (0,0) (1,1) #FFFFFF59
 window AddImage glow.png (155.53,77.52) (166.61,97.68) (0,0) (1,1) #FFFFFF59
 window AddImage glow.png (62.99,123.52) (74.08,143.68) (0,0) (1,1) #FFFFFF59
 window AddImage glow.png (129.09,169.52) (140.18,189.68) (0,0) (1,1) #FFFFFF59
-window AddImage glow.png (85.02,215.52) (96.11,235.68) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (148.18,215.52) (159.27,235.68) (0,0) (1,1) #FFFFFF59
 window AddImage glow.png (107.06,261.52) (118.14,281.68) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (31.6,31.52) (190,51.68) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (31.6,77.52) (190,97.68) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (31.6,123.52) (190,143.68) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (31.6,169.52) (190,189.68) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (31.6,215.52) (190,235.68) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (31.6,215.52) (190,235.68) (0,0) (0.97,1) #A8B8FFFF
 window AddImage hp_front.png (31.6,261.52) (190,281.68) (0,0) (0.97,1) #FF9597FF
 window AddImage mp_back.png (90.64,48.08) (208.72,65.36) (0,0) (1,1) #00000073
 window AddImage mp_back.png (90.64,94.08) (208.72,111.36) (0,0) (1,1) #00000073
@@ -1253,7 +1253,7 @@ window AddText (24,20) #FFFFFFFF Secondlead
 window AddText (10,66) #FFFFFFFF Monk
 window AddText (10,112) #FFFFFFFF Sample 6
 window AddText (10,158) #FFFFFFFF Summoner
-window AddText (10,204) #FFFFFFFF Sample 5
+window AddText (10,204) #FFFFFFFF Cure IV
 window AddText (10,250) #FFFFFFFF Healer
 imgui PopFont
 imgui PushFont
@@ -1261,7 +1261,7 @@ window AddText (167,25) #FFFFFFFF 1500
 window AddText (167,71) #FFFFFFFF 1900
 window AddText (167,117) #F8BA80FF 350
 window AddText (167,163) #F3F37CFF 700
-window AddText (167,209) #F8BA80FF 560
+window AddText (167,209) #FFFFFFFF ~0.5s
 window AddText (167,255) #F3F37CFF 650
 imgui PopFont
 window PopClipRect
@@ -1291,25 +1291,25 @@ window AddImage hp_back.png (31.6,77.52) (190,97.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_back.png (31.6,123.52) (190,143.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_back.png (31.6,169.52) (190,189.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_back.png (31.6,215.52) (190,235.68) (0,0) (1,1) #FF9597FF
-window AddImage hp_back.png (31.6,261.52) (190,281.68) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (31.6,261.52) (190,281.68) (0,0) (1,1) #A8B8FFFF
 window AddImage hp_fill.png (37.36,31.52) (82.89,51.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (37.36,77.52) (118.14,97.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (37.36,123.52) (74.08,143.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (37.36,169.52) (140.18,189.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (37.36,215.52) (148.99,235.68) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (37.36,261.52) (96.11,281.68) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (37.36,261.52) (159.27,281.68) (0,0) (1,1) #A8B8FFFF
 window AddImage glow.png (71.8,31.52) (82.89,51.68) (0,0) (1,1) #FFFFFF59
 window AddImage glow.png (107.06,77.52) (118.14,97.68) (0,0) (1,1) #FFFFFF59
 window AddImage glow.png (62.99,123.52) (74.08,143.68) (0,0) (1,1) #FFFFFF59
 window AddImage glow.png (129.09,169.52) (140.18,189.68) (0,0) (1,1) #FFFFFF59
 window AddImage glow.png (137.9,215.52) (148.99,235.68) (0,0) (1,1) #FFFFFF59
-window AddImage glow.png (85.02,261.52) (96.11,281.68) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (148.18,261.52) (159.27,281.68) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (31.6,31.52) (190,51.68) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (31.6,77.52) (190,97.68) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (31.6,123.52) (190,143.68) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (31.6,169.52) (190,189.68) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (31.6,215.52) (190,235.68) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (31.6,261.52) (190,281.68) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (31.6,261.52) (190,281.68) (0,0) (0.97,1) #A8B8FFFF
 window AddImage mp_back.png (90.64,48.08) (208.72,65.36) (0,0) (1,1) #00000073
 window AddImage mp_back.png (90.64,94.08) (208.72,111.36) (0,0) (1,1) #00000073
 window AddImage mp_back.png (90.64,140.08) (208.72,157.36) (0,0) (1,1) #00000073
@@ -1354,7 +1354,7 @@ window AddCircleFilled (199.6,170.06) 4.4 #F2332EFF 12
 window AddText (10,158) #FFFFFFFF Sample 3
 window AddCircleFilled (15.4,216.06) 4.4 #FFE640FF 12
 window AddText (24,204) #FFFFFFFF Thirdlead
-window AddText (10,250) #FFFFFFFF Sample 5
+window AddText (10,250) #FFFFFFFF Cure IV
 imgui PopFont
 imgui PushFont
 window AddText (167,25) #F8BA80FF 950
@@ -1362,7 +1362,7 @@ window AddText (167,71) #F3F37CFF 770
 window AddText (167,117) #F8BA80FF 350
 window AddText (167,163) #F3F37CFF 980
 window AddText (167,209) #FFFFFFFF 1000
-window AddText (167,255) #F8BA80FF 560
+window AddText (167,255) #FFFFFFFF ~0.5s
 imgui PopFont
 window PopClipRect
 window PushClipRect (0,0) (1920,1080) false

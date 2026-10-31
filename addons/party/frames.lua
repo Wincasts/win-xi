@@ -32,6 +32,9 @@
 --     nameColor                the name's colour, where not the theme's text colour (a target's, by Game Name Colors)
 --     lockedOn                 a target the player is locked on to: brackets at either side of the window
 --     letter                   a monster's spawn letter (as name writes it), in a badge after the name
+--     cast                     a spell being cast (winxi.castbar's: name, progress 0 to 1, timer): its
+--                              name in place of the line's, its progress in the HP bar, in the cast's
+--                              colour, and its timer where the HP figure is
 --
 -- style says how (options.lua makes one from the settings), each left out for the usual:
 --     scale, nameSize, valueSize, buffSize     percentages: of everything, and of each alone
@@ -97,6 +100,7 @@ local tpPulsePeriod = 1.2
 local tpPulse = { 0, 0, 0, 1 } -- the colour it is, for the list being drawn
 local tpPulseBlend = 1          -- how far from the light blue towards the deeper one the pulse is this frame
 local noMpGrey = { 0.55, 0.55, 0.55, 1 } -- the MP bar of a member with no MP to have: grey, and full
+local castColor = Hex('A8B8FF') -- the HP bar of a member casting, filling as the cast goes
 
 local barShadowReach = 3 -- how far below a bar its shadow goes
 local hpColor, mpColor = Hex('FF9597'), Hex('FFFF9C') -- what the bars' images, which are grey, are tinted
@@ -592,7 +596,7 @@ end
 -- Names retain blue/green selection colours. Text markers are the fallback if the DAT cannot load.
 local function DrawName(member, state)
     local name = layout.name
-    local full = Trimmed(member.name or '???', nameChars)
+    local full = Trimmed(member.cast and member.cast.name or member.name or '???', nameChars)
     local x = name.x
     if member.isPartyLeader or member.isAllianceLeader then
         x = x + DrawLeaderMarks(member)
@@ -653,7 +657,9 @@ local function DrawFigure(place, member, kept, fontSize, figure)
 
     local color = nil
     if amount >= 0 then
-        if kind == 'hp' and not member.plainHp then
+        if kind == 'hp' and (member.plainHp or member.cast) then
+            color = nil
+        elseif kind == 'hp' then
             local percent = member.hpp or 0
             if percent < 25 then
                 color = hpRed
@@ -668,7 +674,7 @@ local function DrawFigure(place, member, kept, fontSize, figure)
     end
 
     -- a line may give a figure in its own words: a pet's HP is known only as a percentage
-    local words = (kind == 'hp' and member.hpText) or (kind == 'mp' and member.mpText) or (kind == 'tp' and member.tpText)
+    local words = (kind == 'hp' and (member.cast and member.cast.timer or member.hpText)) or (kind == 'mp' and member.mpText) or (kind == 'tp' and member.tpText)
     if not words then
         if kept.amount ~= amount then
             kept.amount = amount
@@ -988,7 +994,12 @@ function frames.Draw(members, kind, StatusTexture, style)
         state.hasMp = member.mpp ~= nil
         if state.inZone then
             state.opacity = RangeOpacity(member)
-            state.hp.fraction = math.max(0, math.min(1, (member.hpp or 0) / 100))
+            local cast = member.cast
+            if cast then
+                state.hp.fraction, state.hp.color = math.max(0, math.min(1, cast.progress or 0)), castColor
+            else
+                state.hp.fraction, state.hp.color = math.max(0, math.min(1, (member.hpp or 0) / 100)), nil
+            end
             if state.hasMp then
                 -- no MP to have is not an empty bar: it is a grey one, full
                 if member.noMp then

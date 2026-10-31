@@ -121,6 +121,8 @@
 --     Status, the unit specs; shell's Visibility tab in place of hideHeader
 -- 66: shell's extra.pos, a window put where an addon says this frame; bars.Draw's texture, a bar's own
 --     art in place of the theme's (expbar)
+-- 67: castbar, the casts seen in the action packets, moved from name for party's cast bars:
+--     Configure, Begin, HandlePacket, Of, Reset, Diagnostics, Preview, PreviewVisible
 return {
-    Number = 66,
+    Number = 67,
 };
