@@ -241,7 +241,8 @@ the mode is how the boxes behave and where they stand.
   page; Enter puts the phrase, item or key item in (on a category, opens it); Escape closes (in a category, goes back to the
   categories). With a controller, while the list is open: the d-pad up and down a row, left and right a
   page, A puts the choice in (on a category, opens it), B goes back or closes; the whole controller is kept
-  from the game while the list is open, and given back when it closes.
+  from the game while the list is open, and given back when it closes. Once you have used a controller,
+  a legend above the list shows those buttons, each drawn as it looks on your controller (winxi's legend).
   - **Controller Type** (Automatic to begin with): the kind of controller that works the list. Automatic
     follows the game's own setting, as the Phoenix launcher sets it (XInput or DirectInput; a DirectInput
     controller is taken for a PlayStation one). Otherwise XInput is an Xbox controller, or one set up to act

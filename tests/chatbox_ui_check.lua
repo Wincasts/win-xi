@@ -150,7 +150,7 @@ package.loaded['winxi.widgets']=W
 end
 local binding
 package.loaded['winxi.controller'] = {HighlightColor={0.23,0.67,0.91,1}, RepeatDelay=0.35, RepeatRate=0.08,
-    Button={DpadUp=0,DpadDown=1,DpadLeft=2,DpadRight=3,Start=4,Back=5,L3=6,R3=7,LB=8,RB=9,A=12,B=13,X=14,Y=15}, Bind=function(spec) binding=spec; return spec end,
+    Dpad='dpad', Button={DpadUp=0,DpadDown=1,DpadLeft=2,DpadRight=3,Start=4,Back=5,L3=6,R3=7,LB=8,RB=9,A=12,B=13,X=14,Y=15}, Bind=function(spec) binding=spec; return spec end,
     Layouts={{key='xinput',label='XInput (Xbox)'},{key='playstation',label='DirectInput (PlayStation)'}}, layout='xinput', heard=nil,
     Automatic='auto', automatic=false, game=nil}
 do
@@ -2122,6 +2122,16 @@ do (function()
     assert(dik(0xC8) and dik(0x1C),'the list open: DirectInput\'s Up and Enter kept as well')
     rendered['winxi.chatbox.translate']=nil; frame()
     assert(rendered['winxi.chatbox.translate'],'the list drawn with the input bar')
+    do -- the legend above it (winxi.legend stood in for), once a controller has been heard, and not before
+        local drawnLegend
+        package.loaded['winxi.legend']={Height=function() return 14 end, Draw=function(pieces,x,y) drawnLegend={pieces=pieces,y=y} end}
+        local pad=package.loaded['winxi.controller']
+        frame(); assert(drawnLegend==nil,'no controller heard: no legend')
+        pad.heard='directinput'; frame()
+        assert(drawnLegend and drawnLegend.pieces[1][2]=='Move' and drawnLegend.pieces[2][2]=='Select' and drawnLegend.pieces[3][2]=='Back',
+            'a controller heard: the legend, Move, Select, Back')
+        pad.heard=nil; package.loaded['winxi.legend']=nil
+    end
     local line=status(); assert(line and line:find('open: ',1,true),'/chatbox status says the list is open: '..tostring(line))
     local left=poll({0x1C,0x23,0x1E})
     assert(not left[0x1C] and left[0x23] and left[0x1E],'the list open: Enter cleared from the polled state the game reads, H and A kept')

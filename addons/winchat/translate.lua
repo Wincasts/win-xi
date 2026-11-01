@@ -512,6 +512,15 @@ function M.Draw(picker, layout, flags)
             if not ok then error(failure, 0) end
         end, { padding = padding, fontSize = fontSize, clickThrough = true,
             background = layout.background, border = layout.border, textColor = layout.textColor })
+        -- with a controller in use, which buttons do what (winxi.legend), above the list: under it is the input
+        -- (on its own: should it fail, the list is still drawn)
+        pcall(function()
+            local controller = require('winxi.controller')
+            if controller.Heard() == nil then return end
+            local legend = require('winxi.legend')
+            M.legend = M.legend or { { controller.Dpad, 'Move' }, { controller.Button.A, 'Select' }, { controller.Button.B, 'Back' } }
+            legend.Draw(M.legend, left, top - 4 - legend.Height(M.legend, width), width)
+        end)
     end)
     if minSizePushed then imgui.PopStyleVar() end
     if not drawn then picker.Fail(err); return false end

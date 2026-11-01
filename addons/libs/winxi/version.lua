@@ -129,6 +129,8 @@
 -- 69: packets.outbound.equipSet, putting on or taking off a piece of gear (0x050)
 -- 70: controller.ButtonName, what is printed on a button of the kind of controller in use
 -- 71: controller.Glyph, GlyphWidth and Dpad, a button drawn as the kind of controller in use has it
+-- 72: legend (Draw, Height), which buttons do what by a window the controller is working, in the theme's
+--     font; controller.LeftStick's glyph
 return {
-    Number = 71,
+    Number = 72,
 };

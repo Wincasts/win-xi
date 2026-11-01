@@ -2,6 +2,7 @@
 
 ## 0.18.0
 
+- Auto-Translate's list, once a controller has been used, has winxi's legend above it: the d-pad Move, A Select, B Back, each button drawn as it looks on the controller in use. Requires winxi 72.
 - Renamed winchat: the addon is `winchat` (`addons\winchat`, `/addon load winchat`), its settings window winchat Settings, its first section winchat and its command `/winchat`, with `/chatbox` kept as another way in. Each character's settings are brought over from `config\addons\chatbox` the first time it logs in (winxi.shell's formerName), and the Auto-Translate list of what the character has held is read from there until it is written under winchat. Remove the old `addons\chatbox` folder.
 
 ## 0.17.0

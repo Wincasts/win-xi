@@ -19,6 +19,7 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 | `winxi.fade` | Fading an addon's windows out while the player is idle, from settings the addon keeps (`widgets.Fade` draws their controls) |
 | `winxi.organize` | Arranging an addon's windows: an Organize button, labels, an alignment grid, and linking one window against another |
 | `winxi.controller` | Working an addon's windows with a controller (XInput, or DirectInput by make): taking button presses, a highlight that moves over things drawn in rows, and a menu of choices |
+| `winxi.legend` | Which buttons do what, under a window the controller is working: each button's glyph and a word, in the theme's font and size (winxi 72). Every winxi window worked with a controller shows one |
 | `winxi.anchor` | "Grow from": which corner of a self-sizing window stays put |
 | `winxi.widgets` | Settings windows as described rows (winxi 65: `Check`, `Slider`, `Numbers`, `Dropdown`, `Color`, `Action`, `BeginRow`/`EndRow`, `Note`, `Status`, collapsible `Header`), and the ready-made ones: the theme with its "Use Shared Theme" checkbox (`Appearance`), the Winxi Theme tab that holds it (`BeginThemeTab`), Grow From (`GrowFrom`), the fade settings (`Fade`) and the rules for hiding (`Hide`), an addon's own font and its size (`FontFile`, `FontSize`), and Lock Window (`Lock`). See [Settings windows: the rules](#settings-windows-the-rules) |
 | `winxi.sound` | The small sounds a menu makes, off until an addon turns them on |
@@ -304,6 +305,18 @@ Switch Pro.
 cross, circle, square and triangle in their colours, an Xbox controller's coloured letters, the
 others' letters, pills for the shoulder and other buttons, and `controller.Dpad` for the d-pad. It
 returns its width; `controller.GlyphWidth(button, size)` gives the width without drawing.
+
+A window worked with a controller says which buttons do what with `winxi.legend` (winxi 72), under it,
+the same in every addon: a glyph for each button and a word for what it does, in the theme's font and
+size, outlined over the game. Keep the words to one where you can (Move, Select, Back, Tab, Sort, Next,
+Exit):
+
+```lua
+local legend = require('winxi.legend');
+local pieces = { { controller.Dpad, 'Move' }, { controller.Button.A, 'Select' }, { controller.Button.B, 'Back' } };
+-- each frame the window has the controller, under it:
+local height = legend.Draw(pieces, x, bottom + 6, width);
+```
 
 ## Menu sounds
 

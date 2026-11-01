@@ -229,11 +229,13 @@ end
 -- face buttons are dark rounds with a light rim, holding PlayStation's cross, circle, square and
 -- triangle in their colours, an Xbox controller's letters in theirs, or the letters of the others in
 -- white; the shoulder and other buttons are pills with their names; controller.Dpad is the d-pad, a
--- light cross edged in dark. Everything is drawn, with nothing to load, at any size.
+-- light cross edged in dark, and controller.LeftStick the left stick, a light knob in a dark round.
+-- Everything is drawn, with nothing to load, at any size.
 --
 --     local width = controller.Glyph(drawList, controller.Button.A, x, y, size)   -- size: its height
 --     controller.GlyphWidth(button, size)                                         -- the same width, undrawn
 controller.Dpad = 'dpad';
+controller.LeftStick = 'leftStick';
 
 local faceButtons = { [B.A] = true, [B.B] = true, [B.X] = true, [B.Y] = true };
 local glyphInk = {
@@ -253,7 +255,7 @@ local function GlyphText(words, size)
 end
 
 function controller.GlyphWidth(button, size)
-    if button == controller.Dpad or faceButtons[button] then
+    if button == controller.Dpad or button == controller.LeftStick or faceButtons[button] then
         return size;
     end
     local width = GlyphText(controller.ButtonName(button), size);
@@ -285,6 +287,14 @@ function controller.Glyph(drawList, button, x, y, size)
             gA[1], gA[2], gB[1], gB[2] = a0 - grow, y - grow, a1 + grow, y + size + grow;
             drawList:AddRectFilled(gA, gB, color, 1.0);
         end
+        return size;
+    end
+
+    if button == controller.LeftStick then
+        gA[1], gA[2] = cx, cy;
+        drawList:AddCircleFilled(gA, half, imgui.GetColorU32(glyphBody), 20);
+        drawList:AddCircle(gA, half - 0.5, imgui.GetColorU32(glyphRim), 20, 1);
+        drawList:AddCircleFilled(gA, half * 0.5, imgui.GetColorU32(glyphLight), 16);
         return size;
     end
 

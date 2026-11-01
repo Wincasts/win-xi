@@ -17,7 +17,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 71
+local winxiNeeded = 72
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -1485,19 +1485,19 @@ function cycle.EndFrame()
 end
 
 -- Ends a frame of drawing: keeps the highlight on an item, and draws the open menu beside its item
--- The legend under the window: which buttons do what, for what the controller is doing now. One
--- list of pieces for each, made once (legend.lua lays them out).
-cycle.legend = require('legend')
+-- The legend under the window (winxi.legend): which buttons do what, for what the controller is doing
+-- now. One list of pieces for each, made once.
+cycle.legend = require('winxi.legend')
 do
     local button = controller.Button
-    local nextWindow = { button.Y, 'Next Window', cycle = true }
+    local nextWindow = { button.Y, 'Next', tag = 'cycle' }
     cycle.legends = {
-        inventory = { { controller.Dpad, 'Move' }, { { button.LB, button.RB }, 'Tab' }, { button.A, 'Item Menu' },
-            { button.X, 'Sort' }, nextWindow, { button.B, 'Back to Game' } },
-        treasure = { { controller.Dpad, 'Move' }, { button.A, 'Press' }, nextWindow, { button.B, 'Inventory' } },
-        equipment = { { controller.Dpad, 'Move' }, { button.A, 'Change Gear' }, nextWindow, { button.B, 'Inventory' } },
-        menu = { { controller.Dpad, 'Choose' }, { button.A, 'Select' }, { button.B, 'Back' } },
-        swap = { { controller.Dpad, 'Move' }, { button.A, 'Pick / Swap' }, { button.B, 'Unpick / Finish' } },
+        inventory = { { controller.Dpad, 'Move' }, { { button.LB, button.RB }, 'Tab' }, { button.A, 'Menu' },
+            { button.X, 'Sort' }, nextWindow, { button.B, 'Exit' } },
+        treasure = { { controller.Dpad, 'Move' }, { button.A, 'Select' }, nextWindow, { button.B, 'Back' } },
+        equipment = { { controller.Dpad, 'Move' }, { button.A, 'Gear' }, nextWindow, { button.B, 'Back' } },
+        menu = { { controller.Dpad, 'Move' }, { button.A, 'Select' }, { button.B, 'Back' } },
+        swap = { { controller.Dpad, 'Move' }, { button.A, 'Swap' }, { button.B, 'Done' } },
     }
 end
 
@@ -1519,8 +1519,8 @@ function cycle.DrawLegend()
     else
         pieces = cycle.legends[pad.target]
     end
-    local withCycle = options.cycleTreasure[1] or options.cycleEquipment[1]
-    local height = cycle.legend.Draw(pieces, pad.windowX, below + labelGap, math.max(pad.windowWidth, 200), withCycle)
+    local hidden = not (options.cycleTreasure[1] or options.cycleEquipment[1]) and 'cycle' or nil
+    local height = cycle.legend.Draw(pieces, pad.windowX, below + labelGap, math.max(pad.windowWidth, 200), hidden)
     pad.below = below + labelGap + height
 end
 
