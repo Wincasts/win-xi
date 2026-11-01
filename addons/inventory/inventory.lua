@@ -1504,11 +1504,17 @@ end
 -- Draws the legend under the window, or under the equipment monitor where that is attached under it,
 -- and notes where what goes beneath it starts (pad.below)
 function cycle.DrawLegend()
+    -- not before the window has been drawn once and has a place (the first frames, or hidden by the
+    -- shell's rules while the controller is still the inventory's)
+    if pad.windowX == nil or pad.windowY == nil or pad.windowHeight == nil then
+        pad.below = nil
+        return
+    end
     local monitor = equipment.Rect()
     local below = monitor ~= nil and monitor[2] + monitor[4] or (pad.windowY + pad.windowHeight)
     pad.below = below
     local options = pad.options
-    if not options.controllerLegend[1] or pad.windowX == nil then
+    if not options.controllerLegend[1] then
         return
     end
     local pieces
@@ -1544,7 +1550,7 @@ local function PadEndFrame()
         if item ~= nil and x ~= nil then
             if pad.options.controllerInfo == 'verbose' then
                 infoItem = item
-                if pad.options.controllerInfoPlace == 'item' or pad.windowX == nil then
+                if pad.options.controllerInfoPlace == 'item' or pad.below == nil then
                     controller.Label(DrawInfoBox, x, y + iconSize + 3 + labelGap, true, item.uniqueId)
                 else
                     -- under the window, its left edge in line with the window's, and under the

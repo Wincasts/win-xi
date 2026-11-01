@@ -6,6 +6,13 @@ o.isVisible[1], o.controller[1], o.controllerSounds[1] = true, true, true
 o.equipment.enabled[1] = true
 H.job(1, 75) -- a warrior: the harness's gear is warriors' head gear, level 1
 H.gil(1000); H.bag(0, 30, { { 20001 }, { 20002 }, { 1, 5 } })
+-- the controller the window's before the window has ever been drawn (its Begin refused): no legend, no error
+do
+    H.ret.Begin = { false }
+    local ok, err = pcall(H.frames, 3)
+    H.ret.Begin = { true }
+    H.print('the window not yet drawn, the controller its: no error', ok, ok or err)
+end
 H.frames(8)
 
 local function Sound() return H.sounds[#H.sounds] end
