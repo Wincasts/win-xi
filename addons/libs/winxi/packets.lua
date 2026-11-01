@@ -9,8 +9,8 @@
 --         local finish = packets.inbound.inventoryFinish.parse(e.data);
 --     end
 --
--- Only what an addon has needed so far is here: the bags, the treasure pool, and actions and the
--- messages that follow them.
+-- Only what an addon has needed so far is here: the bags, the treasure pool, equipment, and actions and
+-- the messages that follow them.
 local packets = { outbound = {}, inbound = {} };
 
 -- Throws an item away: so many of it, from a slot of a bag
@@ -56,6 +56,16 @@ packets.outbound.treasurePass = {
     id = 0x042,
     make = function(this, slot)
         return this.id, { 0x00, 0x00, 0x00, 0x00, slot };
+    end,
+};
+
+-- Puts on an item from a slot of a bag in one of the equipment slots (0 Main to 15 Back, as the game
+-- numbers them), or with item 0 takes off what is there. The server takes it only from the inventory
+-- and the wardrobes, and refuses a slot encumbrance has locked.
+packets.outbound.equipSet = {
+    id = 0x050,
+    make = function(this, item, slot, container)
+        return this.id, { 0x00, 0x00, 0x00, 0x00, item, slot, container, 0x00 };
     end,
 };
 

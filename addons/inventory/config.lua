@@ -16,7 +16,7 @@ local currency = require('currency')
 local config = { tabGroups = { }, tabNames = { } }
 local windowName = 'winxi.inventory'
 
-local controllerTip = 'Work the inventory with a controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or give the controller back to the game (the window stays open: /inv toggle closes it, /inv focus gives it the controller again).\nX (square): the sort menu. Auto puts the tab back in the usual order and part stacks together; Manual swaps the places of two items; Recycle Bin takes back what was dropped.\nThose buttons do not reach the game while the window is showing. Open it with /inv toggle, from a macro.'
+local controllerTip = 'Work the inventory with a controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or give the controller back to the game (the window stays open: /inv toggle closes it, /inv focus gives it the controller again).\nY (triangle): move the controller to the treasure pool (while there is treasure), then the equipment monitor, then back to the inventory. In the pool A opens Lot and Pass; in the monitor, what can be put on in the slot. B goes back to the inventory.\nX (square): the sort menu. Auto puts the tab back in the usual order and part stacks together; Manual swaps the places of two items; Recycle Bin takes back what was dropped.\nThose buttons do not reach the game while the window is showing. Open it with /inv toggle, from a macro.'
 
 -- Two choices, one under the other, in the column of the controls
 local function Choice(firstLabel, firstOn, secondLabel)
@@ -26,6 +26,8 @@ local function Choice(firstLabel, firstOn, secondLabel)
     local second = imgui.RadioButton(secondLabel, not firstOn)
     return first, second
 end
+
+local cycleSpec = { parent = true }
 
 -- The inventory's own controller settings, between the sounds and the kind of controller
 local function DrawControllerSettings(options)
@@ -42,6 +44,11 @@ local function DrawControllerSettings(options)
         if window then options.controllerInfoPlace = 'window' elseif item then options.controllerInfoPlace = 'item' end
         tooltip.Hover('Where the verbose box goes: under the inventory window (or the equipment monitor under it), in line with its left edge, or under the highlighted item.')
     end
+
+    widgets.Check('Cycle Treasure Pool', 'Y (triangle) moves the controller to the treasure pool while there is treasure, to lot and pass.',
+        options.cycleTreasure, '##inv.cycleTreasure', cycleSpec)
+    widgets.Check('Cycle Equipment', 'Y (triangle) moves the controller to the equipment monitor while it is shown, to change gear.',
+        options.cycleEquipment, '##inv.cycleEquipment', cycleSpec)
 end
 
 function config.General(options)

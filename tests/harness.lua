@@ -108,6 +108,7 @@ io.open = function(p, mode)
 end
 
 local playing, loginStatus, pool, lots, sent, sounds, raised, plugins = false, 2, 0, {}, {}, {}, {}, {}
+local mainJob, mainJobLevel = 18, 75
 function GetPlayerEntity() return playing and {} or nil end
 ashita = { interface_version = 4,
     events = { register = function(e, _, f) handlers[e] = handlers[e] or {}; table.insert(handlers[e], f) end },
@@ -148,7 +149,7 @@ local inventory = {
     GetTreasurePoolItem = function(_, i) if i < pool then return { ItemId = 100 + i, DropTime = 5, WinningLot = 0, WinningEntityName = '', Lot = lots[i] or 0 } end end }
 AshitaCore = { GetInstallPath = function() return 'C:\\ashita' end,
     GetMemoryManager = function() return { GetInventory = function() return inventory end,
-        GetPlayer = function() return { GetMainJob = function() return 18 end, GetLoginStatus = function() return loginStatus end,
+        GetPlayer = function() return { GetMainJob = function() return mainJob end, GetMainJobLevel = function() return mainJobLevel end, GetLoginStatus = function() return loginStatus end,
             GetIsZoning = function() return 0 end, GetStatusIcons = function() return {} end } end,
         GetParty = function() return { GetMemberTargetIndex = function() return 0 end, GetMemberName = function() return 'Tester' end } end,
         GetTarget = function() return { GetIsSubTargetActive = function() return 0 end, GetSubTargetFlags = function() return 0xFFFFFFFF end,
@@ -185,6 +186,7 @@ H = {
     play = function(v) playing = v end,                    -- whether there is a player (false: loading)
     login = function(status) loginStatus = status end,     -- the game's login status: 2 in the world, less before
     pool = function(count) pool = count end,               -- how many items are in the treasure pool
+    job = function(id, level) mainJob, mainJobLevel = id, level or 75 end, -- the main job and its level
     -- a bag of size slots, with { id, count } in its first slots; and the gil (with which the bags are loaded)
     bag = function(bag, size, items)
         sizes[bag], contents[bag] = size, {}

@@ -17,7 +17,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 68
+local winxiNeeded = 69
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -412,6 +412,9 @@ local function Info(id)
         info.level = ('Lv %i %s'):format(itemRes.Level, itemSlots)
         info.jobs = itemJobs:join(', ')
         info.slots = itemRes.Slots
+        -- for the equipment monitor's controller menu, which offers only what the job can put on
+        info.jobMask = itemRes.Jobs
+        info.levelNumber = itemRes.Level
         -- for the controller's verbose box, which sets gear out in lines of its own
         info.isGear = true
         info.levelText = ('Lv %i'):format(itemRes.Level)
@@ -853,8 +856,15 @@ end
 -- the items, the shoulder buttons change tab, A opens a menu of what can be done with the highlighted
 -- item and chooses from it, B backs out of the menu or gives the controller back to the game (the
 -- window stays open), and X opens the sort menu.
+--
+-- Y cycles the controller through the windows: the inventory, then the treasure pool while there is
+-- treasure, then the equipment monitor while it is shown, then the inventory again; Cycle Treasure
+-- Pool and Cycle Equipment leave either out. In the pool the d-pad moves over the lines and A opens
+-- Lot / Pass; in the monitor it moves over the slots and A opens what can be put on there. B in either
+-- goes back to the inventory.
 local pad = {
     options = nil,     -- the tool's settings, as of the frame last drawn
+    target = 'inventory', -- which window the buttons work: 'inventory', 'treasure' or 'equipment'
     focused = false,   -- whether the window has the controller: from being opened (or /inv focus)
                        -- until B, /inv focus again, or its being closed
     drawn = 0,         -- when the window was last drawn: the controller is only the inventory's while it is
@@ -1145,10 +1155,164 @@ local function DrawInfoBox()
     DrawVerbose(infoItem)
 end
 
+-- What Y does: the cycle through the windows, and the buttons in the pool and the monitor (one table,
+-- the main chunk being near Lua's limit of locals)
+local cycle = { }
+
+-- The windows Y cycles the controller through, in order, and whether each can take it now: the pool
+-- while it is on screen with treasure in it, the monitor while it is on screen, either only if it is in
+-- the cycle
+cycle.order = { 'inventory', 'treasure', 'equipment' }
+
+function cycle.CanTake(target)
+    local options = pad.options
+    if target == 'treasure' then
+        return options.cycleTreasure[1] and options.treasurePool[1] and pool.Shown()
+    elseif target == 'equipment' then
+        return options.cycleEquipment[1] and options.equipment.enabled[1] and equipment.Shown()
+    end
+    return true
+end
+
+function cycle.Next()
+    local at = 1
+    for index, target in ipairs(cycle.order) do
+        if target == pad.target then
+            at = index
+        end
+    end
+    for step = 1, #cycle.order - 1 do
+        local target = cycle.order[(at - 1 + step) % #cycle.order + 1]
+        if cycle.CanTake(target) then
+            pad.target = target
+            sound.Play('tab')
+            return
+        end
+    end
+    sound.Play('error') -- nothing else to go to
+end
+
+-- The bags gear can be put on from, as the server allows: the inventory and the wardrobes
+cycle.equipBags = { }
+for _, bag in ipairs(bagList) do
+    if bag.id == bags.inventory or bag.isGearOnly then
+        cycle.equipBags[#cycle.equipBags + 1] = bag
+    end
+end
+cycle.equipChoices = 15 -- the most pieces of gear the equipment menu lists
+
+-- What can be put on in an equipment slot, as a menu: Remove for what is there, then the gear in the
+-- inventory and wardrobes that goes in the slot and that the main job, at its level, can wear, the
+-- highest level first. Nothing already worn is offered: the server will not move it between slots.
+function cycle.EquipMenu(slotId, slotName, worn)
+    local memory = AshitaCore:GetMemoryManager()
+    local player, inv = memory:GetPlayer(), memory:GetInventory()
+    local job, level = player:GetMainJob(), player:GetMainJobLevel()
+    local slotMask, jobBit = bit.lshift(1, slotId), bit.lshift(1, job)
+
+    local wornPlaces = { }
+    for slot = 0, 15 do
+        local entry = inv:GetEquippedItem(slot)
+        if entry ~= nil and entry.Index ~= 0 then
+            wornPlaces[entry.Index] = true
+        end
+    end
+
+    local choices = { }
+    for _, bag in ipairs(cycle.equipBags) do
+        for _, item in ipairs(inventories[bag.group][bag.key]) do
+            if item.isGear and bit.band(item.slots or 0, slotMask) ~= 0
+                and bit.band(item.jobMask or 0, jobBit) ~= 0 and (item.levelNumber or 0) <= level
+                and not wornPlaces[item.bagId * 256 + item.slotId] then
+                choices[#choices + 1] = item
+            end
+        end
+    end
+    table.sort(choices, function(a, b)
+        if a.levelNumber ~= b.levelNumber then
+            return a.levelNumber > b.levelNumber
+        end
+        return a.shortName < b.shortName
+    end)
+
+    local equipSet = packets.outbound.equipSet
+    local entries = { }
+    if worn ~= nil then
+        entries[#entries + 1] = { label = 'Remove', run = function()
+            AshitaCore:GetPacketManager():AddOutgoingPacket(equipSet:make(0, slotId, 0))
+        end }
+    end
+    for index, item in ipairs(choices) do
+        if index > cycle.equipChoices then
+            entries[#entries + 1] = { label = ('(%d more)'):format(#choices - cycle.equipChoices) }
+            break
+        end
+        entries[#entries + 1] = { label = item.shortName, run = function()
+            AshitaCore:GetPacketManager():AddOutgoingPacket(equipSet:make(item.slotId, slotId, item.bagId))
+        end }
+    end
+    if #choices == 0 then
+        entries[#entries + 1] = { label = '(nothing to put on)' }
+    end
+    entries[#entries + 1] = { label = 'Cancel' }
+    return controller.NewMenu(worn ~= nil and ('%s: %s'):format(slotName, worn.shortName) or slotName, entries)
+end
+
+-- A button pressed while the treasure pool has the controller
+function cycle.TreasurePress(action)
+    if action == 'up' or action == 'down' then
+        pool.Move(action)
+    elseif action == 'confirm' then
+        local menu = pool.Menu()
+        if menu ~= nil then
+            pad.menu, pad.menuItem = menu, nil
+            sound.Play('confirm')
+        else
+            sound.Play('error')
+        end
+    elseif action == 'back' then
+        pad.target = 'inventory'
+        sound.Play('back')
+    end
+end
+
+-- A button pressed while the equipment monitor has the controller
+function cycle.EquipmentPress(action)
+    if action == 'up' or action == 'down' or action == 'left' or action == 'right' then
+        equipment.Move(action)
+    elseif action == 'confirm' then
+        local slotId, slotName, worn, encumbered = equipment.Highlighted()
+        if slotId == nil or encumbered then
+            sound.Play('error') -- encumbrance locks the slot, against taking off as well
+        else
+            pad.menu, pad.menuItem = cycle.EquipMenu(slotId, slotName, worn), nil
+            sound.Play('confirm')
+        end
+    elseif action == 'back' then
+        pad.target = 'inventory'
+        sound.Play('back')
+    end
+end
+
 -- One of the inventory's buttons has been pressed, or a held d-pad button has repeated
 local function PadPress(action)
     if pad.menu ~= nil then
         pad.menu = pad.menu:Press(action)
+        return
+    end
+
+    if action == 'cycle' then
+        if pad.swap ~= nil then
+            sound.Play('error') -- sorting by hand is finished first, with B
+        else
+            cycle.Next()
+        end
+        return
+    elseif pad.target == 'treasure' then
+        cycle.TreasurePress(action)
+        return
+    elseif pad.target == 'equipment' then
+        cycle.EquipmentPress(action)
         return
     end
 
@@ -1207,9 +1371,12 @@ local function PadPress(action)
     end
 end
 
+cycle.actions = controller.StandardActions()
+cycle.actions[controller.Button.Y] = 'cycle'
+
 pad.binding = controller.Bind({
     active = PadIsActive,
-    actions = controller.StandardActions(),
+    actions = cycle.actions,
     repeats = controller.StandardRepeats(),
     press = PadPress,
 })
@@ -1229,6 +1396,7 @@ local function PadBeginFrame(options)
     local showing = options.controller ~= nil and options.controller[1] and options.isVisible[1] or false
     if showing and not pad.showing then
         pad.focused = true
+        pad.target = 'inventory'
     elseif pad.showing and not showing then
         if pad.focused then
             sound.Play('back')
@@ -1251,13 +1419,81 @@ local function PadBeginFrame(options)
         pad.menu = nil
         pad.swap = nil
     end
+    -- the pool and the monitor draw their own highlights, while they have the controller
+    pool.Focus(pad.active and pad.target == 'treasure' and pad.binding or nil, padYellow)
+    equipment.Focus(pad.active and pad.target == 'equipment' and pad.binding or nil, padYellow)
     pad.grid:Begin()
+end
+
+-- What is said of the highlighted line of the treasure pool, made again only when it changes
+cycle.treasureLabel = { name = nil, winner = nil, lot = nil, text = nil }
+
+function cycle.TreasureLabel(item)
+    local label = cycle.treasureLabel
+    if label.name ~= item.name or label.winner ~= item.winner or label.lot ~= item.winnerLot then
+        label.name, label.winner, label.lot = item.name, item.winner, item.winnerLot
+        if item.winner ~= nil then
+            label.text = ('%s\nBest lot: %s, by %s'):format(item.name, item.winnerLotText, item.winner)
+        else
+            label.text = ('%s\nNo one has lotted yet.'):format(item.name)
+        end
+    end
+    return label.text
+end
+
+-- And of the highlighted slot of the equipment monitor
+cycle.equipmentLabel = { name = nil, worn = nil, encumbered = nil, text = nil }
+
+function cycle.EquipmentLabel(slotName, worn, encumbered)
+    local label = cycle.equipmentLabel
+    local wornName = worn ~= nil and worn.shortName or 'Empty'
+    if label.name ~= slotName or label.worn ~= wornName or label.encumbered ~= encumbered then
+        label.name, label.worn, label.encumbered = slotName, wornName, encumbered
+        label.text = ('%s: %s%s'):format(slotName, wornName, encumbered and ' (encumbered)' or '')
+    end
+    return label.text
+end
+
+-- Ends a frame with the pool or the monitor having the controller: the label or the menu beside what
+-- is highlighted. Should the window have gone (the treasure all gone, the monitor hidden), the
+-- controller goes back to the inventory.
+function cycle.EndFrame()
+    if pad.target == 'treasure' then
+        local item = pool.Shown() and pool.Highlighted() or nil
+        local x, y = pool.Place()
+        if item == nil or x == nil then
+            pad.target, pad.menu = 'inventory', nil
+            return
+        end
+        if pad.menu ~= nil then
+            pad.menu:Draw(x, y)
+        else
+            controller.Label(cycle.TreasureLabel(item), x, y, true)
+        end
+        return
+    end
+
+    local slotId, slotName, worn, encumbered = equipment.Highlighted()
+    local x, y, size = equipment.Place()
+    if not equipment.Shown() or slotId == nil or x == nil then
+        pad.target, pad.menu = 'inventory', nil
+        return
+    end
+    if pad.menu ~= nil then
+        pad.menu:Draw(x + size + 8, y)
+    else
+        controller.Label(cycle.EquipmentLabel(slotName, worn, encumbered), x, y + size + 3 + labelGap, true)
+    end
 end
 
 -- Ends a frame of drawing: keeps the highlight on an item, and draws the open menu beside its item
 local function PadEndFrame()
     pad.grid:End()
     if not pad.active then
+        return
+    end
+    if pad.target ~= 'inventory' then
+        cycle.EndFrame()
         return
     end
 
@@ -1399,7 +1635,7 @@ local function PadItems(items, group, left, top, drawList, windowY)
             drawList:AddRect(padMin, padMax, swapColor, 0.0)
         end
 
-        if pad.grid:IsOn(index) then
+        if pad.grid:IsOn(index) and pad.target == 'inventory' then
             if inView then
                 -- two outlines, one inside the other, for a border two pixels thick
                 padMin[1], padMin[2] = x - 2, y - 2
@@ -1993,7 +2229,7 @@ local function DrawWindow(drawOptions)
     end
 
     -- marked as the window the controller is working, while it is
-    if pad.active then
+    if pad.active and pad.target == 'inventory' then
         controller.Highlight(pad.binding)
     end
 end
@@ -2017,6 +2253,8 @@ local defaults = T{
     controllerInfo = 'simple', -- what is said of the highlighted item: 'simple' or 'verbose'
     controllerInfoPlace = 'window', -- where the verbose box goes: under the 'window' or the 'item'
     controllerType = 'auto', -- which kind: Automatic (the game's own setting) or a key of winxi.controller's Layouts
+    cycleTreasure = T{ true }, -- Y takes the controller to the treasure pool, while there is treasure
+    cycleEquipment = T{ true }, -- and to the equipment monitor, while it is shown
     currency1 = 'gil', -- what is shown in the gil's place, by currency.lua's keys: '' for none
     currency2 = '', -- and after it, with a line between
     currencyList = 'phoenix', -- which currencies can be chosen: a key of currency.filters

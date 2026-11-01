@@ -126,6 +126,7 @@
 -- 68: controller's Automatic, the kind of controller the game reads (its padmode000's Enable XInput):
 --     Automatic, Choices, GameKind, IsAutomatic, GetChoice, SetLayout(controller.Automatic); shell's
 --     Controller Type offers it, and a saved XInput becomes Automatic once (controllerTypeAutomatic)
+-- 69: packets.outbound.equipSet, putting on or taking off a piece of gear (0x050)
 return {
-    Number = 68,
+    Number = 69,
 };

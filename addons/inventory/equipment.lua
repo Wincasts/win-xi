@@ -4,6 +4,17 @@
 -- window's, as the treasure pool does beside it; detached in the settings, it is a window of its own
 -- that can be moved. Either way /inv toggle shows and hides it with the inventory, unless it is
 -- pinned: then it stays, and attached, with the inventory hidden, it takes the inventory's place.
+--
+-- With the controller (inventory.lua's cycle brings it here) the d-pad moves a highlight over the
+-- slots, as the game's equipment menu lays them out; what A does with one is inventory.lua's.
+--
+--   equipment.Focus(binding, color)  this frame, the monitor has the controller: binding marks its
+--                                    window, color ({ r, g, b, a }) is the highlight's; nil, it has not
+--   equipment.Shown()                whether the monitor was on screen last frame
+--   equipment.Move(direction)        the highlight over the slots: true if it moved
+--   equipment.Highlighted()          the slot the highlight is on: its number (0 Main to 15 Back), its
+--                                    name, what is in it (the item's info, or nil) and whether it is encumbered
+--   equipment.Place()                the top-left and size of that slot on screen
 local bit = require('bit')
 local imgui = require('imgui')
 local window = require('winxi.window')
@@ -13,6 +24,7 @@ local tooltip = require('winxi.tooltip')
 local itemicons = require('winxi.itemicons')
 local text = require('winxi.text')
 local fade = require('winxi.fade')
+local controller = require('winxi.controller')
 
 local equipment = {}
 local windowName = 'winxi.inventory.equipment'
@@ -76,6 +88,8 @@ local markColor = { 0, 0, 0, 0 }
 local packed = {}
 local labelMetrics, badgeMetrics, ammoMetrics = {}, {}, {}
 local frameOptions, frameSheet, frameScale, frameSize, framePitch
+-- With the controller: the grid over the slots, in the order of slots above
+local pad = { binding = nil, color = nil, grid = controller.NewGrid(), shown = false }
 
 -- Cache only presentation data. Equipped indices, item ids and counts are ALWAYS read live.
 local function Measure(cache, key, text, font, size)
@@ -238,6 +252,21 @@ local function DrawContent()
         end
         imgui.PopFont()
     end
+    if pad.binding ~= nil then
+        pad.grid:Begin()
+        for i = 1, #slots do
+            local left, top = x + (i - 1) % 4 * pitch, y + math.floor((i - 1) / 4) * pitch
+            if pad.grid:IsOn(pad.grid:Add(left, top)) then
+                -- two outlines, one inside the other, as the inventory's highlight is drawn
+                local color = imgui.GetColorU32(pad.color)
+                minimum[1], minimum[2], maximum[1], maximum[2] = left - 2, top - 2, left + size + 2, top + size + 2
+                draw:AddRect(minimum, maximum, color, 0.0)
+                minimum[1], minimum[2], maximum[1], maximum[2] = left - 3, top - 3, left + size + 3, top + size + 3
+                draw:AddRect(minimum, maximum, color, 0.0)
+            end
+        end
+        pad.grid:End()
+    end
     local font, fontSize = imgui.GetFont(), imgui.GetFontSize()
     local hovered = imgui.IsWindowHovered()
     local mx, my = imgui.GetMousePos()
@@ -271,6 +300,10 @@ local function DrawContent()
             tooltip.Show(text)
         end
     end
+    pad.shown = true
+    if pad.binding ~= nil then
+        controller.Highlight(pad.binding)
+    end
     if o.detached[1] then
         o.pos[1], o.pos[2] = imgui.GetWindowPos()
     else
@@ -288,6 +321,7 @@ end
 function equipment.Draw(options, sheet, at, invShown)
     local o = options.equipment
     attachedRect.shown = false
+    pad.shown = false
     if not o.enabled[1] then return end
     local detached = o.detached[1]
     if not detached and at == nil then return end
@@ -326,6 +360,32 @@ end
 -- was drawn, so that what goes under or beside it can go there; otherwise nil
 function equipment.Rect()
     return attachedRect.shown and attachedRect or nil
+end
+
+function equipment.Focus(binding, color)
+    pad.binding, pad.color = binding, color
+end
+
+function equipment.Shown()
+    return pad.shown
+end
+
+function equipment.Move(direction)
+    return pad.grid:Move(direction)
+end
+
+function equipment.Highlighted()
+    local slot = slots[pad.grid.cursor]
+    if slot == nil then
+        return nil
+    end
+    local slotId = slot[1]
+    return slotId, slot[2], slot.id ~= nil and slot.info or nil, bit.band(encumbered, bit.lshift(1, slotId)) ~= 0
+end
+
+function equipment.Place()
+    local x, y = pad.grid:Position()
+    return x, y, frameSize
 end
 
 -- Its tab of the settings, laid out as the treasure pool's: what turns it on, whether it is attached to

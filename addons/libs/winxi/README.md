@@ -378,7 +378,7 @@ AshitaCore:GetPacketManager():AddOutgoingPacket(packets.outbound.inventorySort:m
 debounce(Refresh);         -- Refresh runs once, a second after the last time it was asked for
 ```
 
-`winxi.packets` has only what an addon has needed so far (the bags, the treasure pool, and actions and
+`winxi.packets` has only what an addon has needed so far (the bags, the treasure pool, equipment (`equipSet`, winxi 69), and actions and
 the messages that follow them); add to it as others are needed.
 
 For a tool of xitools that has become an addon of its own, `winxi.legacy` brings over what xitools kept

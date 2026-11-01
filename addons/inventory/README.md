@@ -87,13 +87,22 @@ Navigation, in the settings): the d-pad moves the highlight, LB / RB change tab,
 menu, B backs out of a menu or gives the controller back to the game, and X (square) opens the sort
 menu. The window takes the controller as `/inv toggle` opens it, and only `/inv toggle` closes it.
 
+Y (triangle) moves the controller on to the next window: the inventory, then the treasure pool (only
+while there is treasure), then the equipment monitor (only while it is shown), then back to the
+inventory. The window that has the controller has the thin outline. In the treasure pool, the d-pad
+moves up and down the items and A opens Lot, Pass, Lot All and Pass All. In the equipment monitor,
+the d-pad moves over the slots and A opens what you can put on there: **Remove** for what you are
+wearing, then the gear in your inventory and wardrobes that goes in that slot and that your main job
+can wear at its level, highest level first (up to 15). B in either goes back to the inventory. Turn
+off **Cycle Treasure Pool** or **Cycle Equipment** (General → Controller) to leave one out of the cycle.
+
 While there is treasure, the treasure pool sits to the right of the window. It has a line for each
 item, with the best lot so far, the time left, and buttons to lot and pass, with Lot All and Pass All
 over them. Hover over an item to see who is winning it. It comes and goes with the inventory window.
 Detach From Inventory, under Treasure Pool in the settings, makes it a window of its own that you can
 move, with its own **Position** and **Lock**. Show When Empty fills an empty pool with sample
-treasure, so you can see how it looks; its buttons do nothing. It is worked with the mouse only,
-where the `treas` addon can be worked with a controller.
+treasure, so you can see how it looks; its buttons do nothing. With a controller, Y takes you to it
+(see above).
 
 ## Equipment monitor
 

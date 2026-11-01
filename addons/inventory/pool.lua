@@ -9,6 +9,17 @@
 --                               and invShown whether the inventory window is to be shown
 --   pool.DrawSettings(options)  its section of the settings
 --
+-- With the controller (inventory.lua's cycle brings it here) the d-pad moves a highlight over the
+-- lines, and pool.Menu gives what A opens for the highlighted item: Lot, Pass, Lot All and Pass All.
+--
+--   pool.Focus(binding, color)  this frame, the pool has the controller: binding marks its window, and
+--                               color ({ r, g, b, a }) is the highlight's; nil, it has not
+--   pool.Shown()                whether the pool was on screen last frame, with treasure in it
+--   pool.Move(direction)        the highlight up or down a line: true if it moved
+--   pool.Highlighted()          the item the highlight is on, or nil; its slot, name, winner and lots
+--   pool.Menu()                 what can be done with that item, as a winxi.controller menu, or nil
+--   pool.Place()                where a menu or label goes for it: beside the pool, level with its line
+--
 -- With Show When Empty an empty pool is filled with sample treasure, in each of the states an item can
 -- be in, to see how it looks. Its buttons do nothing.
 --
@@ -22,6 +33,7 @@ local fade = require('winxi.fade')
 local widgets = require('winxi.widgets')
 local tooltip = require('winxi.tooltip')
 local packets = require('winxi.packets')
+local controller = require('winxi.controller')
 
 local pool = {}
 
@@ -60,6 +72,19 @@ local count = 0
 for i = 1, 10 do
     items[i] = { lotText = '', winnerLotText = '', timeText = '' }
 end
+
+-- With the controller: the grid over the lines, and where each line is, to draw the highlight after
+-- the table (a cell's clip would cut it to its column)
+local pad = {
+    binding = nil,      -- this frame: the inventory's binding, while the pool has the controller
+    color = nil,        -- and the highlight's colour, unpacked: packed in the pool's window, with its fade
+    grid = controller.NewGrid(),
+    tops = {},          -- the top of each line on screen, and under the last, where the table ends
+    left = 0, right = 0,
+    shown = false,      -- whether the pool was on screen last frame, with treasure in it
+    windowX = 0, windowY = 0, windowWidth = 0,
+}
+local padMin, padMax = { 0, 0 }, { 0, 0 }
 
 local function Lot(item)
     if item.sample or item.lotted or item.passed then
@@ -200,6 +225,11 @@ local function DrawContent()
             imgui.TableNextRow()
 
             imgui.TableNextColumn()
+            if pad.binding ~= nil then
+                local x, y = imgui.GetCursorScreenPos()
+                pad.grid:Add(x, y)
+                pad.tops[i] = y
+            end
             Write(item, item.name)
             if imgui.IsItemHovered() then
                 if item.winner ~= nil then
@@ -238,6 +268,20 @@ local function DrawContent()
         imgui.EndTable()
     end
     imgui.PopStyleVar()
+
+    -- the highlighted line, outlined across the pool's width
+    if pad.binding ~= nil and pad.grid.count > 0 then
+        local _, bottom = imgui.GetCursorScreenPos()
+        local cursor = pad.grid.cursor
+        local top = pad.tops[cursor]
+        local below = pad.tops[cursor + 1] or bottom
+        local x = imgui.GetWindowPos()
+        local width = imgui.GetWindowSize()
+        local drawList = imgui.GetWindowDrawList()
+        padMin[1], padMin[2] = x + 4, top - 1
+        padMax[1], padMax[2] = x + width - 4, math.max(top + 1, below - 1)
+        drawList:AddRect(padMin, padMax, imgui.GetColorU32(pad.color), 0.0, 0, 2)
+    end
 end
 
 local windowStyle = { alpha = 1, title = title }
@@ -246,7 +290,15 @@ local sizeMin, sizeMax = { 0, 0 }, { 0, 0 }
 local placed = { 0, 0 }
 local attachedFlags, detachedFlags = nil, nil
 local function DrawWindow()
+    pad.grid:Begin()
     DrawContent()
+    pad.grid:End()
+    pad.windowX, pad.windowY = imgui.GetWindowPos()
+    pad.windowWidth = imgui.GetWindowSize()
+    pad.shown = true
+    if pad.binding ~= nil then
+        controller.Highlight(pad.binding)
+    end
     if options.treasureDetached[1] then
         options.treasurePos[1], options.treasurePos[2] = imgui.GetWindowPos()
     end
@@ -254,6 +306,7 @@ end
 
 function pool.Draw(drawOptions, at, invShown)
     options = drawOptions
+    pad.shown = false
     if not options.treasurePool[1] then
         return
     end
@@ -302,6 +355,66 @@ function pool.Draw(drawOptions, at, invShown)
     imgui.SetNextWindowSizeConstraints(sizeMin, sizeMax)
 
     window.Full(windowName, open, flags, DrawWindow, windowStyle)
+end
+
+function pool.Focus(binding, color)
+    pad.binding, pad.color = binding, color
+end
+
+function pool.Shown()
+    return pad.shown and count > 0
+end
+
+function pool.Move(direction)
+    if direction ~= 'up' and direction ~= 'down' then
+        return false
+    end
+    return pad.grid:Move(direction)
+end
+
+function pool.Highlighted()
+    if not pool.Shown() then
+        return nil
+    end
+    return items[math.min(pad.grid.cursor, count)]
+end
+
+-- The item in a slot of the pool now: the pool is read again each frame, so a menu's choice finds its
+-- item when it is made, not when the menu opened
+local function InSlot(slot)
+    for i = 1, count do
+        if items[i].slot == slot then
+            return items[i]
+        end
+    end
+end
+
+function pool.Menu()
+    local item = pool.Highlighted()
+    if item == nil then
+        return nil
+    end
+    local slot = item.slot
+    local entries = {}
+    if not item.lotted and not item.passed then
+        entries[#entries + 1] = { label = 'Lot', run = function() local now = InSlot(slot) if now then Lot(now) end end }
+    end
+    if not item.passed then
+        entries[#entries + 1] = { label = 'Pass', run = function() local now = InSlot(slot) if now then Pass(now) end end }
+    end
+    entries[#entries + 1] = { label = 'Lot All', run = function() for i = 1, count do Lot(items[i]) end end }
+    entries[#entries + 1] = { label = 'Pass All', run = function() for i = 1, count do Pass(items[i]) end end }
+    entries[#entries + 1] = { label = 'Cancel' }
+    return controller.NewMenu(item.name, entries)
+end
+
+-- Beside the pool's right edge, level with the highlighted line
+function pool.Place()
+    local x, y = pad.grid:Position()
+    if x == nil then
+        return nil
+    end
+    return pad.windowX + pad.windowWidth + 6, y
 end
 
 -- Its tab of the settings: what turns it on, whether it is attached to the inventory window, its pin

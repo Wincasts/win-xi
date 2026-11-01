@@ -25,6 +25,7 @@ run inventory  addons/inventory/inventory.lua inventory_equipment_decorations_ch
 run inventory  addons/inventory/inventory.lua inventory_equipment_performance_check.lua
 run inventory  addons/inventory/inventory.lua inventory_performance_check.lua
 run inventory  addons/inventory/inventory.lua inventory_growth_check.lua
+run inventory  addons/inventory/inventory.lua inventory_cycle_check.lua
 run mark       addons/mark/mark.lua     mark_check.lua
 run mark       addons/mark/mark.lua     mark_performance_check.lua
 run mark       addons/mark/mark.lua     mark_persistence_check.lua
