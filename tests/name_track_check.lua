@@ -306,6 +306,28 @@ options.letterSpacing[1] = 99; custom.Settle(options); assert(options.letterSpac
 options.letterSpacing[1] = 0; options.nameFormat[1] = '[name]'
 H.print('Letter Spacing: letters moved apart, centred, a token\'s own spacing, kept within bounds', true)
 
+-- Vertical Offset: the whole name moved down by the setting, in screen pixels at the name's largest, and by
+-- less as it shrinks; below 0, up; nothing moved sideways
+options.nameOffsetY = T{ 0 }; custom.Settle(options)
+local function tops() local at = {}; for k = 0, quads(0x408) - 1 do at[#at + 1] = draw.Quads[draw.Entities[0x408].First + k].Y0 end; return at end
+render(); local level, across = tops(), lefts()
+options.nameOffsetY[1] = 12; render(); local lowered, stillAcross = tops(), lefts()
+local allDown, sameAcross = #lowered == #level, #stillAcross == #across
+for k = 1, #level do allDown = allDown and lowered[k] == level[k] + 12 end
+for k = 1, #across do sameAcross = sameAcross and stillAcross[k] == across[k] end
+assert(allDown and sameAcross, 'Vertical Offset 12: every quad 12 px lower, none moved sideways')
+options.nameOffsetY[1] = -12; render(); local raised = tops()
+assert(#raised == #level and raised[1] == level[1] - 12, 'below 0, up')
+hook.Names[0].Scale = 0.5; options.nameOffsetY[1] = 12
+for _ = 1, 20 do render() end -- the size settles over frames
+local far = tops()
+options.nameOffsetY[1] = 0; for _ = 1, 20 do render() end; local farLevel = tops()
+assert(far[1] - farLevel[1] > 0 and far[1] - farLevel[1] < 12, 'a shrunken name moved by less than the setting')
+hook.Names[0].Scale = 1
+options.nameOffsetY[1] = 999; custom.Settle(options); assert(options.nameOffsetY[1] == 200, 'kept within -200 to 200')
+options.nameOffsetY = 'up'; custom.Settle(options); assert(options.nameOffsetY[1] == 0, 'of another shape, made good')
+H.print('Vertical Offset: the name moved down and up, by less when shrunk, kept within bounds', true)
+
 -- A linkshell pearl's colour: given as the game has it, doubled by the plugin (namehook 1.36) as the game
 -- draws it, so that more than 0x80 is brighter than the icon; with an older plugin as before, where it is not
 options.nameFormat[1] = '[icons][name]'; custom.Settle(options)

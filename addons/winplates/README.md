@@ -109,7 +109,7 @@ share the **Bars** tab.
   reload every addon that uses WinXI, plus namehook. Deployment still asks for confirmation
   and makes backups. Nothing is compiled or written live while developing.
 - **General Name Appearance:** the shared Font, Bold, Maximum/Minimum Name Size,
-  Subtarget Size, Letter Spacing, Text Outline, Text Outline Opacity, Icon Outline and Icon Outline Opacity. One maximum/minimum pair applies to every entity type,
+  Subtarget Size, Letter Spacing, Vertical Offset, Text Outline, Text Outline Opacity, Icon Outline and Icon Outline Opacity. One maximum/minimum pair applies to every entity type,
   including players, pets, enemies and NPCs.
 - **Player Names:** a **Player Format** you edit directly. Player
   icons go inline through `[icons]` instead of a separate checkbox. The format applies to your
@@ -222,6 +222,7 @@ release replaced badge atlases promptly rather than waiting for Lua GC.
 | Minimum Name Size (px, General) | The shared text height when far, for every type, never more than the maximum |
 | Subtarget Size (%) | The size of the name under the sub-target cursor (`<st>`, `<stpc>`, `<stnpc>` and the like) while you choose, 50% to 200% of the others'; 100% to begin with. The game's own changes to that name's size as the choice begins and ends are ignored, at any setting, so it changes size once each way. Above 100% its letters are the largest size's drawn larger, so they are slightly softer |
 | Letter Spacing (px) | Extra space between the letters of every name, 0 to 10 px at the name's largest, shrinking with it as it goes further off; 0, the font's own spacing, to begin with. Applies to everything written in the format line, typed text included. A `[name]`, `[level]` or `[distance]` token's `spacing=` sets its own. Icons, signs, letter badges, check details and cast text are not spaced |
+| Vertical Offset (px) | Moves every name down from the point over the character the game draws it at, -200 to 200 px at the name's largest, shrinking with the name as it goes further off; below 0, up; 0, the game's place, to begin with. The mastery stars, health and cast bars, check details and the status row go with the name |
 | Outline (px) | The dark edge round each name, 0 to 4 pixels, rounded down to whole render-target pixels to keep nearby names thinner. As letters shrink it becomes thinner and slightly less opaque, so distant names stay readable. Nearby names keep the original outline. At 0 the names are written plain |
 | Font (experimental) | A font of Windows' own, chosen by its file in `C:\Windows\Fonts`. Default is the font everything else is written in |
 | Player Format | How player-style names are written. NPCs and enemies have their own formats. See [How a name is written](#how-a-name-is-written) |

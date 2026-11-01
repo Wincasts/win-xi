@@ -133,6 +133,7 @@ local settings = {
     huntScale = function () return T{ 100 }; end, -- its name's size, as a percentage of the others'
     subtargetScale = function () return T{ 100 }; end, -- the sub target's name's size, as a percentage of the others'
     letterSpacing = function () return T{ 0 }; end, -- screen pixels between the letters of a name at its largest
+    nameOffsetY = function () return T{ 0 }; end, -- screen pixels a name is moved down from its anchor at its largest; below 0, up
     checkSize = function () return T{ 90 }; end, -- percent of the name's size
     abbreviateDifficulty = function () return T{ true }; end, -- compact difficulty by default
     showCheckDetails = function () return T{ true }; end, -- under a checked monster's name: how hard, what it does
@@ -151,7 +152,7 @@ local settled = {
     { 'textOutlineOpacity', 'number', 0, 100 },
     { 'checkSize', 'number', 50, 125 }, { 'healthBarWidth', 'number', 12, 300 }, { 'healthBarHeight', 'number', 3, 40 },
     { 'huntScale', 'number', 100, 200 }, { 'subtargetScale', 'number', 50, 200 },
-    { 'letterSpacing', 'number', 0, 10 },
+    { 'letterSpacing', 'number', 0, 10 }, { 'nameOffsetY', 'number', -200, 200 },
     { 'showCastBar', 'boolean' }, { 'castBarWeaponskills', 'boolean' }, { 'castBarAutoWidth', 'boolean' },
     { 'castNameScale', 'number', 25, 200 }, { 'castTimerScale', 'number', 25, 200 },
     { 'castBarSkillTextOnly', 'boolean' }, { 'castShowName', 'boolean' }, { 'castShowTimer', 'boolean' },
@@ -1293,6 +1294,7 @@ function custom.Frame(options, hook, formats)
     -- the plugin doubles a pearl's colour as the game does
     local pearlDoubled = nameplates.Supports(nameplates.Feature.Doubled, hook);
     local letterSpacing = options.letterSpacing ~= nil and math.max(0, math.min(10, tonumber(options.letterSpacing[1]) or 0)) or 0;
+    local nameOffsetY = options.nameOffsetY ~= nil and math.max(-200, math.min(200, tonumber(options.nameOffsetY[1]) or 0)) or 0;
     local target = AshitaCore:GetMemoryManager():GetTarget();
     if (target ~= nil and (target:GetIsSubTargetActive() == 1 or target:GetSubTargetFlags() ~= SUBTARGET_NONE)) then
         subtarget = target:GetTargetIndex(0);
@@ -1667,12 +1669,15 @@ function custom.Frame(options, hook, formats)
                     -- Centre the whole formatted run, including icons wherever the token places them.
                     local left = math.floor(-width * 0.5);
                     local nameLeft = left;
-                    local top = 0;
-                    local iconTop = math.floor((height - iconSize) * 0.5);
+                    -- the line's top is the anchor the game gives, moved down by Vertical Offset (up below 0):
+                    -- screen pixels at the name's largest, shrinking with the name as its letters do. Everything
+                    -- of the name, stars, bars and statuses included, goes with it.
+                    local top = math.floor(nameOffsetY * spacingAt + 0.5);
+                    local iconTop = top + math.floor((height - iconSize) * 0.5);
 
                     -- the stars over the middle of it: a small one, a large one, a small one
                     local star = not written.simplified and showStars and bit.band(name.Flags, STARS) ~= 0 and icons.Place(STAR);
-                    local clear = math.min(top, math.floor((height - iconsHeight) * 0.5));
+                    local clear = top + math.min(0, math.floor((height - iconsHeight) * 0.5));
                     if (star) then
                         local starsLeft = math.floor(-(smallStar * 2 + iconSize) * 0.5);
                         local starsTop = math.min(clear, iconTop) - iconSize - 1;
@@ -1751,7 +1756,7 @@ function custom.Frame(options, hook, formats)
                     end
 
                     -- what its player's check found, under the name for a few seconds
-                    local under = math.max(top + height, math.ceil((height + iconsHeight) * 0.5));
+                    local under = top + math.max(height, math.ceil((height + iconsHeight) * 0.5));
                     if (showDetails and written.isChecked and name.Category == MONSTER) then
                         under = math.max(under, writeDetails(options, written, set, sign, own, fit, height, rungHeight,
                             top + math.max(0, under - top - height), scale, now) or under);

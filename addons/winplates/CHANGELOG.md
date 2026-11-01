@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.89
+
+- Vertical Offset (Appearance → Size): moves every name up or down from the point over the character the game draws it at, -200 to 200 screen pixels at the name's largest, shrinking with the name as it goes further off; 0, where the game puts it, to begin with. Below 0 is up. Mastery stars, health and cast bars, check details and the status row go with the name.
+
 ## 1.88
 
 - No crash logging a second character in. After one character had logged out, the next one's login could end in an EXCEPTION_ACCESS_VIOLATION: the letter badges and Smooth Font read imgui's font texture back by the address namehook gave, which a namehook before 1.52 gives only as it draws a name, so while the loading screen drew none it was still the first character's, and once this character's font and sizes had imgui make the texture again, a freed one. With namehook 1.52, which gives this frame's every frame, the address is read as before; with an older one only in a frame names were drawn in. Requires winxi 74.

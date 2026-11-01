@@ -264,6 +264,8 @@ function settings.DrawSettings(options, save)
                 'How big the name under the subtarget cursor is while you choose a target.');
             controls.Slider('Letter Spacing', '##name.letterSpacing', options.letterSpacing, 0, 10, '%d px',
                 'Extra room between the letters of every name, at its largest. 0 is the font\'s own spacing.');
+            controls.Slider('Vertical Offset', '##name.nameOffsetY', options.nameOffsetY, -200, 200, '%d px',
+                'Moves every name down from where the game puts it, at its largest; below 0, up. Its bars and statuses go with it.');
         end
         if (controls.Sub('Outlines')) then
             controls.Outline(options.outline, 'Text Outline', '##name.outline',
