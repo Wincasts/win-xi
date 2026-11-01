@@ -1,6 +1,6 @@
 addon.name    = 'winparty'
 addon.author  = 'lin, win'
-addon.version = '0.5.0'
+addon.version = '0.5.1'
 addon.desc    = 'Party, target and pet frames in the style of XivParty'
 
 -- The addon in outline:
@@ -8,6 +8,7 @@ addon.desc    = 'Party, target and pet frames in the style of XivParty'
 --   frames                draws a list of lines: the bars, names and figures
 --   notices               invitations and treasure waiting, and their icons
 --   debuffs               what is on each enemy, shown under a target
+--   debufflist            the same, listed with their times in a box of its own
 --   windows               the windows the lists are drawn in
 --   options, config       the settings, and the window they are changed in
 -- This file puts them together: what goes in which window each frame, and which packets go where.
@@ -44,6 +45,7 @@ local namecolors = require('namecolors')
 local fishing = require('fishing')
 local notices = require('notices')
 local debuffs = require('debuffs')
+local debufflist = require('debufflist')
 local packets = require('packets')
 local game = require('game')
 local perf = require('perf')
@@ -255,7 +257,17 @@ local function DrawTargets(sample)
     DrawTarget('tot', tot)
 end
 
--- Whether any target window shows debuffs: nothing is tracked unless one does
+-- The debuff list: the main target's debuffs, in a box of its own, whichever target windows are shown
+local function DrawDebuffList(sample)
+    local entity = nil
+    if not sample then
+        local index = target.MainIndex()
+        entity = index ~= 0 and perf.Entity(index) or nil
+    end
+    debufflist.Draw(saved, entity, sample)
+end
+
+-- Whether any target window shows debuffs: nothing is tracked unless one does, or the debuff list
 local function ShowsDebuffs()
     return (saved.target.showMain[1] and saved.target.mainDebuffs[1])
         or (saved.target.showSub[1] and saved.target.subDebuffs[1])
@@ -264,7 +276,7 @@ end
 
 local tracking = false
 local function UpdateTracking()
-    local wanted = saved.target.enabled[1] and ShowsDebuffs()
+    local wanted = (saved.target.enabled[1] and ShowsDebuffs()) or saved.target.debuffList[1]
     if wanted ~= tracking then
         require('winxi.debuffs').Clear()
         tracking = wanted
@@ -354,7 +366,8 @@ local function Present()
         and not listBack -- the game's own party list is back for the fight: not doubled
     local showTarget = saved.target.enabled[1] and (not hidden or nativeBehaviorGroups.target)
         and not (nativeHidden and nativeBehaviorGroups.target) and not windows.IsFadedOut('target')
-    if not showParty and not showTarget then
+    local showList = saved.target.debuffList[1] and not hidden
+    if not showParty and not showTarget and not showList then
         winxiOrganize.EndFrame()
         return
     end
@@ -380,6 +393,7 @@ local function Present()
     -- Every enabled window is filled with sample data while organizing.
     if showParty then DrawParties(organizing) end
     if showTarget then DrawTargets(organizing) end
+    if showList then DrawDebuffList(organizing) end
 
     winxiOrganize.EndFrame()
 end

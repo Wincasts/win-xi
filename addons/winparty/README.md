@@ -20,6 +20,13 @@ the compact one of the Windower addon [XivParty](https://github.com/Tylas11/XivP
   alliance and pets.
 - **Target**: your target, sub-target and target of target. Each is a line of the same kind: the name,
   the HP bar, the distance and the HP percentage. If you want, the enemy's debuffs too: as letters under the line, or as status icons beside it, placed and sized like your party's buffs.
+  **Debuff List** (Target tab → Debuff List, off to begin with) is a box of its own listing every debuff seen to
+  land on your target, its name and the time it has left (an estimate, as the tooltips say), the soonest to run
+  out first; the target's name is its first line. It is a plain imgui box, dragged by its body (Lock Windows
+  holds it still), and **Debuff List Position** places it, as a drag does too. **Winxi Theme** (off to begin with)
+  draws it instead as a window of the theme, with its border, background and font, moved, faded and organized as
+  the target windows are. It goes with the target whichever target windows are shown, and keeps the debuffs
+  counted on its own.
   **Advanced: Value Positioning** (Target tab, collapsed) moves the HP percentage and the distance, each on
   its own. The party's offsets no longer move them.
   **Game Name Colors** (Target tab → Names, off to begin with) writes the name in the colour the game gives

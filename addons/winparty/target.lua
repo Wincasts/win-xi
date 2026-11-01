@@ -48,6 +48,17 @@ function target.Indexes(settings)
         totIndex
 end
 
+-- The main target's index, whichever windows are wanted, or 0 for none: for the debuff list, which is
+-- its own box
+function target.MainIndex()
+    local targets = AshitaCore:GetMemoryManager():GetTarget()
+    local mainIndex = targets:GetTargetIndex(0)
+    if targets:GetIsSubTargetActive() == 1 then
+        mainIndex = targets:GetTargetIndex(1)
+    end
+    return (targets:GetIsActive(0) == 1 and mainIndex ~= 0) and mainIndex or 0
+end
+
 -- The lowest bit of an entity's spawn flags is set for a player character, and for nothing else
 local spawnFlagPlayer = 0x01
 

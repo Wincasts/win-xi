@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.1
+
+- **Debuff List** (Target → Debuff List, off to begin with): a box of its own listing every debuff seen to land on your target, with the time each has left, the soonest to run out first, under the target's name. A plain imgui box dragged by its body, held still by Lock Windows, placed by **Debuff List Position** (a drag sets it too); **Winxi Theme** (off to begin with) draws it as a window of the theme instead, moved, faded and organized as the target windows are. While organizing it lists the sample statuses. The debuffs are counted while the list is on, whether or not a target window shows them.
+
 ## 0.5.0
 
 - Renamed winparty: the addon is `winparty` (`addons\winparty`, `/addon load winparty`), its settings window winparty Settings, and `/winparty` opens it as `/pt` and `/xif` still do. Each character's settings are brought over from `config\addons\party` the first time it logs in, as xiframes' once were; its messages say `[winparty]`. Remove the old `addons\party` folder.

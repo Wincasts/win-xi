@@ -50,6 +50,7 @@ windows.List = {
     main = { name = 'xiframes.tgt.main', label = 'Target', group = 'target', section = 'target', pos = 'mainPos' },
     sub = { name = 'xiframes.tgt.sub', label = 'Sub-target', group = 'target', section = 'target', pos = 'subPos' },
     tot = { name = 'xiframes.tgt.tot', label = 'Target of Target', group = 'target', section = 'target', pos = 'totPos' },
+    debuffs = { name = 'xiframes.tgt.debuffs', label = 'Debuffs', group = 'target', section = 'target', pos = 'debuffListPos' },
 }
 
 -- The groups of windows that can be chosen to fade, for the setting
@@ -211,6 +212,7 @@ function windows.Draw(window, content, wanted, growFrom)
         or window == windows.List.main and 'main'
         or window == windows.List.sub and 'sub'
         or window == windows.List.tot and 'tot'
+        or window == windows.List.debuffs and 'debuffs'
     local nativeRect = nativeWindow and nativePlacement.Enabled(options,key) and windows.NativeRect and windows.NativeRect(window) or nil
     local defaultAnchored = nativeRect ~= nil
     local automatic = not defaultAnchored and not nativePlacement.ManualOverride(options,key)

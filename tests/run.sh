@@ -155,6 +155,7 @@ run winparty      addons/winparty/winparty.lua party_cursor_check.lua
 run winparty      addons/winparty/winparty.lua winparty_former_check.lua
 run winparty      addons/winparty/winparty.lua party_dropdowns_check.lua
 run winparty      addons/winparty/winparty.lua party_cast_bars_check.lua
+run winparty      addons/winparty/winparty.lua party_debuff_list_check.lua
 run winparty      addons/winparty/winparty.lua winxi_fonts_check.lua
 run winparty      addons/winparty/winparty.lua winxi_settings_window_check.lua
 run winparty      addons/winparty/winparty.lua winxi_backgrounds_check.lua

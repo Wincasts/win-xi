@@ -19,6 +19,7 @@ local organize = require('winxi.organize')
 local options = require('options')
 local windows = require('windows')
 local nativePlacement = require('nativeposition')
+local positioning = require('positioning')
 local statuspicker = require('statuspicker')
 
 local config = { }
@@ -172,7 +173,7 @@ local placeSentences = { default = 'Where the game default puts it.', managed = 
 function controls.place(entry, value, section, saved, spec)
     local defaultManaged = nativePlacement.Enabled(saved, entry.window)
     local managed = defaultManaged or (saved.automaticPositioning[1] and not nativePlacement.ManualOverride(saved, entry.window)
-        and entry.window ~= 'sub' and entry.window ~= 'tot')
+        and positioning.Managed(entry.window))
     -- greyed while it is placed for it, a plain row otherwise
     spec.parent = managed and placeHeld or nil
     if managed then
