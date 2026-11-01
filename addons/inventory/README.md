@@ -98,6 +98,12 @@ wearing, then the gear in your inventory and wardrobes that goes in that slot an
 can wear at its level, highest level first (up to 15). B in either goes back to the inventory. Turn
 off **Cycle Treasure Pool** or **Cycle Equipment** (General → Controller) to leave one out of the cycle.
 
+While the window has the controller, a legend under it (or under the equipment monitor, when that is
+attached) says which buttons do what right now: in the inventory, the treasure pool, the equipment
+monitor, a menu, or while sorting by hand. The buttons are named as your controller has them: Cross,
+Circle, Square and Triangle with a PlayStation controller, for example. Turn off **Controller Legend**
+(General → Controller) to hide it. The verbose item box, placed below the window, goes under the legend.
+
 While there is treasure, the treasure pool sits to the right of the window. It has a line for each
 item, with the best lot so far, the time left, and buttons to lot and pass, with Lot All and Pass All
 over them. Hover over an item to see who is winning it. It comes and goes with the inventory window.

@@ -17,7 +17,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 69
+local winxiNeeded = 70
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -1485,11 +1485,51 @@ function cycle.EndFrame()
 end
 
 -- Ends a frame of drawing: keeps the highlight on an item, and draws the open menu beside its item
+-- The legend under the window: which buttons do what, for what the controller is doing now. One
+-- list of pieces for each, made once (legend.lua lays them out).
+cycle.legend = require('legend')
+do
+    local button = controller.Button
+    local nextWindow = { button.Y, 'Next Window', cycle = true }
+    cycle.legends = {
+        inventory = { { 'D-pad', 'Move' }, { { button.LB, button.RB }, 'Tab' }, { button.A, 'Item Menu' },
+            { button.X, 'Sort' }, nextWindow, { button.B, 'Back to Game' } },
+        treasure = { { 'D-pad', 'Move' }, { button.A, 'Press' }, nextWindow, { button.B, 'Inventory' } },
+        equipment = { { 'D-pad', 'Move' }, { button.A, 'Change Gear' }, nextWindow, { button.B, 'Inventory' } },
+        menu = { { 'D-pad', 'Choose' }, { button.A, 'Select' }, { button.B, 'Back' } },
+        swap = { { 'D-pad', 'Move' }, { button.A, 'Pick / Swap' }, { button.B, 'Unpick / Finish' } },
+    }
+end
+
+-- Draws the legend under the window, or under the equipment monitor where that is attached under it,
+-- and notes where what goes beneath it starts (pad.below)
+function cycle.DrawLegend()
+    local monitor = equipment.Rect()
+    local below = monitor ~= nil and monitor[2] + monitor[4] or (pad.windowY + pad.windowHeight)
+    pad.below = below
+    local options = pad.options
+    if not options.controllerLegend[1] or pad.windowX == nil then
+        return
+    end
+    local pieces
+    if pad.menu ~= nil then
+        pieces = cycle.legends.menu
+    elseif pad.swap ~= nil then
+        pieces = cycle.legends.swap
+    else
+        pieces = cycle.legends[pad.target]
+    end
+    local withCycle = options.cycleTreasure[1] or options.cycleEquipment[1]
+    local height = cycle.legend.Draw(pieces, pad.windowX, below + labelGap, math.max(pad.windowWidth, 200), withCycle)
+    pad.below = below + labelGap + height
+end
+
 local function PadEndFrame()
     pad.grid:End()
     if not pad.active then
         return
     end
+    cycle.DrawLegend()
     if pad.target ~= 'inventory' then
         cycle.EndFrame()
         return
@@ -1508,10 +1548,8 @@ local function PadEndFrame()
                     controller.Label(DrawInfoBox, x, y + iconSize + 3 + labelGap, true, item.uniqueId)
                 else
                     -- under the window, its left edge in line with the window's, and under the
-                    -- equipment monitor if that is there
-                    local monitor = equipment.Rect()
-                    local below = monitor ~= nil and monitor[2] + monitor[4] or (pad.windowY + pad.windowHeight)
-                    controller.Label(DrawInfoBox, pad.windowX, below + labelGap, true, item.uniqueId)
+                    -- equipment monitor and the legend if those are there
+                    controller.Label(DrawInfoBox, pad.windowX, pad.below + labelGap, true, item.uniqueId)
                 end
             else
                 if item.label == nil then
@@ -2253,6 +2291,7 @@ local defaults = T{
     controllerType = 'auto', -- which kind: Automatic (the game's own setting) or a key of winxi.controller's Layouts
     cycleTreasure = T{ true }, -- Y takes the controller to the treasure pool, while there is treasure
     cycleEquipment = T{ true }, -- and to the equipment monitor, while it is shown
+    controllerLegend = T{ true }, -- which buttons do what, under the window, while it has the controller
     currency1 = 'gil', -- what is shown in the gil's place, by currency.lua's keys: '' for none
     currency2 = '', -- and after it, with a line between
     currencyList = 'phoenix', -- which currencies can be chosen: a key of currency.filters

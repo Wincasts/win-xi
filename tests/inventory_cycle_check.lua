@@ -97,3 +97,24 @@ H.tap(H.Button.B)
 H.tap(H.Button.Y)
 H.command('/inv toggle'); H.frames(8); H.command('/inv toggle'); H.frames(8)
 H.print('opened again: the inventory has it', (H.tap(H.Button.X) and H.selected()) == 'Auto')
+
+-- the legend under the window, while it has the controller, its buttons named for the controller
+do
+    local function Texts() local before = H.calls['draw.AddText'] or 0 H.frames(1) return (H.calls['draw.AddText'] or 0) - before end
+    H.tap(H.Button.B) -- the sort menu, open from the check before
+    local shown = Texts()
+    o.controllerLegend[1] = false
+    local off = Texts()
+    H.print('Controller Legend: on by default, drawn', shown > off)
+    o.controllerLegend[1] = true
+    H.tap(H.Button.B); local released = Texts()
+    H.print('the controller given back: not drawn', released == off)
+    H.command('/inv focus'); H.frames(1)
+    local controller = require('winxi.controller')
+    H.print('button names: XInput', controller.ButtonName(controller.Button.A), controller.ButtonName(controller.Button.LB))
+    controller.SetLayout('playstation')
+    H.print('PlayStation', controller.ButtonName(controller.Button.A), controller.ButtonName(controller.Button.Y), controller.ButtonName(controller.Button.RB))
+    controller.SetLayout('switch')
+    H.print('Switch Pro (A in the bottom place is its B)', controller.ButtonName(controller.Button.A))
+    controller.SetLayout('xinput')
+end

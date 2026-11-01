@@ -297,6 +297,10 @@ controller.SetLayout(settings.ControllerType);    -- 'xinput', 'playstation', 's
 -- be read, the kind heard pressing buttons
 ```
 
+To tell the player which button to press, `controller.ButtonName(controller.Button.A)` gives what is
+printed on it for the kind in use (winxi 70): A on an Xbox controller, Cross on a PlayStation one, B on a
+Switch Pro.
+
 ## Menu sounds
 
 ```lua

@@ -49,6 +49,8 @@ local function DrawControllerSettings(options)
         options.cycleTreasure, '##inv.cycleTreasure', cycleSpec)
     widgets.Check('Cycle Equipment', 'Y (triangle) moves the controller to the equipment monitor while it is shown, to change gear.',
         options.cycleEquipment, '##inv.cycleEquipment', cycleSpec)
+    widgets.Check('Controller Legend', 'Shows under the inventory window which buttons do what, while it has the controller.',
+        options.controllerLegend, '##inv.controllerLegend', cycleSpec)
 end
 
 function config.General(options)

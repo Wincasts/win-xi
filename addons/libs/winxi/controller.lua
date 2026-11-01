@@ -117,6 +117,19 @@ controller.Layouts = {
 
 local layout = controller.Layouts[1];
 
+-- What each kind of controller has printed on its buttons, by the Xbox button in the same place, for
+-- telling the player which to press (controller.ButtonName)
+local buttonNames = {
+    xinput = { [B.A] = 'A', [B.B] = 'B', [B.X] = 'X', [B.Y] = 'Y', [B.LB] = 'LB', [B.RB] = 'RB',
+        [B.Start] = 'Start', [B.Back] = 'Back', [B.L3] = 'LS', [B.R3] = 'RS' },
+    playstation = { [B.A] = 'Cross', [B.B] = 'Circle', [B.X] = 'Square', [B.Y] = 'Triangle', [B.LB] = 'L1', [B.RB] = 'R1',
+        [B.Start] = 'Options', [B.Back] = 'Share', [B.L3] = 'L3', [B.R3] = 'R3' },
+    switch = { [B.A] = 'B', [B.B] = 'A', [B.X] = 'Y', [B.Y] = 'X', [B.LB] = 'L', [B.RB] = 'R',
+        [B.Start] = '+', [B.Back] = '-', [B.L3] = 'LS', [B.R3] = 'RS' },
+    stadia = { [B.A] = 'A', [B.B] = 'B', [B.X] = 'X', [B.Y] = 'Y', [B.LB] = 'L1', [B.RB] = 'R1',
+        [B.Start] = 'Menu', [B.Back] = 'Options', [B.L3] = 'L3', [B.R3] = 'R3' },
+};
+
 -- Automatic: the kind of controller the game reads, as its own setting says (controller.GameKind), a
 -- DirectInput controller taken for a PlayStation one, the commonest; where the setting cannot be read,
 -- the kind heard pressing buttons. controller.Choices is the Layouts with Automatic first, for a setting.
@@ -203,6 +216,13 @@ function controller.SetLayout(key)
         end
     end
     return layout.key;
+end
+
+-- What is printed on a button (a controller.Button) on the kind of controller in use: Cross for A on a
+-- PlayStation controller, B on a Switch Pro, A on an Xbox one
+function controller.ButtonName(button)
+    local names = buttonNames[layout.key] or buttonNames.xinput;
+    return names[button] or buttonNames.xinput[button] or '?';
 end
 
 function controller.GetLayout()

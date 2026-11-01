@@ -127,6 +127,7 @@
 --     Automatic, Choices, GameKind, IsAutomatic, GetChoice, SetLayout(controller.Automatic); shell's
 --     Controller Type offers it, and a saved XInput becomes Automatic once (controllerTypeAutomatic)
 -- 69: packets.outbound.equipSet, putting on or taking off a piece of gear (0x050)
+-- 70: controller.ButtonName, what is printed on a button of the kind of controller in use
 return {
-    Number = 69,
+    Number = 70,
 };
