@@ -128,6 +128,7 @@
 --     Controller Type offers it, and a saved XInput becomes Automatic once (controllerTypeAutomatic)
 -- 69: packets.outbound.equipSet, putting on or taking off a piece of gear (0x050)
 -- 70: controller.ButtonName, what is printed on a button of the kind of controller in use
+-- 71: controller.Glyph, GlyphWidth and Dpad, a button drawn as the kind of controller in use has it
 return {
-    Number = 70,
+    Number = 71,
 };

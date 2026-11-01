@@ -116,5 +116,12 @@ do
     H.print('PlayStation', controller.ButtonName(controller.Button.A), controller.ButtonName(controller.Button.Y), controller.ButtonName(controller.Button.RB))
     controller.SetLayout('switch')
     H.print('Switch Pro (A in the bottom place is its B)', controller.ButtonName(controller.Button.A))
-    controller.SetLayout('xinput')
+    -- the glyphs: PlayStation's shapes (the triangle is Y's), Xbox's letters, the d-pad and the shoulder pills
+    local function Count(name) local before = H.calls['draw.' .. name] or 0 H.frames(1) return (H.calls['draw.' .. name] or 0) - before end
+    controller.SetLayout('playstation'); H.frames(1)
+    H.print('PlayStation glyphs: a triangle', Count('AddTriangle') == 1, '| rounds and pills', Count('AddCircleFilled') > 0, Count('AddRectFilled') > 0)
+    controller.SetLayout('xinput'); H.frames(1)
+    H.print('Xbox glyphs: no triangle', Count('AddTriangle') == 0)
+    H.print('glyph widths: a face button is square, a shoulder a pill wider than tall', controller.GlyphWidth(controller.Button.A, 16) == 16,
+        controller.GlyphWidth(controller.Button.LB, 16) > 16, controller.GlyphWidth(controller.Dpad, 16) == 16)
 end

@@ -17,7 +17,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 70
+local winxiNeeded = 71
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -1492,12 +1492,12 @@ do
     local button = controller.Button
     local nextWindow = { button.Y, 'Next Window', cycle = true }
     cycle.legends = {
-        inventory = { { 'D-pad', 'Move' }, { { button.LB, button.RB }, 'Tab' }, { button.A, 'Item Menu' },
+        inventory = { { controller.Dpad, 'Move' }, { { button.LB, button.RB }, 'Tab' }, { button.A, 'Item Menu' },
             { button.X, 'Sort' }, nextWindow, { button.B, 'Back to Game' } },
-        treasure = { { 'D-pad', 'Move' }, { button.A, 'Press' }, nextWindow, { button.B, 'Inventory' } },
-        equipment = { { 'D-pad', 'Move' }, { button.A, 'Change Gear' }, nextWindow, { button.B, 'Inventory' } },
-        menu = { { 'D-pad', 'Choose' }, { button.A, 'Select' }, { button.B, 'Back' } },
-        swap = { { 'D-pad', 'Move' }, { button.A, 'Pick / Swap' }, { button.B, 'Unpick / Finish' } },
+        treasure = { { controller.Dpad, 'Move' }, { button.A, 'Press' }, nextWindow, { button.B, 'Inventory' } },
+        equipment = { { controller.Dpad, 'Move' }, { button.A, 'Change Gear' }, nextWindow, { button.B, 'Inventory' } },
+        menu = { { controller.Dpad, 'Choose' }, { button.A, 'Select' }, { button.B, 'Back' } },
+        swap = { { controller.Dpad, 'Move' }, { button.A, 'Pick / Swap' }, { button.B, 'Unpick / Finish' } },
     }
 end
 

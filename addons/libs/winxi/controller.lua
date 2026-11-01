@@ -225,6 +225,114 @@ function controller.ButtonName(button)
     return names[button] or buttonNames.xinput[button] or '?';
 end
 
+-- Glyphs: a button drawn as it looks on the kind of controller in use, for a legend or a hint. The
+-- face buttons are dark rounds with a light rim, holding PlayStation's cross, circle, square and
+-- triangle in their colours, an Xbox controller's letters in theirs, or the letters of the others in
+-- white; the shoulder and other buttons are pills with their names; controller.Dpad is the d-pad, a
+-- light cross edged in dark. Everything is drawn, with nothing to load, at any size.
+--
+--     local width = controller.Glyph(drawList, controller.Button.A, x, y, size)   -- size: its height
+--     controller.GlyphWidth(button, size)                                         -- the same width, undrawn
+controller.Dpad = 'dpad';
+
+local faceButtons = { [B.A] = true, [B.B] = true, [B.X] = true, [B.Y] = true };
+local glyphInk = {
+    xinput = { [B.A] = { 0.45, 0.80, 0.30, 1 }, [B.B] = { 0.95, 0.35, 0.32, 1 }, [B.X] = { 0.35, 0.60, 1.00, 1 }, [B.Y] = { 1.00, 0.80, 0.25, 1 } },
+    playstation = { [B.A] = { 0.55, 0.72, 1.00, 1 }, [B.B] = { 1.00, 0.42, 0.45, 1 }, [B.X] = { 0.95, 0.58, 0.88, 1 }, [B.Y] = { 0.30, 0.85, 0.70, 1 } },
+};
+local glyphBody, glyphRim, glyphText = { 0.10, 0.10, 0.12, 0.92 }, { 0.82, 0.82, 0.86, 0.95 }, { 0.96, 0.96, 0.96, 1 };
+local glyphLight, glyphDark = { 0.88, 0.88, 0.90, 1 }, { 0.05, 0.05, 0.06, 0.9 };
+local gA, gB, gC = { 0, 0 }, { 0, 0 }, { 0, 0 };
+local letterScale = 0.72; -- the letters and names in a glyph, against its height
+
+-- Measured with the glyph's smaller font
+local function GlyphText(words, size)
+    imgui.PushFont(nil, math.max(6, math.floor(size * letterScale + 0.5)));
+    local width, height = imgui.CalcTextSize(words);
+    return width or 0, height or size;
+end
+
+function controller.GlyphWidth(button, size)
+    if button == controller.Dpad or faceButtons[button] then
+        return size;
+    end
+    local width = GlyphText(controller.ButtonName(button), size);
+    imgui.PopFont();
+    return math.max(size * 1.4, width + size * 0.7);
+end
+
+local function Centered(drawList, words, cx, cy, size, color)
+    local width, height = GlyphText(words, size);
+    gA[1], gA[2] = math.floor(cx - width / 2 + 0.5), math.floor(cy - height / 2 + 0.5);
+    drawList:AddText(gA, color, words);
+    imgui.PopFont();
+end
+
+function controller.Glyph(drawList, button, x, y, size)
+    local half = size / 2;
+    local cx, cy = x + half, y + half;
+
+    if button == controller.Dpad then
+        -- a cross: the dark edge first, a pixel larger, then the light arms
+        local arm = math.max(2, math.floor(size * 0.34 + 0.5));
+        local a0, a1 = cx - arm / 2, cx + arm / 2;
+        local b0, b1 = cy - arm / 2, cy + arm / 2;
+        for pass = 1, 2 do
+            local grow = pass == 1 and 1 or 0;
+            local color = imgui.GetColorU32(pass == 1 and glyphDark or glyphLight);
+            gA[1], gA[2], gB[1], gB[2] = x - grow, b0 - grow, x + size + grow, b1 + grow;
+            drawList:AddRectFilled(gA, gB, color, 1.0);
+            gA[1], gA[2], gB[1], gB[2] = a0 - grow, y - grow, a1 + grow, y + size + grow;
+            drawList:AddRectFilled(gA, gB, color, 1.0);
+        end
+        return size;
+    end
+
+    if not faceButtons[button] then
+        -- a pill, its name in it
+        local width = controller.GlyphWidth(button, size);
+        gA[1], gA[2], gB[1], gB[2] = x, y, x + width, y + size;
+        drawList:AddRectFilled(gA, gB, imgui.GetColorU32(glyphBody), half);
+        drawList:AddRect(gA, gB, imgui.GetColorU32(glyphRim), half, 0, 1);
+        Centered(drawList, controller.ButtonName(button), x + width / 2, cy, size, imgui.GetColorU32(glyphText));
+        return width;
+    end
+
+    -- a round, and what is on it
+    gA[1], gA[2] = cx, cy;
+    drawList:AddCircleFilled(gA, half, imgui.GetColorU32(glyphBody), 20);
+    drawList:AddCircle(gA, half - 0.5, imgui.GetColorU32(glyphRim), 20, 1);
+
+    local key = layout.key;
+    local thick = math.max(1.5, size * 0.11);
+    if key == 'playstation' then
+        local ink = imgui.GetColorU32(glyphInk.playstation[button]);
+        local r = half * 0.42;
+        if button == B.A then
+            gA[1], gA[2], gB[1], gB[2] = cx - r, cy - r, cx + r, cy + r;
+            drawList:AddLine(gA, gB, ink, thick);
+            gA[1], gA[2], gB[1], gB[2] = cx - r, cy + r, cx + r, cy - r;
+            drawList:AddLine(gA, gB, ink, thick);
+        elseif button == B.B then
+            gA[1], gA[2] = cx, cy;
+            drawList:AddCircle(gA, r * 1.05, ink, 16, thick);
+        elseif button == B.X then
+            gA[1], gA[2], gB[1], gB[2] = cx - r * 0.9, cy - r * 0.9, cx + r * 0.9, cy + r * 0.9;
+            drawList:AddRect(gA, gB, ink, 0.0, 0, thick);
+        else
+            gA[1], gA[2] = cx, cy - r * 1.1;
+            gB[1], gB[2] = cx - r * 1.1, cy + r * 0.75;
+            gC[1], gC[2] = cx + r * 1.1, cy + r * 0.75;
+            drawList:AddTriangle(gA, gB, gC, ink, thick);
+        end
+        return size;
+    end
+
+    local inks = key == 'xinput' and glyphInk.xinput or nil;
+    Centered(drawList, controller.ButtonName(button), cx, cy, size, imgui.GetColorU32(inks and inks[button] or glyphText));
+    return size;
+end
+
 function controller.GetLayout()
     return layout.key;
 end

@@ -300,6 +300,10 @@ controller.SetLayout(settings.ControllerType);    -- 'xinput', 'playstation', 's
 To tell the player which button to press, `controller.ButtonName(controller.Button.A)` gives what is
 printed on it for the kind in use (winxi 70): A on an Xbox controller, Cross on a PlayStation one, B on a
 Switch Pro.
+`controller.Glyph(drawList, button, x, y, size)` draws the button as it looks (winxi 71): PlayStation's
+cross, circle, square and triangle in their colours, an Xbox controller's coloured letters, the
+others' letters, pills for the shoulder and other buttons, and `controller.Dpad` for the d-pad. It
+returns its width; `controller.GlyphWidth(button, size)` gives the width without drawing.
 
 ## Menu sounds
 
