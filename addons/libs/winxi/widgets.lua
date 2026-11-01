@@ -948,6 +948,8 @@ function widgets.Appearance(appearanceHooks, parts)
             ThemeChoice('Window Border', 'BorderStyle', theme.BorderStyles, 'A decorative border instead of the plain line.');
             ThemeChoice('Window Background', 'BackgroundStyle', theme.BackgroundStyles, 'A texture behind each window instead of the flat colour.');
             ThemeChoice('Tab Style', 'TabStyle', theme.TabStyles, 'A finish over the tabs.');
+            ThemeChoice('Selection Style', 'SelectionStyle', theme.SelectionStyles, 'The box round what the controller has picked.');
+            ThemeColor('Selection Color', 'SelectionColor', 'The colour of that box.');
             ThemeSlider('Border Opacity', 'BorderOpacity', 0, 100, 'How solid the border is. 0 is no border.', percent);
         end
         if widgets.SubHeader('Titles') then

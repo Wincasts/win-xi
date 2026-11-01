@@ -131,6 +131,8 @@
 -- 71: controller.Glyph, GlyphWidth and Dpad, a button drawn as the kind of controller in use has it
 -- 72: legend (Draw, Height), which buttons do what by a window the controller is working, in the theme's
 --     font; controller.LeftStick's glyph
+-- 73: selection, the box round what a controller's highlight is on, in the theme's Selection Style and
+--     Selection Color (theme.SelectionStyles); tabs.Image
 return {
-    Number = 72,
+    Number = 73,
 };

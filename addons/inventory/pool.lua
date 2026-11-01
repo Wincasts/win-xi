@@ -13,8 +13,8 @@
 -- starts on the first item's Lot, left and right go between Lot and Pass, up and down between the
 -- lines, and up from the first line to Lot All and Pass All. A presses the button the highlight is on.
 --
---   pool.Focus(binding, color)  this frame, the pool has the controller: binding marks its window, and
---                               color ({ r, g, b, a }) is the highlight's; nil, it has not
+--   pool.Focus(binding)         this frame, the pool has the controller: binding marks its window;
+--                               nil, it has not. The highlight is winxi.selection's
 --   pool.Reset()                the highlight back on the first item's Lot
 --   pool.Shown()                whether the pool was on screen last frame, with treasure in it
 --   pool.Move(direction)        the highlight to another button: true if it moved
@@ -37,6 +37,7 @@ local tooltip = require('winxi.tooltip')
 local packets = require('winxi.packets')
 local controller = require('winxi.controller')
 local sound = require('winxi.sound')
+local selection = require('winxi.selection')
 
 local pool = {}
 
@@ -80,7 +81,6 @@ end
 -- after the table (a cell's clip would cut the outline to its column)
 local pad = {
     binding = nil,      -- this frame: the inventory's binding, while the pool has the controller
-    color = nil,        -- and the highlight's colour, unpacked: packed in the pool's window, with its fade
     row = 1,            -- 0 for Lot All and Pass All, else the item's line
     column = 1,         -- 1 Lot (Lot All), 2 Pass (Pass All)
     found = false,      -- whether the highlighted button was drawn this frame, at min to max
@@ -88,7 +88,6 @@ local pad = {
     shown = false,      -- whether the pool was on screen last frame, with treasure in it
     windowX = 0, windowWidth = 0,
 }
-local padMin, padMax = { 0, 0 }, { 0, 0 }
 
 -- Notes where a button (or what stands in a button's place) was drawn, if the highlight is on it
 local function Mark(row, column, x1, y1, x2, y2)
@@ -313,11 +312,9 @@ local function DrawContent()
     end
     imgui.PopStyleVar()
 
-    -- the highlighted button, outlined a little outside its edge
+    -- the highlighted button, in the theme's selection box
     if pad.found then
-        padMin[1], padMin[2] = pad.min[1] - 2, pad.min[2] - 2
-        padMax[1], padMax[2] = pad.max[1] + 2, pad.max[2] + 2
-        imgui.GetWindowDrawList():AddRect(padMin, padMax, imgui.GetColorU32(pad.color), 0.0, 0, 2)
+        selection.Draw(imgui.GetWindowDrawList(), pad.min[1], pad.min[2], pad.max[1], pad.max[2])
     end
 end
 
@@ -392,8 +389,8 @@ function pool.Draw(drawOptions, at, invShown)
     window.Full(windowName, open, flags, DrawWindow, windowStyle)
 end
 
-function pool.Focus(binding, color)
-    pad.binding, pad.color = binding, color
+function pool.Focus(binding)
+    pad.binding = binding
 end
 
 function pool.Shown()

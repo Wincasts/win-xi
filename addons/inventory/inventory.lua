@@ -17,7 +17,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 72
+local winxiNeeded = 73
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -898,9 +898,8 @@ local function NextTab(options, index, direction)
 end
 local iconSize = 32 -- an item's icon, square
 local labelGap = 6  -- between the highlight's outline and the box that names the item
-local padYellow = { 1.0, 0.85, 0.3, 1.0 }
 local swapTextColor = { 0.3, 0.9, 0.4, 1.0 }
-local padColor, swapColor = 0, 0 -- packed once a frame, in the window
+local swapColor = 0 -- packed once a frame, in the window
 
 -- Whether the inventory has the controller: the setting is on, the window has been given it, and it
 -- is showing and being drawn (it is not, while the whole UI is hidden)
@@ -1164,6 +1163,7 @@ local cycle = { }
 -- while it is on screen with treasure in it, the monitor while it is on screen, either only if it is in
 -- the cycle
 cycle.order = { 'inventory', 'treasure', 'equipment' }
+cycle.selection = require('winxi.selection')
 
 function cycle.CanTake(target)
     local options = pad.options
@@ -1419,8 +1419,8 @@ local function PadBeginFrame(options)
         pad.swap = nil
     end
     -- the pool and the monitor draw their own highlights, while they have the controller
-    pool.Focus(pad.active and pad.target == 'treasure' and pad.binding or nil, padYellow)
-    equipment.Focus(pad.active and pad.target == 'equipment' and pad.binding or nil, padYellow)
+    pool.Focus(pad.active and pad.target == 'treasure' and pad.binding or nil)
+    equipment.Focus(pad.active and pad.target == 'equipment' and pad.binding or nil)
     pad.grid:Begin()
 end
 
@@ -1673,13 +1673,8 @@ local function PadItems(items, group, left, top, drawList, windowY)
 
         if pad.grid:IsOn(index) and pad.target == 'inventory' then
             if inView then
-                -- two outlines, one inside the other, for a border two pixels thick
-                padMin[1], padMin[2] = x - 2, y - 2
-                padMax[1], padMax[2] = x + iconSize + 2, y + iconSize + 2
-                drawList:AddRect(padMin, padMax, padColor, 0.0)
-                padMin[1], padMin[2] = x - 3, y - 3
-                padMax[1], padMax[2] = x + iconSize + 3, y + iconSize + 3
-                drawList:AddRect(padMin, padMax, padColor, 0.0)
+                -- the theme's selection box (winxi.selection), inside the clip's room
+                cycle.selection.Draw(drawList, x, y, x + iconSize, y + iconSize)
             end
             if pad.grid.moved then
                 if imgui.SetScrollFromPosY ~= nil then
@@ -2234,7 +2229,7 @@ local function DrawWindow(drawOptions)
     -- once for the frame, inside the window: they take in its fade
     stackMain, stackShadow = imgui.GetColorU32(stackWhite), imgui.GetColorU32(stackBlack)
     iconTint = imgui.GetColorU32(iconWhite)
-    highlightColor, padColor, swapColor = imgui.GetColorU32(highlightBlue), imgui.GetColorU32(padYellow), imgui.GetColorU32(swapTextColor)
+    highlightColor, swapColor = imgui.GetColorU32(highlightBlue), imgui.GetColorU32(swapTextColor)
     slotFillColor, slotEdgeColor = imgui.GetColorU32(slotFill), imgui.GetColorU32(slotEdge)
     IconSheet()
     hoveredItem = nil

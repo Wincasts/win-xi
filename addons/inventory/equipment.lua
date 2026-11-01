@@ -8,8 +8,8 @@
 -- With the controller (inventory.lua's cycle brings it here) the d-pad moves a highlight over the
 -- slots, as the game's equipment menu lays them out; what A does with one is inventory.lua's.
 --
---   equipment.Focus(binding, color)  this frame, the monitor has the controller: binding marks its
---                                    window, color ({ r, g, b, a }) is the highlight's; nil, it has not
+--   equipment.Focus(binding)         this frame, the monitor has the controller: binding marks its
+--                                    window; nil, it has not. The highlight is winxi.selection's
 --   equipment.Shown()                whether the monitor was on screen last frame
 --   equipment.Move(direction)        the highlight over the slots: true if it moved
 --   equipment.Highlighted()          the slot the highlight is on: its number (0 Main to 15 Back), its
@@ -25,6 +25,7 @@ local itemicons = require('winxi.itemicons')
 local text = require('winxi.text')
 local fade = require('winxi.fade')
 local controller = require('winxi.controller')
+local selection = require('winxi.selection')
 
 local equipment = {}
 local windowName = 'winxi.inventory.equipment'
@@ -89,7 +90,7 @@ local packed = {}
 local labelMetrics, badgeMetrics, ammoMetrics = {}, {}, {}
 local frameOptions, frameSheet, frameScale, frameSize, framePitch
 -- With the controller: the grid over the slots, in the order of slots above
-local pad = { binding = nil, color = nil, grid = controller.NewGrid(), shown = false }
+local pad = { binding = nil, grid = controller.NewGrid(), shown = false }
 
 -- Cache only presentation data. Equipped indices, item ids and counts are ALWAYS read live.
 local function Measure(cache, key, text, font, size)
@@ -257,12 +258,7 @@ local function DrawContent()
         for i = 1, #slots do
             local left, top = x + (i - 1) % 4 * pitch, y + math.floor((i - 1) / 4) * pitch
             if pad.grid:IsOn(pad.grid:Add(left, top)) then
-                -- two outlines, one inside the other, as the inventory's highlight is drawn
-                local color = imgui.GetColorU32(pad.color)
-                minimum[1], minimum[2], maximum[1], maximum[2] = left - 2, top - 2, left + size + 2, top + size + 2
-                draw:AddRect(minimum, maximum, color, 0.0)
-                minimum[1], minimum[2], maximum[1], maximum[2] = left - 3, top - 3, left + size + 3, top + size + 3
-                draw:AddRect(minimum, maximum, color, 0.0)
+                selection.Draw(draw, left, top, left + size, top + size)
             end
         end
         pad.grid:End()
@@ -362,8 +358,8 @@ function equipment.Rect()
     return attachedRect.shown and attachedRect or nil
 end
 
-function equipment.Focus(binding, color)
-    pad.binding, pad.color = binding, color
+function equipment.Focus(binding)
+    pad.binding = binding
 end
 
 function equipment.Shown()

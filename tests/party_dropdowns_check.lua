@@ -97,7 +97,7 @@ look.BorderStyle, look.BarTexture, look.BookendStyle, look.BackgroundStyle = 'ro
 local begin, selectable, finish = imgui.BeginCombo, imgui.Selectable, imgui.EndCombo
 local current, opened, ended = nil, 0, 0
 local previews, selected = {}, {}
-local picks = { BorderStyle = 'Crystal', BarTexture = 'Satin', BarFrame = 'Capsule Outline', BookendStyle = 'Royal Silver', BackgroundStyle = 'FFXI-inspired', TabStyle = 'Brushed Metal', TitleStyle = 'Plate' }
+local picks = { BorderStyle = 'Crystal', BarTexture = 'Satin', BarFrame = 'Capsule Outline', BookendStyle = 'Royal Silver', BackgroundStyle = 'FFXI-inspired', TabStyle = 'Brushed Metal', SelectionStyle = 'Glass', TitleStyle = 'Plate' }
 imgui.BeginCombo = function(id, preview)
     current = id:match('^##winxi%.(.+)$')
     if current == 'FontFile' or current == 'TitleFontFile' or current == 'StatusIconSet' then return false end -- the fonts' (winxi_fonts_check) and the icons' (wxi_check)
@@ -112,7 +112,8 @@ imgui.Selectable = function(label, on)
 end
 imgui.EndCombo = function() ended = ended + 1 end
 last.draw(saved)
-assert(opened == 7 and ended == 7)
+assert(opened == 8 and ended == 8)
+assert(previews.SelectionStyle == 'Bevel' and look.SelectionStyle == 'glass', 'Selection Style: Bevel to begin with, chosen like the rest')
 assert(previews.BorderStyle == 'Royal Platinum' and previews.BarTexture == 'Radiant (Bright)' and previews.BookendStyle == 'Match Border' and previews.BackgroundStyle == 'Gradient' and previews.TabStyle == 'Sheen')
 assert(selected.BorderStyle == previews.BorderStyle and selected.BarTexture == previews.BarTexture and selected.BookendStyle == previews.BookendStyle)
 assert(look.BorderStyle == 'crystal' and look.BarTexture == 'satin' and look.BookendStyle == 'royal_silver' and look.BackgroundStyle == 'ffxi' and look.TabStyle == 'brushed' and look.TitleStyle == 'plate')
@@ -124,11 +125,11 @@ local greyed, disabled = 0, imgui.BeginDisabled
 imgui.BeginDisabled = function(off) if off then greyed = greyed + 1 end end
 look.Bookends, opened = false, 0
 last.draw(saved)
-assert(opened == 7 and greyed >= 2, 'Bookend Style and Bookend Opacity greyed: ' .. greyed)
+assert(opened == 8 and greyed >= 2, 'Bookend Style and Bookend Opacity greyed: ' .. greyed)
 look.Bookends = true
 look.FrameTitles, opened, greyed = false, 0, 0
 last.draw(saved)
-assert(opened == 7 and greyed >= 10, 'the title rows greyed: ' .. greyed)
+assert(opened == 8 and greyed >= 10, 'the title rows greyed: ' .. greyed)
 look.FrameTitles = true
 imgui.BeginDisabled = disabled
 -- Closed combos should not draw selectable items or rewrite settings.

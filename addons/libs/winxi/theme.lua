@@ -46,6 +46,8 @@ theme.Defaults = {
     BorderStyle     = 'ffxi',     -- one of theme.BorderStyles: 'theme' is the plain border in BorderColor
     BackgroundStyle = 'ffxi',     -- one of theme.BackgroundStyles: 'plain' is the flat BackgroundColor
     TabStyle        = 'glass',    -- one of theme.TabStyles, over the tabs of a window (winxi.tabs): 'plain' is imgui's own
+    SelectionStyle  = 'bevel',    -- one of theme.SelectionStyles: the box round what a controller's highlight is on (winxi.selection)
+    SelectionColor  = { 1.00, 0.93, 0.72, 1.0 }, -- its colour, a pale gold
     BarTexture      = 'chrome',   -- one of theme.BarTextures, for an addon that draws HP and MP bars
     BarFrame        = 'texture',  -- one of theme.BarFrames: the frame round those bars, or the Bar Texture's own
     BarFrameOpacity = 100,        -- percent: how solid that frame is
@@ -152,6 +154,10 @@ theme.TabStyles = {
     { key = 'bevel', label = 'Bevel' }, { key = 'brushed', label = 'Brushed Metal' }, { key = 'grain', label = 'Grain' },
     { key = 'lined', label = 'FFXI-inspired' }, { key = 'satin', label = 'Satin' },
 };
+theme.SelectionStyles = {
+    { key = 'outline', label = 'Outline' }, { key = 'glow', label = 'Glow' }, { key = 'bevel', label = 'Bevel' },
+    { key = 'glass', label = 'Glass' }, { key = 'satin', label = 'Satin' }, { key = 'brushed', label = 'Brushed Metal' },
+};
 theme.BarTextures = {
     { key = 'original', label = 'Original' }, { key = 'glass', label = 'Glass' }, { key = 'detailed', label = 'Detailed' },
     { key = 'crystal', label = 'Crystal' }, { key = 'satin', label = 'Satin' },
@@ -193,7 +199,7 @@ theme.BookendStyles[#theme.BookendStyles + 1] = { key = 'rounded_silver', label 
 
 local colorKeys = { 'BackgroundColor', 'BorderColor', 'TextColor', 'ThemeTabColor', 'HighlightColor', 'TitleColor', 'TextOutlineColor',
     'SettingsBackgroundColor', 'SettingsBorderColor', 'SettingsTextColor', 'SettingsHighlightColor', 'SettingsHeaderColor',
-    'TooltipBackgroundColor', 'TooltipBorderColor', 'TooltipTextColor', 'BarBackdropColor' };
+    'TooltipBackgroundColor', 'TooltipBorderColor', 'TooltipTextColor', 'BarBackdropColor', 'SelectionColor' };
 theme.MaxFontSize = 40;
 theme.MaxTextOutline = 4;
 
@@ -204,7 +210,7 @@ local numberKeys = { FontSize = { 0, theme.MaxFontSize }, TextOutline = { 0, the
     TooltipDelay = { 0, theme.MaxTooltipDelay }, TooltipMaxWidth = { theme.MinTooltipWidth, theme.MaxTooltipWidth },
     TooltipPadding = { 0, theme.MaxTooltipPadding }, TooltipFontSize = { 0, theme.MaxFontSize } };
 local booleanKeys = { 'ShadowEnabled', 'Bookends', 'BarBackdrop', 'StatusIcons', 'FrameTitles', 'TitleShadow', 'TitleAllCaps', 'TooltipsEnabled' };
-local choiceKeys = { BorderStyle = theme.BorderStyles, BackgroundStyle = theme.BackgroundStyles, TabStyle = theme.TabStyles, BarTexture = theme.BarTextures, BarFrame = theme.BarFrames, BookendStyle = theme.BookendStyles, TitleStyle = theme.TitleStyles };
+local choiceKeys = { BorderStyle = theme.BorderStyles, BackgroundStyle = theme.BackgroundStyles, TabStyle = theme.TabStyles, SelectionStyle = theme.SelectionStyles, BarTexture = theme.BarTextures, BarFrame = theme.BarFrames, BookendStyle = theme.BookendStyles, TitleStyle = theme.TitleStyles };
 
 -- Whether a value is one of a style's choices
 local function IsChoice(choices, value)
@@ -434,7 +440,7 @@ function theme.Save()
     for _, key in ipairs(booleanKeys) do
         file:write(string.format('    %s = %s,\n', key, tostring(current[key])));
     end
-    for _, key in ipairs({ 'FontFile', 'SettingsFontFile', 'TitleFontFile', 'BorderStyle', 'BackgroundStyle', 'TabStyle', 'BarTexture', 'BarFrame', 'BookendStyle', 'TitleStyle', 'StatusIconSet' }) do
+    for _, key in ipairs({ 'FontFile', 'SettingsFontFile', 'TitleFontFile', 'BorderStyle', 'BackgroundStyle', 'TabStyle', 'SelectionStyle', 'BarTexture', 'BarFrame', 'BookendStyle', 'TitleStyle', 'StatusIconSet' }) do
         file:write(string.format('    %s = %q,\n', key, current[key]));
     end
     file:write('};\n');

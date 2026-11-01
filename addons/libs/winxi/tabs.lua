@@ -66,6 +66,12 @@ local function Texture(style)
     return handle or nil;
 end
 
+-- One of the images by its style's name, for another part of winxi to draw with (winxi.selection), or
+-- nil where it would not load
+function tabs.Image(style)
+    return files[style] and Texture(style) or nil;
+end
+
 -- How far in a rounded top corner pushes each row: rows -> { inset of each row }, by radius
 local insets = {};
 local function Insets(radius)
