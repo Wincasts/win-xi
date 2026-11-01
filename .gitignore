@@ -16,7 +16,6 @@ __pycache__/
 
 # Plugin build output, and the release zips tools/ makes from it
 /plugins/*/build/
-/plugins/exclude/*/build/
 /dist/
 
 # In-game screenshots taken while working, which can show character names
