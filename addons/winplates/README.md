@@ -107,9 +107,10 @@ share the **Bars** tab.
   `./deploy.sh push winplates` includes changed WinXI and the built DLL before winplates;
   reload every addon that uses WinXI, plus namehook. Deployment still asks for confirmation
   and makes backups. Nothing is compiled or written live while developing.
-- **General Name Appearance:** the shared Font, Bold, Maximum/Minimum Name Size,
-  Subtarget Size, Letter Spacing, Vertical Offset, Text Outline, Text Outline Opacity, Icon Outline and Icon Outline Opacity. One maximum/minimum pair applies to every entity type,
-  including players, pets, enemies and NPCs.
+- **Appearance** (Names): three sub-sections. **Font** has Font, Bold and Smooth Font; **Size** has
+  Maximum and Minimum Name Size, Subtarget Size, Letter Spacing and Vertical Offset; **Outlines** has
+  Text Outline, Text Outline Opacity, Icon Outline and Icon Outline Opacity. One maximum/minimum pair
+  applies to every entity type, including players, pets, enemies and NPCs.
 - **Player Names:** a **Player Format** you edit directly. Player
   icons go inline through `[icons]` instead of a separate checkbox. The format applies to your
   own name, other players and player-style pets and trusts.
@@ -414,7 +415,7 @@ others. To begin with the icons are drawn as the winparty and winbuff addons dra
 (`/wxi`). With it on, the chosen set's icons (FFXIV, `libs\winxi\statusicons\ffxiv`, to start) are used where the set has an
 icon for the status, and the game's where it has not. With it off, the game's icons are used. `libs/winxi` has to be deployed
 with its `statusicons` folder. The set's icons are as narrow as the set has them; the game's are square.
-**Icons** takes this choice over for name alone.
+**Icons** takes this choice over for winplates alone.
 
 | Setting | What it does |
 |---|---|
@@ -876,23 +877,24 @@ its version without a suffix. The changelog section is the release's throughout:
 of its own. Packages are made from the commit with `tools/package_release.py <name> --stage pre1` (or `rc1`),
 after `tests/run.sh`, and the command it prints makes the GitHub release, marked pre-release.
 
-The namehook plugin in name's zip is built from the same commit (`plugins/namehook-SOURCE.txt` says which),
-but its own version stays a number (1.51): Ashita gives a plugin a number for a version, so the stage is
-the package's, and `/namehook` reports the plain number. A pre-release of name is a pre-release of the
+The namehook plugin in winplates' zip is built from the same commit (`plugins/namehook-SOURCE.txt` says which),
+but its own version stays a number (1.52): Ashita gives a plugin a number for a version, so the stage is
+the package's, and `/namehook` reports the plain number. A pre-release of winplates is a pre-release of the
 namehook it carries.
 
-What a round of name and namehook covers before a release candidate is cut:
+What a round of winplates and namehook covers before a release candidate is cut:
 
 - **Loading**: `/load namehook` then `/addon load winplates`, and the other way round; unload and load each
-  again while the other stays, both ways. The names come back each time, and Diagnostics says
-  **Custom Names** is on, never `old` or `mismatch`.
+  again while the other stays, both ways; a second character logged in after the first has logged out,
+  in both orders. The names come back each time, and Diagnostics says **Custom Names** is on, never
+  `old` or `mismatch`.
 - **Names**: players, NPCs, monsters and pets, each kind's format and colours, distance thresholds,
-  crowd decluttering, the check details, statuses over a name, cast bars, NM tracking; a zone change
+  crowd decluttering, the check details, statuses over a name, cast bars; a zone change
   and a long session (an hour or more) without names dropping to the game's own.
 - **The settings window**: every tab, each row doing what its sentence says, saving and reloading
   the character's settings, and the Reset rows.
 - **With the others**: lens on (the names aligned under the warp), the windamage addon (damage popups
-  through namehook), a second names addon if any (claim slots), and the perf addon's figures for name.
+  through namehook), a second names addon if any (claim slots), and the perf addon's figures for winplates.
 - **What to send**: **Write Report** (`/winplates report`, written to `config\addons\winplates\logs`, nothing
   private in it), a screenshot where the look is the matter, and the lines of Ashita's log around any
   error. Say which pre-release: the version in `/addon list`.
