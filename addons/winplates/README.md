@@ -27,7 +27,7 @@ in the settings code itself.
 The preferred baseline is in `name_defaults.lua`. It is taken from the author's own settings.
 It uses **trebucbi.ttf**, not bold, maximum/minimum font sizes **30/10**, the sub-target's
 name at **125%**, **90% check size**, **90% icon size**, **4 px icon spacing**, **1 px outline**,
-a hunted monster's name at **120%**, and health bars (off) **120 × 7 px**. Statuses are
+and health bars (off) **120 × 7 px**. Statuses are
 **100%**, level with the name's left and moved **2 px right and 5 up**, with fewer ticked:
 2–8, 10–13, 19, 132–135, 156, 192, 194 and 217. Difficulty abbreviations and check details
 are on. Mastery stars and words mode are off. Own Name is hidden, Other Players and
@@ -40,8 +40,7 @@ Settings are kept for each character. Each one is on for names that are shown.
 The settings are winxi's described rows: named sections, each setting a name with a
 sentence under it saying what it does, and its control at the right. No help marks or tooltips.
 
-The tabs are **General → Names → Bars → Check Details → Statuses → Visibility**, and
-**NM Tracking** after `/winplates dev`. Each part a name can have (health bars, cast bars, check details,
+The tabs are **General → Names → Bars → Check Details → Statuses → Visibility**. Each part a name can have (health bars, cast bars, check details,
 statuses) is turned on and off in its own section, with **Enabled** at the top. Health and cast bars
 share the **Bars** tab.
 
@@ -100,7 +99,7 @@ share the **Bars** tab.
   Text Outline 0 no longer turns off icon outlines. Either icon control at zero
   turns off only icon edges. Fills, layout, colours, mastery stars and letter
   badges are not affected. Width follows the existing resolution and distance scaling;
-  small names may use a thinner edge. Aggro/passive and tracked-monster glyphs
+  small names may use a thinner edge. Aggro/passive glyphs
   still have no shadow, but now follow the width you chose instead of a fixed cap.
   winplates 1.64 needs **namehook 1.35** and **WinXI 47**. A capability check stops
   older ABI-compatible plugins from silently ignoring the independent width. Plugins that do not
@@ -168,8 +167,6 @@ share the **Bars** tab.
 - **Statuses:** Display, Entity Types (the same eight kinds of name as for health
   bars, all ticked to begin with) and Selected Statuses, with help about
   status sources that you can expand.
-- **NM Tracking:** Tracked Monster and, when they apply, Placeholder Options. The tab is
-  shown only after `/winplates dev`, until the addon is reloaded; `/winplates dev` again hides it.
 
 Format token references and examples are under each kind of name's Format Tokens.
 Settings a character already has are kept.
@@ -323,7 +320,7 @@ Ordinary plates keep their name, aggro cue and monster letters, including explic
 and token conditions. Secondary text and punctuation, player and vendor icons, stars, check lines,
 HP bars and status rows are left out. A format made name-less on purpose stays name-less.
 Your target and subtarget, yourself, party and alliance, your own pet, whitelisted and charmed players,
-tracked NM and placeholders, and observed active casters (with Cast Bars on) stay
+and observed active casters (with Cast Bars on) stay
 fully detailed, at once. Plates are not moved or core names hidden because of
 overlaps. Font warming does not change.
 
@@ -409,25 +406,6 @@ leaving them out hides that information. There are no separate level or aggro sw
 Typed labels and punctuation stay exactly as typed, so remove `Lv ` and its dot
 as well if you do not want that label. Check-detail icons are separate (Check Details
 → Display Style → Text Only).
-
-### Experimental: tracked notorious monster
-
-This feature is experimental. It has a tab of its own, **NM Tracking**, shown after `/winplates dev`. **Tracked NM** there lists
-the notorious monsters of the area you are in
-(and None). The one you choose, and each of its placeholders, has `assets/special/hunt.png` (one of `assets/special.png`'s signs, with the vendor coin and the party icons) drawn in place
-of its `[aggro]` icon, so it needs `[aggro]` in Enemy Format. The choice is kept by name when you leave the
-area, and does nothing elsewhere.
-
-**Target Size (%)** (100–200%, shown while a monster is tracked) makes the tracked monster's
-whole nameplate larger at every distance. Its placeholders stay the usual size. Above 100% the letters are
-the largest size's drawn larger, so they are slightly softer.
-
-When the tracked monster has placeholders, **Label Placeholders** appears (on by default): each
-placeholder's `[name]` is written as `Placeholder`. The rest of its nameplate, its level and letter
-included, does not change. Placeholders are the members of the monster's lottery slot in the server's
-zone data (or, for the few that still have one, its script's `phList`), from winxi's game data
-(`winxi.mobs.Placeholders`; see [Monster data](#monster-data)). A monster that appears some other
-way than through a placeholder (timed, forced or scripted spawns) has none listed.
 
 ### Statuses over a name
 

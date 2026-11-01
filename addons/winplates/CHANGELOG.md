@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.90
+
+- `/winplates dev` and the NM Tracking tab it showed are gone, for the beta: Tracked NM, Target Size and Label Placeholders are no longer settings, and a monster tracked before is let go of as the settings load, so nothing is marked with the hunt sign. `/winplates diag` and `/winplates report` are as they were.
+
 ## 1.89
 
 - Vertical Offset (Appearance → Size): moves every name up or down from the point over the character the game draws it at, -200 to 200 screen pixels at the name's largest, shrinking with the name as it goes further off; 0, where the game puts it, to begin with. Below 0 is up. Mastery stars, health and cast bars, check details and the status row go with the name.

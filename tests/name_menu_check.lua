@@ -66,11 +66,9 @@ local function sentences()
 end
 H.tab(2); H.command('/winplates'); H.frames(1)
 clear(); H.frames(1); H.command('/winplates')
-assert(table.concat(tabs, '|') == 'General|Names|Bars|Check Details|Statuses|Visibility', 'NM Tracking waits for /name dev')
+assert(table.concat(tabs, '|') == 'General|Names|Bars|Check Details|Statuses|Visibility', 'the six tabs, and no NM Tracking')
 H.command('/winplates dev'); H.command('/winplates'); clear(); H.frames(1); H.command('/winplates')
-assert(table.concat(tabs, '|') == 'General|Names|Bars|Check Details|Statuses|Visibility|NM Tracking', '/winplates dev shows NM Tracking')
-H.command('/winplates dev'); H.command('/winplates'); clear(); H.frames(1); H.command('/winplates')
-assert(table.concat(tabs, '|') == 'General|Names|Bars|Check Details|Statuses|Visibility', 'a second /name dev hides it')
+assert(table.concat(tabs, '|') == 'General|Names|Bars|Check Details|Statuses|Visibility', '/winplates dev is no command: the tabs are as they were')
 assert(table.concat(headers, '|') == 'Appearance|Player Names|Enemy Names|NPC Names|Distance Thresholds')
 assert(table.concat(subs, '|') == 'Font|Size|Outlines|Format Tokens|Colour Overrides|Format Tokens|Colour Overrides|Format Tokens|Colour Overrides',
     'Appearance in three families; each kind of name its tokens and colour overrides')
@@ -395,20 +393,8 @@ clear(); require('statuses').DrawSettings(options)
 assert(ids['##name.statusIcons'] and disabledIds['##name.statusIcons'] and disabledIds['##name.statusTypes.monsters'] and not disabledIds['##name.showStatuses'],
     'the rest wait, greyed, for Enabled')
 options.showStatuses[1] = true
-H.command('/winplates dev'); H.tab(7); H.command('/winplates'); clear(); H.frames(1); H.command('/winplates')
-assert(table.concat(headers, '|') == 'Tracked Monster')
-sentences()
-assert(ids['##name.huntScale'] and disabledIds['##name.huntScale'] and not ids['##name.labelPlaceholders'], 'the size waits for a tracked monster; placeholders need one with some')
-local levels = require('levels')
-local original = levels.Placeholders
-levels.Placeholders = function() return {} end
-options.trackedNm[1] = 'Test NM'
-clear(); customSettings.DrawTracking(options)
-assert(table.concat(headers, '|') == 'Tracked Monster' and ids['##name.labelPlaceholders'] and not disabledIds['##name.huntScale'],
-    'one with placeholders has Label Placeholders, in the same section')
-levels.Placeholders = original
-options.trackedNm[1] = ''
-H.print('Visibility, diagnostics, statuses and tracking on rows, each with its sentence', true)
+assert(customSettings.DrawTracking == nil and not ids['##name.trackedNm'], 'no NM Tracking tab')
+H.print('Visibility, diagnostics and statuses on rows, each with its sentence', true)
 
 -- All Name tabs keep their controls visible but disabled while Enable Name is off.
 options.drawNames[1] = false
@@ -420,7 +406,6 @@ for tab, expected in ipairs({
     { '##name.showCheckDetails', '##name.checkSize' },
     { '##name.showStatuses', '##name.statusTypes.monsters', '##name.statusSearch' },
     { '##name.showSelf', '##name.alwaysTarget' },
-    { '##name.trackedNm' },
 }) do
     H.tab(tab); H.command('/winplates'); clear(); H.frames(1); H.command('/winplates')
     for _, id in ipairs(expected) do

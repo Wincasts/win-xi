@@ -16,7 +16,6 @@ return T{
     showStars = T{ false },
     showCheckDetails = T{ true },
     checkSize = T{ 90 },
-    huntScale = T{ 120 },
     statusAlign = T{ 'left' },
     statusSize = T{ 100 },
     statusOffsetX = T{ 2 },

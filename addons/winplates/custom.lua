@@ -189,6 +189,7 @@ function custom.Settle(options)
     options.showMobLevel, options.showAggroIcons, options.statusFfxivIcons = nil, nil, nil;
     options.checkFormat = nil; -- the Experimental Builder's check line, which went in 1.38: the original line is drawn
     options.healthBarTexture, options.castBarTexture = nil, nil; -- Bar Texture, which went in 1.80: bars are plain
+    options.trackedNm = nil; -- NM Tracking's tab and /winplates dev went in 1.90: nothing is tracked
     -- each setting a file may have otherwise is made its default, and a number kept within its bounds
     for _, spec in ipairs(settled) do
         local key, kind = spec[1], spec[2];

@@ -3,24 +3,6 @@
 Edit the text below each Label/Location block. Keep IDs unchanged.
 See [editing instructions](README.md).
 
-## name.tracking.monster
-Label: Tracked NM
-Location: NM Tracking → Tracked Monster
-
-Marks one notorious monster of this area, and each monster it can spawn from, with a hunt sign in place of the [aggro] icon. Enemy Format needs [aggro]. The choice is kept when you leave the area.
-
-## name.tracking.size
-Label: Target Size (%)
-Location: NM Tracking → Tracked Monster
-
-How much larger the tracked monster's whole nameplate is drawn. Its placeholders stay the usual size.
-
-## name.tracking.placeholders
-Label: Label Placeholders
-Location: NM Tracking → Placeholder Options
-
-Writes "Placeholder" in place of each placeholder's name. The rest of its nameplate is unchanged.
-
 ## name.health_bars.entity_types
 Label: Entity Types
 Location: Bars → Health Bar Entity Types

@@ -1,10 +1,9 @@
--- The Names, Bars, Check Details and NM Tracking tabs of the settings: how the
+-- The Names, Bars and Check Details tabs of the settings: how the
 -- names are drawn, as custom.lua draws them. Every setting is a described row (controls).
 --
 --   settings.DrawSettings(options, save)    the Names tab
 --   settings.DrawBars(options, save)        the Bars tab: health and cast bars
 --   settings.DrawCheck(options, save)       the Check Details tab
---   settings.DrawTracking(options, save)    the NM Tracking tab, after /winplates dev
 local imgui = require('imgui');
 local widgets    = require('winxi.widgets');
 local nameplates = require('winxi.nameplates');
@@ -75,46 +74,8 @@ local castTimerSpec = {};
 local sharedSpec = {};      -- what the bars share: while either kind is on
 local healthSpec = {};
 local checkSpec = {};
-local trackedSpec = { experimental = true };
-local huntSpec = {};
 
 local checkStyles = { { key = false, label = 'Icons & Text' }, { key = true, label = 'Text Only' } };
-
--- The notorious monster being hunted: a tab of its own
-local notorious = { { key = '', label = 'None' } }; -- the area's, found afresh as the list opens
-
-local function Notorious()
-    for index = #notorious, 2, -1 do
-        notorious[index] = nil;
-    end
-    for _, monster in ipairs(levels.Notorious()) do
-        notorious[#notorious + 1] = monster;
-    end
-    return notorious;
-end
-trackedSpec.onOpen = Notorious;
-
-function settings.DrawTracking(options, save)
-    controls.Note('NM tracking could be considered cheating. Enable at your own risk.');
-    if (controls.Section('Tracked Monster', true)) then
-        -- the one notorious monster being hunted, of those the area has
-        local tracked = options.trackedNm[1];
-        local chosen = widgets.Dropdown('Tracked NM',
-            'Marks one notorious monster of this area, and what it can spawn from, with a hunt sign instead of the aggro icon. Enemy Format needs [aggro].',
-            notorious, tracked, '##name.trackedNm', trackedSpec);
-        if (chosen ~= nil) then
-            options.trackedNm[1] = chosen;
-            if (save ~= nil) then save(); end
-        end
-        huntSpec.parent = options.trackedNm[1] ~= '';
-        controls.Slider('Target Size', '##name.huntScale', options.huntScale, 100, 200, '%d%%',
-            'How much larger the tracked monster\'s whole name is drawn. Its placeholders stay the usual size.', huntSpec);
-        if (options.trackedNm[1] ~= '' and levels.Placeholders(options.trackedNm[1]) ~= nil) then
-            controls.Checkbox('Label Placeholders', '##name.labelPlaceholders', options.labelPlaceholders,
-                'Writes Placeholder instead of each placeholder\'s name. The rest of its name is unchanged.', huntSpec);
-        end
-    end
-end
 
 -- The bars under the names, health and cast, in one tab: what they share first (their size, Fit To Name and
 -- the preview of them all), then each kind's own
@@ -265,7 +226,7 @@ function settings.DrawSettings(options, save)
             controls.Slider('Letter Spacing', '##name.letterSpacing', options.letterSpacing, 0, 10, '%d px',
                 'Extra room between the letters of every name, at its largest. 0 is the font\'s own spacing.');
             controls.Slider('Vertical Offset', '##name.nameOffsetY', options.nameOffsetY, -200, 200, '%d px',
-                'Moves every name down from where the game puts it, at its largest; below 0, up. Its bars and statuses go with it.');
+                'Moves every name down from where the game puts it, at its largest, or up below 0. Its bars and statuses go with it.');
         end
         if (controls.Sub('Outlines')) then
             controls.Outline(options.outline, 'Text Outline', '##name.outline',

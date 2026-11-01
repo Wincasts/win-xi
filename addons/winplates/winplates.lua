@@ -1,6 +1,6 @@
 addon.name    = 'winplates';
 addon.author  = 'win';
-addon.version = '1.89';
+addon.version = '1.90';
 addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the namehook plugin.';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
@@ -229,9 +229,6 @@ local function WhenEnabled(draw)
     end;
 end
 
--- NM Tracking is a tab only after /winplates dev, for the session
-local trackingTab = { label = 'NM Tracking', draw = WhenEnabled(customSettings.DrawTracking) };
-
 -- The settings, the settings window and the command are the shell's
 app = shell.New({
     defaults     = defaults,
@@ -256,21 +253,11 @@ app = shell.New({
     },
     tabs         = { },
 
-    -- for testers: /winplates diag on or off, /winplates diag log; /winplates dev shows or hides NM Tracking
+    -- for testers: /winplates diag on or off, /winplates diag log
     commands     = {
         report = function ()
             local path, problem = diag.Report();
             app:Say(path and ('Support report written to ' .. path) or ('Could not write support report: ' .. tostring(problem)));
-        end,
-        dev = function ()
-            local tabs = app.spec.tabs;
-            if (tabs[#tabs] == trackingTab) then
-                tabs[#tabs] = nil;
-                app:Say('NM Tracking hidden.');
-            else
-                tabs[#tabs + 1] = trackingTab;
-                app:Say('NM Tracking is a tab in /winplates until the addon is reloaded; /winplates dev hides it.');
-            end
         end,
         diag = function (options, args)
             local what = args[3] and args[3]:lower() or nil;
