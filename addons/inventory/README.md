@@ -89,8 +89,10 @@ menu. The window takes the controller as `/inv toggle` opens it, and only `/inv 
 
 Y (triangle) moves the controller on to the next window: the inventory, then the treasure pool (only
 while there is treasure), then the equipment monitor (only while it is shown), then back to the
-inventory. The window that has the controller has the thin outline. In the treasure pool, the d-pad
-moves up and down the items and A opens Lot, Pass, Lot All and Pass All. In the equipment monitor,
+inventory. The window that has the controller has the thin outline. In the treasure pool, the highlight
+starts on the first item's **Lot**. Left and right move between Lot and Pass, up and down move between
+the items, and up from the first item reaches **Lot All** and **Pass All**. A presses the button the
+highlight is on. In the equipment monitor,
 the d-pad moves over the slots and A opens what you can put on there: **Remove** for what you are
 wearing, then the gear in your inventory and wardrobes that goes in that slot and that your main job
 can wear at its level, highest level first (up to 15). B in either goes back to the inventory. Turn

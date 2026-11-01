@@ -859,9 +859,10 @@ end
 --
 -- Y cycles the controller through the windows: the inventory, then the treasure pool while there is
 -- treasure, then the equipment monitor while it is shown, then the inventory again; Cycle Treasure
--- Pool and Cycle Equipment leave either out. In the pool the d-pad moves over the lines and A opens
--- Lot / Pass; in the monitor it moves over the slots and A opens what can be put on there. B in either
--- goes back to the inventory.
+-- Pool and Cycle Equipment leave either out. In the pool the highlight starts on the first item's
+-- Lot: left and right go between Lot and Pass, up and down between the lines, up from the first to
+-- Lot All and Pass All, and A presses the button. In the monitor the d-pad moves over the slots and A
+-- opens what can be put on there. B in either goes back to the inventory.
 local pad = {
     options = nil,     -- the tool's settings, as of the frame last drawn
     target = 'inventory', -- which window the buttons work: 'inventory', 'treasure' or 'equipment'
@@ -1185,6 +1186,9 @@ function cycle.Next()
         local target = cycle.order[(at - 1 + step) % #cycle.order + 1]
         if cycle.CanTake(target) then
             pad.target = target
+            if target == 'treasure' then
+                pool.Reset() -- on the first item's Lot, each time
+            end
             sound.Play('tab')
             return
         end
@@ -1258,18 +1262,13 @@ function cycle.EquipMenu(slotId, slotName, worn)
     return controller.NewMenu(worn ~= nil and ('%s: %s'):format(slotName, worn.shortName) or slotName, entries)
 end
 
--- A button pressed while the treasure pool has the controller
+-- A button pressed while the treasure pool has the controller: the d-pad over its buttons, A presses
+-- the one highlighted (the error sound where it does nothing: lotted already, passed, a sample)
 function cycle.TreasurePress(action)
-    if action == 'up' or action == 'down' then
+    if action == 'up' or action == 'down' or action == 'left' or action == 'right' then
         pool.Move(action)
     elseif action == 'confirm' then
-        local menu = pool.Menu()
-        if menu ~= nil then
-            pad.menu, pad.menuItem = menu, nil
-            sound.Play('confirm')
-        else
-            sound.Play('error')
-        end
+        sound.Play(pool.Press() and 'confirm' or 'error')
     elseif action == 'back' then
         pad.target = 'inventory'
         sound.Play('back')
@@ -1459,15 +1458,14 @@ end
 -- controller goes back to the inventory.
 function cycle.EndFrame()
     if pad.target == 'treasure' then
-        local item = pool.Shown() and pool.Highlighted() or nil
-        local x, y = pool.Place()
-        if item == nil or x == nil then
+        if not pool.Shown() then
             pad.target, pad.menu = 'inventory', nil
             return
         end
-        if pad.menu ~= nil then
-            pad.menu:Draw(x, y)
-        else
+        -- who is winning the highlighted line's item; nothing on Lot All and Pass All
+        local item = pool.Highlighted()
+        local x, y = pool.Place()
+        if item ~= nil and x ~= nil then
             controller.Label(cycle.TreasureLabel(item), x, y, true)
         end
         return
