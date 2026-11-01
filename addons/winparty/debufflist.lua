@@ -1,5 +1,5 @@
 -- debufflist: a box listing the debuffs seen to land on the target, each with the time it has left,
--- that the player drags where they like. Plain, it is an imgui window of its own with nothing of the
+-- that the player drags where they like; there is none while nothing is on the target. Plain, it is an imgui window of its own with nothing of the
 -- theme about it, dragged by its body; with Winxi Theme it is one of the addon's windows
 -- (windows.List.debuffs), drawn, moved and faded as the target windows are.
 --
@@ -71,10 +71,6 @@ end
 local listName, listRows = '', rows
 local function Content()
     imgui.Text(listName)
-    if #listRows == 0 then
-        imgui.TextDisabled('No debuffs seen')
-        return
-    end
     local widest = 0
     for _, row in ipairs(listRows) do
         local width = imgui.CalcTextSize(details.StatusName(row.id))
@@ -136,6 +132,10 @@ function debufflist.Draw(saved, entity, sample)
         listName, listRows = lastName, debufflist.Rows(lastServerId, rows)
         wanted = false
     else
+        return
+    end
+    -- nothing on it: no box
+    if #listRows == 0 then
         return
     end
     if themed then

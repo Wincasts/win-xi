@@ -2,7 +2,7 @@
 
 ## 0.5.1
 
-- **Debuff List** (Target → Debuff List, off to begin with): a box of its own listing every debuff seen to land on your target, with the time each has left, the soonest to run out first, under the target's name. A plain imgui box dragged by its body, held still by Lock Windows, placed by **Debuff List Position** (a drag sets it too); **Winxi Theme** (off to begin with) draws it as a window of the theme instead, moved, faded and organized as the target windows are. While organizing it lists the sample statuses. The debuffs are counted while the list is on, whether or not a target window shows them.
+- **Debuff List** (Target → Debuff List, off to begin with): a box of its own listing every debuff seen to land on your target, with the time each has left, the soonest to run out first, under the target's name; no box while nothing is on the target. A plain imgui box dragged by its body, held still by Lock Windows, placed by **Debuff List Position** (a drag sets it too); **Winxi Theme** (off to begin with) draws it as a window of the theme instead, moved, faded and organized as the target windows are. While organizing it lists the sample statuses. The debuffs are counted while the list is on, whether or not a target window shows them.
 
 ## 0.5.0
 

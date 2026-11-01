@@ -1,5 +1,5 @@
 -- Debuff List: a box listing the debuffs seen to land on the main target, each with the time it has
--- left, off to begin with. A plain imgui window dragged by its body, held still by Lock Windows; with
+-- left, off to begin with and not there while nothing is on the target. A plain imgui window dragged by its body, held still by Lock Windows; with
 -- Winxi Theme, one of the addon's windows, moved as the target windows are. Placed by Debuff List
 -- Position, which a drag sets too; the sample while organizing; tracked while the list alone is on;
 -- its rows under Target -> Debuff List.
@@ -47,15 +47,14 @@ assert(o.target.debuffList[1] == false and o.target.debuffListTheme[1] == false,
 assert(Frame() == nil, 'off: no box')
 
 o.target.debuffList[1] = true
+assert(Frame() == nil, 'on, nothing on the target: no box')
+Dia()
 local box = Frame()
-assert(box ~= nil, 'on: the box, with no target window shown')
+assert(box ~= nil, 'a debuff on it: the box, with no target window shown')
 assert(not Has(box.flags, ImGuiWindowFlags_NoMove) and not Has(box.flags, ImGuiWindowFlags_NoInputs), 'plain: dragged by its body')
 assert(not Has(box.flags, ImGuiWindowFlags_NoDecoration), 'plain: imgui\'s own window, not the theme\'s')
-assert(box.texts[1] == 'Goblin' and box.texts[2] == 'No debuffs seen', 'the target\'s name, and nothing seen yet')
-
-Dia()
-box = Frame()
-assert(box.texts[2] == 'Effect 134' and box.texts[3]:match('^%d+s$') or box.texts[3]:match('^%d+:%d%d$'), 'Dia listed with its time left')
+assert(box.texts[1] == 'Goblin' and box.texts[2] == 'Effect 134' and (box.texts[3]:match('^%d+s$') or box.texts[3]:match('^%d+:%d%d$')),
+    'the target\'s name, then Dia with its time left')
 Paralyze()
 local rows = debufflist.Rows(900, { })
 assert(#rows == 2 and rows[1].left <= rows[2].left, 'the soonest to run out first')
@@ -88,6 +87,11 @@ assert((H.calls.SetNextWindowPos or 0) == placed, 'not placed again while only a
 mainIndex = 0
 assert(Frame() == nil, 'no target: no plain box')
 mainIndex = 10
+tracker.Message({ target = 900, message = 206, param = 134 })
+tracker.Message({ target = 900, message = 204, param = 4 })
+assert(Frame() == nil, 'both worn off: no box')
+Dia()
+Paralyze()
 
 -- Winxi Theme: one of the addon's windows, with the theme's chrome and moved by Shift as the others are
 o.target.debuffListTheme[1] = true
