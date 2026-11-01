@@ -26,7 +26,8 @@ struct HookCapabilities {
     uint32_t Size, Version, Features, Build;
 };
 enum : uint32_t { FEATURE_EDGE_RADIUS = 1, FEATURE_SOFT_RECT = 2, FEATURE_TIGHT_EDGE = 4, FEATURE_DOUBLED = 8, FEATURE_SOFT_TEXTURE = 16,
-    FEATURE_TEXTURES_32 = 32 }; // 1.43: HookDraw's and HookPopupDraw's TexturesExtra, quads' Texture 8 to 31
+    FEATURE_TEXTURES_32 = 32, // 1.43: HookDraw's and HookPopupDraw's TexturesExtra, quads' Texture 8 to 31
+    FEATURE_FONT_EACH_FRAME = 64 }; // 1.52: HookShared's FontTexture is imgui's font texture as of every frame presented, not only one a name was drawn in
 
 // What a name is over. Every name is in exactly one category, and a category's names are shown or
 // hidden together.
@@ -131,7 +132,8 @@ struct HookShared {
     uint32_t Draw;       // where the HookDraw is, for an addon that has the plugin draw names for it
     float TargetWidth;   // the size of the picture the client draws the world on, which may be larger
     float TargetHeight;  // than its window: 0 until a name has been drawn
-    uint32_t FontTexture; // imgui's font texture as the plugin last drew HOOK_TEXTURE_FONT from: 0 for none
+    uint32_t FontTexture; // imgui's font texture, for an addon that reads its letters back: as the frame was last presented (1.52,
+                          // FEATURE_FONT_EACH_FRAME; before, as the plugin last drew HOOK_TEXTURE_FONT from), 0 while it has none ready
 
     uint8_t Override[HOOK_ENTITIES]; // OVERRIDE_* for each entity, by index; written by addons
     HookName Names[HOOK_NAMES_MAX];
@@ -471,8 +473,8 @@ class Nameplate {
 
         // Called from the client's name drawing code before the first name of each frame. fresh is
         // whether an addon has drawn names for this frame. Gives back the size of the picture the
-        // client is drawing on, and imgui's font texture as HOOK_TEXTURE_FONT is drawn from (0 for none).
-        virtual void BeginNames([[maybe_unused]] const HookDraw& draw, [[maybe_unused]] bool fresh, [[maybe_unused]] float& targetWidth, [[maybe_unused]] float& targetHeight, [[maybe_unused]] uint32_t& fontTexture) {}
+        // client is drawing on.
+        virtual void BeginNames([[maybe_unused]] const HookDraw& draw, [[maybe_unused]] bool fresh, [[maybe_unused]] float& targetWidth, [[maybe_unused]] float& targetHeight) {}
 
         // Puts an addon's drawing of a name in the picture, at this point of the world (three floats).
         // Called from the client's name drawing code, in place of the client drawing the name. owner is
@@ -545,6 +547,10 @@ class Nameplate {
         // Whether Publish has names to make ready, and so a use for the view and the projection: the
         // client ends a scene many times a frame, and the names are drawn in one of them
         bool WantsPublish(bool frameDone) const;
+
+        // imgui's font texture as the host finds it as a frame is presented, for HookShared's FontTexture:
+        // 0 while imgui has none ready. Told every frame, drawn names or not.
+        void NoteFontTexture(uint32_t texture);
 
         // The camera the host has readied for this frame's names, for addons (HookCamera): view, projection
         // and the two together (16 floats each), the viewport (x, y, width, height, min z, max z), and lens's

@@ -133,6 +133,8 @@
 --     font; controller.LeftStick's glyph
 -- 73: selection, the box round what a controller's highlight is on, in the theme's Selection Style and
 --     Selection Color (theme.SelectionStyles); tabs.Image
+-- 74: nameplates.Feature.FontEachFrame, namehook 1.52's word that hook.FontTexture is imgui's font texture as
+--     of every frame presented, and not only of one a name was drawn in
 return {
-    Number = 73,
+    Number = 74,
 };

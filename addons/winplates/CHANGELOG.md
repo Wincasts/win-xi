@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.88
+
+- No crash logging a second character in. After one character had logged out, the next one's login could end in an EXCEPTION_ACCESS_VIOLATION: the letter badges and Smooth Font read imgui's font texture back by the address namehook gave, which a namehook before 1.52 gives only as it draws a name, so while the loading screen drew none it was still the first character's, and once this character's font and sizes had imgui make the texture again, a freed one. With namehook 1.52, which gives this frame's every frame, the address is read as before; with an older one only in a frame names were drawn in. Requires winxi 74.
+
 ## 1.87
 
 - Renamed winplates: the addon is `winplates` (`addons\winplates`, `/addon load winplates`), its settings window winplates Settings and its command `/winplates`, with `/name` kept as another way in. Each character's settings are brought over from `config\addons\name` the first time it logs in (winxi.shell's formerName). Logs and support reports go to `config\addons\winplates\logs` as `winplates-…txt`, and Enable Name is Enable winplates. Remove the old `addons\name` folder.

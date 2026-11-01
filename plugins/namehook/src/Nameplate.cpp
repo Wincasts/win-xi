@@ -286,7 +286,7 @@ static Nameplate* Instance = nullptr;
 extern "C" {
 __declspec(dllexport) HookCapabilities NamehookCapabilities = {
     "NAMEHOOKCAPS", sizeof(HookCapabilities), 1,
-    FEATURE_EDGE_RADIUS | FEATURE_SOFT_RECT | FEATURE_TIGHT_EDGE | FEATURE_DOUBLED | FEATURE_SOFT_TEXTURE | FEATURE_TEXTURES_32,
+    FEATURE_EDGE_RADIUS | FEATURE_SOFT_RECT | FEATURE_TIGHT_EDGE | FEATURE_DOUBLED | FEATURE_SOFT_TEXTURE | FEATURE_TEXTURES_32 | FEATURE_FONT_EACH_FRAME,
     NAMEHOOK_VERSION_MAJOR * 100 + NAMEHOOK_VERSION_MINOR
 };
 }
@@ -803,7 +803,7 @@ static void DrawNameLineFrom(uintptr_t site, const XiModel* pModel, const float*
 			Instance->BeginSlot(i, SlotDraws[i], SlotClaims(i, CATEGORY_ALL) && Shared.Frame - SlotDraws[i].Frame <= HOOK_DRAW_FRAMES);
 		}
 		BeginLayers();
-		Instance->BeginNames(Draw, IsDrawFresh(), Shared.TargetWidth, Shared.TargetHeight, Shared.FontTexture);
+		Instance->BeginNames(Draw, IsDrawFresh(), Shared.TargetWidth, Shared.TargetHeight);
 		DrawWorldLayers();
 	}
 
@@ -2476,6 +2476,15 @@ bool Nameplate::WantsPublish(bool frameDone) const {
 	return NamesWanted(frameDone) || PopupsWanted(frameDone);
 }
 
+// The texture an addon reads imgui's letters back from (winplates' smooth text and letter badges) is
+// told every frame, whether or not a name was drawn in it. Until 1.52 it was told only as a name was
+// drawn, so it went stale while none were: at a login after another character's, the loading screen
+// draws no names while the character's own font and sizes have imgui make its texture again, and the
+// addon read the old one, freed by then, and the client faulted.
+void Nameplate::NoteFontTexture(uint32_t texture) {
+	Shared.FontTexture = texture;
+}
+
 // Where a point in the world comes on screen, in pixels from the top left, and how far in front of
 // the camera it is: false behind it. m is the view and projection together.
 static bool PlaceOnScreen(const float* m, float halfWidth, float halfHeight, float x, float y, float z, float& screenX, float& screenY, float& depth) {
@@ -2654,6 +2663,7 @@ int Nameplate::Deinit() {
 	Shared.Hooked = 0;
 	Shared.Count = 0;
 	Shared.Draw = 0;
+	Shared.FontTexture = 0;
 	Filling.Count = 0;
 
 	Popups.Hooked = 0;

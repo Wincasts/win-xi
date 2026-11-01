@@ -1133,7 +1133,7 @@ function custom.Deactivate()
         end
     end
     forgetGlyphs();
-    cachedRungs, smoothFont = nil, false;
+    cachedRungs, smoothFont, fontPipeline.sequence = nil, false, nil;
     parsed, steady, answers = {}, {}, {};
 end
 
@@ -1233,6 +1233,12 @@ function custom.Frame(options, hook, formats)
     if (hook == nil or hook.Hooked == 0) then
         return 'unhooked';
     end
+    -- whether names were drawn this frame: the plugin's list made ready since last frame (its Sequence as
+    -- Frame last saw it, fontPipeline.sequence), with names in it; seen from the frame after the first, so
+    -- that a change over several frames does not count
+    local sequence = tonumber(hook.Sequence);
+    local namesThisFrame = fontPipeline.sequence ~= nil and sequence ~= nil and sequence ~= fontPipeline.sequence and (tonumber(hook.Count) or 0) > 0;
+    fontPipeline.sequence = sequence;
 
     -- the font's texture: the plugin is given winxi's mark for it and reads it itself as it draws.
     -- None while imgui has none ready. Which texture it is (imgui's unique id, new each time imgui
@@ -1383,7 +1389,14 @@ function custom.Frame(options, hook, formats)
     -- the badges are cut from the font's texture as Direct3D has it, which only the plugin can read
     -- (texture is winxi's mark for it): the one it drew from, which it holds while it draws, or 0
     -- until it has
-    local fontAddress = tonumber(hook.FontTexture) or 0;
+    -- imgui's font texture, read back for the badges and the smooth text by the address the plugin gives.
+    -- namehook 1.52 gives this frame's every frame (Feature.FontEachFrame). An older one gives the one it
+    -- last drew a name from, which is this frame's only in a frame names were drawn in, and otherwise may
+    -- be one imgui has since made again and freed: at a login after another character's, the loading
+    -- screen drew no names while this character's font and sizes had imgui make its texture again, and
+    -- reading the old one faulted the client. From such a plugin it is read only in a frame with names.
+    local fontEachFrame = nameplates.Supports(nameplates.Feature.FontEachFrame, hook);
+    local fontAddress = (fontEachFrame or namesThisFrame) and tonumber(hook.FontTexture) or 0;
     local badgeAtlas = badgeDefinitions ~= nil and fontAddress ~= 0 and letterBadges.Prepare(
         fontAddress, badgeDefinitions, letterBadges.Font, true) or nil;
     nameplates.SetTexture(letterBadges.Slot, badgeAtlas and badgeAtlas.address or 0);

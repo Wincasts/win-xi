@@ -92,7 +92,7 @@ was nowhere to be found. `tools/abi_check.py` now looks for each magic in the bu
 Since 1.35, `NamehookCapabilities` is a separately exported 32-byte sidecar:
 `char Magic[16] = "NAMEHOOKCAPS"`, followed by four uint32 fields: Size (32),
 Version (1), Features (mask values 1: explicit edge radius, 2: soft rectangles, 4:
-tight edges, 8: doubled colours, 16: soft textured rectangles, 32: 32 texture slots, 1.43), and Build (major × 100 + minor). It does not change ABI 3. WinXI 46
+tight edges, 8: doubled colours, 16: soft textured rectangles, 32: 32 texture slots, 1.43, 64: `FontTexture` told every frame, 1.52), and Build (major × 100 + minor). It does not change ABI 3. WinXI 46
 provides `nameplates.Supports(mask, hook)` and optional `nameplates.Problem(mask)`;
 older consumers can ignore it. WinXI 47 also provides `nameplates.Capabilities(hook)`,
 a copied `{version, features, build}` table for support reports (nil when unavailable).
@@ -145,7 +145,7 @@ The head of that file lists everything it offers.
 | `Sequence` | Goes up each time the list is made ready: once a frame as a rule, and more if names are drawn in more than one scene |
 | `Draw` | The address of the `HookDraw`, for an addon that has the plugin [draw names for it](#having-the-plugin-draw-the-names) |
 | `TargetWidth`, `TargetHeight` | The size of the picture the client draws the world on, which is larger than its window when the background resolution is. 0 until a name has been drawn. |
-| `FontTexture` | imgui's font texture as the plugin last drew a texture of `1` from (see `Textures`), or 0 for none |
+| `FontTexture` | imgui's font texture (see `Textures`), for an addon that reads its letters back, or 0 while imgui has none ready. From 1.52 it is told as every frame is presented, whether or not a name was drawn in it (`FEATURE_FONT_EACH_FRAME`); before, only as a name was drawn, so while no names were drawn it could be one imgui had since made again and freed. |
 | `Override` | A byte for each of the client's 0x900 entities, by index: 0 by its category, 1 shown, 2 hidden. Written by addons. |
 | `Names` | Up to 256 names |
 | `LoadId` | 1.42: a number of each load's own, never 0 and never the last load's. A different one means the plugin was loaded again, even at the same address as the same build. Read only where `Size` reaches it. |

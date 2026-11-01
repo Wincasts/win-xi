@@ -158,7 +158,7 @@ public:
     virtual void ClientDrew() override {
         m_StatesCaptured = false;
     }
-    virtual void BeginNames(const HookDraw& draw, bool fresh, float& targetWidth, float& targetHeight, uint32_t& fontTexture) override;
+    virtual void BeginNames(const HookDraw& draw, bool fresh, float& targetWidth, float& targetHeight) override;
     virtual void DrawCustom(uint32_t owner, uint32_t entityIndex, const HookDrawing& drawing, const HookQuad* quads, const float* position) override;
     virtual void BeginSlot(uint32_t slot, const HookDraw& draw, bool fresh) override;
     virtual void BeginLayer(uint32_t layer, const HookLayerDraw& draw, bool fresh) override;
@@ -447,6 +447,8 @@ bool AshitaNameplate::HandleCommand([[maybe_unused]] int32_t mode, const char* c
     return ParseCommand(command, true);
 }
 
+static IDirect3DBaseTexture8* FontTexture(IAshitaCore* core);
+
 // The client draws its names between the scene's beginning and its end, and addons draw theirs as the
 // frame is presented: the names are made ready as the scene ends, and again, whichever of this
 // plugin and the addons is asked first, as the frame is presented, when the next frame's begin.
@@ -463,6 +465,9 @@ void AshitaNameplate::Direct3DPresent([[maybe_unused]] const RECT* pSourceRect, 
     m_PerfAt = (m_PerfAt + 1) % PERF_FRAMES;
     if (m_PerfCount < PERF_FRAMES) m_PerfCount++;
     m_PerfNow = {};
+    // imgui's font texture as it is now, for an addon that reads its letters back: told every frame, so that
+    // it is never one imgui has since made again and freed (as it was at a login, where no names are drawn)
+    NoteFontTexture(static_cast<uint32_t>(reinterpret_cast<uintptr_t>(FontTexture(m_AshitaCore))));
     ReleaseNameStates();
     PublishNames(true);
     m_CameraAge++;
@@ -601,7 +606,7 @@ static void SetNameStates(IDirect3DDevice8* device) {
     device->SetStreamSource(0, nullptr, 0);
 }
 
-void AshitaNameplate::BeginNames(const HookDraw& draw, bool fresh, float& targetWidth, float& targetHeight, uint32_t& fontTexture) {
+void AshitaNameplate::BeginNames(const HookDraw& draw, bool fresh, float& targetWidth, float& targetHeight) {
     m_CanDraw = false;
     m_StatesCaptured = false; // a scene's names begin: whatever was captured was another's
     m_HorizontalFit = draw.HorizontalFit();
@@ -620,7 +625,6 @@ void AshitaNameplate::BeginNames(const HookDraw& draw, bool fresh, float& target
 
     // Each layer owns its textures; bubbles work even without an addon drawing names.
     IDirect3DBaseTexture8* font = fresh ? FontTexture(m_AshitaCore) : nullptr;
-    fontTexture = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(font));
     m_Textures.Retain(fresh ? draw.Textures : nullptr, HOOK_TEXTURES, fresh ? draw.TexturesExtra : nullptr, font);
 
     // readied every frame, for the popups as well, which the client draws with no view of the world's;

@@ -26,7 +26,7 @@ assert(scans==1, 'missing capability blocks must not be scanned per frame')
 available,now=true,2
 assert(plates.Supports(1) and plates.Supports(7) and not plates.Supports(8))
 local metadata=assert(plates.Capabilities())
-assert(metadata.build==135 and metadata.version==1 and metadata.features==7)
+assert(metadata.build==135 and metadata.version==1 and metadata.features==71)
 metadata.features=0;assert(plates.Supports(1), 'public metadata must not mutate the DLL capability block')
 local warm=scans
 for _=1,100 do assert(plates.Supports(1)) end

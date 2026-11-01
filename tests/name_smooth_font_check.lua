@@ -7,6 +7,9 @@ local badges = require('letter_badges')
 local levels = require('levels')
 local filtered = require('filtered_text')
 local originalFilteredPrepare = filtered.Prepare
+-- the plugin stood in for is namehook 1.52, whose font texture address is this frame's every frame
+local realSupports = plates.Supports
+plates.Supports = function(features) return features == plates.Feature.FontEachFrame end
 -- Real GPU readback is tested separately against mocked upload/read functions.
 -- Begin with the direct-raster fallback while a filtered atlas is unavailable.
 filtered.Prepare = function() return nil end
@@ -84,8 +87,9 @@ for i = 0, 1 do
     name.Flags, name.Scale, name.NameColor = plates.Flag.Wanted, 1, 0x80408020
     ffi.copy(name.Name, 'AV'); ffi.copy(name.Text, 'AV')
 end
-local function render()
+local function render(noNames)
     hook.Frame = hook.Frame + 1
+    if not noNames then hook.Sequence = hook.Sequence + 1 end -- names drawn this frame: the list made ready
     H.wait(0.03)
     assert(custom.Frame(o, hook) == nil)
     assert(#stack == 0, 'font stack must stay balanced')
@@ -248,9 +252,30 @@ assert(sourceReads == 4 and sourceUploads == 4, 'a changed native size rebuilds 
 font.ContainerAtlas.TexData.UniqueID = 91
 render(); render()
 assert(sourceReads == 5 and sourceUploads == 5, 'new source texture identity invalidates the cached masks')
+-- The address the plugin gives for imgui's font texture is read only in a frame names were drawn in (the
+-- list made ready since last frame, with names in it): an older namehook gives the one it last drew a
+-- name from, stale while no names are drawn, as at a login; namehook 1.52 says it gives this frame's
+-- every frame (Feature.FontEachFrame), and then it is read in any frame
+local asked = {}
+filtered.Prepare = function(address) asked[#asked + 1] = address; return nil end
+plates.Supports = realSupports -- an older namehook: no word that the address is this frame's
+render()
+assert(asked[#asked] == hook.FontTexture, 'names drawn this frame: the address is read')
+render(true)
+assert(asked[#asked] == 0, 'no list made ready this frame: the address is not read')
+hook.Count = 0
+render()
+assert(asked[#asked] == 0, 'a list made ready with no names in it: not read')
+hook.Count = 2
+render()
+assert(asked[#asked] == hook.FontTexture, 'names again: read again')
+plates.Supports = function(features) return features == plates.Feature.FontEachFrame end
+render(true)
+assert(asked[#asked] == hook.FontTexture, 'namehook 1.52 gives this frame\'s every frame: read in any frame')
+filtered.Prepare = originalFilteredPrepare
 o.fontSmooth[1] = false
 hook.Hooked = 0
 assert(custom.Frame(o, hook) == 'unhooked' and sourceReleases == 5,
     'disabling drops the cache even if normal rendering is unavailable')
 ffi.C.munmap(low, bytes + 16)
-H.print('Smooth Font: filtered atlas/guards, native layout, independent Bold, unchanged badges, white tile, cache/repack/fallback and distance scaling', true)
+H.print('Smooth Font: filtered atlas/guards, native layout, independent Bold, unchanged badges, white tile, cache/repack/fallback, distance scaling, and the font texture address read from an older namehook only in a frame with names', true)

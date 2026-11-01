@@ -47,8 +47,12 @@
 --   Without that opt-in, coordinates and the returned horizontal ratio retain their legacy meaning.
 --   nameplates.SetTexture(slot, texture)          slot 0 to 7 (to 31 with namehook 1.43: nameplates.TextureSlots); texture a Direct3D texture's address,
 --                                                 or winxi.fonts.TextureMark for imgui's font texture,
---                                                 which the plugin reads itself (hook.FontTexture says
---                                                 which it last drew from, 0 for none)
+--                                                 which the plugin reads itself (hook.FontTexture is that
+--                                                 texture's address, for an addon that reads its letters
+--                                                 back: from namehook 1.52 this frame's, every frame
+--                                                 (Feature.FontEachFrame); before, the one it last drew a
+--                                                 name from, this frame's only in a frame names were
+--                                                 drawn in; 0 for none)
 --   nameplates.BeginName(entityIndex, alpha, edge, edgeColor)   false if there is no room for it
 --   nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged, edgeOpacity, softRect, tightEdge, edgeRadius, doubled)
 --                                     doubled: the colour is doubled as the game's own are, 0x80 the texture as it
@@ -172,7 +176,8 @@ ffi.cdef[[
 local nameplates = {};
 
 nameplates.Plugin = 'namehook';
-nameplates.Feature = { IconOutline = 1, SoftRectangle = 2, TightEdge = 4, Doubled = 8, SoftTexture = 16, Textures32 = 32 };
+nameplates.Feature = { IconOutline = 1, SoftRectangle = 2, TightEdge = 4, Doubled = 8, SoftTexture = 16, Textures32 = 32,
+    FontEachFrame = 64 }; -- 64: hook.FontTexture is imgui's font texture as of every frame presented (namehook 1.52)
 ffi.cdef[[
     typedef struct {
         char Magic[16];

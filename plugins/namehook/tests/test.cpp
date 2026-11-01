@@ -221,7 +221,7 @@ struct TestPlugin : public Nameplate {
 	float lastX = 0.0f;
 	int bubbles = 0;
 
-	void BeginNames(const HookDraw&, bool, float& targetWidth, float& targetHeight, uint32_t&) override {
+	void BeginNames(const HookDraw&, bool, float& targetWidth, float& targetHeight) override {
 		begun++;
 		targetWidth = 1200.0f;
 		targetHeight = 900.0f;
@@ -497,6 +497,15 @@ int main() {
 	TestInstructionLength();
 	TestNameTextures();
 	TestNameEdges();
+	{
+		// imgui's font texture is told as each frame is presented, drawn names or not, and said to be (1.52)
+		TestPlugin fontHost;
+		fontHost.NoteFontTexture(0x5000);
+		CHECK(Shared.FontTexture == 0x5000);
+		fontHost.NoteFontTexture(0);
+		CHECK(Shared.FontTexture == 0);
+		CHECK((NamehookCapabilities.Features & FEATURE_FONT_EACH_FRAME) != 0);
+	}
 	{
 		// a drawing drawn this frame but not as it can be drawn is refused and counted; none at all is not counted
 		static HookDraw draw;

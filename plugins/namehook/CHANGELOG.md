@@ -1,5 +1,10 @@
 # Changelog
 
+## namehook 1.52 — the font texture told every frame
+
+- `FontTexture` in HookShared, imgui's font texture for an addon that reads its letters back (winplates' letter badges and Smooth Font), is told as every frame is presented, whether or not a name was drawn in it, and `FEATURE_FONT_EACH_FRAME` (64) in the capabilities says so. Until now it was told only as a name was drawn, so it went stale while none were: logging a second character in after the first had logged out, the loading screen drew no names while the character's own font and sizes had imgui make its texture again, winplates read the old texture, freed by then, and the client faulted (EXCEPTION_ACCESS_VIOLATION). The other way round, the first character's letters were already in the texture, it was not made again, and nothing went wrong, which is why the order mattered.
+- Tests: the texture told and cleared; the feature announced.
+
 ## namehook 1.51 — help in plain words
 
 - `/namehook help`: othercalls and keepstates say what on and off do; showstars says it shows the stars again. An unknown or malformed command is answered in a sentence that points at the help. The load error for name-drawing code that was not found says what to unload.
