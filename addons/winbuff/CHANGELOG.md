@@ -3,6 +3,7 @@
 ## 1.2
 
 - Renamed winbuff: the addon is `winbuff` (`addons\winbuff`, `/addon load winbuff`), its settings window winbuff Settings and its command `/winbuff`, with `/buff` kept as another way in. Each character's settings are brought over from `config\addons\buff` the first time it logs in (winxi.shell's formerName). Remove the old `addons\buff` folder.
+- The time under each icon is read by winxi 77's `winxi.owntimers`, which winparty and winplates read your own statuses with too: the same seconds as before, from one place. Requires winxi 77.
 
 ## 1.1
 

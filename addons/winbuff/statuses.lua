@@ -3,40 +3,8 @@ local bit = require('bit');
 
 local statuses = {};
 
-local noTimer = 0x7FFFFFFF;    -- what the game keeps for a status that does not run out
-local vanaEpoch = 0x3C307D70;  -- when the game's count of time starts, in seconds of ours
-
--- where the game keeps the time it goes by: found once
-local stampPointer = ashita.memory.find('FFXiMain.dll', 0, '8B0D????????8B410C8B49108D04808D04808D04808D04C1C3', 2, 0);
-
-local function Stamp()
-    if stampPointer == nil or stampPointer == 0 then
-        return nil;
-    end
-    local pointer = ashita.memory.read_uint32(stampPointer);
-    pointer = pointer ~= 0 and ashita.memory.read_uint32(pointer) or 0;
-    if pointer == 0 then
-        return nil;
-    end
-    return ashita.memory.read_uint32(pointer + 0x0C);
-end
-
--- The seconds a status has left, from what the game keeps for it (sixtieths of a second, on its own
--- count of time). nil for one that does not run out, or while the time cannot be read.
-local function Seconds(raw, stamp)
-    if raw == nil or raw == noTimer or stamp == nil then
-        return nil;
-    end
-    local left = raw - (stamp - vanaEpoch) * 60;
-    -- the count wraps round every few years
-    while left < -2147483648 do
-        left = left + 0xFFFFFFFF;
-    end
-    if left < 1 then
-        return 0;
-    end
-    return math.ceil(left / 60);
-end
+-- the game's timers read as winxi reads them, to the second: winxi.owntimers
+local owntimers = require('winxi.owntimers');
 
 local entries = {}; -- kept from frame to frame, to be filled again
 
@@ -66,10 +34,10 @@ function statuses.Read(list, wantTimers)
                         timers, timersRead = player:GetStatusTimers(), true;
                     end
                     local raw = timers and timers[slot];
-                    if raw ~= nil and raw ~= noTimer and not clockRead then
-                        stamp, clockRead = Stamp(), true;
+                    if raw ~= nil and raw ~= owntimers.NoTimer and not clockRead then
+                        stamp, clockRead = owntimers.Clock(), true;
                     end
-                    seconds = Seconds(raw, stamp);
+                    seconds = owntimers.Seconds(raw, stamp) or nil; -- false, none to run out: nil, as before
                 end
                 entry.id, entry.seconds = id, seconds;
                 list[count] = entry;
