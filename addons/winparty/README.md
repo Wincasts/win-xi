@@ -78,7 +78,7 @@ calls per category; averages and maxima cover the full interval.
   the status was seen to land, or to appear on the member, for the server's usual time. Where that cannot
   be known, `-` is written. Statuses you cast are written in **Your Color** (green by default), so you can
   see when someone else's replaces yours. **Duration Text Size** sets how tall the times are next to the
-  icons. The windows stay the same size: the icons get smaller to make room for the times under them.
+  icons, and **Duration Font** what font they are in (the Value Font's to begin with). The windows stay the same size: the icons get smaller to make room for the times under them.
   **Low Time Warning** (10 seconds by default, 0 for none) makes an icon running out fade out and in.
 - **Style → Status Display → Removable Marks**, off by default, puts a small dot in a dark border inside
   the corner of each status a spell can take off, as the server says: **Curable Mark Color** (light

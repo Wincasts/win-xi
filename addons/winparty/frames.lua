@@ -765,13 +765,13 @@ local function DrawBuffs(member, x, StatusTexture)
     local shown = 0
     local iconCapacity = capacity
     if activeStyle.buffOverflow ~= false and #ids > capacity then iconCapacity = math.max(0, capacity - 1) end
-    -- the durations under the icons, in the figures' font, as tall as Duration Text Size says
+    -- the durations under the icons, in Duration Font, as tall as Duration Text Size says
     local durationFont = textTall > 0 and FontSize(textTall) or nil
     local serverId = member.statusServerId or member.serverId
     local sample = type(serverId) == 'number' and serverId < 0
     if durationFont then
-        -- in the figures' font
-        imgui.PushFont(fonts.Get(activeStyle.valueFont), durationFont)
+        -- in Duration Font
+        imgui.PushFont(fonts.Get(activeStyle.durationFont), durationFont)
     end
     for seen in pairs(seenOfId) do seenOfId[seen] = nil end
     for _, id in ipairs(ids) do
@@ -808,7 +808,7 @@ local function DrawBuffs(member, x, StatusTexture)
                 if mine then color = activeStyle.mineColor or textColor
                 elseif estimate then color = activeStyle.estimateColor or textColor end
                 Write(text, x + width / 2, y + size, color,
-                    DurationWidth(text, durationFont, activeStyle.valueFont) / 2)
+                    DurationWidth(text, durationFont, activeStyle.durationFont) / 2)
             end
             if details.Hover(itemX + x * scale, itemY + y * scale,
                 itemX + (x + width) * scale, itemY + (y + size) * scale) then

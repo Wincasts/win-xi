@@ -10,6 +10,7 @@ local entries = {}
 for _, tab in ipairs(options.Tabs) do
     for _, entry in ipairs(tab.entries) do if entry.key then entries[entry.key] = entry end end
 end
+H.print('Duration Font to begin with: Value Font\'s default', o.style.durationFont == 'ubuntu-bi.ttf')
 H.print('settings: Show Durations off to begin with', o.style.showDurations[1] == false,
     '| Duration Text Size', o.style.durationSize[1], '| Estimate Color', table.concat(o.style.estimateColor, ','))
 H.print('greyed while Show Durations is off', entries.durationSize.under(o) == false and entries.estimateColor.under(o) == false
@@ -73,6 +74,22 @@ for _, pair in ipairs(found) do
     centred = centred and math.abs(textMiddle - (pair.icon.x1 + pair.icon.x2) / 2) <= 1
 end
 H.print('each one\'s middle under its icon\'s', centred)
+-- Duration Font: the durations' letters asked of it, apart from Value Font
+local fonts = require('winxi.fonts')
+local realGet = fonts.Get
+local fontAsked = {}
+fonts.Get = function(file) fontAsked[#fontAsked + 1] = file; return realGet(file) end
+o.style.durationFont = 'georgia.ttf'
+style = options.Style(o)
+style.bookends, style.barGlow, style.buffDirection, style.buffFitScreen, style.buffLimit = false, 0, 'right', false, 8
+paint()
+local wanted = false
+for _, file in ipairs(fontAsked) do if file == 'georgia.ttf' then wanted = true end end
+H.print('Duration Font: the durations in it', wanted)
+fonts.Get = realGet
+o.style.durationFont = 'ubuntu-bi.ttf'
+style = options.Style(o)
+style.bookends, style.barGlow, style.buffDirection, style.buffFitScreen, style.buffLimit = false, 0, 'right', false, 8
 local colours = {}
 for _, pair in ipairs(found) do colours[pair.text.words] = pair.text.color end
 H.print('exact in the text colour, estimates and - in Estimate Color', colours['1m'] ~= style.estimateColor,

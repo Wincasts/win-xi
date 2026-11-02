@@ -232,6 +232,9 @@ local extra = {
         { kind = 'slider', key = 'durationSize', label = 'Duration Text Size', default = 45, min = 30, max = 100, format = '%d%%',
           under = function(saved) return saved.style.showDurations[1] end,
           sentence = 'How tall the durations are, compared with the status icons.' },
+        { kind = 'font', key = 'durationFont', label = 'Duration Font', default = 'ubuntu-bi.ttf',
+          under = function(saved) return saved.style.showDurations[1] end,
+          sentence = 'The font the durations are written in. Theme Font follows the Winxi Theme.' },
         { kind = 'color', key = 'estimateColor', label = 'Estimate Color', default = { 1, 0.82, 0.35, 1 },
           under = function(saved) return saved.style.showDurations[1] end,
           sentence = 'The colour of estimated durations and -.' },
@@ -272,7 +275,7 @@ local groups = {
         { 'Appearance', 'scale', 'barShadows' },
         { 'Names', 'nameFont', 'nameSize', 'zoneAbbr' },
         { 'Values', 'valueFont', 'valueSize', 'showMp', 'showTp' },
-        { 'Status Display', 'showStatuses', 'buffSize', 'buffSpacing', 'buffDistance', 'buffLimit', 'buffRows', 'buffDirection', 'buffFitScreen', 'buffOverflow', 'showDurations', 'durationSize', 'estimateColor', 'mineColor', 'lowTime', 'removableMarks', 'cureMarkColor', 'dispelMarkColor', statuses = true },
+        { 'Status Display', 'showStatuses', 'buffSize', 'buffSpacing', 'buffDistance', 'buffLimit', 'buffRows', 'buffDirection', 'buffFitScreen', 'buffOverflow', 'showDurations', 'durationSize', 'durationFont', 'estimateColor', 'mineColor', 'lowTime', 'removableMarks', 'cureMarkColor', 'dispelMarkColor', statuses = true },
         { 'Status Filtering', 'debuffsFirst', 'priorityStatuses', 'hiddenStatuses', statuses = true },
         { 'Warnings', 'lowHp', 'tpFlash', 'tpColor' },
         { 'Advanced: Range Indicators', 'castRange', 'targetRange', 'nearOpacity', 'farOpacity', collapsed = true },
@@ -666,6 +669,7 @@ function options.Style(saved)
     style.buffDirection = kept.buffDirection
     style.showDurations = kept.showDurations[1] == true
     style.durationSize, style.estimateColor = kept.durationSize[1], kept.estimateColor
+    style.durationFont = kept.durationFont
     style.mineColor = kept.mineColor
     style.lowTime = kept.lowTime[1]
     style.removableMarks = kept.removableMarks[1] == true
