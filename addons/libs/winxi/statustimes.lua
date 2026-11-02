@@ -20,6 +20,9 @@
 --                                               param } (the action's: 4 and the spell for a spell), or nil
 --     statustimes.Label(seconds)                45, 3m, 2h: seconds under a minute, then minutes, then hours
 --     statustimes.Unknown                       the label where the time cannot be known: '-'
+--     statustimes.Blink()                       how solid an icon running out of time is drawn, this moment:
+--                                               BLINK_LOW to 1 and back, eased, once every BLINK_PERIOD seconds,
+--                                               the same for every icon and every addon
 --
 -- What can be known is not the same for everyone:
 --   the player's own    the game keeps each one's end, read to the second (winxi.owntimers): exact
@@ -47,6 +50,14 @@ local owntimers = require('winxi.owntimers');
 local statustimes = {};
 
 statustimes.Unknown = '-';
+
+local BLINK_PERIOD = 1.2; -- seconds for an icon running out to fade out and in again
+local BLINK_LOW    = 0.2; -- how solid it is at its faintest
+
+function statustimes.Blink()
+    local phase = (os.clock() % BLINK_PERIOD) / BLINK_PERIOD;
+    return BLINK_LOW + (1 - BLINK_LOW) * (0.5 + 0.5 * math.cos(phase * 2 * math.pi));
+end
 
 local SLOTS      = 32;          -- statuses kept for the player
 local FORGET     = 30;          -- seconds a member not watched is kept for: back after that, they are new

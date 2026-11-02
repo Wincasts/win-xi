@@ -142,7 +142,8 @@
 -- 77: owntimers, the player's own statuses' timers read to the second (Clock, Seconds), winbuff's and
 --     statustimes' alike; the count's wrap is 2^32, not one short of it; statustimes.CastBy
 -- 78: statustimes.Text's seconds left (its fourth), statustimes.Landing (what put a status there, by
---     whom), statuses.Removable (what takes a status off, from the server's flags)
+--     whom), statuses.Removable (what takes a status off, from the server's flags), statustimes.Blink (how
+--     solid an icon running out is drawn)
 return {
     Number = 78,
 };
