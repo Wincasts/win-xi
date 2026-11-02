@@ -15,7 +15,7 @@ addon.desc    = 'Party, target and pet frames in the style of XivParty'
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 76 -- winxi.statustimes (75), its WatchParty (76) (67: winxi.castbar, 64: partystatus, 57: abi, 56: presence)
+local winxiNeeded = 78 -- winxi.statustimes (75), its WatchParty (76), Landing and seconds left, statuses.Removable (78) (67: winxi.castbar, 64: partystatus, 57: abi, 56: presence)
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0

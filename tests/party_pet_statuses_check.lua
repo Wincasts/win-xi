@@ -75,7 +75,7 @@ GetPlayerEntity = function() return {} end
 samples[1].statusIds, samples[2].statusIds = { 4, 13, 134 }, {}
 frames.Draw(samples, 'pets', function(id) return 1000 + id, false end, style)
 words = {}
-local sampleTimes = { ['25m'] = true, ['2m'] = true, ['45'] = true }
+local sampleTimes = { ['25m'] = true, ['2m'] = true, ['8'] = true }
 for _, text in ipairs(texts) do if sampleTimes[text.words] then words[#words + 1] = text.words end end
 H.print('a made-up pet: three sample icons and times', #icons == 3, #words == 3, table.concat(words, ' '))
 

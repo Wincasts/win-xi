@@ -726,10 +726,20 @@ local function DurationWidth(text, font, face)
     end
     return width
 end
--- what a made-up member's icons have under them, and whether each is an estimate
-local SAMPLE_TEXT = { '25m', '2m', '45', statustimes.Unknown }
+-- what a made-up member's icons have under them, whether each is an estimate, whether one you cast,
+-- and its seconds: the third low on time
+local SAMPLE_TEXT = { '25m', '2m', '8', statustimes.Unknown }
 local SAMPLE_ESTIMATE = { true, true, false, true }
-local SAMPLE_MINE = { false, true, false, false } -- and whether each is one you cast
+local SAMPLE_MINE = { false, true, false, false }
+local SAMPLE_SECONDS = { 1500, 120, 8, nil }
+local statusFlags = require('winxi.statuses')
+-- A mark at an icon's top right, for what can take its status off: a dot of the kind's colour, edged
+local function Mark(x, y, width, size, color)
+    local radius = math.max(2, size * 0.14) * scale
+    local cx, cy = itemX + (x + width) * scale - radius, itemY + y * scale + radius
+    draw.Circle(cx, cy, radius + scale, draw.Packed(outlinedText.EdgeColor(), 1), 12)
+    draw.Circle(cx, cy, radius, draw.Packed(color, 1), 12)
+end
 local seenOfId = { } -- how many of each status this member has had drawn, for the player's own repeats
 
 -- A member's buffs, running leftwards: the first has its right edge at x
@@ -758,8 +768,8 @@ local function DrawBuffs(member, x, StatusTexture)
     if durationFont then
         -- in the figures' font
         imgui.PushFont(fonts.Get(activeStyle.valueFont), durationFont)
-        for seen in pairs(seenOfId) do seenOfId[seen] = nil end
     end
+    for seen in pairs(seenOfId) do seenOfId[seen] = nil end
     for _, id in ipairs(ids) do
         if shown >= iconCapacity then break end
         local texture, own = StatusTexture(id, ownIcons)
@@ -768,20 +778,29 @@ local function DrawBuffs(member, x, StatusTexture)
             local width = own and size * statusicons.OwnAspect or size
             if direction == 'left' then x = x - width end
             Image(texture, x, y, width, size, nil, nil, own and statusicons.OwnRight or nil, own and statusicons.OwnLeft or nil)
+            -- what can take it off: debuffs Erase, a -na spell or a waltz removes, buffs Dispel does
+            if activeStyle.removableMarks then
+                local kind = statusFlags.Removable(id)
+                if kind == 'erase' or kind == 'waltz' then Mark(x, y, width, size, activeStyle.cureMarkColor or white)
+                elseif kind == 'dispel' then Mark(x, y, width, size, activeStyle.dispelMarkColor or white) end
+            end
+            local nth = (seenOfId[id] or 0) + 1
+            seenOfId[id] = nth
             if durationFont then
-                local text, estimate, mine
+                local text, estimate, mine, seconds
                 if sample then
                     local which = shown % #SAMPLE_TEXT + 1
-                    text, estimate, mine = SAMPLE_TEXT[which], SAMPLE_ESTIMATE[which], SAMPLE_MINE[which]
+                    text, estimate, mine, seconds = SAMPLE_TEXT[which], SAMPLE_ESTIMATE[which], SAMPLE_MINE[which], SAMPLE_SECONDS[which]
                 else
-                    local nth = (seenOfId[id] or 0) + 1
-                    seenOfId[id] = nth
-                    text, estimate, mine = statustimes.Text(serverId, id, nth)
+                    text, estimate, mine, seconds = statustimes.Text(serverId, id, nth)
                 end
                 if text then
-                    -- its middle under the icon's: yours in Your Color, then an estimate in Estimate Color
+                    -- its middle under the icon's: low on time in Low Time Color, then yours in Your
+                    -- Color, then an estimate in Estimate Color
                     local color = textColor
-                    if mine then color = activeStyle.mineColor or textColor
+                    local low = tonumber(activeStyle.lowTime) or 0
+                    if seconds ~= nil and low > 0 and seconds <= low then color = activeStyle.lowTimeColor or textColor
+                    elseif mine then color = activeStyle.mineColor or textColor
                     elseif estimate then color = activeStyle.estimateColor or textColor end
                     Write(text, x + width / 2, y + size, color,
                         DurationWidth(text, durationFont, activeStyle.valueFont) / 2)
@@ -789,7 +808,7 @@ local function DrawBuffs(member, x, StatusTexture)
             end
             if details.Hover(itemX + x * scale, itemY + y * scale,
                 itemX + (x + width) * scale, itemY + (y + size) * scale) then
-                details.Status(id, member.statusServerId)
+                details.Status(id, (not sample and type(serverId) == 'number' and serverId > 0) and serverId or nil, nth)
             end
             x = direction == 'left' and x - buffSpacing or x + width + buffSpacing
             shown = shown + 1

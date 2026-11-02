@@ -1,4 +1,5 @@
 H.load()
+require('winxi.gamedata').Root('addons/libs/winxi/data/') -- the server's durations set, from the repository's data
 local o, tracker = H.options(), require('winxi.debuffs')
 require('game').StPartyIndex = function() return nil end
 require('winxi.game').IsHidden = function() return true end
@@ -33,7 +34,8 @@ assert(not tracker.Get(900, 'dia'), 'settings/character switch clears tracker')
 H.print('debuff tracking: disable, hidden target, zone-in/out, re-enable and settings lifecycle', true)
 
 local details, imgui = require('details'), require('imgui')
-AshitaCore.GetResourceManager = function() return { GetString = function(_, _, id) return 'Effect ' .. id end } end
+AshitaCore.GetResourceManager = function() return { GetString = function(_, _, id) return 'Effect ' .. id end,
+    GetStatusIconByIndex = function() return { HideTimer = 0 } end } end
 cast()
 local tooltip
 local shared = require('winxi.theme').Shared()
@@ -51,7 +53,7 @@ details.Status(4)
 assert(tooltip == nil, 'status tooltips respect shared visibility')
 shared.TooltipsEnabled = true
 details.Status(4)
-assert(tooltip == 'Effect 4 (4)', 'party buffs and debuffs show their name and ID')
+assert(tooltip:sub(1, 12) == 'Effect 4 (4)', 'party buffs and debuffs show their name and ID')
 o.style.hoverDetails[1], o.clickThrough[1] = true, true
 assert(require('options').Style(o).hoverDetails, 'Show Tooltips kept with Clickthrough on')
 o.clickThrough[1] = false

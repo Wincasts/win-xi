@@ -238,6 +238,20 @@ local extra = {
         { kind = 'color', key = 'mineColor', label = 'Your Color', default = { 0.45, 1, 0.55, 1 },
           under = function(saved) return saved.style.showDurations[1] end,
           sentence = 'The colour of durations of statuses you cast, so you can see when someone else\'s replaces yours.' },
+        { kind = 'slider', key = 'lowTime', label = 'Low Time Warning', default = 10, min = 0, max = 60, format = '%d s',
+          under = function(saved) return saved.style.showDurations[1] end,
+          sentence = 'Below this many seconds left, the time is written in Low Time Color. At 0 there is no warning.' },
+        { kind = 'color', key = 'lowTimeColor', label = 'Low Time Color', default = { 1, 0.35, 0.3, 1 },
+          under = function(saved) return saved.style.showDurations[1] end,
+          sentence = 'The colour of a time that is running low.' },
+        { kind = 'check', key = 'removableMarks', label = 'Removable Marks', default = false,
+          sentence = 'Puts a dot on the corner of each status a spell can take off.' },
+        { kind = 'color', key = 'cureMarkColor', label = 'Curable Mark Color', default = { 0.35, 0.85, 1, 1 },
+          under = function(saved) return saved.style.removableMarks[1] end,
+          sentence = 'The dot on debuffs that Erase, a -na spell or a waltz removes.' },
+        { kind = 'color', key = 'dispelMarkColor', label = 'Dispellable Mark Color', default = { 1, 0.75, 0.2, 1 },
+          under = function(saved) return saved.style.removableMarks[1] end,
+          sentence = 'The dot on buffs that Dispel removes.' },
     },
     Pets = {
         { kind = 'slider', key = 'reserve', label = 'Reserved Pet Rows', default = 2, min = 1, max = 6,
@@ -261,7 +275,7 @@ local groups = {
         { 'Appearance', 'scale', 'barShadows' },
         { 'Names', 'nameFont', 'nameSize', 'zoneAbbr' },
         { 'Values', 'valueFont', 'valueSize', 'showMp', 'showTp' },
-        { 'Status Display', 'showStatuses', 'buffSize', 'buffSpacing', 'buffDistance', 'buffLimit', 'buffRows', 'buffDirection', 'buffFitScreen', 'buffOverflow', 'showDurations', 'durationSize', 'estimateColor', 'mineColor', statuses = true },
+        { 'Status Display', 'showStatuses', 'buffSize', 'buffSpacing', 'buffDistance', 'buffLimit', 'buffRows', 'buffDirection', 'buffFitScreen', 'buffOverflow', 'showDurations', 'durationSize', 'estimateColor', 'mineColor', 'lowTime', 'lowTimeColor', 'removableMarks', 'cureMarkColor', 'dispelMarkColor', statuses = true },
         { 'Status Filtering', 'debuffsFirst', 'priorityStatuses', 'hiddenStatuses', statuses = true },
         { 'Warnings', 'lowHp', 'tpFlash', 'tpColor' },
         { 'Advanced: Range Indicators', 'castRange', 'targetRange', 'nearOpacity', 'farOpacity', collapsed = true },
@@ -656,6 +670,9 @@ function options.Style(saved)
     style.showDurations = kept.showDurations[1] == true
     style.durationSize, style.estimateColor = kept.durationSize[1], kept.estimateColor
     style.mineColor = kept.mineColor
+    style.lowTime, style.lowTimeColor = kept.lowTime[1], kept.lowTimeColor
+    style.removableMarks = kept.removableMarks[1] == true
+    style.cureMarkColor, style.dispelMarkColor = kept.cureMarkColor, kept.dispelMarkColor
     style.nameChars, style.trimLast, style.showJobs = nil, nil, false
     return style
 end
