@@ -87,7 +87,7 @@ local pad = {
     found = false,      -- whether the highlighted button was drawn this frame, at min to max
     min = { 0, 0 }, max = { 0, 0 },
     shown = false,      -- whether the pool was on screen last frame, with treasure in it
-    windowX = 0, windowWidth = 0,
+    windowX = 0, windowY = 0, windowWidth = 0, windowHeight = 0, -- its window, as last drawn
 }
 
 -- Notes where a button (or what stands in a button's place) was drawn, if the highlight is on it
@@ -332,8 +332,8 @@ local placed = { 0, 0 }
 local attachedFlags, detachedFlags = nil, nil
 local function DrawWindow()
     DrawContent()
-    pad.windowX = imgui.GetWindowPos()
-    pad.windowWidth = imgui.GetWindowSize()
+    pad.windowX, pad.windowY = imgui.GetWindowPos()
+    pad.windowWidth, pad.windowHeight = imgui.GetWindowSize()
     pad.shown = true
     if pad.binding ~= nil then
         controller.Highlight(pad.binding)
@@ -394,6 +394,15 @@ function pool.Draw(drawOptions, at, invShown)
     imgui.SetNextWindowSizeConstraints(sizeMin, sizeMax)
 
     window.Full(windowName, open, flags, DrawWindow, windowStyle)
+end
+
+-- Drawn this frame: where its window is, x, y, width and height, for what goes beside or under it
+-- (the Tooltip Window, attached); otherwise nil. attachedOnly leaves out a pool detached from the inventory
+function pool.Rect(attachedOnly)
+    if not pad.shown or (attachedOnly and options.treasureDetached[1]) then
+        return nil
+    end
+    return pad.windowX, pad.windowY, pad.windowWidth, pad.windowHeight
 end
 
 function pool.Focus(binding)

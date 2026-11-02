@@ -32,17 +32,22 @@ and down. **Top Right** grows left and down, **Bottom Left** grows right and up,
 grows left and up. Changing the anchor does not move the window. Unlocking brings back the normal
 top-left growth, so you can move it freely.
 
-**Tooltips**, in General, puts what winventory says of things in a window of its own, placed where
-you want it. With **Tooltip Window** on (it is off by default), an item's details (its name, slot and
+**Tooltips**, in General, puts what winventory says of things in a window of its own. With
+**Tooltip Window** on (it is off by default), an item's details (its name, slot and
 races, stats and description, level and jobs), a treasure pool line's best lot and an equipment slot's
 gear show there, for whatever is under the mouse or the controller's highlight, in place of the tooltip
 beside the mouse and the box beside the highlight. That keeps the grid clear while you work it with a
-controller; **Controller Item Info** is then greyed, as the window always shows everything. Drag the
-window to place it, or set **Tooltip Position X** and **Y**. While the settings are open it shows a sample, so you
-can place it with nothing selected. **Lock Tooltip Window** holds it still and lets clicks through it.
+controller; **Controller Item Info** is then greyed, as the window always shows everything.
+
+By default the window is attached: at the inventory's right, its top level with the inventory's, and
+under the treasure pool while there is treasure, so the pool filling pushes it down and the pool
+emptying brings it back up. Clicks go through it there. With the inventory hidden and the pool pinned,
+it goes at the pool's right. Turn on **Detach From Inventory** to place it yourself: drag it, or set
+**Tooltip Position X** and **Y**. **Lock Tooltip Window** holds it still and lets clicks through it.
 **Grow From** is the corner that stays put as the window changes size with what it says: place it at
-the bottom right of the screen with Bottom Right, and it grows up and left. The window is held for a
-moment as the mouse goes from one item to the next, so it does not blink.
+the bottom right of the screen with Bottom Right, and it grows up and left. While the settings are open
+it shows a sample, so you can see where it is with nothing selected. The window is held for a moment
+as the mouse goes from one item to the next, so it does not blink.
 
 While the window is locked, you can drag items with the mouse. Drop an item on another item of the
 tab to swap their places (your own order, as the controller's Manual sort makes it; Auto sort puts
@@ -116,8 +121,7 @@ wearing, then the gear in your inventory and wardrobes that goes in that slot an
 can wear at its level, highest level first (up to 15). B in either goes back to the inventory. Turn
 off **Cycle Treasure Pool** or **Cycle Equipment** (General → Controller) to leave one out of the cycle.
 
-While the window has the controller, a legend under it (or under the equipment monitor, when that is
-attached) says which buttons do what right now: in the inventory, the treasure pool, the equipment
+While the window has the controller, a legend under it says which buttons do what right now: in the inventory, the treasure pool, the equipment
 monitor, a menu, or while sorting by hand. Each button is drawn as it looks on your controller: the
 cross, circle, square and triangle in their colours on a PlayStation controller, coloured letters on
 an Xbox one, L1 / R1 or LB / RB as small pills, and a cross for the d-pad. Turn off **Controller Legend**
@@ -137,23 +141,20 @@ Turn on **Enable** in `/winventory` → **Equipment** for a live equipment windo
 by default. It does not need the reference addon or its assets. While it is off, the rest of its
 settings are hidden.
 
-By default the monitor is attached to the inventory, as the treasure pool is. It sits under the
-inventory window, with its left edge in line with the window's. It comes and goes (and fades) with
-it, unless pinned (see Pinning below).
-The controller's verbose item box, when placed below the window, goes under the monitor instead.
-Turn on **Detach From Inventory** to make it a window of its own, with its own **Position** and
-**Lock**.
+The monitor is a window of its own. The first time it is shown it goes under the inventory window,
+its left edge in line with the window's; from then on it stays where you put it: drag it, or set its
+**Position**. **Lock** holds it still. It comes and goes (and fades) with the inventory, unless pinned
+(see Pinning below). Before 1.2 it could be attached under the inventory: a monitor that was is put
+there once, and is free from then on.
 
 ### Pinning
 
 `/winventory toggle` shows and hides the inventory window, the treasure pool and the equipment monitor
-together, attached or detached. Each has a pin that keeps it on screen when they are toggled off:
+together. Each has a pin that keeps it on screen when they are toggled off:
 **Pin Inventory** (General → Window), **Pin Treasure Pool** (Treasure) and **Pin Equipment**
 (Equipment). A pinned inventory window toggled off stays, but gives the controller back to the game.
-With the inventory hidden, pinned windows that are attached to it move up into its place: the
-equipment monitor to the inventory's top-left corner, and the treasure pool beside the monitor, or
-into that corner itself when the monitor is not there. Once the inventory is shown again, they go
-back under and beside it. Pinned windows still follow General's shared Visibility rules (including
+With the inventory hidden, a pinned treasure pool attached to it moves into its top-left corner, and
+goes back beside it once the inventory is shown again. The equipment monitor stays where you put it. Pinned windows still follow General's shared Visibility rules (including
 hiding while logged out).
 
 All 16 slots use the game's equipment-screen arrangement:

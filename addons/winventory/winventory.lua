@@ -1509,8 +1509,7 @@ do
     }
 end
 
--- Draws the legend under the window, or under the equipment monitor where that is attached under it,
--- and notes where what goes beneath it starts (pad.below)
+-- Draws the legend under the window, and notes where what goes beneath it starts (pad.below)
 function cycle.DrawLegend()
     -- not before the window has been drawn once and has a place (the first frames, or hidden by the
     -- shell's rules while the controller is still the inventory's)
@@ -1518,8 +1517,7 @@ function cycle.DrawLegend()
         pad.below = nil
         return
     end
-    local monitor = equipment.Rect()
-    local below = monitor ~= nil and monitor[2] + monitor[4] or (pad.windowY + pad.windowHeight)
+    local below = pad.windowY + pad.windowHeight
     pad.below = below
     local options = pad.options
     if not options.controllerLegend[1] then
@@ -2305,6 +2303,7 @@ local defaults = T{
     controllerInfo = 'simple', -- what is said of the highlighted item: 'simple' or 'verbose'
     controllerInfoPlace = 'window', -- where the verbose box goes: under the 'window' or the 'item'
     tooltipWindow = T{ false }, -- the tooltips in a window of their own (tipwindow.lua), in place of beside the mouse or the highlight
+    tooltipDetached = T{ false }, -- attached, it is at the inventory's right, under the pool; detached, where it is put
     tooltipPos = T{ 700, 256 }, -- where it is: the place of the corner it grows from
     tooltipLock = T{ false },   -- it cannot be dragged, and clicks go through it
     tooltipGrowFrom = 'TopLeft', -- the corner held still as it changes size
@@ -2408,13 +2407,15 @@ local app = shell.New({
 local windowExtra = { flags = 0 }
 -- Whether the window is shown this frame: switched on by /winventory toggle, or pinned. The treasure pool and
 -- equipment monitor are shown with it, or pinned without it.
--- And where the attached treasure pool and equipment monitor go: beside the window and under it
--- while it is on screen; while it is not, the pinned ones take its place, the monitor at its top-left
--- corner and the pool there too, or beside the monitor if that is there.
+-- And where the attached treasure pool and Tooltip Window go: the pool at the window's right, its top
+-- level with the window's, and the Tooltip Window at the right too, under the pool while it is there
+-- and level with the window's top while it is not. While the window is off screen the pinned pool takes
+-- its place, and the Tooltip Window goes at the pool's right. The equipment monitor is a window of its
+-- own (equipment.PlaceOnce puts one attached before 1.2 under the window, once).
 local attached = {
     shown = { true },
     gap = 6, -- between the window and those attached to it
-    pool = { 0, 0 }, equipment = { 0, 0 },
+    pool = { 0, 0 },
     fade = require('winxi.fade'),
 }
 
@@ -2455,14 +2456,11 @@ ashita.events.register('d3d_present', 'inv_present', function()
     local options = app.options
     tipwindow.Begin(options, app.showConfig[1])
 
-    -- Give combat gear changes first access to the icon upload budget and read them before
-    -- any debounced bag scans/sorting. Equipment never waits for inventory packets to settle.
+    -- Combat gear changes have first access to the icon upload budget (the monitor is drawn before the
+    -- inventory window, below). Equipment never waits for inventory packets to settle.
     iconFramed = false
     attached.shown[1] = options.isVisible[1] or options.isPinned[1]
     currency.Update(options.currency1, options.currency2, attached.shown[1])
-    if options.equipment.enabled[1] and options.equipment.detached[1] then
-        equipment.Draw(options, IconSheet, nil, attached.shown[1])
-    end
 
     -- the player's own order, changed by sorting by hand
     if options.manualOrder ~= manualOrders then
@@ -2485,6 +2483,18 @@ ashita.events.register('d3d_present', 'inv_present', function()
     viewportMax[2] = rows * stepY - itemGap[2]
 
     PadBeginFrame(options)
+    -- the equipment monitor: after the controller has said whether it has it this frame, before the
+    -- inventory window, so that its icons come first to the upload budget
+    if options.equipment.enabled[1] then
+        -- the first time: under the inventory window, as the monitor was attached before 1.2; pinned with
+        -- the window never yet drawn, at its corner
+        if pad.windowHeight ~= nil then
+            equipment.PlaceOnce(options, options.pos[1], options.pos[2] + pad.windowHeight + attached.gap)
+        elseif options.equipment.pinned[1] and not attached.shown[1] then
+            equipment.PlaceOnce(options, options.pos[1], options.pos[2])
+        end
+        equipment.Draw(options, IconSheet, attached.shown[1])
+    end
     -- held still while locked, and while the mouse is over the strip where the grid's scroll bar is
     -- dragged (where it was last frame), or the bar is held, so that a press there does not move it
     local zone, mx, my = scrollBar.zone, imgui.GetMousePos()
@@ -2500,23 +2510,22 @@ ashita.events.register('d3d_present', 'inv_present', function()
     -- where the window is this frame, or was last; still fading out, it is on screen
     local x, y = options.pos[1], options.pos[2]
     local onScreen = shown or (options.fadeInOut[1] and attached.fade.Lingering(windowName))
-    if onScreen and pad.windowX ~= nil then
-        attached.equipment[1], attached.equipment[2] = x, y + pad.windowHeight + attached.gap
-    else
-        attached.equipment[1], attached.equipment[2] = x, y
-    end
-    if options.equipment.enabled[1] and not options.equipment.detached[1] then
-        equipment.Draw(options, IconSheet, attached.equipment, shown)
-    end
-    local beside = equipment.Rect()
-    if onScreen and pad.windowX ~= nil then
+    local placed = onScreen and pad.windowX ~= nil
+    if placed then
         attached.pool[1], attached.pool[2] = x + pad.windowWidth + attached.gap, y
-    elseif not onScreen and beside ~= nil then
-        attached.pool[1], attached.pool[2] = beside[1] + beside[3] + attached.gap, y
     else
         attached.pool[1], attached.pool[2] = x, y
     end
     pool.Draw(options, attached.pool, shown)
+    -- the Tooltip Window, attached: at the window's right, under the attached pool while it is there
+    local px, py, pw, ph = pool.Rect(true)
+    if placed and px ~= nil then
+        tipwindow.Attach(x + pad.windowWidth + attached.gap, py + ph + attached.gap)
+    elseif placed then
+        tipwindow.Attach(x + pad.windowWidth + attached.gap, y)
+    elseif px ~= nil then
+        tipwindow.Attach(px + pw + attached.gap, py)
+    end
     PadEndFrame()
     tipwindow.Draw()
 end)

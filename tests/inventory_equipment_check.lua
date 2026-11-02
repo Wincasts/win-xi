@@ -18,8 +18,15 @@ imgui.SetCursorPosY = function(y) paddingY = y; return setCursorY(y) end
 local atlasFrames = 0
 icons.Frame = function() atlasFrames = atlasFrames + 1; return 123 end
 icons.Place = function(id) images[#images + 1] = id; return { 0, 0, 1, 1 } end
+-- the place given to the next window, and the one the monitor's was given as it was drawn
+local nextPos, monitorAt = nil, nil
+do
+    local setPos = imgui.SetNextWindowPos
+    imgui.SetNextWindowPos = function(pos, cond) nextPos = { pos[1], pos[2], cond }; return setPos(pos, cond) end
+end
 window.Full = function(name, open, f, draw, style)
     if name == 'winxi.inventory.equipment' then
+        monitorAt, nextPos = nextPos, nil
         -- Lock, and being attached, is winxi.window's locked option: counted with the flags
         windows, flags, background, alpha = windows + 1, bit.bor(f, style.locked and ImGuiWindowFlags_NoMove or 0), style.background, style.alpha
         title = style.title
@@ -79,58 +86,49 @@ check('hidden inventory and disabled equipment do not prepare the icon atlas', a
 e.enabled[1] = true
 -- the wardrobe's number is a digit too: its marks are inventory_equipment_decorations_check's
 e.wardrobeMarkers[1] = false
--- attached, by default: under the inventory window (here at 100, 200, 300 by 150), and only with it
-local setPos, placedAt = imgui.SetNextWindowPos, nil
-imgui.SetNextWindowPos = function(pos, cond) placedAt = { pos[1], pos[2], cond }; return setPos(pos, cond) end
-check('attached to the inventory by default', e.detached[1] == false)
+-- a window of its own since 1.2: the first time the inventory window is drawn, it is put under it
+-- (here at 100, 200, 300 by 150), as it was attached before, and stays where it is put from then on
+check('not yet placed to begin with', e.detached[1] == false)
 frame()
-check('attached: no monitor, no reads and no atlas while the inventory is hidden', windows == 0 and #slots == 0
+check('not yet placed: no monitor, no reads and no atlas while the inventory is hidden', windows == 0 and #slots == 0
     and atlasFrames == 0)
 o.isVisible[1] = true
 frame(); frame()
-local attachedFlags = flags
-check('attached: under the inventory window, its left edge in line, and held there', windows == 1
-    and placedAt[1] == 100 and placedAt[2] == 200 + 150 + 6 and placedAt[3] == ImGuiCond_Always)
+check('placed under the inventory window, its left edge in line, once', windows == 1 and e.detached[1] == true
+    and monitorAt ~= nil and monitorAt[1] == 100 and monitorAt[2] == 200 + 150 + 6)
+local freeFlags = flags
 e.lockMovement[1] = true
 frame()
-check('attached: Lock is the detached window\'s alone', flags == attachedFlags)
+check('Lock holds it still', flags ~= freeFlags)
 e.lockMovement[1] = false
 local equipment = require('equipment')
-local rect = equipment.Rect()
-check('what goes under the inventory window goes under the monitor instead', rect ~= nil and rect[2] + rect[4] == 200 + 150)
+check('nothing of it is attached any more', equipment.Rect == nil)
 o.isVisible[1] = false
 frame()
-check('attached: goes with the inventory', windows == 0 and equipment.Rect() == nil)
--- pinned, it stays when the inventory is toggled off, and takes its place at its top-left corner
+check('not pinned: hidden with the inventory', windows == 0)
+-- pinned, it stays where it is when the inventory is toggled off
+e.pos[1], e.pos[2] = 500, 600
 e.pinned[1] = true
 frame()
-check('attached and pinned: stays, at the hidden inventory\'s top-left corner', windows == 1 and #slots == 16
-    and placedAt[1] == o.pos[1] and placedAt[2] == o.pos[2])
+check('pinned: stays, where it was put', windows == 1 and #slots == 16
+    and monitorAt ~= nil and monitorAt[1] == 500 and monitorAt[2] == 600)
 o.treasurePool[1], o.treasureShowEmpty[1], o.treasurePinned[1] = true, true, true
-frame()
-check('a pinned treasure pool goes beside the pinned monitor', placedAt[1] == 100 + 300 + 6 and placedAt[2] == o.pos[2])
+local poolAt = nil
+do
+    local setPos = imgui.SetNextWindowPos
+    imgui.SetNextWindowPos = function(pos, cond) poolAt = { pos[1], pos[2] }; return setPos(pos, cond) end
+    frame()
+    imgui.SetNextWindowPos = setPos
+end
+check('a pinned treasure pool takes the hidden inventory\'s corner', poolAt ~= nil and poolAt[1] == o.pos[1] and poolAt[2] == o.pos[2])
 e.pinned[1] = false
-frame()
-check('the monitor not pinned: the pool takes the corner itself', windows == 0
-    and placedAt[1] == o.pos[1] and placedAt[2] == o.pos[2])
-o.isVisible[1] = true
-frame()
-check('the inventory shown again: the pool beside it', placedAt[1] == 100 + 300 + 6 and placedAt[2] == 200)
 o.isVisible[1], o.treasurePool[1], o.treasureShowEmpty[1], o.treasurePinned[1] = false, false, false, false
-o.isPinned[1] = true
-frame()
-check('the inventory pinned: shown though toggled off, and the monitor under it', windows == 1
-    and placedAt[2] == 200 + 150 + 6)
-o.isPinned[1] = false
-e.detached[1] = true
-frame()
-check('detached, not pinned: hidden with the inventory too', windows == 0 and #slots == 0)
 e.pinned[1] = true
 e.pos[1], e.pos[2] = 40, 60
 local beforeAtlas = atlasFrames
 frame()
-check('detached and pinned: shown with the inventory hidden, where it was put', windows == 1 and #slots == 16
-    and placedAt[1] == 40 and placedAt[2] == 60 and flags ~= attachedFlags)
+check('pinned again: shown with the inventory hidden, where it was put', windows == 1 and #slots == 16
+    and monitorAt[1] == 40 and monitorAt[2] == 60)
 check('icon atlas advanced only once per addon frame', atlasFrames == beforeAtlas + 1)
 check('equipment screen uses reference 4x4 slot order', table.concat(slots, ',') == '0,1,2,3,4,9,11,12,5,6,13,14,15,10,7,8')
 check('equipment resolves inventory and wardrobe indices', #images == 2 and images[1] == 20100 and images[2] == 88)

@@ -1,9 +1,9 @@
 -- Live equipment monitor, inspired by the functionality of references/equipmon.
 -- Uses Winxi windows and the shared icon atlas rather than separate D3D textures/assets.
--- Attached (the default) it sits under the inventory window, its left edge in line with the
--- window's, as the treasure pool does beside it; detached in the settings, it is a window of its own
--- that can be moved. Either way /winventory toggle shows and hides it with the inventory, unless it is
--- pinned: then it stays, and attached, with the inventory hidden, it takes the inventory's place.
+-- A window of its own, where the player puts it (Position, or dragged; Lock holds it). /winventory toggle
+-- shows and hides it with the inventory, unless it is pinned: then it stays. Until 1.2 it could be
+-- attached under the inventory window: one that was is put there once (equipment.PlaceOnce), and is its
+-- own from then on.
 --
 -- With the controller (winventory.lua's cycle brings it here) the d-pad moves a highlight over the
 -- slots, as the game's equipment menu lays them out; what A does with one is winventory.lua's.
@@ -66,8 +66,6 @@ local backdropTints = {}
 local transparent = { 0, 0, 0, 0 }
 local open = { true }
 local windowStyle = { shadow = false, title = 'Equipment' }
-local placed = { 0, 0 }
-local attachedRect = { shown = false, 0, 0, 0, 0 } -- attached and showing: its window, { x, y, width, height }
 -- High-quality gear has a white border, as the game gives it; anything else has none
 local hqColor = { 1, 1, 1, 1 }
 local wardrobeNumbers = { [8] = 1, [10] = 2, [11] = 3, [12] = 4, [13] = 5, [14] = 6, [15] = 7, [16] = 8 }
@@ -301,27 +299,25 @@ local function DrawContent()
     if pad.binding ~= nil then
         controller.Highlight(pad.binding)
     end
-    if o.detached[1] then
-        o.pos[1], o.pos[2] = imgui.GetWindowPos()
-    else
-        local rect = attachedRect
-        rect[1], rect[2] = imgui.GetWindowPos()
-        rect[3], rect[4] = imgui.GetWindowSize()
-        rect.shown = true
-    end
+    o.pos[1], o.pos[2] = imgui.GetWindowPos()
+end
+
+-- A monitor attached under the inventory window before 1.2 (detached false) is put where it was, once
+-- the inventory window's place is known, and is a window of its own from then on
+function equipment.PlaceOnce(options, x, y)
+    local o = options.equipment
+    if o.detached[1] or x == nil then return end
+    o.pos[1], o.pos[2] = math.floor(x + 0.5), math.floor(y + 0.5)
+    o.detached[1] = true
 end
 
 -- Once a frame. invShown is whether the inventory window is to be shown; the monitor is shown with
--- it, or pinned without it. at is where the monitor goes attached ({ x, y }, or nil before the
--- inventory has a place). sheet is the icon atlas, or what gives it, asked for only once the monitor
--- is to be drawn
-function equipment.Draw(options, sheet, at, invShown)
+-- it, or pinned without it. sheet is the icon atlas, or what gives it, asked for only once the monitor
+-- is to be drawn. Not before it has a place of its own (equipment.PlaceOnce)
+function equipment.Draw(options, sheet, invShown)
     local o = options.equipment
-    attachedRect.shown = false
     pad.shown = false
-    if not o.enabled[1] then return end
-    local detached = o.detached[1]
-    if not detached and at == nil then return end
+    if not o.enabled[1] or not o.detached[1] then return end
     local wanted = invShown or o.pinned[1]
     local shown = wanted and 1 or 0
     if options.fadeInOut[1] then
@@ -336,27 +332,14 @@ function equipment.Draw(options, sheet, at, invShown)
     framePitch = frameSize + math.max(0, math.min(20, o.spacing[1]))
     gridSize[1], gridSize[2] = frameSize + framePitch * 3, frameSize + framePitch * 3
     local flags = style.TitlelessFlags()
-    if detached then
-        -- Restore per-character positioning even when ImGui remembers the old window.
-        imgui.SetNextWindowPos(o.pos, positionSettings ~= o.pos and ImGuiCond_Always or ImGuiCond_FirstUseEver)
-        positionSettings = o.pos
-    else
-        placed[1], placed[2] = at[1], at[2]
-        imgui.SetNextWindowPos(placed, ImGuiCond_Always)
-        positionSettings = nil -- detached again, it goes back where it was
-    end
+    -- Restore per-character positioning even when ImGui remembers the old window.
+    imgui.SetNextWindowPos(o.pos, positionSettings ~= o.pos and ImGuiCond_Always or ImGuiCond_FirstUseEver)
+    positionSettings = o.pos
     if not o.background[1] then flags = bit.bor(flags, ImGuiWindowFlags_NoBackground) end
     windowStyle.alpha = alpha
-    -- held still by Lock, and always while attached to the inventory window
-    windowStyle.locked = not detached or o.lockMovement[1] == true
+    windowStyle.locked = o.lockMovement[1] == true -- held still by Lock
     windowStyle.background = not o.background[1] and transparent or nil
     window.Full(windowName, open, flags, DrawContent, windowStyle)
-end
-
--- Attached and showing: where the monitor's window is ({ x, y, width, height }), as of the last time it
--- was drawn, so that what goes under or beside it can go there; otherwise nil
-function equipment.Rect()
-    return attachedRect.shown and attachedRect or nil
 end
 
 function equipment.Focus(binding)
@@ -385,8 +368,8 @@ function equipment.Place()
     return x, y, frameSize
 end
 
--- Its tab of the settings, laid out as the treasure pool's: what turns it on, whether it is attached to
--- the inventory window, its pin and where it is; then how it looks, and what its slots show
+-- Its tab of the settings: what turns it on, its pin, where it is and its lock; then how it looks, and
+-- what its slots show
 function equipment.DrawSettings(options)
     local o = options.equipment
     if widgets.Header('Equipment Monitor', true) then
@@ -394,18 +377,17 @@ function equipment.DrawSettings(options)
         imgui.Checkbox('##inv.equipment.enabled', o.enabled)
         tooltip.Hover('The gear worn in each of the sixteen slots, as the game\'s equipment menu lays it out.')
         if not o.enabled[1] then return end
-        widgets.Label('Detach From Inventory')
-        imgui.Checkbox('##inv.equipment.detached', o.detached)
-        tooltip.Hover('Attached, the monitor sits under the inventory window, in line with its left edge.\nDetached, it is a window of its own that can be moved.\nEither way /winventory toggle shows and hides it with the inventory, unless it is pinned.')
         widgets.Label('Pin Equipment')
         imgui.Checkbox('##inv.equipment.pinned', o.pinned)
-        tooltip.Hover('Keeps the monitor on screen when /winventory toggle hides the inventory.\nAttached, it then takes the inventory window\'s place, at its top-left corner.')
-        if o.detached[1] then
-            widgets.Label('Position')
-            imgui.SetNextItemWidth(widgets.NumberWidth(2))
-            if imgui.InputInt2('##inv.equipment.pos', o.pos) then imgui.SetWindowPos(windowName, o.pos) end
-            widgets.Lock(o.lockMovement, '##inv.equipment.lock', { label = 'Lock', tooltip = 'Prevent dragging the monitor. The Position fields can still move it.' })
+        tooltip.Hover('Keeps the monitor on screen when /winventory toggle hides the inventory.\nIt is a window of its own: /winventory toggle otherwise shows and hides it with the inventory.')
+        widgets.Label('Position')
+        imgui.SetNextItemWidth(widgets.NumberWidth(2))
+        if imgui.InputInt2('##inv.equipment.pos', o.pos) then
+            o.detached[1] = true -- placed: nothing is moved for it from an attachment it had before 1.2
+            imgui.SetWindowPos(windowName, o.pos)
         end
+        tooltip.Hover('Where the monitor\'s top-left corner is on the screen. Dragging it sets this too.')
+        widgets.Lock(o.lockMovement, '##inv.equipment.lock', { label = 'Lock', tooltip = 'Prevent dragging the monitor. The Position fields can still move it.' })
     end
     if not o.enabled[1] then return end
 

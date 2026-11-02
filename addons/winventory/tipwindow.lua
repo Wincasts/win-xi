@@ -1,12 +1,16 @@
 -- The Tooltip Window: what winventory says of an item, a treasure pool line or an equipment slot, in a
--- winxi window of its own, placed where the player chooses, in place of the tooltip beside the mouse
--- and the box beside the controller's highlight. Off, those are as they were.
+-- winxi window of its own, in place of the tooltip beside the mouse and the box beside the controller's
+-- highlight. Off, those are as they were. Attached (the default) it is beside the inventory window, at
+-- its right, its top level with the window's, or under the treasure pool where that is there, so that
+-- the pool filling pushes it down; detached, it is where the player puts it.
 --
 --   tipwindow.Begin(options, previewing)  once a frame, before anything is offered; previewing while the
 --                                         settings are open, for a sample to place the window by
 --   tipwindow.On()                        whether the window takes the tooltips this frame
 --   tipwindow.Offer(content, arg)         this frame's: a string, or a function drawn as content(arg)
 --   tipwindow.Show(text)                  text for the window when it is on, else winxi's tooltip
+--   tipwindow.Attach(x, y)                where it goes attached this frame, or nil where there is nowhere
+--                                         (the inventory window off screen, and no pool): its own place then
 --   tipwindow.Draw()                      once a frame, after everything has been offered
 --   tipwindow.DrawSettings(options)       the Tooltips section of the General tab
 local bit = require('bit')
@@ -30,8 +34,11 @@ local offered = false                -- whether anything was offered this frame
 local offeredAt = -1                 -- when something last was
 local shownLast = false              -- whether the window was up last frame: it is brought to the front as it comes up
 local placeAgain = true              -- the saved place to be given to the window: at first, and when the settings change it
+local attachAt = { 0, 0 }             -- where it goes attached this frame
+local attachable = false
 
 local sample = 'Tooltip Window\nWhat is said of an item, a treasure pool line or an equipment slot shows here, while it is under the mouse or the controller\'s highlight.\nDrag this window to place it.'
+local sampleAttached = 'Tooltip Window\nWhat is said of an item, a treasure pool line or an equipment slot shows here, while it is under the mouse or the controller\'s highlight.\nIt sits at the inventory\'s right, under the treasure pool. Detach it from the inventory to place it yourself.'
 
 local open = { true }
 local windowStyle = { alpha = 1, growFrom = 'TopLeft', locked = nil, clickThrough = nil }
@@ -39,7 +46,12 @@ local flags = nil
 local wrapWidth = nil
 
 function tipwindow.Begin(drawOptions, settingsOpen)
-    options, previewing, offered = drawOptions, settingsOpen and true or false, false
+    options, previewing, offered, attachable = drawOptions, settingsOpen and true or false, false, false
+end
+
+function tipwindow.Attach(x, y)
+    attachable = x ~= nil and y ~= nil
+    if attachable then attachAt[1], attachAt[2] = x, y end
 end
 
 function tipwindow.On()
@@ -79,8 +91,9 @@ function tipwindow.Draw()
     end
     local now = os.clock()
     local wanted = offered or (content ~= nil and now - offeredAt < HOLD)
+    local attached = attachable and not options.tooltipDetached[1]
     if not wanted and previewing then
-        content, contentArg, wanted = sample, nil, true
+        content, contentArg, wanted = attached and sampleAttached or sample, nil, true
     end
     local alpha = wanted and 1 or 0
     if options.fadeInOut[1] then
@@ -92,8 +105,13 @@ function tipwindow.Draw()
     end
 
     local mode = options.tooltipGrowFrom
-    if anchor.Labels[mode] == nil then mode = anchor.Default end
-    if placeAgain then
+    if anchor.Labels[mode] == nil or attached then mode = anchor.Default end
+    if attached then
+        -- beside the inventory, every frame; held still, clicks going through it. Detached again, it
+        -- goes back to its own place
+        imgui.SetNextWindowPos(attachAt, ImGuiCond_Always)
+        placeAgain = true
+    elseif placeAgain then
         -- the saved place is the chosen corner's: the top left is imgui's own, the others winxi.anchor's
         if mode == anchor.Default then
             imgui.SetNextWindowPos(options.tooltipPos, ImGuiCond_Always)
@@ -107,21 +125,21 @@ function tipwindow.Draw()
     end
     flags = flags or bit.bor(style.TitlelessFlags(), ImGuiWindowFlags_AlwaysAutoResize,
         ImGuiWindowFlags_NoFocusOnAppearing or 0, ImGuiWindowFlags_NoNav or 0, ImGuiWindowFlags_NoSavedSettings or 0)
-    local locked = options.tooltipLock[1] and true or nil
+    local locked = (attached or options.tooltipLock[1]) and true or nil
     windowStyle.alpha, windowStyle.growFrom = alpha, mode
     windowStyle.locked, windowStyle.clickThrough = locked, locked
     window.Full(windowName, open, flags, DrawContent, windowStyle)
     open[1], shownLast = true, true
 
-    -- where it is now, dragged or not: the chosen corner's place, kept in the settings
+    -- where it is now, dragged or not: the chosen corner's place, kept in the settings (detached)
     local x, y = anchor.Point(windowName)
-    if x ~= nil then
+    if x ~= nil and not attached then
         options.tooltipPos[1], options.tooltipPos[2] = math.floor(x + 0.5), math.floor(y + 0.5)
     end
 end
 
 -- The Tooltips section: the window, where it is, whether it can be dragged, and the corner it grows from
-local windowSpec, placeSpec = {}, { parent = true, format = '%d px' }
+local windowSpec, detachSpec, placeSpec = {}, { parent = true }, { parent = true, format = '%d px' }
 local lockSpec = { label = 'Lock Tooltip Window', description = 'Keeps the tooltip window where it is, and lets clicks through it to the game. Off, it can be dragged.', parent = true }
 local growSpec = { parent = true }
 local axis = { 0 }
@@ -139,7 +157,11 @@ function tipwindow.DrawSettings(drawOptions)
     if not widgets.Header('Tooltips') then return end
     widgets.Check('Tooltip Window', 'Shows what is said of an item, a treasure pool line or an equipment slot in a window of its own, where you place it, instead of beside the mouse or the controller\'s highlight.',
         options.tooltipWindow, '##inv.tooltipWindow', windowSpec)
-    placeSpec.parent, lockSpec.parent, growSpec.parent = options.tooltipWindow, options.tooltipWindow, options.tooltipWindow
+    detachSpec.parent = options.tooltipWindow
+    widgets.Check('Detach From Inventory', 'Attached, the window sits at the inventory\'s right, under the treasure pool while there is treasure. Detached, it stays where you put it.',
+        options.tooltipDetached, '##inv.tooltipDetached', detachSpec)
+    local free = options.tooltipWindow[1] == true and options.tooltipDetached[1] == true
+    placeSpec.parent, lockSpec.parent, growSpec.parent = free, free, free
     local display = imgui.GetIO().DisplaySize
     Axis('Tooltip Position X', 'How far the window\'s corner is from the left of the screen. Dragging the window sets it too.', 1,
         math.floor(display.x or display[1] or 1920), '##inv.tooltipPosX')

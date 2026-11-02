@@ -65,12 +65,9 @@ check('Equipment disabled: only its Enable', table.concat(headers, ',') == 'Equi
 o.equipment.enabled[1] = true
 frame(4)
 check('Equipment has the monitor, how it looks, and its slots', table.concat(headers, ',') == 'Equipment Monitor,Display,Slots')
-check('Equipment contains enable, detach, pin, scale and ammo controls', hasLabel('Enable') and hasLabel('Detach From Inventory') and hasLabel('Pin Equipment')
-    and hasLabel('Scale') and hasLabel('Show Ammo Count'))
-check('attached, the monitor has no lock or position of its own', not checks['##inv.equipment.lock'] and not hasLabel('Position'))
-o.equipment.detached[1] = true
-frame(4)
-check('detached, it has its lock and position', checks['##inv.equipment.lock'] == true and hasLabel('Position'))
+check('Equipment contains enable, pin, scale and ammo controls, and no Detach: it is a window of its own', hasLabel('Enable')
+    and not hasLabel('Detach From Inventory') and hasLabel('Pin Equipment') and hasLabel('Scale') and hasLabel('Show Ammo Count'))
+check('it always has its lock and position', checks['##inv.equipment.lock'] == true and hasLabel('Position'))
 check('Equipment has independent decoration toggles', hasLabel('Quality Borders') and hasLabel('Wardrobe Markers'))
 check('Equipment excludes bag and treasure controls', not hasLabel('Rows') and not hasLabel('Pin Treasure Pool'))
 -- every setting's tooltip is in winxi's look (winxi.tooltip), none imgui's own

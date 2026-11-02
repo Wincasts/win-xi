@@ -1,7 +1,8 @@
 -- Run with: luajit tests/harness.lua winventory addons/winventory/winventory.lua tests/inventory_tooltip_window_check.lua
 -- The Tooltip Window (General → Tooltips): off, an item's tooltip is beside the mouse and the controller's
--- box beside its highlight, as before; on, both are in a winxi window of their own, where the player
--- placed it, held there or dragged, growing from the corner chosen
+-- box beside its highlight, as before; on, both are in a winxi window of their own. Attached (the
+-- default) it is at the inventory's right, level with its top, or under the treasure pool while there is
+-- treasure; detached, where the player placed it, held there or dragged, growing from the corner chosen
 local imgui = require('imgui')
 local o = H.options()
 local NAME = 'winxi.inventory.tooltip'
@@ -27,11 +28,15 @@ local function Frame()
 end
 
 H.play(true); H.gil(5000); H.bag(0, 30, { { 1, 5 }, { 20001 }, { 2, 3 } })
+-- every window here is at 100, 200 and 300 by 150: the inventory's, and the pool's when it is there
+H.ret.GetWindowPos, H.ret.GetWindowSize = { 100, 200 }, { 300, 150 }
+H.pool(0)
 o.isVisible[1], o.fadeInOut[1], o.controller[1] = true, false, false
 o.gridColumns[1] = 6
 H.frames(8)
 
-check('off to begin with', o.tooltipWindow[1] == false and o.tooltipGrowFrom == 'TopLeft' and o.tooltipLock[1] == false)
+check('off to begin with, attached', o.tooltipWindow[1] == false and o.tooltipDetached[1] == false
+    and o.tooltipGrowFrom == 'TopLeft' and o.tooltipLock[1] == false)
 
 -- the third item under the mouse
 H.ret.IsWindowHovered, H.ret.GetMousePos = { true }, { 15 + 2 * 40, 25 }
@@ -42,7 +47,20 @@ o.tooltipWindow[1] = true
 local savedX, savedY = o.tooltipPos[1], o.tooltipPos[2]
 tips = Frame()
 check('on: the window, no tooltip beside the mouse', tips == 0 and begun[NAME] ~= nil)
-check('first shown at its saved place', placed ~= nil and placed[1] == savedX and placed[2] == savedY)
+check('attached, no treasure: at the inventory\'s right, level with its top', placed ~= nil and placed[1] == 100 + 300 + 6 and placed[2] == 200)
+H.pool(3); Frame()
+check('treasure: under the pool, pushed down', placed ~= nil and placed[1] == 100 + 300 + 6 and placed[2] == 200 + 150 + 6)
+o.treasureDetached[1] = true; Frame()
+check('the pool detached: level with the inventory\'s top again', placed[1] == 100 + 300 + 6 and placed[2] == 200)
+o.treasureDetached[1] = false
+H.pool(0); Frame()
+check('the treasure gone: back up', placed[2] == 200)
+check('attached: its own place untouched', o.tooltipPos[1] == savedX and o.tooltipPos[2] == savedY)
+o.tooltipDetached[1] = true
+Frame()
+check('detached: shown at its saved place', placed ~= nil and placed[1] == savedX and placed[2] == savedY)
+o.tooltipDetached[1] = false
+Frame()
 
 -- nothing under the mouse: held a moment, then gone
 H.ret.IsWindowHovered, H.ret.GetMousePos = { false }, { -1000, -1000 }
@@ -72,7 +90,8 @@ check('off again: the box beside the highlight, no window', begun[labelName] ~= 
 o.tooltipWindow[1] = true
 H.command('/winventory focus'); o.controller[1] = false
 
--- where it is is the chosen corner's, kept as the window is dragged
+-- detached, where it is is the chosen corner's, kept as the window is dragged
+o.tooltipDetached[1] = true
 H.ret.IsWindowHovered, H.ret.GetMousePos = { true }, { 15 + 2 * 40, 25 }
 local wasPos = H.ret.GetWindowPos
 H.ret.GetWindowPos = { 321, 123 }
@@ -87,7 +106,12 @@ window.Full = function(name, open, flags, draw, style)
     if name == NAME then given = { locked = style.locked, clickThrough = style.clickThrough, growFrom = style.growFrom } end
     return full(name, open, flags, draw, style)
 end
+o.tooltipDetached[1] = false
 Frame()
+local attachedHeld = given ~= nil and given.locked and given.clickThrough
+o.tooltipDetached[1] = true
+Frame()
+check('attached: held still, clicks through it', attachedHeld)
 local free = given ~= nil and not given.locked
 o.tooltipLock[1] = true
 Frame()
