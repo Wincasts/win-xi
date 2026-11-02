@@ -175,7 +175,8 @@ share the **Bars** tab.
   a party member, for the server's usual time. Where that cannot be known, `-` is
   written. Statuses you cast are written in **Your Colour** (green to begin with),
   so you can see when someone else's replaces yours. **Duration Size** sets how
-  tall the times are next to the icon. **Low Time Warning** (10 seconds to begin
+  tall the times are next to the icon, and **Duration Font** their font: Same as
+  Names (to begin with), Default, or one of your fonts. **Low Time Warning** (10 seconds to begin
   with, 0 for none) makes an icon running out fade out and in.
   **Only Yours On Enemies** leaves a monster's row only the statuses you put there.
   **Removable Marks** puts a small square in a dark border inside the corner of each

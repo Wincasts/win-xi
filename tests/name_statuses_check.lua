@@ -512,6 +512,27 @@ do
     require('imgui').GetFontTexUvWhitePixel = realWhite
     o.statusPlace[1] = 'below'; block.Frame = 75; H.frames(1)
     H.print('below: the durations under the icons still', under(0x400) == 2)
+    -- Duration Font: the durations in a font of their own, drawn from imgui's texture as it is (4), their
+    -- letters asked of that font; one that will not load, the names' own
+    local imgui = require('imgui')
+    local push, addFont = imgui.PushFont, imgui.AddFontFromFileTTF
+    local pushed, face = {}, {}
+    imgui.PushFont = function(f, ...) pushed[#pushed + 1] = f; return push(f, ...) end
+    imgui.AddFontFromFileTTF = function(path, ...) if path:find('georgia.ttf', 1, true) then return face end return addFont and addFont(path, ...) end
+    local function ownLetters()
+        local entity, n = draw.Entities[0x400], 0
+        for i = 0, entity.Count - 1 do if draw.Quads[entity.First + i].Texture == 4 then n = n + 1 end end
+        return n
+    end
+    H.print('Duration Font to begin with: Same as Names', o.statusDurationFont[1] == '', '| none of its own', ownLetters() == 0)
+    o.statusDurationFont[1] = 'georgia.ttf'; pushed = {}; block.Frame = 85; H.frames(1)
+    local asked = false
+    for _, f in ipairs(pushed) do if f == face then asked = true end end
+    H.print('a font chosen: the durations\' letters from it, the names\' as before', ownLetters() > 0, asked, '| none left in the names\' font', under(0x400) == 0)
+    o.statusDurationFont[1] = 'missing.ttf'; block.Frame = 86; H.frames(1)
+    H.print('one that will not load: the names\' own', ownLetters() == 0, under(0x400) == 2)
+    o.statusDurationFont[1] = ''
+    imgui.PushFont, imgui.AddFontFromFileTTF = push, addFont
     o.statusPlace[1] = 'above'; o.statusDurations[1] = false
     o.statusEstimateColor[1], o.statusEstimateColor[2], o.statusEstimateColor[3] = 1, 0.82, 0.35
     block.Frame = 76; H.frames(1)

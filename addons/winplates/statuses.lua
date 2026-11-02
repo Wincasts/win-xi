@@ -10,8 +10,9 @@
 --                                     high, drawn from left to right, with nothing yet above above or below
 --                                     below, moved by the X and Y offsets; set and fit the name's letters,
 --                                     for the durations under the icons
---   statuses.SetWords(width, write)   how the names' letters are measured and written, from custom: width(set,
---                                     words, fit) and write(set, words, pen, top, fit, color)
+--   statuses.SetWords(width, write, own)   how the names' letters are measured and written, from custom:
+--                                     width(set, words, fit) and write(set, words, pen, top, fit, color); own(height),
+--                                     the durations' own font's letters at a name's height, or nil for the name's
 --   statuses.DrawSettings(options, save)         the settings tab
 --
 -- What is known of who is under what is not the same for everyone. The game keeps the player's own
@@ -82,6 +83,7 @@ local settings = {
     statusIcons  = function () return T{ 'theme' }; end,  -- the icons: as the winxi theme has them, the game's, or the custom set's
     statusDurations = function () return T{ false }; end, -- how long each has left, written under its icon
     statusDurationSize = function () return T{ 50 }; end, -- those letters' height, as a percentage of an icon's
+    statusDurationFont = function () return T{ '' }; end, -- and their font: '' the names', 'default' the usual one, or a file
     statusEstimateColor = function () return T{ 1.0, 0.82, 0.35, 1.0 }; end, -- an estimate's colour
     statusMineColor = function () return T{ 0.45, 1.0, 0.55, 1.0 }; end, -- the colour of one the player cast
     statusLowTime = function () return T{ 10 }; end, -- seconds left under which a time is low; 0 for no warning
@@ -367,10 +369,10 @@ local function Gather(name, options)
 end
 
 -- How the names' letters are measured and written: custom's, handed over as it is loaded
-local wordsWidth, writeWords = nil, nil;
+local wordsWidth, writeWords, ownWords = nil, nil, nil;
 
-function statuses.SetWords(width, write)
-    wordsWidth, writeWords = width, write;
+function statuses.SetWords(width, write, own)
+    wordsWidth, writeWords, ownWords = width, write, own;
 end
 
 -- each icon's duration, false for none, its colour, and whether it is running out
@@ -424,6 +426,11 @@ function statuses.Write(name, nameLeft, nameRight, above, under, height, scale, 
     local rise = math.floor(RISE * scale + 0.5);
     local textTall = timed and math.max(1, math.floor(tall * durationSize + 0.5)) or 0;
     local textFit = timed and fit * textTall / height or 0;
+    -- in Duration Font, where one is chosen: its letters at the name's height, fitted the same way
+    local textSet = set;
+    if (timed and ownWords ~= nil) then
+        textSet = ownWords(set.height) or set;
+    end
     local top = below and (under + rise) or (above - rise - textTall - tall);
     -- the offsets are the screen's pixels, as the gap is
     left = left + math.floor(offsetX * scale + 0.5);
@@ -455,8 +462,8 @@ function statuses.Write(name, nameLeft, nameRight, above, under, height, scale, 
         -- the duration under it, its middle under the icon's, outlined as the names' letters are
         local text = timed and rowText[index];
         if (text) then
-            local textWidth = wordsWidth(set, text, textFit);
-            writeWords(set, text, math.floor(left + (width - textWidth) * 0.5 + 0.5), top + tall, textFit,
+            local textWidth = wordsWidth(textSet, text, textFit);
+            writeWords(textSet, text, math.floor(left + (width - textWidth) * 0.5 + 0.5), top + tall, textFit,
                 rowColor[index]);
         end
         left = left + width + gap;
@@ -563,6 +570,10 @@ function statuses.DrawSettings(options, save)
         durationSpec.parent = (options.showStatuses[1] and options.statusDurations[1]) == true;
         if (controls.Slider('Duration Size', '##name.statusDurationSize', options.statusDurationSize, 30, 100, '%d%%',
                 'How tall the durations are, compared with the icon.', durationSpec)) then
+            changed = true;
+        end
+        if (controls.Choice('Duration Font', '##name.statusDurationFont', options.statusDurationFont, require('custom_settings').TextFonts(),
+                'The font the durations are written in. Same as Names is the names\' font, Default the font everything else is written in.', durationSpec)) then
             changed = true;
         end
         if (controls.Color('Estimate Colour', '##name.statusEstimateColor', options.statusEstimateColor,

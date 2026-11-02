@@ -65,6 +65,9 @@ local function CastFonts()
     return castFonts;
 end
 
+-- The same list for the durations under the status icons (statuses.lua)
+settings.TextFonts = CastFonts;
+
 -- The rows' specs, made once; a parent is set on each as it is drawn
 local castSpec = {};        -- the cast text's rows: while cast bars are on
 local weaponskillSpec = {};

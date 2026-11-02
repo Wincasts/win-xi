@@ -546,8 +546,8 @@ local function writeWords(set, words, pen, top, fit, color, slot, opacity, track
     return pen + run.width * fit + track * math.max(0, #run.glyphs - 1);
 end
 
--- the time left under a status's icon is written in the name's letters
-statuses.SetWords(wordsWidth, writeWords);
+-- the time left under a status's icon is written in the name's letters, or in a font of its own
+statuses.SetWords(wordsWidth, writeWords, function (height) return fontPipeline.DurationSet(height); end);
 
 -- Plain-letter fallback must share the badge's name-font baseline; otherwise
 -- the letter jumps vertically when its prepared atlas becomes available.
@@ -1170,6 +1170,27 @@ function fontPipeline.CastFont(options)
     fontPipeline.castFont, fontPipeline.castKey = font, file ~= '' and ('cast:' .. file .. ':') or nil;
 end
 
+-- The durations under the status icons in a font of their own (statusDurationFont), as the cast's:
+-- '' the names' font, CAST_DEFAULT_FONT the one everything else is written in, or a file
+function fontPipeline.DurationFont(options)
+    local file = options.showStatuses ~= nil and options.showStatuses[1] and options.statusDurations ~= nil
+        and options.statusDurations[1] and options.statusDurationFont and options.statusDurationFont[1] or '';
+    local font = nil;
+    if file ~= '' and file ~= CAST_DEFAULT_FONT then
+        font = getFont(file);
+        if font == nil then file = ''; end -- would not load: the names' own
+    end
+    fontPipeline.durationFont, fontPipeline.durationKey = font, file ~= '' and ('duration:' .. file .. ':') or nil;
+end
+
+-- The durations' letters at a rung's height, or nil for the names' own
+function fontPipeline.DurationSet(height)
+    if fontPipeline.durationKey == nil or height == nil then return nil; end
+    local set = glyphSet(fontPipeline.durationFont, height, fontPipeline.durationKey .. height);
+    if set ~= nil then set.textSlot = SLOT.Sign; end
+    return set;
+end
+
 -- The cast's letters at a rung's height, or nil for the names' own
 function fontPipeline.CastSet(height)
     if fontPipeline.castKey == nil or height == nil then return nil; end
@@ -1311,6 +1332,7 @@ function custom.Frame(options, hook, formats)
 
     local font = getFont(options.font);
     fontPipeline.CastFont(options);
+    fontPipeline.DurationFont(options);
     local badgeFont = monsterFormat.letter and getFont(letterBadges.Font) or nil;
     levels.DoubleLetters(monsterFormat.doubleLetters == true);
     local fullSize, leastSize = nameTypes.Bounds(options);
