@@ -201,14 +201,16 @@ o.showStatuses[1] = false; block.Frame = 11; H.frames(1)
 H.print('switched off: no rows', listed(0x400) == '', draw.Textures[7] == 0)
 o.showStatuses[1] = true
 
--- preview: the first four chosen over every name, whatever it is under
+-- preview: over a character Protect, Shell, Haste and Paralysis; over a monster Dia, Slow, Paralysis and
+-- Attack Boost; whatever each is under, and whether or not they are ticked
 local previewBox
 local realBox = imgui.Checkbox
 imgui.Checkbox = function(id, value) if id == '##name.statusPreview' then previewBox = value end return false end
 H.tab(5); H.command('/winplates'); H.frames(1); H.command('/winplates')
 imgui.Checkbox = realBox
 previewBox[1] = true; block.Frame = 30; H.frames(1)
-H.print('preview: the same four over every name', listed(0x400), '|', listed(300) == listed(0x400), listed(0x402) == listed(0x400))
+H.print('preview: a character mostly buffs and a debuff', listed(0x400) == '40 41 33 4', listed(0x400), '| a stranger the same', listed(0x402) == listed(0x400))
+H.print('preview: a monster mostly debuffs and a buff', listed(300) == '134 13 4 91', listed(300))
 previewBox[1] = false; block.Frame = 31; H.frames(1)
 H.print('preview off: as they really are', listed(0x400), '| a stranger', listed(0x402) == '')
 
@@ -512,6 +514,17 @@ do
     require('imgui').GetFontTexUvWhitePixel = realWhite
     o.statusPlace[1] = 'below'; block.Frame = 75; H.frames(1)
     H.print('below: the durations under the icons still', under(0x400) == 2)
+    -- the preview's durations: a character's buffs in Your Colour, the monster's Attack Boost an estimate's -
+    previewBox[1] = true; block.Frame = 87; H.frames(1)
+    local function coloured(index, color)
+        local _, quads = under(index)
+        local n = 0
+        for _, q in ipairs(quads) do if q.Color == color then n = n + 1 end end
+        return n
+    end
+    H.print('preview durations: a character\'s in Your Colour, the monster\'s yours and estimates',
+        coloured(0x400, 0xFF73FF8C) > 0, coloured(300, 0xFF73FF8C) > 0, coloured(300, 0xFF00FF00) > 0)
+    previewBox[1] = false
     -- Duration Font: the durations in a font of their own, drawn from imgui's texture as it is (4), their
     -- letters asked of that font; one that will not load, the names' own
     local imgui = require('imgui')

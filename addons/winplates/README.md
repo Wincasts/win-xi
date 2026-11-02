@@ -445,7 +445,7 @@ with its `statusicons` folder. The set's icons are as narrow as the set has them
 | X Offset (px) | 0 to begin with. Moves the row right from where Position and Alignment put it, in screen pixels, -200 to 200; below 0, left |
 | Y Offset (px) | 0 to begin with. Moves the row down, -200 to 200; below 0, up |
 | Entity Types | Which kinds of name have a row: Yourself, Party Members, Alliance Members, Other Players, My Pet, Other Pets, NPCs and Monsters. All ticked to begin with; Preview keeps to them too |
-| Preview | Puts the first four ticked statuses over every name that is shown, whatever it is really under, so you can see how the row looks. Not kept: off again when the addon is loaded |
+| Preview | Puts sample statuses over every name that is shown, whatever it is really under, so you can see how the row looks: over a character Protect, Shell and Haste you cast and a Paralysis running out; over a monster your Dia and Slow, a Paralysis and an Attack Boost Dispel removes. With Show Durations, each has a sample time in its colour. Not kept: off again when the addon is loaded |
 | Search | Narrows the list under it by part of a status's name, or its number |
 | Selected Only | Lists only the ticked statuses |
 | The list | Every status the game has a name for, by name with its number. It leaves out the game's stand-ins, (None), (N/A), (Imagery) and the like, whose names are wholly in brackets, and the numbers the server has no status for. Hover over one to see its icon. Ticked to begin with: what ails a character, and what can be told of an enemy |

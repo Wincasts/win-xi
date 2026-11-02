@@ -58,13 +58,24 @@ local RISE         = 3;    -- pixels between the row and what is under it
 local PARTY_OTHERS = 5;    -- the others of the player's party, whose statuses the game keeps
 local LAST_STATUS  = 1023; -- the highest a status's number can be, for when the server's list is not to be had
 local LIST_ROWS    = 14;   -- rows of the settings' list to be seen at once
-local PREVIEW_MOST = 4;    -- icons over each name while previewing
 local MOST_OFFSET  = 200;  -- screen pixels the row can be moved each way
 -- the durations written under the icons of a preview, and whether each is an estimate
-local PREVIEW_TEXT = { '8', '2m', statustimes.Unknown, '1h' };
-local PREVIEW_ESTIMATE = { false, true, true, false };
-local PREVIEW_MINE = { false, true, false, false }; -- and whether each is one the player cast
-local PREVIEW_SECONDS = { 8, 120, nil, 3600 };      -- and its seconds left: the first running out, blinking
+-- What a preview puts over a name, whatever the name is under, and whether or not those statuses are
+-- ticked: each status with the duration under it, whether that is an estimate, whether the player cast
+-- it, and its seconds left. Over a character, mostly buffs the player cast, and one debuff running out
+-- (blinking); over a monster, mostly debuffs, the player's among them, and one buff Dispel removes.
+local PREVIEW_CHARACTER = {
+    { id = 40, text = '25m', estimate = true, mine = true, seconds = 1500 },          -- Protect
+    { id = 41, text = '24m', estimate = true, mine = true, seconds = 1440 },          -- Shell
+    { id = 33, text = '2m', estimate = true, mine = true, seconds = 150 },            -- Haste
+    { id = 4, text = '8', estimate = true, mine = false, seconds = 8 },               -- Paralysis
+};
+local PREVIEW_MONSTER = {
+    { id = 134, text = '1m', estimate = true, mine = true, seconds = 90 },            -- Dia
+    { id = 13, text = '2m', estimate = true, mine = true, seconds = 150 },            -- Slow
+    { id = 4, text = '8', estimate = true, mine = false, seconds = 8 },               -- Paralysis
+    { id = 91, text = statustimes.Unknown, estimate = true, mine = false },           -- Attack Boost
+};
 
 -- Preview: every shown name has a few of the chosen statuses over it, whatever it is under, to see
 -- how the row looks. Not kept: it is off again when the addon is loaded.
@@ -329,21 +340,25 @@ local function TakeTracked(serverId, mine)
     end
 end
 
--- The first few chosen statuses, for a preview, the same few over every name
-local function TakePreview(options)
-    local list = options.statusList;
-    for index = 1, #list do
-        if (rowCount >= PREVIEW_MOST) then
-            return;
+-- A preview's statuses over a name: a monster's set or a character's, each with its duration
+local rowPreview = {};
+
+local function TakePreview(name)
+    local set = name.Category == MONSTER and PREVIEW_MONSTER or PREVIEW_CHARACTER;
+    for _, entry in ipairs(set) do
+        local place, own = placeOf(entry.id);
+        if (place ~= nil and rowCount < MOST) then
+            rowCount = rowCount + 1;
+            row[rowCount], rowOwn[rowCount], rowIds[rowCount] = place, own == true, entry.id;
+            rowPreview[rowCount] = entry;
         end
-        Take(list[index]);
     end
 end
 
 local function Gather(name, options)
     rowCount, mark = 0, mark + 1;
     if (preview[1]) then
-        TakePreview(options);
+        TakePreview(name);
         return;
     end
     if (name.Category == SELF) then
@@ -396,7 +411,8 @@ function statuses.Write(name, nameLeft, nameRight, above, under, height, scale, 
         for index = 1, rowCount do
             local text, estimate, mine, left;
             if (preview[1]) then
-                text, estimate, mine, left = PREVIEW_TEXT[index], PREVIEW_ESTIMATE[index], PREVIEW_MINE[index], PREVIEW_SECONDS[index];
+                local entry = rowPreview[index];
+                text, estimate, mine, left = entry.text, entry.estimate, entry.mine, entry.seconds;
             else
                 text, estimate, mine, left = statustimes.Text(name.ServerId, rowIds[index]);
             end
@@ -606,7 +622,7 @@ function statuses.DrawSettings(options, save)
             changed = true;
         end
         controls.Checkbox('Preview', '##name.statusPreview', preview,
-            'Shows the first few ticked statuses over every name, to see how the row looks. Not saved.', showSpec);
+            'Shows sample statuses over every name, mostly buffs on characters and debuffs on monsters. Not saved.', showSpec);
     end
 
     if (controls.Section('Entity Types')) then
