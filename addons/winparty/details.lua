@@ -1,6 +1,6 @@
 local imgui = require('imgui')
 local statustimes = require('winxi.statustimes')
-local statusFlags = require('winxi.statuses')
+local cleanse = require('winxi.cleanse')
 local tooltip = require('winxi.tooltip')
 local details = {}
 local names = {}
@@ -57,8 +57,33 @@ local function ActionName(category, param)
     return ok and type(name) == 'string' and name ~= '' and name or nil
 end
 
-local REMOVED_BY = { erase = 'Removed by Erase, a -na spell or a waltz.', waltz = 'Removed by a -na spell or a waltz.',
-    dispel = 'Removed by Dispel.' }
+-- What takes a status off, in words: its spells by name, and whether the player can cast one now
+local removedBy = {}
+local function RemovedBy(id)
+    local words = removedBy[id]
+    if words == nil then
+        local names = {}
+        for _, spell in ipairs(cleanse.Spells(id)) do
+            local name = ActionName(4, spell)
+            if name == nil then
+                local record = require('winxi.spells').Get(spell)
+                name = record and record.Name and (record.Name:gsub('^%l', string.upper)) or ('Spell ' .. spell)
+            end
+            names[#names + 1] = name
+        end
+        if #names == 0 then
+            words = cleanse.Kind(id) == 'cure' and 'Removed by a waltz.' or false
+        elseif #names == 1 then
+            words = 'Removed by ' .. names[1] .. '.'
+        else
+            words = 'Removed by ' .. table.concat(names, ', ', 1, #names - 1) .. ' or ' .. names[#names] .. '.'
+        end
+        removedBy[id] = words
+    end
+    if not words then return nil end
+    if #cleanse.Spells(id) > 0 and cleanse.Can(id) then return words .. ' You can cast one now.' end
+    return words
+end
 
 -- A status's tooltip: its name, its time left, what put it there and who, and what takes it off. serverId
 -- is who it is on (nil for none known), nth which of its kind it is
@@ -81,8 +106,8 @@ function details.Status(id, serverId, nth)
             elseif who then text = text .. '\nBy ' .. who end
         end
     end
-    local kind = statusFlags.Removable(id)
-    if REMOVED_BY[kind] then text = text .. '\n' .. REMOVED_BY[kind] end
+    local removed = RemovedBy(id)
+    if removed then text = text .. '\n' .. removed end
     if estimated then
         text = text .. '\nObserved effects only; resists and duration bonuses may differ.'
     end

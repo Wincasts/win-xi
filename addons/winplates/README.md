@@ -182,7 +182,9 @@ share the **Bars** tab.
   **Removable Marks** puts a small square in a dark border inside the corner of each
   status you can take off: **Curable Mark Colour** (light blue) on a character's
   debuffs that Erase, a -na spell or a waltz removes, and **Dispellable Mark Colour**
-  (amber) on a monster's buffs that Dispel removes.
+  (amber) on a monster's buffs that Dispel removes. **Only What You Can Remove**
+  marks only what a spell you have learned, at your level now, takes off, level
+  sync included.
 
 Format token references and examples are under each kind of name's Format Tokens.
 Settings a character already has are kept.

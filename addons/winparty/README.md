@@ -84,7 +84,10 @@ calls per category; averages and maxima cover the full interval.
   the corner of each status you can take off, as the server says: **Curable Mark Color** (light blue)
   on your party's, pets' and a player target's debuffs that Erase, a -na spell or a waltz removes, and
   **Dispellable Mark Color** (amber) on a monster's buffs that Dispel removes. A friend's buffs and a
-  monster's debuffs are left unmarked.
+  monster's debuffs are left unmarked. **Only What You Can Remove** marks only what a spell you have
+  learned, at your level now, takes off: your main job's level, or your support job's while it is not
+  restricted, so a level sync is followed. Abilities like Healing Waltz aren't counted yet. A status's
+  tooltip names the spells that remove it and says when you can cast one.
 - Resting the mouse on a status icon (Show Tooltips) shows its time left, the spell or move that put it
   there and who cast it, where that was seen, and what removes it.
 - **Party → Casting → Show Cast Bars**, on by default: while a member of your party or the alliance casts a

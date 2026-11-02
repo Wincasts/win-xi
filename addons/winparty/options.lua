@@ -246,6 +246,9 @@ local extra = {
           sentence = 'Below this many seconds left, the icon fades in and out. At 0 there is no warning.' },
         { kind = 'check', key = 'removableMarks', label = 'Removable Marks', default = false,
           sentence = 'Marks what you can take off: a friend\'s curable debuffs and a monster\'s dispellable buffs.' },
+        { kind = 'check', key = 'removableOnlyMine', label = 'Only What You Can Remove', default = false,
+          under = function(saved) return saved.style.removableMarks[1] end,
+          sentence = 'Marks only what a spell you know, at your level now, takes off. Level sync is followed.' },
         { kind = 'color', key = 'cureMarkColor', label = 'Curable Mark Color', default = { 0.35, 0.85, 1, 1 },
           under = function(saved) return saved.style.removableMarks[1] end,
           sentence = 'The dot on a friend\'s debuffs that Erase, a -na spell or a waltz removes.' },
@@ -275,7 +278,7 @@ local groups = {
         { 'Appearance', 'scale', 'barShadows' },
         { 'Names', 'nameFont', 'nameSize', 'zoneAbbr' },
         { 'Values', 'valueFont', 'valueSize', 'showMp', 'showTp' },
-        { 'Status Display', 'showStatuses', 'buffSize', 'buffSpacing', 'buffDistance', 'buffLimit', 'buffRows', 'buffDirection', 'buffFitScreen', 'buffOverflow', 'showDurations', 'durationSize', 'durationFont', 'estimateColor', 'mineColor', 'lowTime', 'removableMarks', 'cureMarkColor', 'dispelMarkColor', statuses = true },
+        { 'Status Display', 'showStatuses', 'buffSize', 'buffSpacing', 'buffDistance', 'buffLimit', 'buffRows', 'buffDirection', 'buffFitScreen', 'buffOverflow', 'showDurations', 'durationSize', 'durationFont', 'estimateColor', 'mineColor', 'lowTime', 'removableMarks', 'removableOnlyMine', 'cureMarkColor', 'dispelMarkColor', statuses = true },
         { 'Status Filtering', 'debuffsFirst', 'priorityStatuses', 'hiddenStatuses', statuses = true },
         { 'Warnings', 'lowHp', 'tpFlash', 'tpColor' },
         { 'Advanced: Range Indicators', 'castRange', 'targetRange', 'nearOpacity', 'farOpacity', collapsed = true },
@@ -673,6 +676,7 @@ function options.Style(saved)
     style.mineColor = kept.mineColor
     style.lowTime = kept.lowTime[1]
     style.removableMarks = kept.removableMarks[1] == true
+    style.removableOnlyMine = kept.removableOnlyMine[1] == true
     style.cureMarkColor, style.dispelMarkColor = kept.cureMarkColor, kept.dispelMarkColor
     style.nameChars, style.trimLast, style.showJobs = nil, nil, false
     return style

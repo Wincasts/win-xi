@@ -732,7 +732,7 @@ local SAMPLE_TEXT = { '25m', '2m', '8', statustimes.Unknown }
 local SAMPLE_ESTIMATE = { true, true, false, true }
 local SAMPLE_MINE = { false, true, false, false }
 local SAMPLE_SECONDS = { 1500, 120, 8, nil }
-local statusFlags = require('winxi.statuses')
+local cleanse = require('winxi.cleanse')
 -- A mark in an icon's top right, for what can take its status off: a small dot of the kind's colour with
 -- a dark border, the whole of it inside the icon
 local function Mark(x, y, width, size, color)
@@ -798,12 +798,12 @@ local function DrawBuffs(member, x, StatusTexture)
             Image(texture, x, y, width, size, nil, alpha, own and statusicons.OwnRight or nil, own and statusicons.OwnLeft or nil)
             -- what the player can take off: on a monster its buffs Dispel removes, on anyone else their
             -- debuffs Erase, a -na spell or a waltz removes
+            -- With Only What You Can Remove, only where a spell the player can cast now does
             if activeStyle.removableMarks then
-                local kind = statusFlags.Removable(id)
-                if member.isMonster then
-                    if kind == 'dispel' then Mark(x, y, width, size, activeStyle.dispelMarkColor or white) end
-                elseif kind == 'erase' or kind == 'waltz' then
-                    Mark(x, y, width, size, activeStyle.cureMarkColor or white)
+                local kind = cleanse.Kind(id)
+                local wanted = member.isMonster and 'dispel' or 'cure'
+                if kind == wanted and (not activeStyle.removableOnlyMine or cleanse.Can(id)) then
+                    Mark(x, y, width, size, kind == 'dispel' and (activeStyle.dispelMarkColor or white) or (activeStyle.cureMarkColor or white))
                 end
             end
             if text then

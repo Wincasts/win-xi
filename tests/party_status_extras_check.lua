@@ -71,7 +71,20 @@ for _, circle in ipairs(circles) do
     if circle.color == style.cureMarkColor then cure = cure + 1 elseif circle.color == style.dispelMarkColor then dispel = dispel + 1 end
 end
 H.print('marks on a monster: Protect and Haste dispellable; Paralysis, its debuff, none', dispel == 2, cure == 0, #circles == 4)
+-- Only What You Can Remove: the player can take Protect off and nothing else
+local cleanse = require('winxi.cleanse')
+local realCan = cleanse.Can
+cleanse.Can = function(id) return id == 40 end
+o.style.removableOnlyMine[1] = true
+style = paint()
+H.print('only what you can remove, on a monster: Protect alone', #circles == 2, circles[2] and circles[2].color == style.dispelMarkColor)
 member.isMonster = nil
+style = paint()
+H.print('on a party member: Paralysis, which you cannot cure, unmarked', #circles == 0)
+cleanse.Can = function(id) return id == 4 end
+style = paint()
+H.print('learn to: marked', #circles == 2)
+cleanse.Can, o.style.removableOnlyMine[1] = realCan, false
 o.style.removableMarks[1], o.style.showDurations[1] = false, false
 
 -- the tooltip: time left, the spell and who cast it, and what removes it
@@ -86,15 +99,23 @@ AshitaCore.GetMemoryManager = function() return { GetEntity = function() return 
 local resources = AshitaCore.GetResourceManager
 AshitaCore.GetResourceManager = function()
     local base = resources and resources() or {}
-    return setmetatable({ GetSpellById = function(_, id) return { Name = { id == 58 and 'Paralyze' or '?' } } end,
+    local spellNames = { [58] = 'Paralyze', [15] = 'Paralyna', [95] = 'Esuna', [260] = 'Dispel', [360] = 'Dispelga',
+        [462] = 'Magic Finale', [592] = 'Blank Gaze', [605] = 'Geist Wall' }
+    return setmetatable({ GetSpellById = function(_, id) return { Name = { spellNames[id] or '?' } } end,
         GetString = function(_, _, id) return id == 4 and 'paralysis' or 'Status' end }, { __index = base })
 end
 details.Status(4, 123, 1)
 H.print('tooltip: an estimate, the spell and who cast it, and what removes it', shown:find('Estimated remaining: 3s', 1, true) ~= nil,
-    shown:find('Paralyze, by Caster', 1, true) ~= nil, shown:find('Removed by a -na spell or a waltz', 1, true) ~= nil)
+    shown:find('Paralyze, by Caster', 1, true) ~= nil, shown:find('Removed by Paralyna or Esuna.', 1, true) ~= nil)
 details.Status(40, 123, 1)
-H.print('your own Protect: remaining, not estimated; Dispel removes it', shown:find('\nRemaining: 5s', 1, true) ~= nil,
-    shown:find('Removed by Dispel', 1, true) ~= nil, shown:find('Observed effects only', 1, true) == nil)
+H.print('your own Protect: remaining, not estimated; Dispel and the like remove it', shown:find('\nRemaining: 5s', 1, true) ~= nil,
+    shown:find('Removed by Dispel, Dispelga, Magic Finale, Blank Gaze or Geist Wall.', 1, true) ~= nil, shown:find('Observed effects only', 1, true) == nil)
+local cleanseNow = require('winxi.cleanse')
+local canBefore = cleanseNow.Can
+cleanseNow.Can = function() return true end
+details.Status(4, 123, 1)
+H.print('tooltip: when you can cast one of them, it says so', shown:find('You can cast one now.', 1, true) ~= nil)
+cleanseNow.Can = canBefore
 details.Status(2, nil)
 H.print('no one known: the name alone', shown:find('\n', 1, true) == nil, shown)
 tooltip.Show, statustimes.Text, statustimes.Landing = realShow, realText, realLanding

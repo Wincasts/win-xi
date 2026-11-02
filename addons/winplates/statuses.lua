@@ -28,7 +28,8 @@
 -- land over it. One with less than Low Time Warning left fades out and in.
 -- Only Yours On Enemies leaves a monster's row the statuses the player put there. Removable Marks puts
 -- a mark on the corner of each icon the player can take off: on a monster, buffs Dispel removes; on
--- anyone else, debuffs Erase, a -na spell or a waltz removes (winxi.statuses' Removable, the server's flags).
+-- anyone else, debuffs Erase, a -na spell or a waltz removes (winxi.cleanse, from the server's flags and
+-- scripts). Only What You Can Remove leaves those a spell the player can cast now takes off.
 --
 -- The icons are as party and buff draw them (winxi.statusicons): with Custom Icons on in wxi,
 -- the chosen set's where it has one and the game's where it has not; off, the game's. All are from
@@ -44,7 +45,7 @@ local statustimes = require('winxi.statustimes');
 local theme       = require('winxi.theme');
 local controls    = require('controls');
 local entityTypes = require('entity_types');
-local statusFlags = require('winxi.statuses');
+local cleanse     = require('winxi.cleanse');
 local healthbar   = require('healthbar');
 
 local statuses = {};
@@ -100,6 +101,7 @@ local settings = {
     statusLowTime = function () return T{ 10 }; end, -- seconds left under which a time is low; 0 for no warning
     statusOnlyMine = function () return T{ false }; end, -- a monster's row: only what the player put there
     statusRemovableMarks = function () return T{ false }; end, -- a dot on what a spell can take off
+    statusRemovableOnlyMine = function () return T{ false }; end, -- and only where a spell the player can cast now does
     statusCureMarkColor = function () return T{ 0.35, 0.85, 1.0, 1.0 }; end, -- on debuffs Erase, -na or a waltz removes
     statusDispelMarkColor = function () return T{ 1.0, 0.75, 0.2, 1.0 }; end, -- on buffs Dispel removes
     -- Empty here, and the chosen statuses given by Settle: Ashita fills each place a saved list lacks
@@ -220,6 +222,7 @@ local mineColor = 0xFF73FF8C;     -- the colour of one the player cast
 local lowTime = 10;               -- seconds left under which a time is low, 0 for none
 local onlyMine = false;           -- a monster's row: only what the player put there
 local marks = false;              -- a dot on what a spell can take off
+local marksOnlyMine = false;      -- and only where a spell the player can cast now does
 local cureColor, dispelColor = 0xFF59D9FF, 0xFFFFBF33;
 local me = 0;                     -- the player's server id, this frame
 local MONSTER = nameplates.Category.Monster;
@@ -263,6 +266,7 @@ function statuses.Begin(options)
     ownRead, partyRead, seconds = false, false, os.time();
     onlyMine = options.statusOnlyMine ~= nil and options.statusOnlyMine[1] == true;
     marks = options.statusRemovableMarks ~= nil and options.statusRemovableMarks[1] == true;
+    marksOnlyMine = options.statusRemovableOnlyMine ~= nil and options.statusRemovableOnlyMine[1] == true;
     if (marks) then
         cureColor = Packed(options.statusCureMarkColor, 0xFF59D9FF);
         dispelColor = Packed(options.statusDispelMarkColor, 0xFFFFBF33);
@@ -462,13 +466,18 @@ function statuses.Write(name, nameLeft, nameRight, above, under, height, scale, 
         -- what the player can take off: on a monster its buffs Dispel removes, on anyone else their
         -- debuffs Erase, a -na spell or a waltz removes; a small square in its top right corner, of the
         -- kind's colour in a dark border, the whole of it inside the icon
+        -- With Only What You Can Remove, only where a spell the player can cast now does
         if (marks) then
-            local kind = statusFlags.Removable(rowIds[index]);
+            local id = rowIds[index];
+            local kind = cleanse.Kind(id);
             local color;
             if (name.Category == MONSTER) then
                 color = kind == 'dispel' and dispelColor or nil;
             else
-                color = (kind == 'erase' or kind == 'waltz') and cureColor or nil;
+                color = kind == 'cure' and cureColor or nil;
+            end
+            if (color ~= nil and marksOnlyMine and not cleanse.Can(id)) then
+                color = nil;
             end
             local u, v = nil, nil;
             if (color ~= nil) then u, v = healthbar.WhitePixel(); end
@@ -619,6 +628,10 @@ function statuses.DrawSettings(options, save)
             changed = true;
         end
         markSpec.parent = (options.showStatuses[1] and options.statusRemovableMarks[1]) == true;
+        if (controls.Checkbox('Only What You Can Remove', '##name.statusRemovableOnlyMine', options.statusRemovableOnlyMine,
+                'Marks only what a spell you know, at your level now, takes off. Level sync is followed.', markSpec)) then
+            changed = true;
+        end
         if (controls.Color('Curable Mark Colour', '##name.statusCureMarkColor', options.statusCureMarkColor,
                 'The mark on a friend\'s debuffs that Erase, a -na spell or a waltz removes.', markSpec)) then
             changed = true;

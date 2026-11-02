@@ -520,6 +520,16 @@ do
     previewBox[1] = true; block.Frame = 88; H.frames(1)
     H.print('preview, a character: one curable mark, no dispellable', #solid(0x400, 0xFF59D9FF) == 1, #solid(0x400, 0xFFFFBF33) == 0)
     H.print('preview, a monster: one dispellable mark, no curable', #solid(300, 0xFFFFBF33) == 1, #solid(300, 0xFF59D9FF) == 0)
+    -- Only What You Can Remove: nothing you can cast takes any off, then only Attack Boost
+    local cleanse = require('winxi.cleanse')
+    local realCan = cleanse.Can
+    cleanse.Can = function() return false end
+    o.statusRemovableOnlyMine[1] = true; block.Frame = 89; H.frames(1)
+    H.print('only what you can remove, nothing: no marks', #solid(0x400, 0xFF59D9FF) == 0, #solid(300, 0xFFFFBF33) == 0)
+    cleanse.Can = function(id) return id == 91 end
+    block.Frame = 90; H.frames(1)
+    H.print('only Attack Boost: its mark alone', #solid(300, 0xFFFFBF33) == 1, #solid(0x400, 0xFF59D9FF) == 0)
+    cleanse.Can, o.statusRemovableOnlyMine[1] = realCan, false
     previewBox[1] = false
     o.statusRemovableMarks[1], o.statusLowTime[1] = false, 10
     require('imgui').GetFontTexUvWhitePixel = realWhite
