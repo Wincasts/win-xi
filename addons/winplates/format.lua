@@ -1,7 +1,7 @@
 -- How a name is written, as its player sets it out: a line of text in which [name] stands for the
 -- name, [distance] for how far off it is, [level] for the levels a monster can be, [checked] for a
 -- magnifying glass on a monster its player has checked and [aggro] for the sign that a monster is
--- aggressive or is not, [letter] for the experimental mob spawn-slot letter, [icons] for player icons,
+-- aggressive or is not, [letter] for the mob spawn-slot letter, [icons] for player icons,
 -- [party] for a party or alliance member's sign of their place in it, [vendor] for the coin of an NPC
 -- that sells, [space] for a gap of its own, and everything else is written as it is.
 --

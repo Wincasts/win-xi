@@ -225,7 +225,7 @@ release replaced badge atlases promptly rather than waiting for Lua GC.
 | Letter Spacing (px) | Extra space between the letters of every name, 0 to 10 px at the name's largest, shrinking with it as it goes further off; 0, the font's own spacing, to begin with. Applies to everything written in the format line, typed text included. A `[name]`, `[level]` or `[distance]` token's `spacing=` sets its own. Icons, signs, letter badges, check details and cast text are not spaced |
 | Vertical Offset (px) | Moves every name down from the point over the character the game draws it at, -200 to 200 px at the name's largest, shrinking with the name as it goes further off; below 0, up; 0, the game's place, to begin with. The mastery stars, health and cast bars, check details and the status row go with the name |
 | Outline (px) | The dark edge round each name, 0 to 4 pixels, rounded down to whole render-target pixels to keep nearby names thinner. As letters shrink it becomes thinner and slightly less opaque, so distant names stay readable. Nearby names keep the original outline. At 0 the names are written plain |
-| Font (experimental) | A font of Windows' own, chosen by its file in `C:\Windows\Fonts`. Default is the font everything else is written in |
+| Font | A font of Windows' own, chosen by its file in `C:\Windows\Fonts`. Default is the font everything else is written in |
 | Player Format | How player-style names are written. NPCs and enemies have their own formats. See [How a name is written](#how-a-name-is-written) |
 | NPC Format | How non-combat NPC names are written, apart from players and enemies |
 | Enemy Format | How an enemy's name is written |
@@ -494,7 +494,7 @@ combat no longer has a colour of its own. Opacity cannot be set here: a target's
 and letters keep a steady opacity, status icons stay independent, and
 corpse, distance and disappearance fades still apply.
 
-### Experimental mob letters
+### Mob letters
 
 Add `[letters]` to Enemy Format wherever a compact rounded letter badge belongs.
 There is no separate switch for it or for double letters. `[letter]` still works as an old alias.
