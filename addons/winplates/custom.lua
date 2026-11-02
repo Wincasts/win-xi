@@ -355,9 +355,11 @@ local function parse(name)
 
     -- The game gives the player's own name no text while they are their own target, sub target
     -- or confirm included: what was written for the character before is kept, its icons with it,
-    -- and with nothing before the entity's name is written
+    -- and with nothing before the entity's name is written. Any other name given no text is one the
+    -- game hides, as a Chigoe's is until it is engaged: nothing is written for it, whatever was before.
     local empty = name.Text[0] == 0;
-    if (empty and not known.fresh and known.id == name.ServerId and known.words ~= '') then
+    local own = name.Category == nameplates.Category.Self;
+    if (empty and own and not known.fresh and known.id == name.ServerId and known.words ~= '') then
         return known;
     end
 
@@ -367,7 +369,7 @@ local function parse(name)
     known.letterOf = nil; -- a renamed monster has no letter, or another's
     known.trackOf = nil;
     known.vendorOf = nil;
-    local written = empty and ffi.string(name.Name) or ffi.string(name.Text);
+    local written = (empty and own) and ffi.string(name.Name) or ffi.string(name.Text);
 
     -- the icons lead; the name is what follows them, less the space between
     known.icons = {};

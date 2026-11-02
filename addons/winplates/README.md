@@ -188,6 +188,9 @@ A name over someone under Invisible is never drawn, whatever the settings above 
 target and whitelisted players. Who is invisible is read from the server's updates (another player's
 0x0D, your own 0x37), so someone who is already invisible when winplates is loaded keeps their name until their
 next update. With Enable winplates off the game draws its own names, and this is left to it.
+A name the game itself hides is not drawn either: a Chigoe's until it is engaged, or an NPC's the
+server keeps hidden. The game gives such a name no text, and only your own name is written from the
+entity when that happens.
 
 Names In View, under General → Diagnostics, counts the names shown and hidden last frame.
 Diagnostics is collapsed by default and has an Enable Diagnostics checkbox.

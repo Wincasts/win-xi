@@ -272,6 +272,19 @@ put(0, 0x409, 'Win', plates.Category.Self); ffi.fill(hook.Names[0].Text, 48); re
 assert(draw.Entities[0x409].Frame == hook.Frame and quads(0x409) == plainName, 'given no text from the start: the entity\'s name')
 H.print('own name given no text: drawn as before, and the entity\'s name with nothing before', true)
 
+-- Any other name given no text is one the game hides, as a Chigoe's until it is engaged: nothing is
+-- drawn for it, bar included, not even what was drawn while it had its text
+local barsBefore = options.showHealthBar[1]
+options.monsterFormat[1] = '[name]'; options.showHealthBar[1] = true; custom.Settle(options)
+put(0, 1, 'Chigoe'); ffi.fill(hook.Names[0].Text, 48); hook.Count = 1; render()
+assert(draw.Entities[1].Frame ~= hook.Frame, 'a monster given no text: nothing drawn')
+ffi.copy(hook.Names[0].Text, 'Chigoe'); render()
+assert(draw.Entities[1].Frame == hook.Frame and quads(1) >= #'Chigoe', 'engaged, its text given: the name')
+ffi.fill(hook.Names[0].Text, 48); render()
+assert(draw.Entities[1].Frame ~= hook.Frame, 'hidden again: nothing, not what it was')
+H.print('a monster the game gives no text is not drawn, before it is engaged and after it disengages', true)
+options.monsterFormat[1] = '[aggro][name]'; options.showHealthBar[1] = barsBefore; custom.Settle(options)
+
 -- Letter Spacing: each letter after the first is moved on by the setting, in screen pixels at the name's
 -- largest; a token's spacing= in place of it; nothing else changed
 options.nameFormat[1] = '[name]'; options.letterSpacing = T{ 0 }; custom.Settle(options)

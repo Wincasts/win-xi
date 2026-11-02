@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.91
+
+- A name the game hides is not drawn: a Chigoe's until it is engaged (and again once it disengages), or an NPC's the server keeps hidden. The game gives such a name no text, and since 1.69 the entity's name was written in its place, so Chigoes had names before they were aggroed. Only your own name is written from the entity when the text is empty, as 1.69 meant.
+
 ## 1.90
 
 - `/winplates dev` and the NM Tracking tab it showed are gone, for the beta: Tracked NM, Target Size and Label Placeholders are no longer settings, and a monster tracked before is let go of as the settings load, so nothing is marked with the hunt sign. `/winplates diag` and `/winplates report` are as they were.
