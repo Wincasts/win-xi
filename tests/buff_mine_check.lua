@@ -55,6 +55,24 @@ H.print('90 s left: not fading', at(90) and faded == 0)
 o.lowTime[1] = 0
 H.print('at 0: no warning', at(5) and faded == 0)
 o.lowTime[1] = 10
+-- Removable Marks: Paralysis on the player, which Paralyna takes off, marked; Protect, a buff, not
+ids[2], timers[2] = 4, (STAMP - EPOCH) * 60 + 60 * 60
+local marked = 0
+imgui.GetColorU32 = function(color) if color == o.cureMarkColor then marked = marked + 1 end return realU32(color) end
+marked = 0; at(90)
+H.print('Removable Marks off to begin with: none', o.removableMarks[1] == false, marked == 0)
+o.removableMarks[1] = true; marked = 0; at(90)
+H.print('on: Paralysis marked, Protect not', marked == 1, marked)
+local cleanse = require('winxi.cleanse')
+local realCan = cleanse.Can
+cleanse.Can = function() return false end
+o.removableOnlyMine[1] = true; marked = 0; at(90)
+H.print('only what you can remove, nothing: none', marked == 0)
+cleanse.Can = function(id) return id == 4 end
+marked = 0; at(90)
+H.print('Paralyna yours: marked', marked == 1)
+cleanse.Can, o.removableOnlyMine[1], o.removableMarks[1] = realCan, false, false
+ids[2], timers[2] = 255, 0
 imgui.GetColorU32, require('winxi.statustimes').Blink, statusicons.Get = realU32, realBlink, realIcon
 timers[1] = (STAMP - EPOCH) * 60 + 90 * 60
 -- the packets: followed while times are shown, and not while they are not

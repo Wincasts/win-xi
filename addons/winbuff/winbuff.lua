@@ -23,7 +23,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 77; -- winxi.owntimers (68: winxi.abi, uihook's block read as plugins/ABI.md promises)
+local winxiNeeded = 78; -- winxi.cleanse (78), winxi.owntimers (77) (68: winxi.abi, uihook's block read as plugins/ABI.md promises)
 do
     local ok, found = pcall(require, 'winxi.version');
     local number = ok and type(found) == 'table' and found.Number or 0;
@@ -75,6 +75,9 @@ local defaults = T{
     showTimers = T{ true },
     mineColor = T{ 0.45, 1.0, 0.55, 1.0 }, -- the time under a status the player put there
     lowTime = T{ 10 },                     -- seconds left under which an icon fades out and in; 0 for none
+    removableMarks = T{ false },           -- a mark on each debuff Erase, a -na spell or a waltz takes off
+    removableOnlyMine = T{ false },        -- and only where a spell the player can cast now does
+    cureMarkColor = T{ 0.35, 0.85, 1.0, 1.0 }, -- its colour
     fontFile = '',          -- empty inherits the Winxi theme font
     fontSize = T{ 0 },      -- zero inherits the current font size
     hideGameIcons = T{ true },
@@ -316,6 +319,28 @@ local white = imgui.GetColorU32({ 1, 1, 1, 1 });
 local statustimes = require('winxi.statustimes');
 local fading = { 1, 1, 1, 1 }; -- an icon running out, as solid as statustimes.Blink says this moment
 
+-- Whether a status gets a mark: a debuff Erase, a -na spell or a waltz takes off, and with Only What You
+-- Can Remove one a spell the player can cast now does (winxi.cleanse). The player's own buffs have none:
+-- Dispel is for a monster's
+local cleanse = require('winxi.cleanse');
+local function Curable(options, id)
+    return options.removableMarks[1] and cleanse.Kind(id) == 'cure'
+        and (not options.removableOnlyMine[1] or cleanse.Can(id)) or false;
+end
+
+-- Where the mark goes on an icon from left, top, width wide and height high: a small square in a dark
+-- border, the whole of it inside the icon's top right corner. border, then the square's corners
+local function MarkPlace(left, top, width, height)
+    local border = math.max(1, math.floor(height * 0.04 + 0.5));
+    local side = math.max(2, math.floor(height * 0.14 + 0.5));
+    local inset = math.max(1, math.floor(height * 0.06 + 0.5));
+    local right, high = left + width - inset, top + inset;
+    return border, right - side - border, high + border, right - border, high + border + side;
+end
+local markA, markB = { 0, 0 }, { 0, 0 };
+local MARK_DARK = { 0.06, 0.06, 0.06, 1 };
+local MARK_EDGE = imgui.GetColorU32(MARK_DARK);
+
 -- Whether a status is running out: its time shown, and no more than Low Time Warning's seconds
 local function RunningOut(options, status)
     local low = options.lowTime[1];
@@ -447,6 +472,13 @@ local function DrawStatusesContent(options)
                 tint = imgui.GetColorU32(fading);
             end
             drawList:AddImage(handle, cornerA, cornerB, uvA, uvB, tint);
+            if Curable(options, status.id) then
+                local border, x0, y0, x1, y1 = MarkPlace(cornerA[1], cornerA[2], cornerB[1] - cornerA[1], cornerB[2] - cornerA[2]);
+                markA[1], markA[2], markB[1], markB[2] = x0 - border, y0 - border, x1 + border, y1 + border;
+                drawList:AddRectFilled(markA, markB, MARK_EDGE);
+                markA[1], markA[2], markB[1], markB[2] = x0, y0, x1, y1;
+                drawList:AddRectFilled(markA, markB, imgui.GetColorU32(options.cureMarkColor));
+            end
         end
 
         if showTimers and status.seconds ~= nil and not HidesTimer(status.id) then
@@ -561,7 +593,7 @@ local layout = { width = 0, height = 0, perRow = 1, align = 0 };
 local made, last = {}, {};
 -- each status's icon (the texture, its place on it or nil for the whole, whether it is the set's
 -- shape) and its time as written (or false): once a frame
-local handles, places, owns, labels, lows = {}, {}, {}, {}, {};
+local handles, places, owns, labels, lows, curables = {}, {}, {}, {}, {}, {};
 
 -- A status's icon for the plugin: from winxi's sheet of every icon where it is on it already (the
 -- set's with the game's for the rest, or the game's alone with Custom Icons off), so that the bar is
@@ -633,6 +665,9 @@ local function WriteHooked(options, found, alpha)
     local mineColor = ARGB(options.mineColor, alpha);
     -- an icon running out fades out and in: as solid as this moment's blink, of the bar's own fade
     local fadedColor = ARGB(opaque, alpha * statustimes.Blink());
+    local marking = options.removableMarks[1];
+    local markColor = marking and ARGB(options.cureMarkColor, alpha) or 0;
+    local markEdge = marking and ARGB(MARK_DARK, alpha) or 0;
     local edgeColor = ARGB(text.EdgeColor(), alpha);
 
     local baked, texture = nil, nil;
@@ -665,6 +700,8 @@ local function WriteHooked(options, found, alpha)
         local label = status.seconds ~= nil and showTimers and not HidesTimer(status.id) and Label(status.seconds) or false;
         labels[index] = label;
         lows[index] = RunningOut(options, status) and true or false;
+        curables[index] = marking and Curable(options, status.id) and true or false;
+        if marking then Note(curables[index] and markColor or false); end
         Note(label); Note(status.mine == true); Note(lows[index] and fadedColor or false);
     end
     if Unchanged() then
@@ -698,6 +735,11 @@ local function WriteHooked(options, found, alpha)
             local top = own and y or y + (height - width) / 2;
             local bottom = own and y + height or top + width;
             hook.Quad(left * sx, top * sy, (left + width) * sx, bottom * sy, u0, v0, u1, v1, lows[index] and fadedColor or iconColor, slot);
+            if curables[index] then
+                local border, x0, y0, x1, y1 = MarkPlace(left, top, width, bottom - top);
+                hook.Quad((x0 - border) * sx, (y0 - border) * sy, (x1 + border) * sx, (y1 + border) * sy, 0, 0, 0, 0, markEdge, hook.Solid);
+                hook.Quad(x0 * sx, y0 * sy, x1 * sx, y1 * sy, 0, 0, 0, 0, markColor, hook.Solid);
+            end
         end
 
         local label = labels[index];
@@ -897,6 +939,7 @@ local fontSpec = { description = 'The font for the times and the status tooltips
 local sizeSpec = { description = 'How big the times and tooltips are. Theme Size follows the Winxi Theme.' };
 local mineSpec = {}; -- greyed while Show Time Left is off
 local lowSpec = { format = '%d s' }; -- the same, in seconds
+local markSpec = {};                 -- greyed while Removable Marks is off
 
 local function DrawSettings(options)
     if widgets.Header('Window', true) then
@@ -940,6 +983,11 @@ local function DrawSettings(options)
             options.mineColor, '##buff.mineColor', mineSpec);
         widgets.Slider('Low Time Warning', 'Below this many seconds left, the icon fades in and out. At 0 there is no warning.',
             options.lowTime, 0, 60, '##buff.lowTime', lowSpec);
+        widgets.Check('Removable Marks', 'Marks your debuffs that Erase, a -na spell or a waltz removes.', options.removableMarks, '##buff.removableMarks');
+        markSpec.parent = options.removableMarks;
+        widgets.Check('Only What You Can Remove', 'Marks only what a spell you know, at your level now, takes off. Level sync is followed.',
+            options.removableOnlyMine, '##buff.removableOnlyMine', markSpec);
+        widgets.Color('Curable Mark Colour', 'The colour of the mark.', options.cureMarkColor, '##buff.cureMarkColor', markSpec);
         widgets.FontFile(options, 'fontFile', '##buff.fontFile', fontSpec);
         widgets.FontSize(options, 'fontSize', '##buff.fontSize', sizeSpec);
     end

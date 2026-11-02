@@ -96,6 +96,25 @@ for index = 0, block.Count - 1 do
 end
 H.print('5 s left: Haste\'s icon at half, Protect\'s whole; its letter Your Colour', half == 1, mineAfter == 1, half, mineAfter)
 require('winxi.statustimes').Blink = realBlink
+-- Removable Marks: Paralysis marked, its square and border solid, inside its icon; Protect not
+local o2 = H.options()
+o2.removableMarks[1] = true
+statuses.Read = function(list)
+    list[1], list[2] = { id = 40 }, { id = 4, seconds = 60 }
+    for index = #list, 3, -1 do list[index] = nil end
+    return 2
+end
+H.frames(1)
+local square, edge = nil, nil
+for index = 0, block.Count - 1 do
+    local q = block.Quads[index]
+    if q.Color == 0xFF59D9FF then square = q end
+    if q.Color == 0xFF0F0F0F then edge = q end
+end
+local paralysis = block.Quads[1]
+H.print('a curable mark on Paralysis, in a border, inside its icon', square ~= nil, edge ~= nil,
+    square ~= nil and square.X0 >= paralysis.X0 and square.X1 <= paralysis.X1 and square.Y0 >= paralysis.Y0 and square.Y1 <= paralysis.Y1)
+o2.removableMarks[1] = false
 statuses.Read = plainRead
 H.frames(1)
 

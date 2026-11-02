@@ -110,6 +110,10 @@ changing that configuration.
   not shown as yours. It is kept through a change of area.
 - **Low Time Warning**: below this many seconds left, the icon fades out and in; 10 to begin with, 0 for
   no warning.
+- **Removable Marks**, off to begin with: a small square in a dark border inside the corner of each of
+  your debuffs that Erase, a -na spell or a waltz removes, in **Curable Mark Colour** (light blue).
+  **Only What You Can Remove** marks only what a spell you have learned, at your level now, takes off,
+  level sync included. Your buffs are never marked: Dispel is for a monster's.
 - **Font**: the font for countdowns and status tooltips, chosen from `C:\Windows\Fonts`.
   **Theme Font** (default) uses the Winxi theme font, in both anchored and draggable modes.
 - **Font Size**: text size in pixels. `0` (**Theme Size**, default) uses the current theme size.
