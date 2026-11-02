@@ -430,6 +430,7 @@ do
     block.Frame = 70; H.frames(1)
     local plainFoot = icons(0x400)[1].Y1
     H.print('off: nothing under the icons', under(0x400) == 0, under(300) == 0)
+    o.statusLowTime[1] = 0 -- the times' colours first, with no warning to come over them
     o.statusDurations[1] = true; block.Frame = 71; H.frames(1)
     local ownCount, ownQuads = under(0x400)
     H.print('own: Paralysis 1m, two letters, none under Slow', ownCount == 2)
@@ -458,6 +459,42 @@ do
     cast(58, { [0x1000 + 300] = 236 }); block.Frame = 78; H.frames(1)
     local _, overQuads = under(300)
     H.print('someone else\'s over yours: Estimate Colour again', #overQuads > 0 and overQuads[1].Color == 0xFF00FF00)
+    -- Low Time Warning: 10 s; the Paralyze just cast has 2m, then 5 s
+    o.statusLowTime[1] = 10; block.Frame = 79; H.frames(1)
+    local _, fresh = under(300)
+    H.print('Low Time Warning at 10 s: 2m left is not low', #fresh > 0 and fresh[1].Color == 0xFF00FF00)
+    now = now + 115; block.Frame = 80; H.frames(1)
+    local _, low = under(300)
+    H.print('5 s left: Low Time Colour', #low > 0 and low[1].Color == 0xFFFF594D, ('| %08X'):format(#low > 0 and low[1].Color or 0))
+    -- Only Yours On Enemies: the monster's Paralyze is someone else's, so its row is empty; yours shows
+    cast(58, { [0x1000 + 300] = 236 })
+    o.statusOnlyMine[1] = true; block.Frame = 81; H.frames(1)
+    H.print('Only Yours On Enemies: someone else\'s Paralyze not shown', #icons(300) == 0, '| the player\'s own row still', #icons(0x400) > 0)
+    debuffs.Action({ actor_id = 0x1400, category = 4, param = 58, targets = { { id = 0x1000 + 300, actions = { { message = 236 } } } } })
+    block.Frame = 82; H.frames(1)
+    H.print('yours on it: shown', #icons(300) == 1)
+    o.statusOnlyMine[1] = false
+    -- Removable Marks: a dot of the font's white pixel on the icon's corner, Paralysis curable
+    local function dots(index, color)
+        local entity, n = draw.Entities[index], 0
+        for i = 0, entity.Count - 1 do
+            local q = draw.Quads[entity.First + i]
+            if q.Texture == 0 and q.Color == color then n = n + 1 end
+        end
+        return n
+    end
+    local realWhite = require('imgui').GetFontTexUvWhitePixel
+    require('imgui').GetFontTexUvWhitePixel = function() return 0.5, 0.5 end -- the font's white pixel, as imgui has it
+    block.Frame = 83; H.frames(1)
+    H.print('marks off: none', dots(300, 0xFF59D9FF) == 0)
+    o.statusRemovableMarks[1] = true; block.Frame = 84; H.frames(1)
+    local row300 = icons(300)
+    local dot = nil
+    local entity = draw.Entities[300]
+    for i = 0, entity.Count - 1 do local q = draw.Quads[entity.First + i]; if q.Texture == 0 and q.Color == 0xFF59D9FF then dot = q end end
+    H.print('Paralysis: a curable dot, at the icon\'s top right', dot ~= nil and #row300 > 0 and math.abs(dot.X1 - row300[1].X1) <= 1 and math.abs(dot.Y0 - row300[1].Y0) <= 1)
+    o.statusRemovableMarks[1], o.statusLowTime[1] = false, 10
+    require('imgui').GetFontTexUvWhitePixel = realWhite
     o.statusPlace[1] = 'below'; block.Frame = 75; H.frames(1)
     H.print('below: the durations under the icons still', under(0x400) == 2)
     o.statusPlace[1] = 'above'; o.statusDurations[1] = false

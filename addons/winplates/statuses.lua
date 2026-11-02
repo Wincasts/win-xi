@@ -24,7 +24,10 @@
 -- With Show Durations on, how long each has left is written under its icon (winxi.statustimes): the
 -- player's own to the second; anyone else's an estimate, in Estimate Colour, or - where it cannot be known.
 -- One the player cast is in Your Colour, whether exact or estimated, until anyone else's is seen to
--- land over it.
+-- land over it; one with less than Low Time Warning left in Low Time Colour, over both.
+-- Only Yours On Enemies leaves a monster's row the statuses the player put there. Removable Marks puts
+-- a dot on the corner of each icon a spell can take off: debuffs Erase, a -na spell or a waltz removes,
+-- buffs Dispel does (winxi.statuses' Removable, the server's flags).
 --
 -- The icons are as party and buff draw them (winxi.statusicons): with Custom Icons on in wxi,
 -- the chosen set's where it has one and the game's where it has not; off, the game's. All are from
@@ -40,6 +43,8 @@ local statustimes = require('winxi.statustimes');
 local theme       = require('winxi.theme');
 local controls    = require('controls');
 local entityTypes = require('entity_types');
+local statusFlags = require('winxi.statuses');
+local healthbar   = require('healthbar');
 
 local statuses = {};
 
@@ -55,9 +60,10 @@ local LIST_ROWS    = 14;   -- rows of the settings' list to be seen at once
 local PREVIEW_MOST = 4;    -- icons over each name while previewing
 local MOST_OFFSET  = 200;  -- screen pixels the row can be moved each way
 -- the durations written under the icons of a preview, and whether each is an estimate
-local PREVIEW_TEXT = { '45', '2m', statustimes.Unknown, '1h' };
+local PREVIEW_TEXT = { '8', '2m', statustimes.Unknown, '1h' };
 local PREVIEW_ESTIMATE = { false, true, true, false };
 local PREVIEW_MINE = { false, true, false, false }; -- and whether each is one the player cast
+local PREVIEW_SECONDS = { 8, 120, nil, 3600 };      -- and its seconds left: the first low on time
 
 -- Preview: every shown name has a few of the chosen statuses over it, whatever it is under, to see
 -- how the row looks. Not kept: it is off again when the addon is loaded.
@@ -78,6 +84,12 @@ local settings = {
     statusDurationSize = function () return T{ 50 }; end, -- those letters' height, as a percentage of an icon's
     statusEstimateColor = function () return T{ 1.0, 0.82, 0.35, 1.0 }; end, -- an estimate's colour
     statusMineColor = function () return T{ 0.45, 1.0, 0.55, 1.0 }; end, -- the colour of one the player cast
+    statusLowTime = function () return T{ 10 }; end, -- seconds left under which a time is low; 0 for no warning
+    statusLowTimeColor = function () return T{ 1.0, 0.35, 0.3, 1.0 }; end, -- a low time's colour
+    statusOnlyMine = function () return T{ false }; end, -- a monster's row: only what the player put there
+    statusRemovableMarks = function () return T{ false }; end, -- a dot on what a spell can take off
+    statusCureMarkColor = function () return T{ 0.35, 0.85, 1.0, 1.0 }; end, -- on debuffs Erase, -na or a waltz removes
+    statusDispelMarkColor = function () return T{ 1.0, 0.75, 0.2, 1.0 }; end, -- on buffs Dispel removes
     -- Empty here, and the chosen statuses given by Settle: Ashita fills each place a saved list lacks
     -- from the default list, so a list saved shorter than this came back with this one's tail, and
     -- statuses taken off came back on
@@ -193,6 +205,13 @@ local durations = false;          -- the time left written under each icon
 local durationSize = 0.5;         -- its letters' height, as a part of an icon's
 local estimateColor = 0xFFFFD159; -- an estimate's colour, 0xAARRGGBB
 local mineColor = 0xFF73FF8C;     -- the colour of one the player cast
+local lowTime = 10;               -- seconds left under which a time is low, 0 for none
+local lowColor = 0xFFFF594D;      -- a low time's colour
+local onlyMine = false;           -- a monster's row: only what the player put there
+local marks = false;              -- a dot on what a spell can take off
+local cureColor, dispelColor = 0xFF59D9FF, 0xFFFFBF33;
+local me = 0;                     -- the player's server id, this frame
+local MONSTER = nameplates.Category.Monster;
 
 -- A channel, 0 to 1, as a byte
 local function Byte(value)
@@ -231,11 +250,24 @@ function statuses.Begin(options)
     offsetY = math.max(-MOST_OFFSET, math.min(MOST_OFFSET, tonumber(options.statusOffsetY ~= nil and options.statusOffsetY[1]) or 0));
     shownWith = options;
     ownRead, partyRead, seconds = false, false, os.time();
+    onlyMine = options.statusOnlyMine ~= nil and options.statusOnlyMine[1] == true;
+    marks = options.statusRemovableMarks ~= nil and options.statusRemovableMarks[1] == true;
+    if (marks) then
+        cureColor = Packed(options.statusCureMarkColor, 0xFF59D9FF);
+        dispelColor = Packed(options.statusDispelMarkColor, 0xFFFFBF33);
+    end
+    me = 0;
+    if (onlyMine) then
+        local partyNow = AshitaCore:GetMemoryManager():GetParty();
+        me = partyNow ~= nil and partyNow:GetMemberServerId(0) or 0;
+    end
     durations = options.statusDurations ~= nil and options.statusDurations[1] == true;
     if (durations) then
         durationSize = math.max(30, math.min(100, tonumber(options.statusDurationSize ~= nil and options.statusDurationSize[1]) or 50)) / 100;
         estimateColor = Packed(options.statusEstimateColor, 0xFFFFD159);
         mineColor = Packed(options.statusMineColor, 0xFF73FF8C);
+        lowTime = math.max(0, tonumber(options.statusLowTime ~= nil and options.statusLowTime[1]) or 0);
+        lowColor = Packed(options.statusLowTimeColor, 0xFFFF594D);
         statustimes.Begin();
         -- the party is watched every frame, whether or not their names are drawn, so that what appears
         -- on them is seen to begin when it does
@@ -274,14 +306,15 @@ end
 -- What was seen to land on it, the lowest number first so that the row keeps its order
 local tracked = {};
 
-local function TakeTracked(serverId)
+-- mine: only what the player put there
+local function TakeTracked(serverId, mine)
     local on = debuffs.Statuses(serverId);
     if (on == nil) then
         return;
     end
     local count = 0;
     for id, entry in pairs(on) do
-        if (seconds < entry.expires) then
+        if (seconds < entry.expires and (not mine or (me ~= 0 and entry.by == me))) then
             count = count + 1;
             tracked[count] = id;
         end
@@ -333,7 +366,7 @@ local function Gather(name, options)
             return;
         end
     end
-    TakeTracked(serverId);
+    TakeTracked(serverId, onlyMine and name.Category == MONSTER);
 end
 
 -- How the names' letters are measured and written: custom's, handed over as it is loaded
@@ -359,15 +392,17 @@ function statuses.Write(name, nameLeft, nameRight, above, under, height, scale, 
     local timed = false;
     if (durations and set ~= nil and fit ~= nil and writeWords ~= nil) then
         for index = 1, rowCount do
-            local text, estimate, mine;
+            local text, estimate, mine, left;
             if (preview[1]) then
-                text, estimate, mine = PREVIEW_TEXT[index], PREVIEW_ESTIMATE[index], PREVIEW_MINE[index];
+                text, estimate, mine, left = PREVIEW_TEXT[index], PREVIEW_ESTIMATE[index], PREVIEW_MINE[index], PREVIEW_SECONDS[index];
             else
-                text, estimate, mine = statustimes.Text(name.ServerId, rowIds[index]);
+                text, estimate, mine, left = statustimes.Text(name.ServerId, rowIds[index]);
             end
-            -- the player's own cast in Your Colour, then an estimate in Estimate Colour
+            -- low on time in Low Time Colour, then the player's own cast in Your Colour, then an
+            -- estimate in Estimate Colour
             rowText[index] = text or false;
-            rowColor[index] = (mine and mineColor) or (estimate and estimateColor) or WHITE;
+            local low = left ~= nil and lowTime > 0 and left <= lowTime;
+            rowColor[index] = (low and lowColor) or (mine and mineColor) or (estimate and estimateColor) or WHITE;
             timed = timed or text ~= nil;
         end
     end
@@ -400,6 +435,17 @@ function statuses.Write(name, nameLeft, nameRight, above, under, height, scale, 
         local width = rowOwn[index] and wide or tall;
         -- the icons have an edge of their own: none is drawn round them
         nameplates.Quad(left, top, left + width, top + tall, place[1], place[2], place[3], place[4], WHITE, statuses.Slot, false);
+        -- what can take it off: a dot on its top right corner, edged as the names' letters are
+        if (marks) then
+            local kind = statusFlags.Removable(rowIds[index]);
+            local color = ((kind == 'erase' or kind == 'waltz') and cureColor) or (kind == 'dispel' and dispelColor) or nil;
+            local u, v = nil, nil;
+            if (color ~= nil) then u, v = healthbar.WhitePixel(); end
+            if (u ~= nil) then
+                local side = math.max(2, math.floor(tall * 0.28 + 0.5));
+                nameplates.Quad(left + width - side, top, left + width, top + side, u, v, u, v, color, 0, true, nil, true);
+            end
+        end
         -- the duration under it, its middle under the icon's, outlined as the names' letters are
         local text = timed and rowText[index];
         if (text) then
@@ -467,6 +513,7 @@ local ALIGNMENTS = { { key = 'left', label = 'Left' }, { key = 'center', label =
 
 local showSpec = {}; -- the rows that wait for Enabled
 local durationSpec = {}; -- and those that wait for Show Durations
+local markSpec = {};     -- and those that wait for Removable Marks
 
 function statuses.DrawSettings(options, save)
     Chosen(options);
@@ -518,6 +565,31 @@ function statuses.DrawSettings(options, save)
         end
         if (controls.Color('Your Colour', '##name.statusMineColor', options.statusMineColor,
                 'The colour of durations of statuses you cast, so you can see when someone else\'s replaces yours.', durationSpec)) then
+            changed = true;
+        end
+        if (controls.Slider('Low Time Warning', '##name.statusLowTime', options.statusLowTime, 0, 60, '%d s',
+                'Below this many seconds left, the time is written in Low Time Colour. At 0 there is no warning.', durationSpec)) then
+            changed = true;
+        end
+        if (controls.Color('Low Time Colour', '##name.statusLowTimeColor', options.statusLowTimeColor,
+                'The colour of a time that is running low.', durationSpec)) then
+            changed = true;
+        end
+        if (controls.Checkbox('Only Yours On Enemies', '##name.statusOnlyMine', options.statusOnlyMine,
+                'On monsters, shows only the statuses you put there.', showSpec)) then
+            changed = true;
+        end
+        if (controls.Checkbox('Removable Marks', '##name.statusRemovableMarks', options.statusRemovableMarks,
+                'Puts a dot on the corner of each status a spell can take off.', showSpec)) then
+            changed = true;
+        end
+        markSpec.parent = (options.showStatuses[1] and options.statusRemovableMarks[1]) == true;
+        if (controls.Color('Curable Mark Colour', '##name.statusCureMarkColor', options.statusCureMarkColor,
+                'The dot on debuffs that Erase, a -na spell or a waltz removes.', markSpec)) then
+            changed = true;
+        end
+        if (controls.Color('Dispellable Mark Colour', '##name.statusDispelMarkColor', options.statusDispelMarkColor,
+                'The dot on buffs that Dispel removes.', markSpec)) then
             changed = true;
         end
         controls.Checkbox('Preview', '##name.statusPreview', preview,

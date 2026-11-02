@@ -75,6 +75,9 @@ local function whitePixel()
     return u, v;
 end
 
+-- The white pixel of the font's texture (the plugin's slot 0), for a solid quad: u, v, or nil
+healthbar.WhitePixel = whitePixel;
+
 -- Shared HP/cast geometry and white pixel, with identical origins and dimensions.
 function healthbar.Bar(left, right, under, scale, fraction, color, width, height, backdrop)
     local border = math.max(1, math.floor(scale + 0.5));
