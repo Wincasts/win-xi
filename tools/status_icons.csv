@@ -191,20 +191,20 @@ ffxi_id,ffxi_name,ffxiv_icon,ffxiv_name,tint
 189,Max TP Down,215025,TP Bleed,
 190,Magic Atk. Boost,215054,Magic Damage Up,
 191,Magic Def. Boost,215056,Magic Defense Up,
-192,Requiem,229913,Hero's Lament,#616130
+192,Requiem,212608,Foe Requiem,
 193,Lullaby,215013,Sleep,
 194,Elegy,215009,Slow,
-195,Paeon,212610,The Wanderer's Minuet,#045eb8
-196,Ballad,212610,The Wanderer's Minuet,#038b03
-197,Minne,212610,The Wanderer's Minuet,#b6b605
-198,Minuet,212610,The Wanderer's Minuet,#b63030
+195,Paeon,212604,Army's Paeon,
+196,Ballad,212602,Mage's Ballad,
+197,Minne,212618,Nature's Minne,
+198,Minuet,212613,Wanderer's Minuet,
 199,Madrigal,212610,The Wanderer's Minuet,#8b31b9
 200,Prelude,212610,The Wanderer's Minuet,#a0d2a4
 201,Mambo,212610,The Wanderer's Minuet,#05ba05
 202,Aubade,212610,The Wanderer's Minuet,#6f69a0
 203,Pastoral,212610,The Wanderer's Minuet,#6f69a0
 204,Hum,212610,The Wanderer's Minuet,#6f69a0
-205,Fantasia,212610,The Wanderer's Minuet,#6f69a0
+205,Fantasia,214915,Heroes' Fantasia,
 206,Operetta,212610,The Wanderer's Minuet,#6f69a0
 207,Capriccio,212610,The Wanderer's Minuet,#6f69a0
 208,Serenade,212610,The Wanderer's Minuet,#6f69a0
@@ -212,8 +212,8 @@ ffxi_id,ffxi_name,ffxiv_icon,ffxiv_name,tint
 210,Gavotte,212610,The Wanderer's Minuet,#6f69a0
 211,Fugue,212610,The Wanderer's Minuet,#6f69a0
 212,Rhapsody,212610,The Wanderer's Minuet,#6f69a0
-213,Aria,212610,The Wanderer's Minuet,#888888
-214,March,212610,The Wanderer's Minuet,#0489b5
+213,Aria,229911,Offensive Aria,
+214,March,229910,Mighty March,
 215,Etude,212610,The Wanderer's Minuet,#8a765c
 216,Carol,212610,The Wanderer's Minuet,#895c02
 217,Threnody,212610,The Wanderer's Minuet,#006030
