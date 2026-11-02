@@ -193,6 +193,7 @@ run puppet     addons/puppet/puppet.lua puppet_check.lua
 luajit tests/harness.lua puppet addons/puppet/puppet.lua tests/puppet_regression_check.lua || exit 1
 luajit tests/harness.lua puppet addons/puppet/puppet.lua tests/puppet_attachments_check.lua || exit 1
 run winbuff       addons/winbuff/winbuff.lua     buff_check.lua
+run winbuff       addons/winbuff/winbuff.lua     buff_mine_check.lua
 run winbuff       addons/winbuff/winbuff.lua     buff_performance_check.lua
 run winbuff       addons/winbuff/winbuff.lua     buff_hook_check.lua
 run winbuff       addons/winbuff/winbuff.lua     buff_hook_performance_check.lua

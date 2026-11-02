@@ -104,6 +104,10 @@ changing that configuration.
 - **Icon Size**: an icon's height in pixels. The icons are 64 tall as made, so 64 and 32 are sharpest.
 - **Icons Per Row**: how many icons before a new row starts.
 - **Show Time Left**: the time under each icon: seconds, then minutes (`m`), then hours (`h`).
+- **Your Colour**: the colour of the time under a status you cast on yourself, green to begin with.
+  When someone else casts the same status over yours, its time goes back to the usual colour, so you can
+  see yours was replaced. Only a cast seen to land counts: one already on you when the addon started is
+  not shown as yours. It is kept through a change of area.
 - **Font**: the font for countdowns and status tooltips, chosen from `C:\Windows\Fonts`.
   **Theme Font** (default) uses the Winxi theme font, in both anchored and draggable modes.
 - **Font Size**: text size in pixels. `0` (**Theme Size**, default) uses the current theme size.

@@ -69,6 +69,20 @@ local edge, letter = block.Quads[2], block.Quads[10]
 H.print('the edge first, dark, then the letter', bit.rshift(edge.Color, 24) < 255 and bit.band(edge.Color, 0xFFFFFF) == 0, letter.Texture == 0, letter.Y0 > first.Y1)
 H.print('the game\'s row left to the plugin, the rest hidden', written[100] == nil and written[200] == nil, written[300] == 0xC031)
 
+-- Haste cast by the player: its letters in Your Colour, the rest as they were
+local plainRead = statuses.Read
+statuses.Read = function(list)
+    list[1], list[2] = { id = 40 }, { id = 33, seconds = 90, mine = true }
+    for index = #list, 3, -1 do list[index] = nil end
+    return 2
+end
+H.frames(1)
+local mineLetters = 0
+for index = 0, block.Count - 1 do if block.Quads[index].Color == 0xFF73FF8C then mineLetters = mineLetters + 1 end end
+H.print('a status you cast: its two letters in Your Colour', mineLetters == 2, mineLetters)
+statuses.Read = plainRead
+H.frames(1)
+
 -- nudged: the whole bar moves, in imgui's pixels
 o.anchorAdjustment[1], o.anchorAdjustment[2] = 10, 4
 block.Frame = 11; H.frames(1)
