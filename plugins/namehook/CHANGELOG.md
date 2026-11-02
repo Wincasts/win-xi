@@ -1,5 +1,11 @@
 # Changelog
 
+## namehook 1.53 — the game's own sizes unless told otherwise
+
+- Loaded with nothing asked of it, the plugin leaves names and damage numbers as the game draws them. `fontsize` and `damagefontsize` take 0, or `game`, for the game's own size, and that is the default now: what the client's code the size patches go over computed, from the client's own values and constants (read from that code as the patches go in), stretched as the game stretches it on a wide screen. A size that was saved stays; `/namehook fontsize 22` is what the plugin did before.
+- `/namehook help` says so for both sizes.
+- Tests: the game's own sizes for names and damage numbers from stand-ins for the client's code, and 22 px where that code was not read or the damage font's owner is not there yet; the defaults; 0 and `game` taken, a word that is neither and a size over 256 refused.
+
 ## namehook 1.52 — the font texture told every frame
 
 - `FontTexture` in HookShared, imgui's font texture for an addon that reads its letters back (winplates' letter badges and Smooth Font), is told as every frame is presented, whether or not a name was drawn in it, and `FEATURE_FONT_EACH_FRAME` (64) in the capabilities says so. Until now it was told only as a name was drawn, so it went stale while none were: logging a second character in after the first had logged out, the loading screen drew no names while the character's own font and sizes had imgui make its texture again, winplates read the old texture, freed by then, and the client faulted (EXCEPTION_ACCESS_VIOLATION). The other way round, the first character's letters were already in the texture, it was not made again, and nothing went wrong, which is why the order mattered.

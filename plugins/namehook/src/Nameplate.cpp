@@ -126,6 +126,26 @@ static constexpr uint8_t DrawName_Patch1[DRAWNAME_PATCH1_SIZE] = {
 };
 #define DRAWNAME_PATCH1_ADDRESS_LOCATION 12
 
+// What the client's code at the two size patch sites held, kept as each site's original (CodePatch.h)
+// and used for the game's own sizes (FontSize or DamageFontSize 0): the calls it made and the constants
+// it multiplied by, the width's then the height's. A name's two calls each give a 16-bit value of the
+// client's own; a damage number's two give the cell of the client's damage font, from an object the
+// client reads from a global (its owner), by a call on what the owner holds at DRAWDAMAGE_OWNER_AT.
+#define DRAWNAME_PATCH0_WIDTH_CALL 0
+#define DRAWNAME_PATCH0_WIDTH_SCALE 20
+#define DRAWNAME_PATCH0_HEIGHT_CALL 35
+#define DRAWNAME_PATCH0_HEIGHT_SCALE 69
+#define DRAWDAMAGE_OWNER 1
+#define DRAWDAMAGE_CELL_CALL 11
+#define DRAWDAMAGE_OWNER2 20
+#define DRAWDAMAGE_WIDTH_SCALE 38
+#define DRAWDAMAGE_CELL_CALL2 52
+#define DRAWDAMAGE_HEIGHT_SCALE 96
+#define DRAWDAMAGE_OWNER_AT 0xDC8
+#define DRAWDAMAGE_CELL_WIDTH 8
+#define DRAWDAMAGE_CELL_HEIGHT 0xC
+#define DEFAULT_FONT_SIZE_PX 22 // the size 0 falls back to where the client's code was not read
+
 // No custom assembly here-- just patching a jnz to a jmp
 #define DRAWNAME2_PATCH_ADDRESS_LOCATION 8
 static_assert(DRAWNAME2_PATCH_ADDRESS_LOCATION < DRAWNAME2_PATCH_SIZE, "the jump is within what the signature matched");
@@ -220,12 +240,45 @@ typedef struct XiModel {
 typedef void (__fastcall *DrawNameLineFn)(const XiModel* pModel, void* unused, const float* pPosition, const char* text, uint32_t scale, uint32_t nameColor, uint32_t iconColor);
 typedef void (__fastcall *DrawNameLine2Fn)(const XiModel* pModel, void* unused, const float* pPosition, const char* text, uint32_t scale);
 
+// The client's own functions behind its sizes: one giving a 16-bit value in ax, with nothing passed; one
+// __thiscall on the damage font's owner, giving its cell. Written as __fastcall with an unused second
+// argument, as the line functions are.
+typedef uint32_t (__cdecl *GameWordFn)();
+typedef const uint8_t* (__fastcall *GameCellFn)(const void* self, void* unused);
+
+// What the client's code at a site held, from the site's original bytes: the target of the call at an
+// offset (a call that is 5 bytes, its operand relative to what follows it), and the operand of an
+// instruction at an offset (an absolute address)
+static uintptr_t OriginalOperand(const uint8_t* original, size_t at) {
+	uint32_t operand;
+	memcpy(&operand, original + at, sizeof(operand));
+	return operand;
+}
+
+static uintptr_t OriginalCallTarget(const uint8_t* original, size_t at, uintptr_t site) {
+	int32_t relative;
+	memcpy(&relative, original + at + 1, sizeof(relative));
+	return site + at + 5 + static_cast<uintptr_t> (static_cast<intptr_t> (relative));
+}
+
 static struct {
 	CGame** pgGame;
 	uint32_t* pWindowWidth;
 	uint32_t* pWindowHeight;
 	uint16_t* pPlayerEntityIndex;
 	bool* pNamesOff;
+
+	// The client's own sizes, from the code the size patches went over (DRAWNAME_PATCH0_* and
+	// DRAWDAMAGE_*): used while FontSize or DamageFontSize is 0. Null until Install has read them.
+	GameWordFn GameNameWidth;
+	GameWordFn GameNameHeight;
+	const float* pGameNameWidthScale;
+	const float* pGameNameHeightScale;
+	const uintptr_t* pGameDamageOwner;  // the global the client reads the damage font's owner from, for the width
+	const uintptr_t* pGameDamageOwner2; // and for the height
+	GameCellFn GameDamageCell;
+	const float* pGameDamageWidthScale;
+	const float* pGameDamageHeightScale;
 
 	// Whether the patches are in, and which of Patches' sites is the jump that hides the stars
 	bool Patched;
@@ -271,7 +324,8 @@ static struct {
 	bool LineDrawn;
 } Globals;
 
-// The sizes and the stars, as the client's patched code reads them
+// The sizes and the stars, as the client's patched code reads them. A size of 0 is the game's own: what
+// the client's code the patch went over would have made, stretched as the game stretches it.
 static struct {
 	int FontSize;
 	int DamageFontSize;
@@ -1179,8 +1233,11 @@ static bool UpdateScaleFactors() {
 		ScaleFactors.DamageFontSize = AsmSettings.DamageFontSize;
 		const double wRatio = static_cast<double>(game->BackgroundWidth) / winW;
 		const double hRatio = static_cast<double>(game->BackgroundHeight) / winH;
-		const double name = static_cast<double>(AsmSettings.FontSize) / 11.0;
-		const double damage = static_cast<double>(AsmSettings.DamageFontSize) / 11.0;
+		// 0, the game's own size, comes here only where the client's code was not read: the old default then
+		const int fontSize = AsmSettings.FontSize > 0 ? AsmSettings.FontSize : DEFAULT_FONT_SIZE_PX;
+		const int damageFontSize = AsmSettings.DamageFontSize > 0 ? AsmSettings.DamageFontSize : DEFAULT_FONT_SIZE_PX;
+		const double name = static_cast<double>(fontSize) / 11.0;
+		const double damage = static_cast<double>(damageFontSize) / 11.0;
 		ScaleFactors.NameWidth = name * wRatio;
 		ScaleFactors.NameHeight = name * hRatio;
 		ScaleFactors.DamageWidth = damage * wRatio;
@@ -1190,7 +1247,56 @@ static bool UpdateScaleFactors() {
 	return true;
 }
 
+// The game's own size for a name: what the client's code the patch went over made of it. Each of the
+// width and the height is a 16-bit value of the client's own, times a constant of its own, times the
+// name's scale; the client took the value as a signed integer and multiplied in extended precision,
+// which a double holds.
+static bool GameNameScale(float* wh, float s) {
+	if (Globals.GameNameWidth == nullptr || Globals.GameNameHeight == nullptr
+			|| Globals.pGameNameWidthScale == nullptr || Globals.pGameNameHeightScale == nullptr) {
+		return false;
+	}
+	const double width = static_cast<double>(static_cast<int32_t>(Globals.GameNameWidth() & 0xFFFF));
+	const double height = static_cast<double>(static_cast<int32_t>(Globals.GameNameHeight() & 0xFFFF));
+	wh[0] = static_cast<float>(width * static_cast<double>(*Globals.pGameNameWidthScale) * s);
+	wh[1] = static_cast<float>(height * static_cast<double>(*Globals.pGameNameHeightScale) * s);
+	return true;
+}
+
+// The game's own size for a damage number: the client's damage font's cell, read as the client read it
+// (the owner from its global, the cell by a call on what the owner holds), its width and height each
+// times the client's constant and the number's scale.
+static bool GameDamageScale(float* wh, float s) {
+	if (Globals.GameDamageCell == nullptr || Globals.pGameDamageOwner == nullptr || Globals.pGameDamageOwner2 == nullptr
+			|| Globals.pGameDamageWidthScale == nullptr || Globals.pGameDamageHeightScale == nullptr) {
+		return false;
+	}
+	const uint8_t* owner = reinterpret_cast<const uint8_t*> (*Globals.pGameDamageOwner);
+	const uint8_t* owner2 = reinterpret_cast<const uint8_t*> (*Globals.pGameDamageOwner2);
+	if (owner == nullptr || owner2 == nullptr) {
+		return false;
+	}
+	const void* self = *reinterpret_cast<const void* const*> (owner + DRAWDAMAGE_OWNER_AT);
+	const void* self2 = *reinterpret_cast<const void* const*> (owner2 + DRAWDAMAGE_OWNER_AT);
+	if (self == nullptr || self2 == nullptr) {
+		return false;
+	}
+	const uint8_t* cell = Globals.GameDamageCell(self, nullptr);
+	const uint8_t* cell2 = Globals.GameDamageCell(self2, nullptr);
+	if (cell == nullptr || cell2 == nullptr) {
+		return false;
+	}
+	const double width = static_cast<double>(*reinterpret_cast<const int32_t*> (cell + DRAWDAMAGE_CELL_WIDTH));
+	const double height = static_cast<double>(*reinterpret_cast<const int32_t*> (cell2 + DRAWDAMAGE_CELL_HEIGHT));
+	wh[0] = static_cast<float>(width * s * static_cast<double>(*Globals.pGameDamageWidthScale));
+	wh[1] = static_cast<float>(height * s * static_cast<double>(*Globals.pGameDamageHeightScale));
+	return true;
+}
+
 static void __fastcall GetNameplateScale(float* wh, const float* pS) {
+	if (AsmSettings.FontSize == 0 && GameNameScale(wh, *pS)) {
+		return;
+	}
 	if (UpdateScaleFactors()) {
 		wh[0] = static_cast<float>(ScaleFactors.NameWidth * *pS);
 		wh[1] = static_cast<float>(ScaleFactors.NameHeight * *pS);
@@ -1198,6 +1304,9 @@ static void __fastcall GetNameplateScale(float* wh, const float* pS) {
 }
 
 static void __fastcall GetDamageNumberScale(float* wh, const float* pS) {
+	if (AsmSettings.DamageFontSize == 0 && GameDamageScale(wh, *pS)) {
+		return;
+	}
 	if (UpdateScaleFactors()) {
 		wh[0] = static_cast<float>(ScaleFactors.DamageWidth * *pS);
 		wh[1] = static_cast<float>(ScaleFactors.DamageHeight * *pS);
@@ -1426,15 +1535,15 @@ static bool __fastcall ShouldDrawNameplate(const XiModel* pModel) {
 }
 
 void NameplateSettings::Normalize() {
-	if (AsmSettings.FontSize < 1) {
-		AsmSettings.FontSize = 1;
+	if (AsmSettings.FontSize < 0) {
+		AsmSettings.FontSize = 0;
 	}
 	if (AsmSettings.FontSize > 256) {
 		AsmSettings.FontSize = 256;
 	}
 
-	if (AsmSettings.DamageFontSize < 1) {
-		AsmSettings.DamageFontSize = 1;
+	if (AsmSettings.DamageFontSize < 0) {
+		AsmSettings.DamageFontSize = 0;
 	}
 	if (AsmSettings.DamageFontSize > 256) {
 		AsmSettings.DamageFontSize = 256;
@@ -1444,8 +1553,8 @@ void NameplateSettings::Normalize() {
 }
 
 int NameplateSettings::Init() {
-	AsmSettings.FontSize = 22;
-	AsmSettings.DamageFontSize = 22;
+	AsmSettings.FontSize = 0; // the game's own sizes, until told otherwise
+	AsmSettings.DamageFontSize = 0;
 	AsmSettings.HideStars = 0;
 
 	return 0;
@@ -1455,8 +1564,8 @@ int NameplateSettings::Load(const wchar_t* basePath) {
 	wchar_t path[UNICODE_MAX_PATH];
 	StringCchPrintfW(path, UNICODE_MAX_PATH, L"%s\\namehook\\defaults.ini", basePath);
 
-	AsmSettings.FontSize = GetPrivateProfileIntW(L"Settings", L"FontSizeInPx", 22, path);
-	AsmSettings.DamageFontSize = GetPrivateProfileIntW(L"Settings", L"DamageFontSizeInPx", 22, path);
+	AsmSettings.FontSize = GetPrivateProfileIntW(L"Settings", L"FontSizeInPx", 0, path);
+	AsmSettings.DamageFontSize = GetPrivateProfileIntW(L"Settings", L"DamageFontSizeInPx", 0, path);
 	AsmSettings.HideStars = GetPrivateProfileIntW(L"Settings", L"HideStars", 0, path);
 
 	// Which names are hidden is kept where addons can change it
@@ -1628,13 +1737,17 @@ bool Nameplate::ParseCommand(const char* cmd, bool includesName) {
 			|| eat_space_token_match_and_advance(cmd, "fontsize")) {
 		errno = 0;
 
-		char* cmd_end = const_cast<char*>(cmd);
+		// a number of pixels, or 0 or game for the game's own size
+		unsigned long val = 0;
+		bool number = true;
+		if (!eat_space_token_match_and_advance(cmd, "game")) {
+			char* cmd_end = const_cast<char*>(cmd);
+			val = strtoul(cmd, &cmd_end, 10);
+			number = cmd_end != cmd;
+			cmd = cmd_end;
+		}
 
-		unsigned long val = strtoul(cmd, &cmd_end, 10);
-
-		cmd = cmd_end;
-
-		if (val == 0 || val > 256 || errno != 0 || !eat_space_and_is_end(cmd)) {
+		if (!number || val > 256 || errno != 0 || !eat_space_and_is_end(cmd)) {
 			CommandError("fontsize");
 		} else {
 			AsmSettings.FontSize = static_cast<int>(val);
@@ -1645,13 +1758,16 @@ bool Nameplate::ParseCommand(const char* cmd, bool includesName) {
 			|| eat_space_token_match_and_advance(cmd, "dmgfontsize")) {
 		errno = 0;
 
-		char* cmd_end = const_cast<char*>(cmd);
+		unsigned long val = 0;
+		bool number = true;
+		if (!eat_space_token_match_and_advance(cmd, "game")) {
+			char* cmd_end = const_cast<char*>(cmd);
+			val = strtoul(cmd, &cmd_end, 10);
+			number = cmd_end != cmd;
+			cmd = cmd_end;
+		}
 
-		unsigned long val = strtoul(cmd, &cmd_end, 10);
-
-		cmd = cmd_end;
-
-		if (val == 0 || val > 256 || errno != 0 || !eat_space_and_is_end(cmd)) {
+		if (!number || val > 256 || errno != 0 || !eat_space_and_is_end(cmd)) {
 			CommandError("damagefontsize");
 		} else {
 			AsmSettings.DamageFontSize = static_cast<int>(val);
@@ -2250,7 +2366,8 @@ int Nameplate::Init() {
 
 	CopyMemory(bytes, &DrawName_Patch0[0], DRAWNAME_PATCH0_SIZE);
 	WriteAddress(bytes + DRAWNAME_PATCH0_ADDRESS_LOCATION, reinterpret_cast<const void*> (&GetNameplateScale));
-	if (Patches.Add(pDrawNamePatch0, bytes, DRAWNAME_PATCH0_SIZE) < 0) {
+	const int namePatch0Site = Patches.Add(pDrawNamePatch0, bytes, DRAWNAME_PATCH0_SIZE);
+	if (namePatch0Site < 0) {
 		return -22;
 	}
 
@@ -2301,8 +2418,26 @@ int Nameplate::Init() {
 	} else {
 		CopyMemory(bytes + DRAWDAMAGE_PATCH_POPUP_LOCATION, DrawDamage_PopupSkip, sizeof(DrawDamage_PopupSkip));
 	}
-	if (Patches.Add(pDrawDamagePatch, bytes, DRAWDAMAGE_PATCH_SIZE) < 0) {
+	const int damageSite = Patches.Add(pDrawDamagePatch, bytes, DRAWDAMAGE_PATCH_SIZE);
+	if (damageSite < 0) {
 		return -22;
+	}
+
+	// The game's own sizes, from what the two patches go over: the calls the client made there and the
+	// constants it multiplied by, where the signatures leave them (the operands are theirs)
+	{
+		const uint8_t* was = Patches.Sites[namePatch0Site].Original;
+		Globals.GameNameWidth = reinterpret_cast<GameWordFn> (OriginalCallTarget(was, DRAWNAME_PATCH0_WIDTH_CALL, pDrawNamePatch0));
+		Globals.GameNameHeight = reinterpret_cast<GameWordFn> (OriginalCallTarget(was, DRAWNAME_PATCH0_HEIGHT_CALL, pDrawNamePatch0));
+		Globals.pGameNameWidthScale = reinterpret_cast<const float*> (OriginalOperand(was, DRAWNAME_PATCH0_WIDTH_SCALE));
+		Globals.pGameNameHeightScale = reinterpret_cast<const float*> (OriginalOperand(was, DRAWNAME_PATCH0_HEIGHT_SCALE));
+		was = Patches.Sites[damageSite].Original;
+		const uintptr_t cell = OriginalCallTarget(was, DRAWDAMAGE_CELL_CALL, pDrawDamagePatch);
+		Globals.GameDamageCell = cell == OriginalCallTarget(was, DRAWDAMAGE_CELL_CALL2, pDrawDamagePatch) ? reinterpret_cast<GameCellFn> (cell) : nullptr;
+		Globals.pGameDamageOwner = reinterpret_cast<const uintptr_t*> (OriginalOperand(was, DRAWDAMAGE_OWNER));
+		Globals.pGameDamageOwner2 = reinterpret_cast<const uintptr_t*> (OriginalOperand(was, DRAWDAMAGE_OWNER2));
+		Globals.pGameDamageWidthScale = reinterpret_cast<const float*> (OriginalOperand(was, DRAWDAMAGE_WIDTH_SCALE));
+		Globals.pGameDamageHeightScale = reinterpret_cast<const float*> (OriginalOperand(was, DRAWDAMAGE_HEIGHT_SCALE));
 	}
 
 	// The calls that draw a name's two lines, where names are listed for addons: taken only if both go

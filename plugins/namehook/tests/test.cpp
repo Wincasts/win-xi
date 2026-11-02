@@ -318,6 +318,14 @@ struct TestPlugin : public Nameplate {
 static XiModel models[16];
 static Entity entities[16];
 
+// Stand-ins for the client's own size code: the two calls that give a 16-bit value in ax (the rest of
+// eax being whatever it was), and the damage font's cell, by a call on the owner's object
+static uint32_t __cdecl FakeNameWidthWord() { return 0xABCD0010; }
+static uint32_t __cdecl FakeNameHeightWord() { return 0x00010008; }
+static uint8_t fakeDamageOwner[0xDD0];
+static uint8_t fakeDamageCell[0x10];
+static const uint8_t* __fastcall FakeDamageCell(const void* self, void*) { return self == fakeDamageCell ? fakeDamageCell : nullptr; }
+
 static const XiModel* Make(int slot, uint32_t index, uint32_t id, const char* name, bool attackable = false) {
 	ZeroMemory(&entities[slot], sizeof(Entity));
 	entities[slot].EntityIndex = index;
@@ -714,6 +722,44 @@ int main() {
 		CHECK(result[0] == 3.0f && result[1] == 4.0f);
 		width = 0;
 		CHECK(!UpdateScaleFactors());
+
+		// 0 is the game's own size: what the client's code the patches went over made, its own 16-bit
+		// values and constants times the scale; the damage font's cell the same way, read as the client
+		// read it. Where the client's code was not read, or the owner is not there yet, 22 px as before.
+		width = 480;
+		static float nameWidthScale = 0.5f, nameHeightScale = 0.25f, damageWidthScale = 0.5f, damageHeightScale = 0.25f;
+		Globals.GameNameWidth = &FakeNameWidthWord;
+		Globals.GameNameHeight = &FakeNameHeightWord;
+		Globals.pGameNameWidthScale = &nameWidthScale;
+		Globals.pGameNameHeightScale = &nameHeightScale;
+		AsmSettings.FontSize = 0;
+		AsmSettings.DamageFontSize = 0;
+		GetNameplateScale(result, &half);
+		CHECK(result[0] == 4.0f && result[1] == 1.0f);
+		*reinterpret_cast<int32_t*> (fakeDamageCell + 8) = 12;
+		*reinterpret_cast<int32_t*> (fakeDamageCell + 0xC) = 6;
+		*reinterpret_cast<void**> (fakeDamageOwner + 0xDC8) = fakeDamageCell;
+		static uintptr_t damageOwner = reinterpret_cast<uintptr_t> (fakeDamageOwner);
+		Globals.pGameDamageOwner = &damageOwner;
+		Globals.pGameDamageOwner2 = &damageOwner;
+		Globals.GameDamageCell = &FakeDamageCell;
+		Globals.pGameDamageWidthScale = &damageWidthScale;
+		Globals.pGameDamageHeightScale = &damageHeightScale;
+		GetDamageNumberScale(result, &half);
+		CHECK(result[0] == 3.0f && result[1] == 0.75f);
+		damageOwner = 0;
+		GetDamageNumberScale(result, &half);
+		CHECK(result[0] == 1.5f && result[1] == 2.0f);
+		Globals.GameNameWidth = nullptr;
+		GetNameplateScale(result, &half);
+		CHECK(result[0] == 1.5f && result[1] == 2.0f);
+		Globals.GameNameHeight = nullptr;
+		Globals.pGameNameWidthScale = Globals.pGameNameHeightScale = nullptr;
+		Globals.GameDamageCell = nullptr;
+		Globals.pGameDamageOwner = Globals.pGameDamageOwner2 = nullptr;
+		Globals.pGameDamageWidthScale = Globals.pGameDamageHeightScale = nullptr;
+		AsmSettings.FontSize = 44;
+		AsmSettings.DamageFontSize = 11;
 		currentGame = nullptr;
 		CHECK(!UpdateScaleFactors());
 		Globals.pgGame = nullptr;
@@ -1575,7 +1621,7 @@ int main() {
 	StringCchPrintfW(path, MAX_PATH, L"%s\\namehook\\whitelist.txt", plugin.configPath);
 	DeleteFileW(path);
 	plugin.ParseCommand("/namehook load", true);
-	CHECK(Shared.Hidden == 0 && Shared.Options == 0 && AsmSettings.FontSize == 22 && AsmSettings.HideStars == 0 && OtherCalls == 1);
+	CHECK(Shared.Hidden == 0 && Shared.Options == 0 && AsmSettings.FontSize == 0 && AsmSettings.DamageFontSize == 0 && AsmSettings.HideStars == 0 && OtherCalls == 1);
 	CHECK(Whitelist.Count == 0);
 
 	// that load saved them as its own, which are read from then on
@@ -1588,6 +1634,21 @@ int main() {
 	CHECK(Shared.Hidden == (CATEGORY_SELF | CATEGORY_ALLIANCE | CATEGORY_PLAYER) && Shared.Options == OPTION_ALWAYS_TARGET && AsmSettings.FontSize == 19);
 	plugin.ParseCommand("/namehook target off", true);
 	plugin.ParseCommand("/namehook show all", true);
+
+	// a size of 0, or game, is the game's own; a word that is neither, or a size over 256, is an error
+	plugin.ParseCommand("/namehook fontsize 0", true);
+	CHECK(AsmSettings.FontSize == 0);
+	plugin.ParseCommand("/namehook fontsize 24", true);
+	plugin.ParseCommand("/namehook fontsize game", true);
+	plugin.ParseCommand("/namehook damagefontsize 24", true);
+	plugin.ParseCommand("/namehook damagefontsize game", true);
+	CHECK(AsmSettings.FontSize == 0 && AsmSettings.DamageFontSize == 0);
+	plugin.errors.clear();
+	plugin.ParseCommand("/namehook fontsize big", true);
+	plugin.ParseCommand("/namehook damagefontsize 300", true);
+	plugin.ParseCommand("/namehook fontsize", true);
+	CHECK(plugin.errors.size() == 3 && plugin.errors[0] == "fontsize" && plugin.errors[1] == "damagefontsize" && AsmSettings.FontSize == 0 && AsmSettings.DamageFontSize == 0);
+	plugin.errors.clear();
 
 	// other plugins' commands are not this one's
 	CHECK(plugin.messages.empty() && plugin.errors.empty());

@@ -58,8 +58,8 @@ share the **Bars** tab.
 
   NPCs are `[vendor: space=4][name]` in each preset but Minimal, where they are `[name]`. **Enable winplates**
   is at the top of General and on to begin with. It means winplates draws the names. Turn it off and
-  winplates lets them go at once. The game then draws its own names, at the size namehook gives them
-  (`/namehook fontsize`), unstretched. Visibility still says which are shown. winplates' health bars and
+  winplates lets them go at once. The game then draws its own names, at its own size unless
+  `/namehook fontsize` gave them one. Visibility still says which are shown. winplates' health bars and
   status icons are not drawn while it is off. All other winplates settings are greyed out across the tabs
   until you turn it on again. Saved values are kept.
 
@@ -881,7 +881,7 @@ of its own. Packages are made from the commit with `tools/package_release.py <na
 after `tests/run.sh`, and the command it prints makes the GitHub release, marked pre-release.
 
 The namehook plugin in winplates' zip is built from the same commit (`plugins/namehook-SOURCE.txt` says which),
-but its own version stays a number (1.52): Ashita gives a plugin a number for a version, so the stage is
+but its own version stays a number (1.53): Ashita gives a plugin a number for a version, so the stage is
 the package's, and `/namehook` reports the plain number. A pre-release of winplates is a pre-release of the
 namehook it carries.
 

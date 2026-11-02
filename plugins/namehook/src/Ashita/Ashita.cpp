@@ -1042,9 +1042,9 @@ static void AshitaLongHelp(IChatManager* chat) {
     chat->Write(0, false, "\x1e\x6a/namehook whitelist clear");
     chat->Write(0, true , "Take every name off the whitelist");
     chat->Write(0, false, "\x1e\x6a/namehook fontsize\x1e\x6a <number>");
-    chat->Write(0, true , "Set the nameplate font size to <number> pixels");
+    chat->Write(0, true , "Set the names' height to <number> pixels, 1 to 256; 0 or game is the game's own size, the default");
     chat->Write(0, false, "\x1e\x6a/namehook damagefontsize\x1e\x6a <number>");
-    chat->Write(0, true , "Set the damage font size to <number> pixels");
+    chat->Write(0, true , "Set the damage numbers' height to <number> pixels, 1 to 256; 0 or game is the game's own size, the default");
     chat->Write(0, false, "\x1e\x6a/namehook hidestars");
     chat->Write(0, true , "Hide all Job Mastery stars");
     chat->Write(0, false, "\x1e\x6a/namehook showstars");

@@ -2,7 +2,7 @@
 
 An Ashita v4 plugin that gives addons a hold on the names the game draws over characters' heads: what each one is, where it is, and whether it is drawn.
 
-It is a fork of nameplatew, which is a fork of Nameplate-AshitaV4, a community fork of [`Shirk/Nameplate`](https://github.com/Shirk/Nameplate). It still does what Nameplate does (names and damage numbers that are not stretched or blurred on a wide screen, at a size you choose, with or without the Job Mastery stars), and keeps nameplatew's whitelist. The changes from nameplatew 0.60 were made in October 2026 and are listed in `CHANGELOG.md`. The license is unchanged: GNU GPL v3.0, in `LICENSE.md`.
+It is a fork of nameplatew, which is a fork of Nameplate-AshitaV4, a community fork of [`Shirk/Nameplate`](https://github.com/Shirk/Nameplate). It still does what Nameplate does (names and damage numbers at a size you choose, not stretched or blurred on a wide screen, with or without the Job Mastery stars), and keeps nameplatew's whitelist. Loaded with nothing asked of it, it leaves names and damage numbers as the game draws them: every name shown, the stars as they are, the game's own sizes. The changes from nameplatew 0.60 were made in October 2026 and are listed in `CHANGELOG.md`. The license is unchanged: GNU GPL v3.0, in `LICENSE.md`.
 
 Load it with `/load namehook`, in place of `/load nameplatew` or `/load nameplate`. The three patch the same client code, so only one can be loaded. If `nameplate`, `nameplatew`, or the older `nameplatehook` is running, loading is refused before anything is patched, with a chat and log message that names the conflict and the `/unload` command you need. When a rendering signature is missing, the message also says it may be a competing patch or a client version that is not supported, rather than treating every missing signature as a conflict.
 
@@ -55,8 +55,8 @@ A name that is shown may still not be drawn by the game: an addon that draws nam
 | `/namehook whitelist add <name>...` | Always shows these players' names. `wl` is short for `whitelist`. Names match whatever their case. The list is saved as it changes, to `config\namehook\whitelist.txt`, one name to a line. |
 | `/namehook whitelist remove <name>...` | Takes them off the whitelist. |
 | `/namehook whitelist list` / `clear` | Says the names on the whitelist, or takes them all off. |
-| `/namehook fontsize <number>` | The height of the names, 1 to 256 pixels. 22 by default. |
-| `/namehook damagefontsize <number>` | The height of the damage numbers. |
+| `/namehook fontsize <number>` | The height of the names, 1 to 256 pixels. 0, or `game`, is the game's own size, stretched as the game stretches it on a wide screen: the default. |
+| `/namehook damagefontsize <number>` | The height of the damage numbers, the same way. 0, or `game`, is the game's own size: the default. |
 | `/namehook hidestars` / `showstars` | Hides or shows the Job Mastery stars. |
 | `/namehook save` | Saves the settings to `config\namehook\defaults.ini`: the sizes, the stars, the hidden categories and the target setting. |
 | `/namehook load` | Loads them again. |
