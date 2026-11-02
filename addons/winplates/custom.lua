@@ -547,6 +547,8 @@ local function writeWords(set, words, pen, top, fit, color, slot, opacity, track
 end
 
 -- the time left under a status's icon is written in the name's letters
+statuses.SetWords(wordsWidth, writeWords);
+
 -- Plain-letter fallback must share the badge's name-font baseline; otherwise
 -- the letter jumps vertically when its prepared atlas becomes available.
 local function writeLetterFallback(set, words, pen, top, fit, color)
@@ -1787,7 +1789,7 @@ function custom.Frame(options, hook, formats)
 
                     -- the row of statuses over all of it, or under it
                     if (statusRows and not written.simplified) then
-                        statuses.Write(name, nameLeft, nameLeft + width, clear, under, height, scale);
+                        statuses.Write(name, nameLeft, nameLeft + width, clear, under, height, scale, set, fit);
                     end
 
                     nameplates.EndName();

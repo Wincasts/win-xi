@@ -5,10 +5,13 @@
 --   statuses.HandlePacket(e)          every packet in goes by this: what lands on an enemy is kept count of
 --   statuses.Begin(options)           each frame, before any name is set out: whether there is anything
 --                                     to draw this frame, the sheet of icons given to the plugin
---   statuses.Write(name, left, right, above, below, height, scale)   between the plugin's
+--   statuses.Write(name, left, right, above, below, height, scale, set, fit)   between the plugin's
 --                                     BeginName and EndName: the row, for a name whose letters are height
 --                                     high, drawn from left to right, with nothing yet above above or below
---                                     below, moved by the X and Y offsets
+--                                     below, moved by the X and Y offsets; set and fit the name's letters,
+--                                     for the durations under the icons
+--   statuses.SetWords(width, write)   how the names' letters are measured and written, from custom: width(set,
+--                                     words, fit) and write(set, words, pen, top, fit, color)
 --   statuses.DrawSettings(options, save)         the settings tab
 --
 -- What is known of who is under what is not the same for everyone. The game keeps the player's own
@@ -17,6 +20,9 @@
 -- the server is seen to say took hold on them, by spell, ability, weapon skill, monster's move or
 -- additional effect, for as long as the server's scripts say it usually lasts, or until the server
 -- says it wore off.
+--
+-- With Show Durations on, how long each has left is written under its icon (winxi.statustimes): the
+-- player's own to the second; anyone else's an estimate, in Estimate Colour, or - where it cannot be known.
 --
 -- The icons are as party and buff draw them (winxi.statusicons): with Custom Icons on in wxi,
 -- the chosen set's where it has one and the game's where it has not; off, the game's. All are from
@@ -28,6 +34,7 @@ local nameplates  = require('winxi.nameplates');
 local statusicons = require('winxi.statusicons');
 local debuffs     = require('winxi.debuffs');
 local partystatus = require('winxi.partystatus');
+local statustimes = require('winxi.statustimes');
 local theme       = require('winxi.theme');
 local controls    = require('controls');
 local entityTypes = require('entity_types');
@@ -45,6 +52,9 @@ local LAST_STATUS  = 1023; -- the highest a status's number can be, for when the
 local LIST_ROWS    = 14;   -- rows of the settings' list to be seen at once
 local PREVIEW_MOST = 4;    -- icons over each name while previewing
 local MOST_OFFSET  = 200;  -- screen pixels the row can be moved each way
+-- the durations written under the icons of a preview, and whether each is an estimate
+local PREVIEW_TEXT = { '45', '2m', statustimes.Unknown, '1h' };
+local PREVIEW_ESTIMATE = { false, true, true, false };
 
 -- Preview: every shown name has a few of the chosen statuses over it, whatever it is under, to see
 -- how the row looks. Not kept: it is off again when the addon is loaded.
@@ -61,6 +71,9 @@ local settings = {
     statusOffsetY = function () return T{ 0 }; end, -- and down (or up, below 0)
     statusCategories = function () return T{ 0xFF }; end, -- which kinds of name have a row: entity_types
     statusIcons  = function () return T{ 'theme' }; end,  -- the icons: as the winxi theme has them, the game's, or the custom set's
+    statusDurations = function () return T{ false }; end, -- how long each has left, written under its icon
+    statusDurationSize = function () return T{ 50 }; end, -- those letters' height, as a percentage of an icon's
+    statusEstimateColor = function () return T{ 1.0, 0.82, 0.35, 1.0 }; end, -- an estimate's colour
     -- Empty here, and the chosen statuses given by Settle: Ashita fills each place a saved list lacks
     -- from the default list, so a list saved shorter than this came back with this one's tail, and
     -- statuses taken off came back on
@@ -172,6 +185,22 @@ local SELF = nameplates.Category.Self;
 -- not at all in a frame with no name that does; and the time, for what is tracked, once a frame
 local ownRead, partyRead = false, false;
 local seconds = 0;
+local durations = false;          -- the time left written under each icon
+local durationSize = 0.5;         -- its letters' height, as a part of an icon's
+local estimateColor = 0xFFFFD159; -- an estimate's colour, 0xAARRGGBB
+
+-- A channel, 0 to 1, as a byte
+local function Byte(value)
+    return math.max(0, math.min(255, math.floor((tonumber(value) or 1) * 255 + 0.5)));
+end
+
+-- A colour as the settings keep it, { r, g, b, a } from 0 to 1, as the plugin takes it
+local function Packed(color)
+    if (type(color) ~= 'table') then
+        return estimateColor;
+    end
+    return Byte(color[4]) * 0x1000000 + Byte(color[1]) * 0x10000 + Byte(color[2]) * 0x100 + Byte(color[3]);
+end
 
 -- Whether any name can have a row this frame
 function statuses.Begin(options)
@@ -197,12 +226,26 @@ function statuses.Begin(options)
     offsetY = math.max(-MOST_OFFSET, math.min(MOST_OFFSET, tonumber(options.statusOffsetY ~= nil and options.statusOffsetY[1]) or 0));
     shownWith = options;
     ownRead, partyRead, seconds = false, false, os.time();
+    durations = options.statusDurations ~= nil and options.statusDurations[1] == true;
+    if (durations) then
+        durationSize = math.max(30, math.min(100, tonumber(options.statusDurationSize ~= nil and options.statusDurationSize[1]) or 50)) / 100;
+        estimateColor = Packed(options.statusEstimateColor);
+        statustimes.Begin();
+        -- the party is watched every frame, whether or not their names are drawn, so that what appears
+        -- on them is seen to begin when it does
+        partyRead = true;
+        partystatus.Party(party);
+        for member = 1, PARTY_OTHERS do
+            statustimes.Watch(party[member].id, party[member]);
+        end
+    end
     return true;
 end
 
 -- The row for one name: what it is under that is chosen, each status once, and whether each icon is
 -- one of the set's
-local row, rowOwn, rowCount = {}, {}, 0;
+-- one, and each one's status, for its duration
+local row, rowOwn, rowIds, rowCount = {}, {}, {}, 0;
 local taken, mark = {}, 0;
 
 local function Take(id)
@@ -211,7 +254,7 @@ local function Take(id)
         if (place ~= nil) then
             taken[id] = mark;
             rowCount = rowCount + 1;
-            row[rowCount], rowOwn[rowCount] = place, own == true;
+            row[rowCount], rowOwn[rowCount], rowIds[rowCount] = place, own == true, id;
         end
     end
 end
@@ -287,13 +330,38 @@ local function Gather(name, options)
     TakeTracked(serverId);
 end
 
-function statuses.Write(name, nameLeft, nameRight, above, under, height, scale)
+-- How the names' letters are measured and written: custom's, handed over as it is loaded
+local wordsWidth, writeWords = nil, nil;
+
+function statuses.SetWords(width, write)
+    wordsWidth, writeWords = width, write;
+end
+
+-- each icon's duration and whether it is an estimate, false for none
+local rowText, rowEstimate = {}, {};
+
+function statuses.Write(name, nameLeft, nameRight, above, under, height, scale, set, fit)
     if (sheet == 0 or bit.band(categories, name.Category or 0) == 0) then
         return;
     end
     Gather(name, shownWith);
     if (rowCount == 0) then
         return;
+    end
+
+    -- the durations under the icons, where any is written: the row is raised to make room for them
+    local timed = false;
+    if (durations and set ~= nil and fit ~= nil and writeWords ~= nil) then
+        for index = 1, rowCount do
+            local text, estimate;
+            if (preview[1]) then
+                text, estimate = PREVIEW_TEXT[index], PREVIEW_ESTIMATE[index];
+            else
+                text, estimate = statustimes.Text(name.ServerId, rowIds[index]);
+            end
+            rowText[index], rowEstimate[index] = text or false, estimate == true;
+            timed = timed or text ~= nil;
+        end
     end
 
     local tall = math.max(1, math.floor(height * size + 0.5));
@@ -312,7 +380,9 @@ function statuses.Write(name, nameLeft, nameRight, above, under, height, scale)
         left = math.floor((nameLeft + nameRight - across) * 0.5);
     end
     local rise = math.floor(RISE * scale + 0.5);
-    local top = below and (under + rise) or (above - rise - tall);
+    local textTall = timed and math.max(1, math.floor(tall * durationSize + 0.5)) or 0;
+    local textFit = timed and fit * textTall / height or 0;
+    local top = below and (under + rise) or (above - rise - textTall - tall);
     -- the offsets are the screen's pixels, as the gap is
     left = left + math.floor(offsetX * scale + 0.5);
     top = top + math.floor(offsetY * scale + 0.5);
@@ -322,6 +392,13 @@ function statuses.Write(name, nameLeft, nameRight, above, under, height, scale)
         local width = rowOwn[index] and wide or tall;
         -- the icons have an edge of their own: none is drawn round them
         nameplates.Quad(left, top, left + width, top + tall, place[1], place[2], place[3], place[4], WHITE, statuses.Slot, false);
+        -- the duration under it, its middle under the icon's, outlined as the names' letters are
+        local text = timed and rowText[index];
+        if (text) then
+            local textWidth = wordsWidth(set, text, textFit);
+            writeWords(set, text, math.floor(left + (width - textWidth) * 0.5 + 0.5), top + tall, textFit,
+                rowEstimate[index] and estimateColor or WHITE);
+        end
         left = left + width + gap;
     end
 end
@@ -381,6 +458,7 @@ local ICONS = { { key = 'theme', label = 'Winxi Theme' }, { key = 'game', label 
 local ALIGNMENTS = { { key = 'left', label = 'Left' }, { key = 'center', label = 'Center' }, { key = 'right', label = 'Right' } };
 
 local showSpec = {}; -- the rows that wait for Enabled
+local durationSpec = {}; -- and those that wait for Show Durations
 
 function statuses.DrawSettings(options, save)
     Chosen(options);
@@ -414,6 +492,20 @@ function statuses.DrawSettings(options, save)
         end
         if (controls.Input('Y Offset', '##name.statusOffsetY', options.statusOffsetY, -MOST_OFFSET, MOST_OFFSET, '%d px',
                 'Moves the row down. Below 0, up.', showSpec)) then
+            changed = true;
+        end
+        if (controls.Checkbox('Show Durations', '##name.statusDurations', options.statusDurations,
+                'Writes the time left under each icon. Others\' times are estimates, or - if unknown.', showSpec)) then
+            changed = true;
+        end
+        -- greyed while either Enabled or Show Durations is off
+        durationSpec.parent = (options.showStatuses[1] and options.statusDurations[1]) == true;
+        if (controls.Slider('Duration Size', '##name.statusDurationSize', options.statusDurationSize, 30, 100, '%d%%',
+                'How tall the durations are, compared with the icon.', durationSpec)) then
+            changed = true;
+        end
+        if (controls.Color('Estimate Colour', '##name.statusEstimateColor', options.statusEstimateColor,
+                'The colour of estimated durations and -.', durationSpec)) then
             changed = true;
         end
         controls.Checkbox('Preview', '##name.statusPreview', preview,

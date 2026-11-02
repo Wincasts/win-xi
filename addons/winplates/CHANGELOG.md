@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.92
+
+- **Show Durations** (Statuses → Display, off to begin with): the time left under each status icon, in the names' letters and outlined as they are. Your own are exact, read from the game. Everyone else's are estimates in **Estimate Colour** (yellow to begin with): a status seen to land lasts its spell's or monster move's usual time on the server, one seen to appear on a party member its status's usual time from then, and `-` is written where neither is known or the estimate has run out while the status is still on. **Duration Size** (30–100% of the icon, 50 to begin with). Above a name the row is raised to make room. The estimates are winxi 75's `winxi.statustimes`; the server's durations set now has the enhancing spells', songs' and ninjutsu's base times as well. Requires winxi 75.
+
 ## 1.91
 
 - A name the game hides is not drawn: a Chigoe's until it is engaged (and again once it disengages), or an NPC's the server keeps hidden. The game gives such a name no text, and since 1.69 the entity's name was written in its place, so Chigoes had names before they were aggroed. Only your own name is written from the entity when the text is empty, as 1.69 meant.

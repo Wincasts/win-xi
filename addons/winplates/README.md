@@ -168,6 +168,12 @@ share the **Bars** tab.
 - **Statuses:** Display, Entity Types (the same eight kinds of name as for health
   bars, all ticked to begin with) and Selected Statuses, with help about
   status sources that you can expand.
+  **Show Durations** (Display, off to begin with) writes the time left under each
+  icon: seconds, then minutes (`m`), then hours (`h`). Your own times are exact,
+  read from the game. Everyone else's are estimates, written in **Estimate Colour**
+  (yellow to begin with): from when the status was seen to land, or to appear on
+  a party member, for the server's usual time. Where that cannot be known, `-` is
+  written. **Duration Size** sets how tall the times are next to the icon.
 
 Format token references and examples are under each kind of name's Format Tokens.
 Settings a character already has are kept.

@@ -386,3 +386,77 @@ do
     local padded = merge(T{ statusList = T{ 2, 3, 135, 156, 194, 134, 135, 156, 194, 132, 133, 134, 135 } }, defaults()); statuses.Settle(padded)
     H.print('a list the merge had padded: each status once, in order', same(padded.statusList, { 2, 3, 132, 133, 134, 135, 156, 194 }), padded.statusListVersion == 1)
 end
+
+-- Show Durations: the time left written under each icon, the player's own exact and in white, anyone
+-- else's an estimate in Estimate Colour, or - where it cannot be known
+do
+    -- the letters under a name's icons: of the font, between the icons' foot and the room left for them
+    local function under(index)
+        local row, entity, found = icons(index), draw.Entities[index], {}
+        if #row == 0 then return 0, found end
+        local foot = row[1].Y1
+        local room = math.floor((row[1].Y1 - row[1].Y0) * o.statusDurationSize[1] / 100 + 0.5)
+        for i = 0, entity.Count - 1 do
+            local q = draw.Quads[entity.First + i]
+            if q.Texture == 0 and q.Y0 >= foot - 0.5 and q.Y1 <= foot + room + 0.5 then found[#found + 1] = q end
+        end
+        return #found, found
+    end
+    local resources = AshitaCore.GetResourceManager()
+    AshitaCore.GetResourceManager = function() return {
+        GetString = resources.GetString,
+        GetStatusIconByIndex = function(_, id) return { HideTimer = id == 13 and 1 or 0 } end } end
+    -- the game's count of time: the player's Paralysis has 1m left; Slow, which the game writes no time under
+    local EPOCH, STAMP = 0x3C307D70, 0x3C307D70 + 5000
+    memory[0x9000], memory[0x9100], memory[0x9200 + 0x0C] = 0x9100, 0x9200, STAMP
+    local realFind = ashita.memory.find
+    ashita.memory.find = function(module, ...) if module == 'FFXiMain.dll' then return 0x9000 end return realFind(module, ...) end
+    local player, party = manager.GetPlayer(), manager.GetParty and manager.GetParty() or nil
+    manager.GetPlayer = function() return { GetIsZoning = player.GetIsZoning, GetStatusIcons = function() return own end,
+        GetStatusTimers = function() return { (STAMP - EPOCH) * 60 + 90 * 60, (STAMP - EPOCH) * 60 + 30 * 60 } end,
+        GetMainJob = player.GetMainJob, GetLoginStatus = player.GetLoginStatus } end
+    local realParty = manager.GetParty
+    manager.GetParty = function()
+        local base = realParty and realParty() or {}
+        return setmetatable({ GetMemberServerId = function(_, place) return place == 0 and 0x1400 or (base.GetMemberServerId and base:GetMemberServerId(place) or 0) end },
+            { __index = base })
+    end
+    own = { 4, 13 }
+    local keptList = o.statusList
+    o.statusList = T{ 4, 13, 300 } -- the party member's 300 chosen as well
+    debuffs.Clear(); cast(58, { [0x1000 + 300] = 236 })
+
+    H.print('settings: Show Durations off to begin with', o.statusDurations[1] == false, '| 50% of an icon', o.statusDurationSize[1] == 50)
+    block.Frame = 70; H.frames(1)
+    local plainFoot = icons(0x400)[1].Y1
+    H.print('off: nothing under the icons', under(0x400) == 0, under(300) == 0)
+    o.statusDurations[1] = true; block.Frame = 71; H.frames(1)
+    local ownCount, ownQuads = under(0x400)
+    H.print('own: Paralysis 1m, two letters, none under Slow', ownCount == 2)
+    local row = icons(0x400)
+    H.print('its middle under its icon', ownCount > 0 and math.abs((ownQuads[1].X0 + ownQuads[#ownQuads].X1) * 0.5 - (row[1].X0 + row[1].X1) * 0.5) <= 2)
+    H.print('exact: white', ownCount > 0 and ownQuads[1].Color == 0xFFFFFFFF, ('| %08X'):format(ownCount > 0 and ownQuads[1].Color or 0))
+    H.print('above: the row raised to make room', row[1].Y1 < plainFoot)
+    local enemyCount, enemyQuads = under(300)
+    H.print('an enemy\'s Paralyze: 2m by the server\'s 120 s, two letters', enemyCount == 2)
+    H.print('an estimate: Estimate Colour', enemyCount > 0 and enemyQuads[1].Color == 0xFFFFD159, ('| %08X'):format(enemyCount > 0 and enemyQuads[1].Color or 0))
+    now = now + 75; block.Frame = 72; H.frames(1)
+    H.print('75 s on: 45, still two letters', under(300) == 2)
+    now = now + 40; block.Frame = 73; H.frames(1)
+    H.print('115 s on: 5, one letter', under(300) == 1)
+    local partyCount, partyQuads = under(0x401)
+    H.print('a party member under Slow and 300, on them before they were watched: - under 300, none under Slow', partyCount == 1,
+        '| in Estimate Colour', partyCount > 0 and partyQuads[1].Color == 0xFFFFD159)
+    o.statusEstimateColor[1], o.statusEstimateColor[2], o.statusEstimateColor[3] = 0, 1, 0; block.Frame = 74; H.frames(1)
+    local _, recoloured = under(300)
+    H.print('Estimate Colour changed: green', #recoloured > 0 and recoloured[1].Color == 0xFF00FF00)
+    o.statusPlace[1] = 'below'; block.Frame = 75; H.frames(1)
+    H.print('below: the durations under the icons still', under(0x400) == 2)
+    o.statusPlace[1] = 'above'; o.statusDurations[1] = false
+    o.statusEstimateColor[1], o.statusEstimateColor[2], o.statusEstimateColor[3] = 1, 0.82, 0.35
+    block.Frame = 76; H.frames(1)
+    H.print('off again: the row where it was', icons(0x400)[1].Y1 == plainFoot, under(0x400) == 0)
+    AshitaCore.GetResourceManager, ashita.memory.find = function() return resources end, realFind
+    manager.GetPlayer, manager.GetParty = function() return player end, realParty
+    o.statusList = keptList
+end
