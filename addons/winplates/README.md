@@ -173,7 +173,9 @@ share the **Bars** tab.
   read from the game. Everyone else's are estimates, written in **Estimate Colour**
   (yellow to begin with): from when the status was seen to land, or to appear on
   a party member, for the server's usual time. Where that cannot be known, `-` is
-  written. **Duration Size** sets how tall the times are next to the icon.
+  written. Statuses you cast are written in **Your Colour** (green to begin with),
+  so you can see when someone else's replaces yours. **Duration Size** sets how
+  tall the times are next to the icon.
 
 Format token references and examples are under each kind of name's Format Tokens.
 Settings a character already has are kept.

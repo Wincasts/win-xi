@@ -388,7 +388,7 @@ do
 end
 
 -- Show Durations: the time left written under each icon, the player's own exact and in white, anyone
--- else's an estimate in Estimate Colour, or - where it cannot be known
+-- else's an estimate in Estimate Colour, or - where it cannot be known; one the player cast in Your Colour
 do
     -- the letters under a name's icons: of the font, between the icons' foot and the room left for them
     local function under(index)
@@ -450,6 +450,14 @@ do
     o.statusEstimateColor[1], o.statusEstimateColor[2], o.statusEstimateColor[3] = 0, 1, 0; block.Frame = 74; H.frames(1)
     local _, recoloured = under(300)
     H.print('Estimate Colour changed: green', #recoloured > 0 and recoloured[1].Color == 0xFF00FF00)
+    -- the player casts Paralyze over it: Your Colour; someone else casts it again over theirs: an estimate again
+    debuffs.Action({ actor_id = 0x1400, category = 4, param = 58, targets = { { id = 0x1000 + 300, actions = { { message = 236 } } } } })
+    block.Frame = 77; H.frames(1)
+    local _, mineQuads = under(300)
+    H.print('cast by you: Your Colour', #mineQuads > 0 and mineQuads[1].Color == 0xFF73FF8C, ('| %08X'):format(#mineQuads > 0 and mineQuads[1].Color or 0))
+    cast(58, { [0x1000 + 300] = 236 }); block.Frame = 78; H.frames(1)
+    local _, overQuads = under(300)
+    H.print('someone else\'s over yours: Estimate Colour again', #overQuads > 0 and overQuads[1].Color == 0xFF00FF00)
     o.statusPlace[1] = 'below'; block.Frame = 75; H.frames(1)
     H.print('below: the durations under the icons still', under(0x400) == 2)
     o.statusPlace[1] = 'above'; o.statusDurations[1] = false

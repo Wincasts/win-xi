@@ -23,6 +23,8 @@
 --
 -- With Show Durations on, how long each has left is written under its icon (winxi.statustimes): the
 -- player's own to the second; anyone else's an estimate, in Estimate Colour, or - where it cannot be known.
+-- One the player cast is in Your Colour, whether exact or estimated, until anyone else's is seen to
+-- land over it.
 --
 -- The icons are as party and buff draw them (winxi.statusicons): with Custom Icons on in wxi,
 -- the chosen set's where it has one and the game's where it has not; off, the game's. All are from
@@ -55,6 +57,7 @@ local MOST_OFFSET  = 200;  -- screen pixels the row can be moved each way
 -- the durations written under the icons of a preview, and whether each is an estimate
 local PREVIEW_TEXT = { '45', '2m', statustimes.Unknown, '1h' };
 local PREVIEW_ESTIMATE = { false, true, true, false };
+local PREVIEW_MINE = { false, true, false, false }; -- and whether each is one the player cast
 
 -- Preview: every shown name has a few of the chosen statuses over it, whatever it is under, to see
 -- how the row looks. Not kept: it is off again when the addon is loaded.
@@ -74,6 +77,7 @@ local settings = {
     statusDurations = function () return T{ false }; end, -- how long each has left, written under its icon
     statusDurationSize = function () return T{ 50 }; end, -- those letters' height, as a percentage of an icon's
     statusEstimateColor = function () return T{ 1.0, 0.82, 0.35, 1.0 }; end, -- an estimate's colour
+    statusMineColor = function () return T{ 0.45, 1.0, 0.55, 1.0 }; end, -- the colour of one the player cast
     -- Empty here, and the chosen statuses given by Settle: Ashita fills each place a saved list lacks
     -- from the default list, so a list saved shorter than this came back with this one's tail, and
     -- statuses taken off came back on
@@ -188,6 +192,7 @@ local seconds = 0;
 local durations = false;          -- the time left written under each icon
 local durationSize = 0.5;         -- its letters' height, as a part of an icon's
 local estimateColor = 0xFFFFD159; -- an estimate's colour, 0xAARRGGBB
+local mineColor = 0xFF73FF8C;     -- the colour of one the player cast
 
 -- A channel, 0 to 1, as a byte
 local function Byte(value)
@@ -195,9 +200,9 @@ local function Byte(value)
 end
 
 -- A colour as the settings keep it, { r, g, b, a } from 0 to 1, as the plugin takes it
-local function Packed(color)
+local function Packed(color, otherwise)
     if (type(color) ~= 'table') then
-        return estimateColor;
+        return otherwise;
     end
     return Byte(color[4]) * 0x1000000 + Byte(color[1]) * 0x10000 + Byte(color[2]) * 0x100 + Byte(color[3]);
 end
@@ -229,7 +234,8 @@ function statuses.Begin(options)
     durations = options.statusDurations ~= nil and options.statusDurations[1] == true;
     if (durations) then
         durationSize = math.max(30, math.min(100, tonumber(options.statusDurationSize ~= nil and options.statusDurationSize[1]) or 50)) / 100;
-        estimateColor = Packed(options.statusEstimateColor);
+        estimateColor = Packed(options.statusEstimateColor, 0xFFFFD159);
+        mineColor = Packed(options.statusMineColor, 0xFF73FF8C);
         statustimes.Begin();
         -- the party is watched every frame, whether or not their names are drawn, so that what appears
         -- on them is seen to begin when it does
@@ -337,8 +343,8 @@ function statuses.SetWords(width, write)
     wordsWidth, writeWords = width, write;
 end
 
--- each icon's duration and whether it is an estimate, false for none
-local rowText, rowEstimate = {}, {};
+-- each icon's duration, false for none, and its colour
+local rowText, rowColor = {}, {};
 
 function statuses.Write(name, nameLeft, nameRight, above, under, height, scale, set, fit)
     if (sheet == 0 or bit.band(categories, name.Category or 0) == 0) then
@@ -353,13 +359,15 @@ function statuses.Write(name, nameLeft, nameRight, above, under, height, scale, 
     local timed = false;
     if (durations and set ~= nil and fit ~= nil and writeWords ~= nil) then
         for index = 1, rowCount do
-            local text, estimate;
+            local text, estimate, mine;
             if (preview[1]) then
-                text, estimate = PREVIEW_TEXT[index], PREVIEW_ESTIMATE[index];
+                text, estimate, mine = PREVIEW_TEXT[index], PREVIEW_ESTIMATE[index], PREVIEW_MINE[index];
             else
-                text, estimate = statustimes.Text(name.ServerId, rowIds[index]);
+                text, estimate, mine = statustimes.Text(name.ServerId, rowIds[index]);
             end
-            rowText[index], rowEstimate[index] = text or false, estimate == true;
+            -- the player's own cast in Your Colour, then an estimate in Estimate Colour
+            rowText[index] = text or false;
+            rowColor[index] = (mine and mineColor) or (estimate and estimateColor) or WHITE;
             timed = timed or text ~= nil;
         end
     end
@@ -397,7 +405,7 @@ function statuses.Write(name, nameLeft, nameRight, above, under, height, scale, 
         if (text) then
             local textWidth = wordsWidth(set, text, textFit);
             writeWords(set, text, math.floor(left + (width - textWidth) * 0.5 + 0.5), top + tall, textFit,
-                rowEstimate[index] and estimateColor or WHITE);
+                rowColor[index]);
         end
         left = left + width + gap;
     end
@@ -506,6 +514,10 @@ function statuses.DrawSettings(options, save)
         end
         if (controls.Color('Estimate Colour', '##name.statusEstimateColor', options.statusEstimateColor,
                 'The colour of estimated durations and -.', durationSpec)) then
+            changed = true;
+        end
+        if (controls.Color('Your Colour', '##name.statusMineColor', options.statusMineColor,
+                'The colour of durations of statuses you cast, so you can see when someone else\'s replaces yours.', durationSpec)) then
             changed = true;
         end
         controls.Checkbox('Preview', '##name.statusPreview', preview,
