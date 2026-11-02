@@ -136,7 +136,7 @@
 -- 74: nameplates.Feature.FontEachFrame, namehook 1.52's word that hook.FontTexture is imgui's font texture as
 --     of every frame presented, and not only of one a name was drawn in
 -- 75: statustimes, the time a status has left as a label to write under its icon (exact for the
---     player's own, else an estimate or '-'); debuffs.UsualSeconds, and at and known in debuffs.Statuses
+--     player's own, else an estimate or '-') and whether the player put it there; debuffs.UsualSeconds, and at and known in debuffs.Statuses
 return {
     Number = 75,
 };

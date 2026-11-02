@@ -84,3 +84,19 @@ H.print('nothing seen on them: -', text(0x301, 4) == '-~')
 now = now + 31; statustimes.Begin()
 statustimes.Watch(0x200, member)
 H.print('back after half a minute: Paralysis -', text(0x200, 4) == '-~', text(0x200, 4), '| Protect still from its landing', text(0x200, 40))
+
+-- whose it is: Protect on them (0x200) was cast by the player (0x100), seen to land after it appeared
+local function whose(serverId, id) return select(3, statustimes.Text(serverId, id)) == true end
+H.print('the player\'s Protect on them: yours', whose(0x200, 40))
+H.print('Paralysis, which nobody was seen to cast: not yours', not whose(0x200, 4))
+-- someone else (0x500) casts Protect over it: no longer yours
+debuffs.Action({ actor_id = 0x500, category = 4, param = 43, targets = { { id = 0x200, actions = { { message = 230, param = 40 } } } } })
+H.print('someone else\'s Protect over yours: not yours', not whose(0x200, 40), text(0x200, 40))
+-- an enemy's Paralyze the player cast: yours while it lasts, and not once it has run out
+H.print('the enemy\'s Paralyze you cast: yours', whose(0x300, 4))
+now = now + 200; statustimes.Begin()
+H.print('run out: not yours', not whose(0x300, 4))
+-- the player's own Protect, cast by themselves: exact and yours
+debuffs.Action({ actor_id = 0x100, category = 4, param = 43, targets = { { id = 0x100, actions = { { message = 230, param = 40 } } } } })
+local words, estimate, mine = statustimes.Text(0x100, 40)
+H.print('your own Protect, cast by you: exact and yours', estimate == false, mine == true, words)

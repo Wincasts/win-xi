@@ -6,9 +6,9 @@
 --     statustimes.Watch(serverId, ids)          a party member's statuses as the game keeps them, each time
 --                                               they are read: what is new on them is seen to begin now
 --     statustimes.Text(serverId, id, nth)       the label for the nth (1 if not given) of that status on them,
---                                               and true when it is an estimate; nil when nothing is written
---                                               (a status that does not run out, or one the game writes no
---                                               time under)
+--                                               true when it is an estimate, and true when the player put it
+--                                               there; nil when nothing is written (a status that does not run
+--                                               out, or one the game writes no time under)
 --     statustimes.Label(seconds)                45, 3m, 2h: seconds under a minute, then minutes, then hours
 --     statustimes.Unknown                       the label where the time cannot be known: '-'
 --
@@ -20,6 +20,9 @@
 --                       still on them, not known
 --   anyone else         what winxi.debuffs saw land, for its usual time; one whose length its data does
 --                       not give is not known
+-- Whose it is: the player's when the last landing seen of it on them was the player's, so that one
+-- put there by anyone else after it, which takes its place, is not. Of the player's own statuses,
+-- the same; one that was not seen to land is no one's.
 -- Usual times are the server's base ones: skill, merits, gear, Composure and partial resists are not
 -- known, so an estimate can run out before or after the status does.
 --
@@ -201,6 +204,14 @@ local function HidesTimer(id)
     return hidden;
 end
 
+-- Whether the player put it there: the last landing of it seen on them was theirs, and is the one on
+-- them now (not before it last appeared, and not run out where when it appeared is not known)
+local function Mine(entry, since)
+    return entry ~= nil and ownId ~= 0 and entry.by == ownId
+        and (not since or (entry.at or 0) >= since - LANDED_SLACK)
+        and (since or now < entry.expires);
+end
+
 function statustimes.Text(serverId, id, nth)
     if (id == nil or HidesTimer(id)) then
         return nil;
@@ -208,7 +219,10 @@ function statustimes.Text(serverId, id, nth)
     if (not ownRead) then
         ReadOwn();
     end
+    local on = serverId ~= nil and debuffs.Statuses(serverId) or nil;
+    local entry = on and on[id];
     if (serverId ~= nil and serverId ~= 0 and serverId == ownId) then
+        local mine = Mine(entry, nil);
         local count = ownCount[id] or 0;
         if (count > 0) then
             local seconds = ownTimes[id][math.min(nth or 1, count)];
@@ -216,28 +230,27 @@ function statustimes.Text(serverId, id, nth)
                 return nil;
             end
             if (seconds ~= nil) then
-                return statustimes.Label(seconds), false;
+                return statustimes.Label(seconds), false, mine;
             end
         end
-        return statustimes.Unknown, true;
+        return statustimes.Unknown, true, mine;
     end
 
     local member = serverId ~= nil and watched[serverId] or nil;
     local since = member and member[id] or nil; -- false: on them since a time not known
-    local on = serverId ~= nil and debuffs.Statuses(serverId) or nil;
-    local entry = on and on[id];
+    local mine = Mine(entry, since);
     -- seen to land, and not before the status last appeared on them
     if (entry ~= nil and entry.known ~= false and now < entry.expires
             and (not since or (entry.at or 0) >= since - LANDED_SLACK)) then
-        return statustimes.Label(entry.expires - now), true;
+        return statustimes.Label(entry.expires - now), true, mine;
     end
     if (since) then
         local usual = debuffs.UsualSeconds(id);
         if (usual ~= nil and since + usual > now) then
-            return statustimes.Label(since + usual - now), true;
+            return statustimes.Label(since + usual - now), true, mine;
         end
     end
-    return statustimes.Unknown, true;
+    return statustimes.Unknown, true, mine;
 end
 
 return statustimes;
