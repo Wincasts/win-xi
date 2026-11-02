@@ -180,9 +180,9 @@ share the **Bars** tab.
   with, 0 for none) makes an icon running out fade out and in.
   **Only Yours On Enemies** leaves a monster's row only the statuses you put there.
   **Removable Marks** puts a small square in a dark border inside the corner of each
-  status a spell can take off:
-  **Curable Mark Colour** (light blue) on debuffs Erase, a -na spell or a waltz
-  removes, **Dispellable Mark Colour** (amber) on buffs Dispel removes.
+  status you can take off: **Curable Mark Colour** (light blue) on a character's
+  debuffs that Erase, a -na spell or a waltz removes, and **Dispellable Mark Colour**
+  (amber) on a monster's buffs that Dispel removes.
 
 Format token references and examples are under each kind of name's Format Tokens.
 Settings a character already has are kept.

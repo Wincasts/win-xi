@@ -27,8 +27,8 @@
 -- One the player cast is in Your Colour, whether exact or estimated, until anyone else's is seen to
 -- land over it. One with less than Low Time Warning left fades out and in.
 -- Only Yours On Enemies leaves a monster's row the statuses the player put there. Removable Marks puts
--- a dot on the corner of each icon a spell can take off: debuffs Erase, a -na spell or a waltz removes,
--- buffs Dispel does (winxi.statuses' Removable, the server's flags).
+-- a mark on the corner of each icon the player can take off: on a monster, buffs Dispel removes; on
+-- anyone else, debuffs Erase, a -na spell or a waltz removes (winxi.statuses' Removable, the server's flags).
 --
 -- The icons are as party and buff draw them (winxi.statusicons): with Custom Icons on in wxi,
 -- the chosen set's where it has one and the game's where it has not; off, the game's. All are from
@@ -459,11 +459,17 @@ function statuses.Write(name, nameLeft, nameRight, above, under, height, scale, 
         -- running out: the icon fades out and in
         local tint = rowLow[index] and (math.floor(statustimes.Blink() * 255 + 0.5) * 0x1000000 + 0xFFFFFF) or WHITE;
         nameplates.Quad(left, top, left + width, top + tall, place[1], place[2], place[3], place[4], tint, statuses.Slot, false);
-        -- what can take it off: a small square in its top right corner, of the kind's colour in a dark
-        -- border, the whole of it inside the icon
+        -- what the player can take off: on a monster its buffs Dispel removes, on anyone else their
+        -- debuffs Erase, a -na spell or a waltz removes; a small square in its top right corner, of the
+        -- kind's colour in a dark border, the whole of it inside the icon
         if (marks) then
             local kind = statusFlags.Removable(rowIds[index]);
-            local color = ((kind == 'erase' or kind == 'waltz') and cureColor) or (kind == 'dispel' and dispelColor) or nil;
+            local color;
+            if (name.Category == MONSTER) then
+                color = kind == 'dispel' and dispelColor or nil;
+            else
+                color = (kind == 'erase' or kind == 'waltz') and cureColor or nil;
+            end
             local u, v = nil, nil;
             if (color ~= nil) then u, v = healthbar.WhitePixel(); end
             if (u ~= nil) then
@@ -609,16 +615,16 @@ function statuses.DrawSettings(options, save)
             changed = true;
         end
         if (controls.Checkbox('Removable Marks', '##name.statusRemovableMarks', options.statusRemovableMarks,
-                'Puts a dot on the corner of each status a spell can take off.', showSpec)) then
+                'Marks what you can take off: a friend\'s curable debuffs and a monster\'s dispellable buffs.', showSpec)) then
             changed = true;
         end
         markSpec.parent = (options.showStatuses[1] and options.statusRemovableMarks[1]) == true;
         if (controls.Color('Curable Mark Colour', '##name.statusCureMarkColor', options.statusCureMarkColor,
-                'The dot on debuffs that Erase, a -na spell or a waltz removes.', markSpec)) then
+                'The mark on a friend\'s debuffs that Erase, a -na spell or a waltz removes.', markSpec)) then
             changed = true;
         end
         if (controls.Color('Dispellable Mark Colour', '##name.statusDispelMarkColor', options.statusDispelMarkColor,
-                'The dot on buffs that Dispel removes.', markSpec)) then
+                'The mark on a monster\'s buffs that Dispel removes.', markSpec)) then
             changed = true;
         end
         controls.Checkbox('Preview', '##name.statusPreview', preview,

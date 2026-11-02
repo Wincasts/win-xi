@@ -59,10 +59,19 @@ for index, circle in ipairs(circles) do
         inside = inside and any
     end
 end
-H.print('marks: Paralysis curable, Protect and Haste dispellable, Sleep none', cure == 1, dispel == 2, #circles == 6)
+H.print('marks on a party member: Paralysis curable; Protect and Haste, a friend\'s, none; Sleep none', cure == 1, dispel == 0, #circles == 2)
 H.print('each mark, its border too, inside its icon', inside)
 local icon = images[4]
 H.print('and small: under a quarter of the icon across', circles[1].radius * 2 < (icon.x2 - icon.x1) / 4)
+-- on a monster: its buffs Dispel removes, and not its debuffs
+member.isMonster = true
+style = paint()
+cure, dispel = 0, 0
+for _, circle in ipairs(circles) do
+    if circle.color == style.cureMarkColor then cure = cure + 1 elseif circle.color == style.dispelMarkColor then dispel = dispel + 1 end
+end
+H.print('marks on a monster: Protect and Haste dispellable; Paralysis, its debuff, none', dispel == 2, cure == 0, #circles == 4)
+member.isMonster = nil
 o.style.removableMarks[1], o.style.showDurations[1] = false, false
 
 -- the tooltip: time left, the spell and who cast it, and what removes it
@@ -90,3 +99,10 @@ details.Status(2, nil)
 H.print('no one known: the name alone', shown:find('\n', 1, true) == nil, shown)
 tooltip.Show, statustimes.Text, statustimes.Landing = realShow, realText, realLanding
 AshitaCore.GetMemoryManager, AshitaCore.GetResourceManager = manager, resources
+
+-- the target window knows a monster from its spawn flags: its marks are Dispel's; the samples are monsters
+local target = require('target')
+local monster = target.Line('main', { Name = 'Goblin', ServerId = 0x1000123, SpawnFlags = 0x10, HPPercent = 100, Distance = 4 })[1].isMonster
+local player = target.Line('sub', { Name = 'Someone', ServerId = 0x456, SpawnFlags = 0x01, HPPercent = 100, Distance = 4 })[1].isMonster
+local sample = target.Line('tot', target.Samples.tot)[1].isMonster
+H.print('target: a monster is one, a player is not, the sample target is', monster == true, player == false, sample == true)

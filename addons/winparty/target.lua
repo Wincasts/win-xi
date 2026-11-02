@@ -15,9 +15,9 @@ local target = { }
 
 
 target.Samples = {
-    main = { Name = 'Sample Target', Distance = 8 * 8, HPPercent = 75, ServerId = 0 },
-    sub = { Name = 'Sample Sub-target', Distance = 12 * 12, HPPercent = 100, ServerId = 0 },
-    tot = { Name = 'Sample Target of Target', Distance = 3 * 3, HPPercent = 40, ServerId = 0 },
+    main = { Name = 'Sample Target', Distance = 8 * 8, HPPercent = 75, ServerId = 0, SpawnFlags = 0x10 },
+    sub = { Name = 'Sample Sub-target', Distance = 12 * 12, HPPercent = 100, ServerId = 0, SpawnFlags = 0x10 },
+    tot = { Name = 'Sample Target of Target', Distance = 3 * 3, HPPercent = 40, ServerId = 0, SpawnFlags = 0x10 },
 }
 
 -- Which entity each window is for, by its index, or 0 for none. settings say which windows are wanted.
@@ -61,6 +61,8 @@ end
 
 -- The lowest bit of an entity's spawn flags is set for a player character, and for nothing else
 local spawnFlagPlayer = 0x01
+-- and the fifth for a monster
+local spawnFlagMonster = 0x10
 
 local function IsPlayer(entity)
     return entity.SpawnFlags ~= nil and bit.band(entity.SpawnFlags, spawnFlagPlayer) ~= 0
@@ -86,6 +88,8 @@ function target.Line(key, entity)
     local serverId = entity.ServerId or 0
     line.serverId = serverId ~= 0 and -serverId or sampleIds[key]
     line.plainHp = not IsPlayer(entity)
+    -- a monster's statuses are marked where Dispel takes them off, anyone else's where a cure does
+    line.isMonster = entity.SpawnFlags ~= nil and bit.band(entity.SpawnFlags, spawnFlagMonster) ~= 0
     if line.hpp ~= entity.HPPercent then
         line.hpp = entity.HPPercent
         line.hpText = string.format('%d%%', entity.HPPercent)
@@ -105,7 +109,6 @@ end
 local letters, zoneNames = nil, nil
 local lettersZone = nil
 local upper = { } -- letters -> in upper case, made once each
-local spawnFlagMonster = 0x10
 function target.Letter(entity, index)
     if entity.SpawnFlags == nil or bit.band(entity.SpawnFlags, spawnFlagMonster) == 0 or index == nil then return nil end
     if letters == nil then

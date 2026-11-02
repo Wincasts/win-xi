@@ -496,20 +496,31 @@ do
     block.Frame = 83; H.frames(1)
     H.print('marks off: none', dots(300, 0xFF59D9FF) == 0)
     o.statusRemovableMarks[1] = true; block.Frame = 84; H.frames(1)
-    local row300 = icons(300)
-    local dot, border = nil, nil
-    local entity = draw.Entities[300]
-    for i = 0, entity.Count - 1 do
-        local q = draw.Quads[entity.First + i]
-        if q.Texture == 0 and q.Color == 0xFF59D9FF then dot = q end
-        if q.Texture == 0 and q.Color == 0xFF101010 then border = q end
+    -- the quads of one colour drawn from the font's white pixel over a name, in order
+    local function solid(index, color)
+        local entity, found = draw.Entities[index], {}
+        for i = 0, entity.Count - 1 do
+            local q = draw.Quads[entity.First + i]
+            if q.Texture == 0 and q.Color == color then found[#found + 1] = q end
+        end
+        return found
     end
-    local icon = row300[1]
+    -- your own Paralysis: a curable square; the monster's Paralysis, which only a cure of yours on a
+    -- friend would matter for, none
+    local icon = icons(0x400)[1]
+    local dot, border = solid(0x400, 0xFF59D9FF)[1], solid(0x400, 0xFF101010)[1]
     local function within(q) return q ~= nil and icon ~= nil and q.X0 >= icon.X0 and q.X1 <= icon.X1 and q.Y0 >= icon.Y0 and q.Y1 <= icon.Y1 end
-    H.print('Paralysis: a curable square in a dark border, the whole of it inside the icon', within(dot), within(border),
+    H.print('your Paralysis: a curable square in a dark border, the whole of it inside the icon', within(dot), within(border),
         border ~= nil and dot ~= nil and border.X0 < dot.X0 and border.Y1 > dot.Y1)
     H.print('in its top right, and small', dot ~= nil and dot.X1 > (icon.X0 + icon.X1) / 2 and dot.Y1 < (icon.Y0 + icon.Y1) / 2,
         dot ~= nil and (dot.X1 - dot.X0) < (icon.X1 - icon.X0) / 4)
+    H.print('the monster\'s Paralysis: no mark', #solid(300, 0xFF59D9FF) == 0, #solid(300, 0xFFFFBF33) == 0)
+    -- the preview: a character's Protect, Shell and Haste are a friend's, unmarked, and its Paralysis
+    -- curable; a monster's Attack Boost dispellable and its debuffs unmarked
+    previewBox[1] = true; block.Frame = 88; H.frames(1)
+    H.print('preview, a character: one curable mark, no dispellable', #solid(0x400, 0xFF59D9FF) == 1, #solid(0x400, 0xFFFFBF33) == 0)
+    H.print('preview, a monster: one dispellable mark, no curable', #solid(300, 0xFFFFBF33) == 1, #solid(300, 0xFF59D9FF) == 0)
+    previewBox[1] = false
     o.statusRemovableMarks[1], o.statusLowTime[1] = false, 10
     require('imgui').GetFontTexUvWhitePixel = realWhite
     o.statusPlace[1] = 'below'; block.Frame = 75; H.frames(1)

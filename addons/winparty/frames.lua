@@ -796,11 +796,15 @@ local function DrawBuffs(member, x, StatusTexture)
             local low = tonumber(activeStyle.lowTime) or 0
             local alpha = (seconds ~= nil and low > 0 and seconds <= low) and statustimes.Blink() or nil
             Image(texture, x, y, width, size, nil, alpha, own and statusicons.OwnRight or nil, own and statusicons.OwnLeft or nil)
-            -- what can take it off: debuffs Erase, a -na spell or a waltz removes, buffs Dispel does
+            -- what the player can take off: on a monster its buffs Dispel removes, on anyone else their
+            -- debuffs Erase, a -na spell or a waltz removes
             if activeStyle.removableMarks then
                 local kind = statusFlags.Removable(id)
-                if kind == 'erase' or kind == 'waltz' then Mark(x, y, width, size, activeStyle.cureMarkColor or white)
-                elseif kind == 'dispel' then Mark(x, y, width, size, activeStyle.dispelMarkColor or white) end
+                if member.isMonster then
+                    if kind == 'dispel' then Mark(x, y, width, size, activeStyle.dispelMarkColor or white) end
+                elseif kind == 'erase' or kind == 'waltz' then
+                    Mark(x, y, width, size, activeStyle.cureMarkColor or white)
+                end
             end
             if text then
                 -- its middle under the icon's: yours in Your Color, then an estimate in Estimate Color
