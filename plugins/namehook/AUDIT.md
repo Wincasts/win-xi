@@ -2,7 +2,7 @@
 
 Audited revision: `9862c98` (Name 1.78, namehook 1.38). The original audit was report-only; subsequent runtime fixes are summarized below. Existing unrelated working-tree changes were left alone. No deployment was performed. The native build was regenerated locally.
 
-**Resuming with another agent? Read [`HANDOFF.md`](HANDOFF.md) first** for the current working-tree state, validation commands, client smoke-test checklist and remaining priorities.
+This is the record of that audit, kept as it was written in October 2026. Its findings were fixed in Name 1.79 / namehook 1.39 and 1.40, as the next section says, and nothing here is open work. The paths and line numbers are the audited revision's: `addons/name` is `addons/winplates` now, and the lines have moved. The hand-off notes it once pointed to were retired with the work.
 
 ## Remediation status (Name 1.79 / namehook 1.39)
 
