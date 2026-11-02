@@ -7,6 +7,8 @@
 --                                               they are read: what is new on them is seen to begin now. Only
 --                                               a read that found them: a list emptied because the game keeps
 --                                               nothing for them is not one
+--     statustimes.CastBy(serverId, id)          the server id of who put that status on a watched member, as
+--                                               the last landing of it seen says; nil where none was seen
 --     statustimes.WatchParty()                  the five others of the party read and watched, for an addon
 --                                               that does not read them every frame itself
 --     statustimes.Text(serverId, id, nth)       the label for the nth (1 if not given) of that status on them,
@@ -171,6 +173,12 @@ function statustimes.Watch(serverId, ids)
             since[id], landed[id] = nil, nil;
         end
     end
+end
+
+function statustimes.CastBy(serverId, id)
+    local member = serverId ~= nil and watched[serverId] or nil;
+    local kept = member and member.landed[id];
+    return kept and kept.by or nil;
 end
 
 function statustimes.WatchParty()
