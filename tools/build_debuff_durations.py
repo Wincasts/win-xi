@@ -7,9 +7,9 @@ Read from the server as live runs it: the live branch of phoenixffxi/Phoenix, fe
 (tools/phoenix), or --server's checkout; its scripts, and over them the modules init.txt loads
 (phoenix.modules), which replace some of what the scripts say:
 
-  spells     the enfeebling spells' and songs' tables of base durations, each blue magic
-             spell's table of additional effects, and any spell a module rewrites the casting
-             of: spell number -> status -> seconds
+  spells     the enfeebling and enhancing spells', songs' and ninjutsu's tables of base
+             durations, each blue magic spell's table of additional effects, and any spell a
+             module rewrites the casting of: spell number -> status -> seconds
   mobskills  a monster's move that puts a status on its target for a number of seconds
              written out in its script: move number -> status -> seconds
   statuses   for each status, the duration seen most often above: what is used where
@@ -17,8 +17,8 @@ Read from the server as live runs it: the live branch of phoenixffxi/Phoenix, fe
   ranges     where the server picks a duration at random (Blind 80 to 300 s on live), the
              least and most of it, spells and mobskills as above; the tables above have the most
 
-The durations are the base ones: what merits, gear, job points and partial resists do to
-them is not known, and the server saying a status wore off is what ends it early.
+The durations are the base ones: what skill, merits, gear, job points, Composure and partial
+resists do to them is not known, and the server saying a status wore off is what ends it early.
 
 Every module override of what is read here goes by phoenix.modules.guard, and handle() below
 says what was done with each: one it cannot account for stops the build.
@@ -32,6 +32,7 @@ import collections
 import csv
 import re
 import sqlite3
+import sys
 from pathlib import Path
 
 from build_item_data import enabled_files, replay
@@ -91,17 +92,29 @@ def build(server, output, settings=()):
             return
         table[number][effect] = span
 
-    # the tables of enfeebling spells and songs: [xi.magic.spell.X] = { xi.effect.Y, ... }, the base
-    # duration the sixth column of the one and the fifth of the other
-    for file, column in (('enfeebling_spell.lua', 5), ('enfeebling_song.lua', 4)):
-        text = (scripts / 'globals/spells' / file).read_text()
+    # the tables of enfeebling and enhancing spells, songs and ninjutsu: [xi.magic.spell.X] = { ..., xi.effect.Y,
+    # ... }, the status in one column and the base duration in another (counted from 0). The enhancing
+    # songs' table has no duration: calculateSongDuration starts every song at one number, read from it.
+    song_seconds = re.search(r'calculateSongDuration\b.*?\blocal\s+duration\s*=\s*(\d+)',
+                             (scripts / 'globals/spells/enhancing_song.lua').read_text(), re.S)
+    for file, effect_column, column in (('enfeebling_spell.lua', 0, 5), ('enfeebling_song.lua', 0, 4),
+                                        ('enhancing_spell.lua', 1, 4), ('enhancing_ninjutsu.lua', 1, 3),
+                                        ('enhancing_song.lua', 1, None)):
+        text = modules.blank_comments((scripts / 'globals/spells' / file).read_text())
         for m in re.finditer(r'\[xi\.magic\.spell\.(\w+)\s*\]\s*=\s*\{([^}]*)\}', text):
             parts = [p.strip() for p in m.group(2).split(',')]
-            effect = parts[0].removeprefix('xi.effect.')
+            if len(parts) <= effect_column or not parts[effect_column].startswith('xi.effect.'):
+                continue
+            effect = parts[effect_column].removeprefix('xi.effect.')
             number = spell_ids.get(m.group(1))
             if number is not None:
                 spell_effect[number] = effect
-            if len(parts) > column and parts[column].isdigit():
+            if column is None:
+                if song_seconds is None:
+                    sys.exit('enhancing_song.lua: calculateSongDuration\'s starting duration was not found')
+                seconds = int(song_seconds.group(1))
+                keep(spells, number, effect, (seconds, seconds))
+            elif len(parts) > column and parts[column].isdigit():
                 keep(spells, number, effect, (int(parts[column]), int(parts[column])))
 
     # blue magic: each spell's file, named for it, with its effects as { xi.effect.X, power, tick, duration }
@@ -191,11 +204,45 @@ def build(server, output, settings=()):
         'xi.effects.bio.onEffectGain': 'Bio III lasts as long as its caster\'s merits say: not known, its base kept',
     }
 
+    def respan(names, span):
+        """The spells whose table names one of the statuses names last span long."""
+        done = []
+        for number, effect in spell_effect.items():
+            if effect in names and number in spells:
+                spells[number].pop(status(effect), None)
+                keep(spells, number, effect, span)
+                done.append(number)
+        return done
+
     def handle(override):
         target, parts = override.target, override.target.split('.')
         if target in decided:
             return decided[target]
         body = override.body
+        if target == 'xi.spells.enhancing.calculateEnhancingFinalPower':
+            return 'power alone'
+        if target == 'xi.spells.enhancing.calculateEnhancingDuration':
+            said = []
+            # Bar-element: 150 s and more with Enhancing Magic skill over 180, which is not known: its least
+            bars = re.search(r'BARFIRE\b.*?BARWATER\b.*?=\s*(\d+)\s*\+\s*math\.max\(\s*\w+\s*-\s*180', body, re.S)
+            if bars:
+                least = int(bars.group(1))
+                if not respan({'BARFIRE', 'BARBLIZZARD', 'BARAERO', 'BARSTONE', 'BARTHUNDER', 'BARWATER'}, (least, least)):
+                    return None
+                said.append(f'Bar-element {least} s and more by skill, its least kept')
+            # Deodorize, Invisible and Sneak: at random
+            hidden = re.search(r'\bduration\s*=\s*(math\.random(?:Int)?\(\s*\d+\s*,\s*\d+\s*\))', body)
+            if hidden and re.search(r'DEODORIZE.*INVISIBLE.*SNEAK', body, re.S):
+                span = modules.seconds(hidden.group(1))
+                if not respan({'DEODORIZE', 'INVISIBLE', 'SNEAK'}, span):
+                    return None
+                said.append(f'Deodorize, Invisible and Sneak {span[0]}-{span[1]} s')
+            if said:
+                return 'applied: ' + '; '.join(said)
+            # merits that lengthen it (Phalanx II's): its caster's, not known, the base kept
+            if 'getMerit' in body and re.search(r'\bsuper\(', body):
+                return 'merits add to it: not known, the base kept'
+            return None
         if target == 'xi.spells.enfeebling.calculateDuration':
             # if spellId == xi.magic.spell.X or ... then duration = d, the rest left to super; what
             # follows the chain is Saboteur, merits and gear, which are not known here
@@ -273,7 +320,7 @@ def build(server, output, settings=()):
             keep(spells, number, effect.removeprefix('xi.effect.'), span)
 
     print('Modules:')
-    modules.guard(found.path, ('xi.spells.enfeebling.', 'xi.actions.spells.', 'xi.actions.mobskills.',
+    modules.guard(found.path, ('xi.spells.enfeebling.', 'xi.spells.enhancing.', 'xi.actions.spells.', 'xi.actions.mobskills.',
                                'xi.mobskills.', 'xi.effects.'), handle)
 
     for table in (spells, mobskills):
