@@ -204,11 +204,14 @@ local function ReadMember(place, party)
     member.isAllianceLeader = bit.band(flags, 8) == 8
     member.isLevelSync = bit.band(flags, 0x100) == 0x100
     local main = party:GetMemberMainJob(place)
-    member.job = game.JobAbbr(main)
-    member.jobLevel = party:GetMemberMainJobLevel(place)
-    member.subJob = game.JobAbbr(party:GetMemberSubJob(place))
-    member.subJobLevel = party:GetMemberSubJobLevel(place)
-    member.jobText = game.JobText(member.job, member.jobLevel, member.subJob, member.subJobLevel)
+    local job, jobLevel = game.JobAbbr(main), party:GetMemberMainJobLevel(place)
+    local subJob, subJobLevel = game.JobAbbr(party:GetMemberSubJob(place)), party:GetMemberSubJobLevel(place)
+    -- written again only when one of them has changed: the member is read ten times a second
+    if member.jobText == nil or job ~= member.job or jobLevel ~= member.jobLevel
+            or subJob ~= member.subJob or subJobLevel ~= member.subJobLevel then
+        member.jobText = game.JobText(job, jobLevel, subJob, subJobLevel)
+    end
+    member.job, member.jobLevel, member.subJob, member.subJobLevel = job, jobLevel, subJob, subJobLevel
     member.zoneId = zone
     member.hpp = party:GetMemberHPPercent(place)
     member.mpp = party:GetMemberMPPercent(place)
