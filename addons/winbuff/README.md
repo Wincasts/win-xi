@@ -108,8 +108,8 @@ changing that configuration.
   When someone else casts the same status over yours, its time goes back to the usual colour, so you can
   see yours was replaced. Only a cast seen to land counts: one already on you when the addon started is
   not shown as yours. It is kept through a change of area.
-- **Low Time Warning**: below this many seconds left, the time is written in **Low Time Colour** (red
-  to begin with), over Your Colour; 10 to begin with, 0 for no warning.
+- **Low Time Warning**: below this many seconds left, the icon fades out and in; 10 to begin with, 0 for
+  no warning.
 - **Font**: the font for countdowns and status tooltips, chosen from `C:\Windows\Fonts`.
   **Theme Font** (default) uses the Winxi theme font, in both anchored and draggable modes.
 - **Font Size**: text size in pixels. `0` (**Theme Size**, default) uses the current theme size.

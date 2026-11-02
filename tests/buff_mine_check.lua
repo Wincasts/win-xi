@@ -39,13 +39,23 @@ H.print('someone else\'s over it: the text colour again', frame() ~= o.mineColor
 protect(0x100); frame()
 debuffs.Clear() -- a change of area
 H.print('yours, through a change of area: Your Colour still', frame() == o.mineColor)
--- Low Time Warning: 10 s; Protect with 5 s left in Low Time Colour, over Your Colour
-local function at(seconds) timers[1] = (STAMP - EPOCH) * 60 + seconds * 60; drawn = {}; H.frames(1); return drawn end
+-- Low Time Warning: 10 s; Protect with 5 s left fades out and in, its time still Your Colour
+local imgui = require('imgui')
+local realU32, realBlink = imgui.GetColorU32, require('winxi.statustimes').Blink
+require('winxi.statustimes').Blink = function() return 0.5 end
+local faded = 0
+imgui.GetColorU32 = function(color) if type(color) == 'table' and color[4] == 0.5 then faded = faded + 1 end return realU32(color) end
+local statusicons = require('winxi.statusicons')
+local realIcon = statusicons.Get
+statusicons.Get = function() return 1, true end -- an icon to draw, with no device to make one
+local function at(seconds) timers[1] = (STAMP - EPOCH) * 60 + seconds * 60; drawn = {}; faded = 0; H.frames(1); return drawn end
 H.print('Low Time Warning to begin with', o.lowTime[1])
-H.print('5 s left: Low Time Colour', at(5)['5'] == o.lowTimeColor)
+H.print('5 s left: the icon fading, its time Your Colour', at(5)['5'] == o.mineColor, faded > 0)
+H.print('90 s left: not fading', at(90) and faded == 0)
 o.lowTime[1] = 0
-H.print('at 0: no warning, Your Colour', at(5)['5'] == o.mineColor)
+H.print('at 0: no warning', at(5) and faded == 0)
 o.lowTime[1] = 10
+imgui.GetColorU32, require('winxi.statustimes').Blink, statusicons.Get = realU32, realBlink, realIcon
 timers[1] = (STAMP - EPOCH) * 60 + 90 * 60
 -- the packets: followed while times are shown, and not while they are not
 debuffs.Clear()

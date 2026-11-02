@@ -463,9 +463,15 @@ do
     o.statusLowTime[1] = 10; block.Frame = 79; H.frames(1)
     local _, fresh = under(300)
     H.print('Low Time Warning at 10 s: 2m left is not low', #fresh > 0 and fresh[1].Color == 0xFF00FF00)
+    local statustimes = require('winxi.statustimes')
+    local realBlink = statustimes.Blink
+    statustimes.Blink = function() return 0.5 end -- the blink, held at half
+    H.print('2m left: the icon whole', #icons(300) > 0 and icons(300)[1].Color == 0xFFFFFFFF)
     now = now + 115; block.Frame = 80; H.frames(1)
     local _, low = under(300)
-    H.print('5 s left: Low Time Colour', #low > 0 and low[1].Color == 0xFFFF594D, ('| %08X'):format(#low > 0 and low[1].Color or 0))
+    H.print('5 s left: the icon at half, its time still Estimate Colour', #icons(300) > 0 and icons(300)[1].Color == 0x80FFFFFF,
+        #low > 0 and low[1].Color == 0xFF00FF00, ('| %08X'):format(#icons(300) > 0 and icons(300)[1].Color or 0))
+    statustimes.Blink = realBlink
     -- Only Yours On Enemies: the monster's Paralyze is someone else's, so its row is empty; yours shows
     cast(58, { [0x1000 + 300] = 236 })
     o.statusOnlyMine[1] = true; block.Frame = 81; H.frames(1)
@@ -489,10 +495,19 @@ do
     H.print('marks off: none', dots(300, 0xFF59D9FF) == 0)
     o.statusRemovableMarks[1] = true; block.Frame = 84; H.frames(1)
     local row300 = icons(300)
-    local dot = nil
+    local dot, border = nil, nil
     local entity = draw.Entities[300]
-    for i = 0, entity.Count - 1 do local q = draw.Quads[entity.First + i]; if q.Texture == 0 and q.Color == 0xFF59D9FF then dot = q end end
-    H.print('Paralysis: a curable dot, at the icon\'s top right', dot ~= nil and #row300 > 0 and math.abs(dot.X1 - row300[1].X1) <= 1 and math.abs(dot.Y0 - row300[1].Y0) <= 1)
+    for i = 0, entity.Count - 1 do
+        local q = draw.Quads[entity.First + i]
+        if q.Texture == 0 and q.Color == 0xFF59D9FF then dot = q end
+        if q.Texture == 0 and q.Color == 0xFF101010 then border = q end
+    end
+    local icon = row300[1]
+    local function within(q) return q ~= nil and icon ~= nil and q.X0 >= icon.X0 and q.X1 <= icon.X1 and q.Y0 >= icon.Y0 and q.Y1 <= icon.Y1 end
+    H.print('Paralysis: a curable square in a dark border, the whole of it inside the icon', within(dot), within(border),
+        border ~= nil and dot ~= nil and border.X0 < dot.X0 and border.Y1 > dot.Y1)
+    H.print('in its top right, and small', dot ~= nil and dot.X1 > (icon.X0 + icon.X1) / 2 and dot.Y1 < (icon.Y0 + icon.Y1) / 2,
+        dot ~= nil and (dot.X1 - dot.X0) < (icon.X1 - icon.X0) / 4)
     o.statusRemovableMarks[1], o.statusLowTime[1] = false, 10
     require('imgui').GetFontTexUvWhitePixel = realWhite
     o.statusPlace[1] = 'below'; block.Frame = 75; H.frames(1)

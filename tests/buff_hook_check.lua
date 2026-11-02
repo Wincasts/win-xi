@@ -80,16 +80,22 @@ H.frames(1)
 local mineLetters = 0
 for index = 0, block.Count - 1 do if block.Quads[index].Color == 0xFF73FF8C then mineLetters = mineLetters + 1 end end
 H.print('a status you cast: its two letters in Your Colour', mineLetters == 2, mineLetters)
--- 5 s left: Low Time Colour, over Your Colour
+-- 5 s left: the icon fading out and in, held at half here; its letters still Your Colour
+local realBlink = require('winxi.statustimes').Blink
+require('winxi.statustimes').Blink = function() return 0.5 end
 statuses.Read = function(list)
     list[1], list[2] = { id = 40 }, { id = 33, seconds = 5, mine = true }
     for index = #list, 3, -1 do list[index] = nil end
     return 2
 end
 H.frames(1)
-local lowLetters = 0
-for index = 0, block.Count - 1 do if block.Quads[index].Color == 0xFFFF594D then lowLetters = lowLetters + 1 end end
-H.print('5 s left: its letter in Low Time Colour', lowLetters == 1, lowLetters)
+local half, mineAfter = 0, 0
+for index = 0, block.Count - 1 do
+    if block.Quads[index].Color == 0x80FFFFFF then half = half + 1 end
+    if block.Quads[index].Color == 0xFF73FF8C then mineAfter = mineAfter + 1 end
+end
+H.print('5 s left: Haste\'s icon at half, Protect\'s whole; its letter Your Colour', half == 1, mineAfter == 1, half, mineAfter)
+require('winxi.statustimes').Blink = realBlink
 statuses.Read = plainRead
 H.frames(1)
 

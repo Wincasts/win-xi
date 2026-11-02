@@ -74,8 +74,7 @@ local defaults = T{
     perRow = T{ 16 },         -- how many icons before a new row
     showTimers = T{ true },
     mineColor = T{ 0.45, 1.0, 0.55, 1.0 }, -- the time under a status the player put there
-    lowTime = T{ 10 },                     -- seconds left under which a time is low; 0 for no warning
-    lowTimeColor = T{ 1.0, 0.35, 0.3, 1.0 }, -- a low time's colour
+    lowTime = T{ 10 },                     -- seconds left under which an icon fades out and in; 0 for none
     fontFile = '',          -- empty inherits the Winxi theme font
     fontSize = T{ 0 },      -- zero inherits the current font size
     hideGameIcons = T{ true },
@@ -314,6 +313,15 @@ local cell = { 0, 0 };
 local cornerA, cornerB = { 0, 0 }, { 0, 0 };
 local uvA, uvB = { 0, 0 }, { 1, 1 };
 local white = imgui.GetColorU32({ 1, 1, 1, 1 });
+local statustimes = require('winxi.statustimes');
+local fading = { 1, 1, 1, 1 }; -- an icon running out, as solid as statustimes.Blink says this moment
+
+-- Whether a status is running out: its time shown, and no more than Low Time Warning's seconds
+local function RunningOut(options, status)
+    local low = options.lowTime[1];
+    return options.showTimers[1] and low > 0 and status.seconds ~= nil and status.seconds <= low
+        and not HidesTimer(status.id);
+end
 local widest, textHeight, measuredFont, measuredSize;
 local labelWidths = {}; -- measured only once per label for the current font and size
 local function MeasureTimers()
@@ -433,14 +441,18 @@ local function DrawStatusesContent(options)
                 cornerA[1], cornerA[2], cornerB[1], cornerB[2] = left, top, left + width, top + width;
                 uvA[1], uvB[1] = 0, 1;
             end
-            drawList:AddImage(handle, cornerA, cornerB, uvA, uvB, white);
+            local tint = white;
+            if RunningOut(options, status) then
+                fading[4] = statustimes.Blink();
+                tint = imgui.GetColorU32(fading);
+            end
+            drawList:AddImage(handle, cornerA, cornerB, uvA, uvB, tint);
         end
 
         if showTimers and status.seconds ~= nil and not HidesTimer(status.id) then
             local label = Label(status.seconds);
-            local low = options.lowTime[1] > 0 and status.seconds <= options.lowTime[1];
             text.Draw(drawList, x + (cell[1] - LabelWidth(label)) / 2, y + height + timerGap,
-                (low and options.lowTimeColor) or (status.mine and options.mineColor) or textColor, label);
+                status.mine and options.mineColor or textColor, label);
         end
     end
 end
@@ -619,8 +631,8 @@ local function WriteHooked(options, found, alpha)
     local iconColor = ARGB(opaque, alpha);
     local textColor = ARGB(theme.Get().TextColor, alpha);
     local mineColor = ARGB(options.mineColor, alpha);
-    local lowColor = ARGB(options.lowTimeColor, alpha);
-    local lowTime = options.lowTime[1];
+    -- an icon running out fades out and in: as solid as this moment's blink, of the bar's own fade
+    local fadedColor = ARGB(opaque, alpha * statustimes.Blink());
     local edgeColor = ARGB(text.EdgeColor(), alpha);
 
     local baked, texture = nil, nil;
@@ -636,7 +648,7 @@ local function WriteHooked(options, found, alpha)
 
     madeCount = 0;
     Note(cellWidth); Note(cellHeight); Note(perRow); Note(width); Note(height); Note(useOwn);
-    Note(sx); Note(sy); Note(nudgeX); Note(nudgeY); Note(iconColor); Note(textColor); Note(mineColor); Note(lowColor); Note(lowTime); Note(edgeColor);
+    Note(sx); Note(sy); Note(nudgeX); Note(nudgeY); Note(iconColor); Note(textColor); Note(mineColor); Note(edgeColor);
     Note(cursorIndex or 0); Note(texture or 0); Note(glyphsMade); Note(baked ~= nil); Note(align);
     -- the hand's frame, as it moves: written afresh with each, while the selector is open
     local handle, handFrame = nil, nil;
@@ -652,8 +664,8 @@ local function WriteHooked(options, found, alpha)
         Note(handle or 0); Note(place or false); Note(own);
         local label = status.seconds ~= nil and showTimers and not HidesTimer(status.id) and Label(status.seconds) or false;
         labels[index] = label;
-        lows[index] = label and lowTime > 0 and status.seconds <= lowTime or false;
-        Note(label); Note(status.mine == true); Note(lows[index]);
+        lows[index] = RunningOut(options, status) and true or false;
+        Note(label); Note(status.mine == true); Note(lows[index] and fadedColor or false);
     end
     if Unchanged() then
         return false;
@@ -685,14 +697,14 @@ local function WriteHooked(options, found, alpha)
             -- the game's icons are square: as wide as the others, in the middle of their height
             local top = own and y or y + (height - width) / 2;
             local bottom = own and y + height or top + width;
-            hook.Quad(left * sx, top * sy, (left + width) * sx, bottom * sy, u0, v0, u1, v1, iconColor, slot);
+            hook.Quad(left * sx, top * sy, (left + width) * sx, bottom * sy, u0, v0, u1, v1, lows[index] and fadedColor or iconColor, slot);
         end
 
         local label = labels[index];
         if baked ~= nil and fontSlot ~= nil and label then
             local pen = math.floor(x + (cellWidth - LabelWidth(label)) / 2);
             WriteWords(baked, label, pen, y + height + timerGap, sx, sy,
-                (lows[index] and lowColor) or (status.mine and mineColor) or textColor, edgeColor, fontSlot);
+                status.mine and mineColor or textColor, edgeColor, fontSlot);
         end
     end
     -- the hand over the icons, at the left of the cursor's status, over the one before it
@@ -926,9 +938,8 @@ local function DrawSettings(options)
         mineSpec.parent, lowSpec.parent = options.showTimers, options.showTimers;
         widgets.Color('Your Colour', 'The colour of the time left on statuses you cast, so you can see when someone else\'s replaces yours.',
             options.mineColor, '##buff.mineColor', mineSpec);
-        widgets.Slider('Low Time Warning', 'Below this many seconds left, the time is written in Low Time Colour. At 0 there is no warning.',
+        widgets.Slider('Low Time Warning', 'Below this many seconds left, the icon fades in and out. At 0 there is no warning.',
             options.lowTime, 0, 60, '##buff.lowTime', lowSpec);
-        widgets.Color('Low Time Colour', 'The colour of a time that is running low.', options.lowTimeColor, '##buff.lowTimeColor', mineSpec);
         widgets.FontFile(options, 'fontFile', '##buff.fontFile', fontSpec);
         widgets.FontSize(options, 'fontSize', '##buff.fontSize', sizeSpec);
     end

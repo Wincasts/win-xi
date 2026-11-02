@@ -24,7 +24,7 @@
 -- With Show Durations on, how long each has left is written under its icon (winxi.statustimes): the
 -- player's own to the second; anyone else's an estimate, in Estimate Colour, or - where it cannot be known.
 -- One the player cast is in Your Colour, whether exact or estimated, until anyone else's is seen to
--- land over it; one with less than Low Time Warning left in Low Time Colour, over both.
+-- land over it. One with less than Low Time Warning left fades out and in.
 -- Only Yours On Enemies leaves a monster's row the statuses the player put there. Removable Marks puts
 -- a dot on the corner of each icon a spell can take off: debuffs Erase, a -na spell or a waltz removes,
 -- buffs Dispel does (winxi.statuses' Removable, the server's flags).
@@ -63,7 +63,7 @@ local MOST_OFFSET  = 200;  -- screen pixels the row can be moved each way
 local PREVIEW_TEXT = { '8', '2m', statustimes.Unknown, '1h' };
 local PREVIEW_ESTIMATE = { false, true, true, false };
 local PREVIEW_MINE = { false, true, false, false }; -- and whether each is one the player cast
-local PREVIEW_SECONDS = { 8, 120, nil, 3600 };      -- and its seconds left: the first low on time
+local PREVIEW_SECONDS = { 8, 120, nil, 3600 };      -- and its seconds left: the first running out, blinking
 
 -- Preview: every shown name has a few of the chosen statuses over it, whatever it is under, to see
 -- how the row looks. Not kept: it is off again when the addon is loaded.
@@ -85,7 +85,6 @@ local settings = {
     statusEstimateColor = function () return T{ 1.0, 0.82, 0.35, 1.0 }; end, -- an estimate's colour
     statusMineColor = function () return T{ 0.45, 1.0, 0.55, 1.0 }; end, -- the colour of one the player cast
     statusLowTime = function () return T{ 10 }; end, -- seconds left under which a time is low; 0 for no warning
-    statusLowTimeColor = function () return T{ 1.0, 0.35, 0.3, 1.0 }; end, -- a low time's colour
     statusOnlyMine = function () return T{ false }; end, -- a monster's row: only what the player put there
     statusRemovableMarks = function () return T{ false }; end, -- a dot on what a spell can take off
     statusCureMarkColor = function () return T{ 0.35, 0.85, 1.0, 1.0 }; end, -- on debuffs Erase, -na or a waltz removes
@@ -206,7 +205,6 @@ local durationSize = 0.5;         -- its letters' height, as a part of an icon's
 local estimateColor = 0xFFFFD159; -- an estimate's colour, 0xAARRGGBB
 local mineColor = 0xFF73FF8C;     -- the colour of one the player cast
 local lowTime = 10;               -- seconds left under which a time is low, 0 for none
-local lowColor = 0xFFFF594D;      -- a low time's colour
 local onlyMine = false;           -- a monster's row: only what the player put there
 local marks = false;              -- a dot on what a spell can take off
 local cureColor, dispelColor = 0xFF59D9FF, 0xFFFFBF33;
@@ -267,7 +265,6 @@ function statuses.Begin(options)
         estimateColor = Packed(options.statusEstimateColor, 0xFFFFD159);
         mineColor = Packed(options.statusMineColor, 0xFF73FF8C);
         lowTime = math.max(0, tonumber(options.statusLowTime ~= nil and options.statusLowTime[1]) or 0);
-        lowColor = Packed(options.statusLowTimeColor, 0xFFFF594D);
         statustimes.Begin();
         -- the party is watched every frame, whether or not their names are drawn, so that what appears
         -- on them is seen to begin when it does
@@ -376,8 +373,8 @@ function statuses.SetWords(width, write)
     wordsWidth, writeWords = width, write;
 end
 
--- each icon's duration, false for none, and its colour
-local rowText, rowColor = {}, {};
+-- each icon's duration, false for none, its colour, and whether it is running out
+local rowText, rowColor, rowLow = {}, {}, {};
 
 function statuses.Write(name, nameLeft, nameRight, above, under, height, scale, set, fit)
     if (sheet == 0 or bit.band(categories, name.Category or 0) == 0) then
@@ -390,6 +387,9 @@ function statuses.Write(name, nameLeft, nameRight, above, under, height, scale, 
 
     -- the durations under the icons, where any is written: the row is raised to make room for them
     local timed = false;
+    for index = 1, rowCount do
+        rowLow[index] = false;
+    end
     if (durations and set ~= nil and fit ~= nil and writeWords ~= nil) then
         for index = 1, rowCount do
             local text, estimate, mine, left;
@@ -398,11 +398,10 @@ function statuses.Write(name, nameLeft, nameRight, above, under, height, scale, 
             else
                 text, estimate, mine, left = statustimes.Text(name.ServerId, rowIds[index]);
             end
-            -- low on time in Low Time Colour, then the player's own cast in Your Colour, then an
-            -- estimate in Estimate Colour
+            -- the player's own cast in Your Colour, then an estimate in Estimate Colour
             rowText[index] = text or false;
-            local low = left ~= nil and lowTime > 0 and left <= lowTime;
-            rowColor[index] = (low and lowColor) or (mine and mineColor) or (estimate and estimateColor) or WHITE;
+            rowLow[index] = left ~= nil and lowTime > 0 and left <= lowTime;
+            rowColor[index] = (mine and mineColor) or (estimate and estimateColor) or WHITE;
             timed = timed or text ~= nil;
         end
     end
@@ -434,16 +433,23 @@ function statuses.Write(name, nameLeft, nameRight, above, under, height, scale, 
         -- the set's icons are narrower than the game's, which are square, as party draws them
         local width = rowOwn[index] and wide or tall;
         -- the icons have an edge of their own: none is drawn round them
-        nameplates.Quad(left, top, left + width, top + tall, place[1], place[2], place[3], place[4], WHITE, statuses.Slot, false);
-        -- what can take it off: a dot on its top right corner, edged as the names' letters are
+        -- running out: the icon fades out and in
+        local tint = rowLow[index] and (math.floor(statustimes.Blink() * 255 + 0.5) * 0x1000000 + 0xFFFFFF) or WHITE;
+        nameplates.Quad(left, top, left + width, top + tall, place[1], place[2], place[3], place[4], tint, statuses.Slot, false);
+        -- what can take it off: a small square in its top right corner, of the kind's colour in a dark
+        -- border, the whole of it inside the icon
         if (marks) then
             local kind = statusFlags.Removable(rowIds[index]);
             local color = ((kind == 'erase' or kind == 'waltz') and cureColor) or (kind == 'dispel' and dispelColor) or nil;
             local u, v = nil, nil;
             if (color ~= nil) then u, v = healthbar.WhitePixel(); end
             if (u ~= nil) then
-                local side = math.max(2, math.floor(tall * 0.28 + 0.5));
-                nameplates.Quad(left + width - side, top, left + width, top + side, u, v, u, v, color, 0, true, nil, true);
+                local border = math.max(1, math.floor(tall * 0.04 + 0.5));
+                local side = math.max(2, math.floor(tall * 0.14 + 0.5));
+                local inset = math.max(1, math.floor(tall * 0.06 + 0.5));
+                local right, high = left + width - inset, top + inset;
+                nameplates.Quad(right - side - 2 * border, high, right, high + side + 2 * border, u, v, u, v, 0xFF101010, 0, false, nil, true);
+                nameplates.Quad(right - side - border, high + border, right - border, high + border + side, u, v, u, v, color, 0, false, nil, true);
             end
         end
         -- the duration under it, its middle under the icon's, outlined as the names' letters are
@@ -568,11 +574,7 @@ function statuses.DrawSettings(options, save)
             changed = true;
         end
         if (controls.Slider('Low Time Warning', '##name.statusLowTime', options.statusLowTime, 0, 60, '%d s',
-                'Below this many seconds left, the time is written in Low Time Colour. At 0 there is no warning.', durationSpec)) then
-            changed = true;
-        end
-        if (controls.Color('Low Time Colour', '##name.statusLowTimeColor', options.statusLowTimeColor,
-                'The colour of a time that is running low.', durationSpec)) then
+                'Below this many seconds left, the icon fades in and out. At 0 there is no warning.', durationSpec)) then
             changed = true;
         end
         if (controls.Checkbox('Only Yours On Enemies', '##name.statusOnlyMine', options.statusOnlyMine,

@@ -176,9 +176,10 @@ share the **Bars** tab.
   written. Statuses you cast are written in **Your Colour** (green to begin with),
   so you can see when someone else's replaces yours. **Duration Size** sets how
   tall the times are next to the icon. **Low Time Warning** (10 seconds to begin
-  with, 0 for none) writes a time that is running out in **Low Time Colour** (red).
+  with, 0 for none) makes an icon running out fade out and in.
   **Only Yours On Enemies** leaves a monster's row only the statuses you put there.
-  **Removable Marks** puts a dot on the corner of each status a spell can take off:
+  **Removable Marks** puts a small square in a dark border inside the corner of each
+  status a spell can take off:
   **Curable Mark Colour** (light blue) on debuffs Erase, a -na spell or a waltz
   removes, **Dispellable Mark Colour** (amber) on buffs Dispel removes.
 

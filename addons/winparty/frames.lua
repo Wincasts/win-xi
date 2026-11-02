@@ -727,17 +727,21 @@ local function DurationWidth(text, font, face)
     return width
 end
 -- what a made-up member's icons have under them, whether each is an estimate, whether one you cast,
--- and its seconds: the third low on time
+-- and its seconds: the third running out, to be seen blinking
 local SAMPLE_TEXT = { '25m', '2m', '8', statustimes.Unknown }
 local SAMPLE_ESTIMATE = { true, true, false, true }
 local SAMPLE_MINE = { false, true, false, false }
 local SAMPLE_SECONDS = { 1500, 120, 8, nil }
 local statusFlags = require('winxi.statuses')
--- A mark at an icon's top right, for what can take its status off: a dot of the kind's colour, edged
+-- A mark in an icon's top right, for what can take its status off: a small dot of the kind's colour with
+-- a dark border, the whole of it inside the icon
 local function Mark(x, y, width, size, color)
-    local radius = math.max(2, size * 0.14) * scale
-    local cx, cy = itemX + (x + width) * scale - radius, itemY + y * scale + radius
-    draw.Circle(cx, cy, radius + scale, draw.Packed(outlinedText.EdgeColor(), 1), 12)
+    local radius = math.max(1, size * 0.065) * scale
+    local border = math.max(0.75, size * 0.03) * scale
+    local inset = math.max(1, size * 0.06) * scale
+    local outer = radius + border
+    local cx, cy = itemX + (x + width) * scale - inset - outer, itemY + y * scale + inset + outer
+    draw.Circle(cx, cy, outer, draw.Packed(outlinedText.EdgeColor(), 1), 12)
     draw.Circle(cx, cy, radius, draw.Packed(color, 1), 12)
 end
 local seenOfId = { } -- how many of each status this member has had drawn, for the player's own repeats
@@ -777,34 +781,34 @@ local function DrawBuffs(member, x, StatusTexture)
             if shown > 0 and shown % columns == 0 then x = start; y = y + size + textTall + 2 end
             local width = own and size * statusicons.OwnAspect or size
             if direction == 'left' then x = x - width end
-            Image(texture, x, y, width, size, nil, nil, own and statusicons.OwnRight or nil, own and statusicons.OwnLeft or nil)
-            -- what can take it off: debuffs Erase, a -na spell or a waltz removes, buffs Dispel does
-            if activeStyle.removableMarks then
-                local kind = statusFlags.Removable(id)
-                if kind == 'erase' or kind == 'waltz' then Mark(x, y, width, size, activeStyle.cureMarkColor or white)
-                elseif kind == 'dispel' then Mark(x, y, width, size, activeStyle.dispelMarkColor or white) end
-            end
             local nth = (seenOfId[id] or 0) + 1
             seenOfId[id] = nth
+            local text, estimate, mine, seconds
             if durationFont then
-                local text, estimate, mine, seconds
                 if sample then
                     local which = shown % #SAMPLE_TEXT + 1
                     text, estimate, mine, seconds = SAMPLE_TEXT[which], SAMPLE_ESTIMATE[which], SAMPLE_MINE[which], SAMPLE_SECONDS[which]
                 else
                     text, estimate, mine, seconds = statustimes.Text(serverId, id, nth)
                 end
-                if text then
-                    -- its middle under the icon's: low on time in Low Time Color, then yours in Your
-                    -- Color, then an estimate in Estimate Color
-                    local color = textColor
-                    local low = tonumber(activeStyle.lowTime) or 0
-                    if seconds ~= nil and low > 0 and seconds <= low then color = activeStyle.lowTimeColor or textColor
-                    elseif mine then color = activeStyle.mineColor or textColor
-                    elseif estimate then color = activeStyle.estimateColor or textColor end
-                    Write(text, x + width / 2, y + size, color,
-                        DurationWidth(text, durationFont, activeStyle.valueFont) / 2)
-                end
+            end
+            -- running out: the icon fades out and in, Low Time Warning's seconds from its end
+            local low = tonumber(activeStyle.lowTime) or 0
+            local alpha = (seconds ~= nil and low > 0 and seconds <= low) and statustimes.Blink() or nil
+            Image(texture, x, y, width, size, nil, alpha, own and statusicons.OwnRight or nil, own and statusicons.OwnLeft or nil)
+            -- what can take it off: debuffs Erase, a -na spell or a waltz removes, buffs Dispel does
+            if activeStyle.removableMarks then
+                local kind = statusFlags.Removable(id)
+                if kind == 'erase' or kind == 'waltz' then Mark(x, y, width, size, activeStyle.cureMarkColor or white)
+                elseif kind == 'dispel' then Mark(x, y, width, size, activeStyle.dispelMarkColor or white) end
+            end
+            if text then
+                -- its middle under the icon's: yours in Your Color, then an estimate in Estimate Color
+                local color = textColor
+                if mine then color = activeStyle.mineColor or textColor
+                elseif estimate then color = activeStyle.estimateColor or textColor end
+                Write(text, x + width / 2, y + size, color,
+                    DurationWidth(text, durationFont, activeStyle.valueFont) / 2)
             end
             if details.Hover(itemX + x * scale, itemY + y * scale,
                 itemX + (x + width) * scale, itemY + (y + size) * scale) then

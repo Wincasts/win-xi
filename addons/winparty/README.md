@@ -79,11 +79,11 @@ calls per category; averages and maxima cover the full interval.
   be known, `-` is written. Statuses you cast are written in **Your Color** (green by default), so you can
   see when someone else's replaces yours. **Duration Text Size** sets how tall the times are next to the
   icons. The windows stay the same size: the icons get smaller to make room for the times under them.
-  **Low Time Warning** (10 seconds by default, 0 for none) writes a time that is running out in **Low
-  Time Color** (red by default), over the other colours.
-- **Style → Status Display → Removable Marks**, off by default, puts a dot on the corner of each status
-  a spell can take off, as the server says: **Curable Mark Color** (light blue) on debuffs Erase, a
-  -na spell or a waltz removes, **Dispellable Mark Color** (amber) on buffs Dispel removes.
+  **Low Time Warning** (10 seconds by default, 0 for none) makes an icon running out fade out and in.
+- **Style → Status Display → Removable Marks**, off by default, puts a small dot in a dark border inside
+  the corner of each status a spell can take off, as the server says: **Curable Mark Color** (light
+  blue) on debuffs Erase, a -na spell or a waltz removes, **Dispellable Mark Color** (amber) on buffs
+  Dispel removes.
 - Resting the mouse on a status icon (Show Tooltips) shows its time left, the spell or move that put it
   there and who cast it, where that was seen, and what removes it.
 - **Party → Casting → Show Cast Bars**, on by default: while a member of your party or the alliance casts a
