@@ -143,7 +143,8 @@
 --     statustimes' alike; the count's wrap is 2^32, not one short of it; statustimes.CastBy
 -- 78: statustimes.Text's seconds left (its fourth), statustimes.Landing (what put a status there, by
 --     whom), statuses.Removable (what takes a status off, from the server's flags), statustimes.Blink (how
---     solid an icon running out is drawn)
+--     solid an icon running out is drawn), cleanse (the spells that take a status off, and whether the
+--     player can cast one now, by job, level and level sync)
 return {
     Number = 78,
 };
