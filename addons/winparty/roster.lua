@@ -21,7 +21,6 @@ local ffi = require('ffi')
 local d3d8 = require('d3d8')
 local statusicons = require('winxi.statusicons')
 local partystatus = require('winxi.partystatus')
-local statustimes = require('winxi.statustimes')
 local d3d8_device = d3d8.get_device()
 local game = require('game')
 local perf = require('perf')
@@ -225,8 +224,6 @@ local function ReadMember(place, party)
         partystatus.Own(buffs)
     elseif place <= 5 then
         partystatus.Member(serverId, buffs)
-        -- what appears on them is seen to begin now, for the estimates under their icons
-        statustimes.Watch(serverId, buffs)
     else
         Clear(buffs)
     end

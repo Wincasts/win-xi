@@ -15,7 +15,7 @@ addon.desc    = 'Party, target and pet frames in the style of XivParty'
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 75 -- winxi.statustimes (67: winxi.castbar, 64: partystatus, 57: abi, 56: presence)
+local winxiNeeded = 76 -- winxi.statustimes (75), its WatchParty (76) (67: winxi.castbar, 64: partystatus, 57: abi, 56: presence)
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -330,6 +330,12 @@ local function Present()
     rearranging = partyCursor ~= nil
     config.Draw(saved)
     UpdateTracking()
+    -- the durations under the icons: the time now, and the party watched every frame, drawn or hidden,
+    -- so that what lands on them while the windows are hidden is timed from when it does
+    if saved.style.showStatuses[1] and saved.style.showDurations[1] then
+        statustimes.Begin()
+        statustimes.WatchParty()
+    end
     -- Keep settings and lifecycle current, but do no layout or pet polling while hidden.
     if not saved.showConfig[1] then winxiOrganize.SetActive(false) end
     windows.Capture, windows.Native, windows.NativeRect, windows.FollowNative, windows.BlockNativeInputs = nil, nil, nil, nil, false
@@ -380,7 +386,6 @@ local function Present()
     -- Every tooltip on the windows waits for Show Tooltips; with Clickthrough they are still hovered for
     -- them, just not clicked or dragged.
     details.BeginFrame(saved.style.hoverDetails[1] and not hidden, saved.clickThrough[1])
-    statustimes.Begin() -- the time now, for the durations under the icons
     if saved.automaticPositioning[1] then
         local count = 0
         if saved.pets.enabled[1] then
