@@ -68,6 +68,7 @@ end
 ---@field tp       integer? only known for the player's own pet
 ---@field hp       integer? exact HP, shown in place of the percentage when known
 ---@field mp       integer? exact MP, shown in place of the percentage when known
+---@field noMp     boolean? it has no MP to have: a grey, full MP bar and no MP figure, as a member's
 ---@field serverId integer? the pet's server id, for what is seen to land on it; nil for a made-up one
 
 -- The entity of the pet belonging to the entity at ownerIndex, if it has one the client knows about
@@ -100,9 +101,15 @@ local function Info(place)
         infos[place] = info
     end
     info.name, info.owner, info.hpp, info.mpp, info.tp, info.hp, info.mp = nil, nil, nil, nil, nil, nil, nil
-    info.serverId = nil
+    info.serverId, info.noMp = nil, nil
     return info
 end
+
+-- The game gives a percentage of MP for any pet, 0 for one with none to have (a jug pet, a wyvern):
+-- one not seen with any since it was called has none, as a member's job says for them. An automaton or
+-- an avatar is seen with MP at once, and keeps its bar however low it runs. The server id of the
+-- player's pet last seen with MP
+local mpSeenFor = nil
 
 ---@return PetInfo?
 local function GetOwnPet(settings, place)
@@ -116,6 +123,8 @@ local function GetOwnPet(settings, place)
     local pet = Info(place)
     pet.name, pet.hpp, pet.serverId = entity.Name, entity.HPPercent, entity.ServerId
     pet.mpp, pet.tp = player:GetPetMPPercent(), player:GetPetTP()
+    if (pet.mpp or 0) > 0 then mpSeenFor = pet.serverId end
+    pet.noMp = (pet.mpp or 0) == 0 and mpSeenFor ~= pet.serverId
 
     -- Exact HP and MP are only known for a puppetmaster's automaton
     if settings.exactAutomaton[1] and IsPuppetmaster() then
@@ -224,6 +233,7 @@ function pets.Lines(sample, settings)
         -- what is seen to land on it goes by its own server id; a made-up pet has none, and sample statuses
         line.statusServerId = (info.serverId ~= nil and info.serverId ~= 0) and info.serverId or nil
         line.hp, line.mp, line.mpp, line.tp = info.hp, info.mp, info.mpp, info.tp
+        line.noMp = info.noMp
 
         -- HP as a percentage unless the figure itself is known, and MP the same
         if line.hpp ~= info.hpp or line.hpWords == nil then

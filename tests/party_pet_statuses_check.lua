@@ -32,6 +32,27 @@ pets.Forget()
 local lines = pets.Lines(false, o.pets)
 H.print('each pet\'s line has its server id for its statuses', #lines == 2, lines[1].statusServerId == 0x5001, lines[2].statusServerId == 0x5002,
     '| its line id still its place', lines[1].serverId == -1001)
+do
+    -- a pet with no MP to have (a jug pet, a wyvern) has a grey, full MP bar, as a member with none has;
+    -- one seen with MP keeps its bar, empty or not, as an automaton or an avatar running dry does
+    -- a pet newly called (another server id), never seen with MP
+    local mpp, entity = 0, GetEntity
+    player.GetPetMPPercent = function() return mpp end
+    GetEntity = function(index) local e = entity(index); if e.ServerId then e.ServerId = e.ServerId + 0x100 end; return e end
+    pets.Forget()
+    local line = pets.Lines(false, o.pets)[1]
+    local none = line.noMp == true
+    mpp = 30; pets.Forget(); line = pets.Lines(false, o.pets)[1]
+    local some = line.noMp == false and line.mpp == 30
+    mpp = 0; pets.Forget(); line = pets.Lines(false, o.pets)[1]
+    local dry = line.noMp == false and line.mpp == 0
+    GetEntity = entity
+    local otherPet = pets.Lines(false, o.pets)[2]
+    H.print('the player\'s pet without MP: noMp', none, '| with MP: not', some, '| run dry: still not', dry,
+        '| a member\'s pet: no MP bar at all', otherPet.mpp == nil)
+    assert(none and some and dry and otherPet.mpp == nil, 'a pet without MP has the grey bar')
+    player.GetPetMPPercent = function() return 50 end
+end
 pets.Forget()
 GetPlayerEntity = function() return nil end
 local samples = pets.Lines(true, o.pets)
