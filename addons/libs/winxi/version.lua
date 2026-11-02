@@ -137,6 +137,8 @@
 --     of every frame presented, and not only of one a name was drawn in
 -- 75: statustimes, the time a status has left as a label to write under its icon (exact for the
 --     player's own, else an estimate or '-') and whether the player put it there; debuffs.UsualSeconds, and at and known in debuffs.Statuses
+-- 76: statustimes.WatchParty; the landing on the player and the party kept through a change of area, and
+--     whose it is while it is on them; Watch ignores reads between areas, and one unwatched FORGET seconds is new
 return {
-    Number = 75,
+    Number = 76,
 };

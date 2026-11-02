@@ -91,6 +91,7 @@ H.print('the player\'s Protect on them: yours', whose(0x200, 40))
 H.print('Paralysis, which nobody was seen to cast: not yours', not whose(0x200, 4))
 -- someone else (0x500) casts Protect over it: no longer yours
 debuffs.Action({ actor_id = 0x500, category = 4, param = 43, targets = { { id = 0x200, actions = { { message = 230, param = 40 } } } } })
+statustimes.Watch(0x200, member) -- the next frame's read
 H.print('someone else\'s Protect over yours: not yours', not whose(0x200, 40), text(0x200, 40))
 -- an enemy's Paralyze the player cast: yours while it lasts, and not once it has run out
 H.print('the enemy\'s Paralyze you cast: yours', whose(0x300, 4))
@@ -98,5 +99,30 @@ now = now + 200; statustimes.Begin()
 H.print('run out: not yours', not whose(0x300, 4))
 -- the player's own Protect, cast by themselves: exact and yours
 debuffs.Action({ actor_id = 0x100, category = 4, param = 43, targets = { { id = 0x100, actions = { { message = 230, param = 40 } } } } })
+statustimes.Begin() -- the next frame: the player's own read and watched
 local words, estimate, mine = statustimes.Text(0x100, 40)
 H.print('your own Protect, cast by you: exact and yours', estimate == false, mine == true, words)
+
+-- a change of area empties winxi.debuffs: what is kept with the party stays, yours included
+debuffs.Action({ actor_id = 0x100, category = 4, param = 43, targets = { { id = 0x200, actions = { { message = 230, param = 40 } } } } })
+statustimes.Watch(0x200, member)
+debuffs.Clear()
+pass(5)
+H.print('after a change of area: your Protect on them still yours, its time kept', whose(0x200, 40), text(0x200, 40) == '29m~', text(0x200, 40))
+-- while the player is between areas no one is watched, and a long load forgets no one
+local zoningNow = 1
+player.GetIsZoning = function() return zoningNow end
+for _ = 1, 45 do now = now + 1; statustimes.Begin(); statustimes.Watch(0x200, { count = 0 }) end
+zoningNow = 0
+now = now + 1; statustimes.Begin(); statustimes.Watch(0x200, member)
+H.print('45 s between areas: not forgotten, and the empty reads then not taken for all gone', whose(0x200, 40), text(0x200, 4) ~= '1m~', text(0x200, 4))
+-- a member away for 31 to 60 s, between two prunes, Paralysis gone from them before and on them again
+-- when back: on them since a time not known, not since now
+member[3], member[4], member[5], member.count = 251, 5, nil, 4
+statustimes.Watch(0x200, member)
+now = now + 30; statustimes.Begin()              -- a prune, which keeps them (30 s)
+member[5], member.count = 4, 5
+now = now + 15; statustimes.Watch(0x200, member) -- back after 45 s, before the next prune
+H.print('back after 45 s between prunes: new, Paralysis -, not its usual minute', text(0x200, 4) == '-~', text(0x200, 4))
+-- WatchParty: the game's five read and watched
+H.print('WatchParty is there for an addon to call', type(statustimes.WatchParty) == 'function')
