@@ -977,19 +977,25 @@ local function DrawSettings(options)
         if chosen ~= nil then
             options.growFrom = chosen;
         end
-        widgets.Check('Show Time Left', 'Writes under each icon how long the status has left.', options.showTimers, '##buff.showTimers');
-        mineSpec.parent, lowSpec.parent = options.showTimers, options.showTimers;
-        widgets.Color('Your Colour', 'The colour of the time left on statuses you cast, so you can see when someone else\'s replaces yours.',
+    end
+
+    -- the rows that wait for Show Durations and for Removable Marks, whichever sections are open
+    mineSpec.parent, lowSpec.parent, markSpec.parent = options.showTimers, options.showTimers, options.removableMarks;
+    if widgets.Header('Durations') then
+        widgets.Check('Show Durations', 'Writes the time left under each icon.', options.showTimers, '##buff.showTimers');
+        widgets.Color('Your Colour', 'The colour of times on statuses you cast, so you can see when someone else\'s replaces yours.',
             options.mineColor, '##buff.mineColor', mineSpec);
         widgets.Slider('Low Time Warning', 'Below this many seconds left, the icon fades in and out. At 0 there is no warning.',
             options.lowTime, 0, 60, '##buff.lowTime', lowSpec);
-        widgets.Check('Removable Marks', 'Marks your debuffs that Erase, a -na spell or a waltz removes.', options.removableMarks, '##buff.removableMarks');
-        markSpec.parent = options.removableMarks;
-        widgets.Check('Only What You Can Remove', 'Marks only what a spell you know, at your level now, takes off. Level sync is followed.',
-            options.removableOnlyMine, '##buff.removableOnlyMine', markSpec);
-        widgets.Color('Curable Mark Colour', 'The colour of the mark.', options.cureMarkColor, '##buff.cureMarkColor', markSpec);
         widgets.FontFile(options, 'fontFile', '##buff.fontFile', fontSpec);
         widgets.FontSize(options, 'fontSize', '##buff.fontSize', sizeSpec);
+    end
+
+    if widgets.Header('Removable Marks') then
+        widgets.Check('Removable Marks', 'Marks your debuffs that Erase, a -na spell or a waltz removes.', options.removableMarks, '##buff.removableMarks');
+        widgets.Check('Only What You Can Remove', 'Marks only what a spell you know and can cast at your level now takes off, level sync included.',
+            options.removableOnlyMine, '##buff.removableOnlyMine', markSpec);
+        widgets.Color('Curable Mark Colour', 'The colour of the mark.', options.cureMarkColor, '##buff.cureMarkColor', markSpec);
     end
 
     if widgets.Header('Controller') then

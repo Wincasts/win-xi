@@ -563,12 +563,16 @@ function statuses.DrawSettings(options, save)
     Chosen(options);
     local changed = false;
 
+    -- the rows that wait for Enabled, for Show Durations and for Removable Marks, whichever sections are open
+    showSpec.parent = options.showStatuses;
+    durationSpec.parent = (options.showStatuses[1] and options.statusDurations[1]) == true;
+    markSpec.parent = (options.showStatuses[1] and options.statusRemovableMarks[1]) == true;
+
     if (controls.Section('Display', true)) then
         if (controls.Checkbox('Enabled', '##name.showStatuses', options.showStatuses,
                 'Shows the ticked statuses over the names. Yours and your party\'s are the game\'s, and everyone else\'s are worked out from the battle messages.')) then
             changed = true;
         end
-        showSpec.parent = options.showStatuses;
         if (controls.Choice('Icons', '##name.statusIcons', options.statusIcons, ICONS,
                 'Which icons the statuses are drawn with: Winxi Theme as its Custom Icons setting says, Game Icons, or Custom Icons with the game\'s where the set has none.', showSpec)) then
             changed = true;
@@ -593,59 +597,63 @@ function statuses.DrawSettings(options, save)
                 'Moves the row down. Below 0, up.', showSpec)) then
             changed = true;
         end
-        if (controls.Checkbox('Show Durations', '##name.statusDurations', options.statusDurations,
-                'Writes the time left under each icon. Others\' times are estimates, or - if unknown.', showSpec)) then
-            changed = true;
-        end
-        -- greyed while either Enabled or Show Durations is off
-        durationSpec.parent = (options.showStatuses[1] and options.statusDurations[1]) == true;
-        if (controls.Slider('Duration Size', '##name.statusDurationSize', options.statusDurationSize, 30, 100, '%d%%',
-                'How tall the durations are, compared with the icon.', durationSpec)) then
-            changed = true;
-        end
-        if (controls.Choice('Duration Font', '##name.statusDurationFont', options.statusDurationFont, require('custom_settings').TextFonts(),
-                'The font the durations are written in. Same as Names is the names\' font, Default the font everything else is written in.', durationSpec)) then
-            changed = true;
-        end
-        if (controls.Color('Estimate Colour', '##name.statusEstimateColor', options.statusEstimateColor,
-                'The colour of estimated durations and -.', durationSpec)) then
-            changed = true;
-        end
-        if (controls.Color('Your Colour', '##name.statusMineColor', options.statusMineColor,
-                'The colour of durations of statuses you cast, so you can see when someone else\'s replaces yours.', durationSpec)) then
-            changed = true;
-        end
-        if (controls.Slider('Low Time Warning', '##name.statusLowTime', options.statusLowTime, 0, 60, '%d s',
-                'Below this many seconds left, the icon fades in and out. At 0 there is no warning.', durationSpec)) then
-            changed = true;
-        end
         if (controls.Checkbox('Only Yours On Enemies', '##name.statusOnlyMine', options.statusOnlyMine,
                 'On monsters, shows only the statuses you put there.', showSpec)) then
-            changed = true;
-        end
-        if (controls.Checkbox('Removable Marks', '##name.statusRemovableMarks', options.statusRemovableMarks,
-                'Marks what you can take off: a friend\'s curable debuffs and a monster\'s dispellable buffs.', showSpec)) then
-            changed = true;
-        end
-        markSpec.parent = (options.showStatuses[1] and options.statusRemovableMarks[1]) == true;
-        if (controls.Checkbox('Only What You Can Remove', '##name.statusRemovableOnlyMine', options.statusRemovableOnlyMine,
-                'Marks only what a spell you know, at your level now, takes off. Level sync is followed.', markSpec)) then
-            changed = true;
-        end
-        if (controls.Color('Curable Mark Colour', '##name.statusCureMarkColor', options.statusCureMarkColor,
-                'The mark on a friend\'s debuffs that Erase, a -na spell or a waltz removes.', markSpec)) then
-            changed = true;
-        end
-        if (controls.Color('Dispellable Mark Colour', '##name.statusDispelMarkColor', options.statusDispelMarkColor,
-                'The mark on a monster\'s buffs that Dispel removes.', markSpec)) then
             changed = true;
         end
         controls.Checkbox('Preview', '##name.statusPreview', preview,
             'Shows sample statuses over every name, mostly buffs on characters and debuffs on monsters. Not saved.', showSpec);
     end
 
+    if (controls.Section('Durations')) then
+        if (controls.Checkbox('Show Durations', '##name.statusDurations', options.statusDurations,
+                'Writes the time left under each icon. Yours are exact, and anyone else\'s are estimates, or - when not known.', showSpec)) then
+            changed = true;
+            durationSpec.parent = (options.showStatuses[1] and options.statusDurations[1]) == true;
+        end
+        if (controls.Slider('Duration Size', '##name.statusDurationSize', options.statusDurationSize, 30, 100, '%d%%',
+                'How tall the times are, compared with the icon.', durationSpec)) then
+            changed = true;
+        end
+        if (controls.Choice('Duration Font', '##name.statusDurationFont', options.statusDurationFont, require('custom_settings').TextFonts(),
+                'The font the times are written in. Same as Names is the names\' font, Default the font everything else is written in.', durationSpec)) then
+            changed = true;
+        end
+        if (controls.Color('Estimate Colour', '##name.statusEstimateColor', options.statusEstimateColor,
+                'The colour of estimated times, and of -.', durationSpec)) then
+            changed = true;
+        end
+        if (controls.Color('Your Colour', '##name.statusMineColor', options.statusMineColor,
+                'The colour of times on statuses you cast, so you can see when someone else\'s replaces yours.', durationSpec)) then
+            changed = true;
+        end
+        if (controls.Slider('Low Time Warning', '##name.statusLowTime', options.statusLowTime, 0, 60, '%d s',
+                'Below this many seconds left, the icon fades in and out. At 0 there is no warning.', durationSpec)) then
+            changed = true;
+        end
+    end
+
+    if (controls.Section('Removable Marks')) then
+        if (controls.Checkbox('Removable Marks', '##name.statusRemovableMarks', options.statusRemovableMarks,
+                'Marks what you can take off: a character\'s curable debuffs and a monster\'s dispellable buffs.', showSpec)) then
+            changed = true;
+            markSpec.parent = (options.showStatuses[1] and options.statusRemovableMarks[1]) == true;
+        end
+        if (controls.Checkbox('Only What You Can Remove', '##name.statusRemovableOnlyMine', options.statusRemovableOnlyMine,
+                'Marks only what a spell you know and can cast at your level now takes off, level sync included.', markSpec)) then
+            changed = true;
+        end
+        if (controls.Color('Curable Mark Colour', '##name.statusCureMarkColor', options.statusCureMarkColor,
+                'The mark on a character\'s debuffs that Erase, a -na spell or a waltz removes.', markSpec)) then
+            changed = true;
+        end
+        if (controls.Color('Dispellable Mark Colour', '##name.statusDispelMarkColor', options.statusDispelMarkColor,
+                'The mark on a monster\'s buffs that Dispel removes.', markSpec)) then
+            changed = true;
+        end
+    end
+
     if (controls.Section('Entity Types')) then
-        showSpec.parent = options.showStatuses;
         if (entityTypes.Draw('statusTypes', options.statusCategories, 'A row of statuses', showSpec)) then
             changed = true;
         end

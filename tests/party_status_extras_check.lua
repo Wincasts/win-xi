@@ -127,3 +127,21 @@ local monster = target.Line('main', { Name = 'Goblin', ServerId = 0x1000123, Spa
 local player = target.Line('sub', { Name = 'Someone', ServerId = 0x456, SpawnFlags = 0x01, HPPercent = 100, Distance = 4 })[1].isMonster
 local sample = target.Line('tot', target.Samples.tot)[1].isMonster
 H.print('target: a monster is one, a player is not, the sample target is', monster == true, player == false, sample == true)
+
+-- the Style tab: Status Display, Status Durations, Removable Marks, Status Filtering, in that order, each
+-- with its own settings
+local order, under = {}, {}
+for _, tab in ipairs(options.Tabs) do
+    if tab.name == 'Style' then
+        local header
+        for _, entry in ipairs(tab.entries) do
+            if entry.kind == 'header' then header = entry.label; order[#order + 1] = header
+            elseif entry.key then under[entry.key] = header end
+        end
+    end
+end
+local statusOrder = {}
+for _, label in ipairs(order) do if label:find('Status') or label == 'Removable Marks' then statusOrder[#statusOrder + 1] = label end end
+H.print('status groups in order', table.concat(statusOrder, '|') == 'Status Display|Status Durations|Removable Marks|Status Filtering|Advanced: Status IDs', table.concat(statusOrder, '|'))
+H.print('each setting in its group', under.buffSize == 'Status Display', under.showDurations == 'Status Durations', under.lowTime == 'Status Durations',
+    under.durationFont == 'Status Durations', under.removableMarks == 'Removable Marks', under.dispelMarkColor == 'Removable Marks')

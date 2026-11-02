@@ -439,15 +439,22 @@ with its `statusicons` folder. The set's icons are as narrow as the set has them
 
 | Setting | What it does |
 |---|---|
-| Show Statuses | The row of icons, for names that are shown |
+| Enabled (Display) | The row of icons, for names that are shown |
 | Icons | Winxi Theme, to begin with: as Custom Icons in `/wxi` has them. Game Icons: the game's own, whatever the theme has. Custom Icons: the custom set's, the one chosen in `/wxi` (FFXIV to begin with), and the game's where it has none, whatever the theme has |
 | Size (%) | An icon's height, as a percentage of the height of the names: 50% to 300%, 125% to begin with. An icon is as wide as the set's icons are for that height (three quarters for FFXIV's), and shrinks with its name |
 | Position | Above, to begin with: over the name, and over the mastery stars where it has them. Below: under the name, and under the line a checked monster's details are written on while they are shown |
 | Alignment | Center, to begin with: the row's middle on the name's. Left: level with the name's left, where its icons begin. Right: level with its right |
 | X Offset (px) | 0 to begin with. Moves the row right from where Position and Alignment put it, in screen pixels, -200 to 200; below 0, left |
 | Y Offset (px) | 0 to begin with. Moves the row down, -200 to 200; below 0, up |
-| Entity Types | Which kinds of name have a row: Yourself, Party Members, Alliance Members, Other Players, My Pet, Other Pets, NPCs and Monsters. All ticked to begin with; Preview keeps to them too |
+| Only Yours On Enemies | Off to begin with. A monster's row has only the statuses you put there |
 | Preview | Puts sample statuses over every name that is shown, whatever it is really under, so you can see how the row looks: over a character Protect, Shell and Haste you cast and a Paralysis running out; over a monster your Dia and Slow, a Paralysis and an Attack Boost Dispel removes. With Show Durations, each has a sample time in its colour. Not kept: off again when the addon is loaded |
+| Show Durations (Durations) | Off to begin with. The time left under each icon: yours exact, anyone else's an estimate in Estimate Colour, or - where not known |
+| Duration Size, Duration Font | How tall the times are, compared with the icon (50% to begin with), and their font: Same as Names, Default, or one of yours |
+| Estimate Colour, Your Colour | The colour of estimated times and -, yellow to begin with; and of times on statuses you cast, green |
+| Low Time Warning | 10 seconds to begin with, 0 for none. An icon with less time left fades out and in |
+| Removable Marks (Removable Marks) | Off to begin with. A small square in a dark border inside the corner of a character's debuffs a cure takes off, in Curable Mark Colour, and a monster's buffs Dispel takes off, in Dispellable Mark Colour |
+| Only What You Can Remove | Off to begin with. Only what a spell you know and can cast at your level now takes off, level sync included |
+| Entity Types | Which kinds of name have a row: Yourself, Party Members, Alliance Members, Other Players, My Pet, Other Pets, NPCs and Monsters. All ticked to begin with; Preview keeps to them too |
 | Search | Narrows the list under it by part of a status's name, or its number |
 | Selected Only | Lists only the ticked statuses |
 | The list | Every status the game has a name for, by name with its number. It leaves out the game's stand-ins, (None), (N/A), (Imagery) and the like, whose names are wholly in brackets, and the numbers the server has no status for. Hover over one to see its icon. Ticked to begin with: what ails a character, and what can be told of an enemy |

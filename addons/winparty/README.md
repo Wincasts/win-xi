@@ -72,7 +72,7 @@ calls per category; averages and maxima cover the full interval.
 - **Style → Status Display** has an icon limit of 1–32, one or two rows, growth to the left, to the right or towards the most space,
   fitting to the screen edge, and overflow badges. Screen fitting plays safe: in mixed sets it reserves room for the widest icon. When needed, the last free slot becomes a `+N` badge; with no space outside the frame the
   badge uses the frame's lower-left corner. Two rows increase the row height.
-- **Style → Status Display → Show Durations**, off by default, writes the time left under each status
+- **Style → Status Durations → Show Durations**, off by default, writes the time left under each status
   icon: seconds, then minutes (`m`), then hours (`h`). Your own times are exact, read from the game.
   Your party's and a target's are estimates, written in **Estimate Color** (yellow by default): from when
   the status was seen to land, or to appear on the member, for the server's usual time. Where that cannot
@@ -80,7 +80,7 @@ calls per category; averages and maxima cover the full interval.
   see when someone else's replaces yours. **Duration Text Size** sets how tall the times are next to the
   icons, and **Duration Font** what font they are in (the Value Font's to begin with). The windows stay the same size: the icons get smaller to make room for the times under them.
   **Low Time Warning** (10 seconds by default, 0 for none) makes an icon running out fade out and in.
-- **Style → Status Display → Removable Marks**, off by default, puts a small dot in a dark border inside
+- **Style → Removable Marks**, off by default, puts a small dot in a dark border inside
   the corner of each status you can take off, as the server says: **Curable Mark Color** (light blue)
   on your party's, pets' and a player target's debuffs that Erase, a -na spell or a waltz removes, and
   **Dispellable Mark Color** (amber) on a monster's buffs that Dispel removes. A friend's buffs and a
@@ -95,9 +95,9 @@ calls per category; averages and maxima cover the full interval.
   left is written where their HP was. The casts are seen in the action packets (winxi.castbar, as name's
   cast bars see them), so the time is the spell's base cast time, marked `~`; the server's finish or
   interruption ends it. While you organize, one sample member casts Cure IV.
-- **Style → Status Display → Show Statuses**, on by default, draws the buff and debuff icons beside the
-  party and alliance. Off, every status setting (Status Display, Status Filtering, Advanced: Status IDs)
-  is greyed out but kept; a target's debuffs follow the Target tab.
+- **Style → Status Display → Show Statuses**, on by default, draws the buff and debuff icons beside your
+  party, alliance and pets. Off, every status setting (Status Display, Status Durations, Removable Marks,
+  Status Filtering, Advanced: Status IDs) is greyed out but kept; a target's debuffs follow the Target tab.
 - **Style → Status Filtering** has Debuffs First and two effect pickers, Priority Effects and Hidden
   Effects. Search by name or ID, tick effects, and reorder priorities with Up and Down. Priority order
   follows the list, hidden effects win, and other effects keep their original order. You can type the same lists

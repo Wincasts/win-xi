@@ -380,7 +380,7 @@ H.command('/winplates diag off')
 imgui.GetFrameHeightWithSpacing = function() return 20 end
 AshitaCore.GetResourceManager = function() return { GetString = function() return '' end } end
 H.tab(5); H.command('/winplates'); clear(); H.frames(1); H.command('/winplates')
-assert(table.concat(headers, '|') == 'Display|Entity Types|Selected Statuses')
+assert(table.concat(headers, '|') == 'Display|Durations|Removable Marks|Entity Types|Selected Statuses', table.concat(headers, '|'))
 sentences()
 for _, key in ipairs({ 'self', 'party', 'alliance', 'players', 'myPet', 'pets', 'npcs', 'monsters' }) do
     assert(ids['##name.statusTypes.' .. key] and locations['##name.statusTypes.' .. key] == 'Entity Types', 'statuses\' Entity Types has ' .. key)
@@ -388,6 +388,17 @@ end
 assert(ids['##name.statusOffsetX'] and ids['##name.statusOffsetY'] and not ids['##name.statusTimers'], 'X and Y Offset in Display, and no Timers')
 assert(ids['##name.statusIcons'] and locations['##name.statusIcons'] == 'Display', 'Icons is in Statuses → Display')
 assert(kinds['##name.statusSearch'] == 'InputText' and locations['##name.statusSearch'] == 'Selected Statuses')
+for _, id in ipairs({ '##name.statusDurations', '##name.statusDurationSize', '##name.statusDurationFont', '##name.statusEstimateColor',
+        '##name.statusMineColor', '##name.statusLowTime' }) do
+    assert(locations[id] == 'Durations', id .. ' is in Durations')
+end
+for _, id in ipairs({ '##name.statusRemovableMarks', '##name.statusRemovableOnlyMine', '##name.statusCureMarkColor', '##name.statusDispelMarkColor' }) do
+    assert(locations[id] == 'Removable Marks', id .. ' is in Removable Marks')
+end
+assert(locations['##name.statusOnlyMine'] == 'Display' and locations['##name.statusPreview'] == 'Display')
+assert(disabledIds['##name.statusDurationSize'] and not disabledIds['##name.statusDurations'], 'the durations\' rows wait for Show Durations')
+assert(disabledIds['##name.statusCureMarkColor'] and not disabledIds['##name.statusRemovableMarks'], 'the marks\' rows wait for Removable Marks')
+H.print('Statuses: Display, Durations and Removable Marks, each row in its own, greyed under its switch', true)
 options.showStatuses[1] = false
 clear(); require('statuses').DrawSettings(options)
 assert(ids['##name.statusIcons'] and disabledIds['##name.statusIcons'] and disabledIds['##name.statusTypes.monsters'] and not disabledIds['##name.showStatuses'],
