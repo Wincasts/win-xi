@@ -39,6 +39,14 @@ H.print('someone else\'s over it: the text colour again', frame() ~= o.mineColor
 protect(0x100); frame()
 debuffs.Clear() -- a change of area
 H.print('yours, through a change of area: Your Colour still', frame() == o.mineColor)
+-- Low Time Warning: 10 s; Protect with 5 s left in Low Time Colour, over Your Colour
+local function at(seconds) timers[1] = (STAMP - EPOCH) * 60 + seconds * 60; drawn = {}; H.frames(1); return drawn end
+H.print('Low Time Warning to begin with', o.lowTime[1])
+H.print('5 s left: Low Time Colour', at(5)['5'] == o.lowTimeColor)
+o.lowTime[1] = 0
+H.print('at 0: no warning, Your Colour', at(5)['5'] == o.mineColor)
+o.lowTime[1] = 10
+timers[1] = (STAMP - EPOCH) * 60 + 90 * 60
 -- the packets: followed while times are shown, and not while they are not
 debuffs.Clear()
 local handled = 0

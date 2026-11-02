@@ -2,6 +2,7 @@
 
 ## 1.2
 
+- **Low Time Warning** (Icons, 10 seconds to begin with, 0 for none) and **Low Time Colour** (red): a time running out is written in it, over Your Colour, in the window and handed to uihook alike.
 - Renamed winbuff: the addon is `winbuff` (`addons\winbuff`, `/addon load winbuff`), its settings window winbuff Settings and its command `/winbuff`, with `/buff` kept as another way in. Each character's settings are brought over from `config\addons\buff` the first time it logs in (winxi.shell's formerName). Remove the old `addons\buff` folder.
 - **Your Colour** (Icons, under Show Time Left, green to begin with): the time under a status you cast on yourself, until someone else's is seen to land over it, so you can see when yours is replaced. Kept through a change of area. What lands on you is followed from the battle messages while Show Time Left is on, and your statuses are read each frame the bar is in use, shown or hidden. Requires winxi 77.
 - The time under each icon is read by winxi 77's `winxi.owntimers`, which winparty and winplates read your own statuses with too: the same seconds as before, from one place. Requires winxi 77.

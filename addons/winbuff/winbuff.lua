@@ -74,6 +74,8 @@ local defaults = T{
     perRow = T{ 16 },         -- how many icons before a new row
     showTimers = T{ true },
     mineColor = T{ 0.45, 1.0, 0.55, 1.0 }, -- the time under a status the player put there
+    lowTime = T{ 10 },                     -- seconds left under which a time is low; 0 for no warning
+    lowTimeColor = T{ 1.0, 0.35, 0.3, 1.0 }, -- a low time's colour
     fontFile = '',          -- empty inherits the Winxi theme font
     fontSize = T{ 0 },      -- zero inherits the current font size
     hideGameIcons = T{ true },
@@ -436,8 +438,9 @@ local function DrawStatusesContent(options)
 
         if showTimers and status.seconds ~= nil and not HidesTimer(status.id) then
             local label = Label(status.seconds);
+            local low = options.lowTime[1] > 0 and status.seconds <= options.lowTime[1];
             text.Draw(drawList, x + (cell[1] - LabelWidth(label)) / 2, y + height + timerGap,
-                status.mine and options.mineColor or textColor, label);
+                (low and options.lowTimeColor) or (status.mine and options.mineColor) or textColor, label);
         end
     end
 end
@@ -546,7 +549,7 @@ local layout = { width = 0, height = 0, perRow = 1, align = 0 };
 local made, last = {}, {};
 -- each status's icon (the texture, its place on it or nil for the whole, whether it is the set's
 -- shape) and its time as written (or false): once a frame
-local handles, places, owns, labels = {}, {}, {}, {};
+local handles, places, owns, labels, lows = {}, {}, {}, {}, {};
 
 -- A status's icon for the plugin: from winxi's sheet of every icon where it is on it already (the
 -- set's with the game's for the rest, or the game's alone with Custom Icons off), so that the bar is
@@ -616,6 +619,8 @@ local function WriteHooked(options, found, alpha)
     local iconColor = ARGB(opaque, alpha);
     local textColor = ARGB(theme.Get().TextColor, alpha);
     local mineColor = ARGB(options.mineColor, alpha);
+    local lowColor = ARGB(options.lowTimeColor, alpha);
+    local lowTime = options.lowTime[1];
     local edgeColor = ARGB(text.EdgeColor(), alpha);
 
     local baked, texture = nil, nil;
@@ -631,7 +636,7 @@ local function WriteHooked(options, found, alpha)
 
     madeCount = 0;
     Note(cellWidth); Note(cellHeight); Note(perRow); Note(width); Note(height); Note(useOwn);
-    Note(sx); Note(sy); Note(nudgeX); Note(nudgeY); Note(iconColor); Note(textColor); Note(mineColor); Note(edgeColor);
+    Note(sx); Note(sy); Note(nudgeX); Note(nudgeY); Note(iconColor); Note(textColor); Note(mineColor); Note(lowColor); Note(lowTime); Note(edgeColor);
     Note(cursorIndex or 0); Note(texture or 0); Note(glyphsMade); Note(baked ~= nil); Note(align);
     -- the hand's frame, as it moves: written afresh with each, while the selector is open
     local handle, handFrame = nil, nil;
@@ -647,7 +652,8 @@ local function WriteHooked(options, found, alpha)
         Note(handle or 0); Note(place or false); Note(own);
         local label = status.seconds ~= nil and showTimers and not HidesTimer(status.id) and Label(status.seconds) or false;
         labels[index] = label;
-        Note(label); Note(status.mine == true);
+        lows[index] = label and lowTime > 0 and status.seconds <= lowTime or false;
+        Note(label); Note(status.mine == true); Note(lows[index]);
     end
     if Unchanged() then
         return false;
@@ -685,7 +691,8 @@ local function WriteHooked(options, found, alpha)
         local label = labels[index];
         if baked ~= nil and fontSlot ~= nil and label then
             local pen = math.floor(x + (cellWidth - LabelWidth(label)) / 2);
-            WriteWords(baked, label, pen, y + height + timerGap, sx, sy, status.mine and mineColor or textColor, edgeColor, fontSlot);
+            WriteWords(baked, label, pen, y + height + timerGap, sx, sy,
+                (lows[index] and lowColor) or (status.mine and mineColor) or textColor, edgeColor, fontSlot);
         end
     end
     -- the hand over the icons, at the left of the cursor's status, over the one before it
@@ -877,6 +884,7 @@ local lockSpec = { description = 'Keeps the bar where it is. Off, drag it with t
 local fontSpec = { description = 'The font for the times and the status tooltips. Theme Font follows the Winxi Theme.' };
 local sizeSpec = { description = 'How big the times and tooltips are. Theme Size follows the Winxi Theme.' };
 local mineSpec = {}; -- greyed while Show Time Left is off
+local lowSpec = { format = '%d s' }; -- the same, in seconds
 
 local function DrawSettings(options)
     if widgets.Header('Window', true) then
@@ -915,9 +923,12 @@ local function DrawSettings(options)
             options.growFrom = chosen;
         end
         widgets.Check('Show Time Left', 'Writes under each icon how long the status has left.', options.showTimers, '##buff.showTimers');
-        mineSpec.parent = options.showTimers;
+        mineSpec.parent, lowSpec.parent = options.showTimers, options.showTimers;
         widgets.Color('Your Colour', 'The colour of the time left on statuses you cast, so you can see when someone else\'s replaces yours.',
             options.mineColor, '##buff.mineColor', mineSpec);
+        widgets.Slider('Low Time Warning', 'Below this many seconds left, the time is written in Low Time Colour. At 0 there is no warning.',
+            options.lowTime, 0, 60, '##buff.lowTime', lowSpec);
+        widgets.Color('Low Time Colour', 'The colour of a time that is running low.', options.lowTimeColor, '##buff.lowTimeColor', mineSpec);
         widgets.FontFile(options, 'fontFile', '##buff.fontFile', fontSpec);
         widgets.FontSize(options, 'fontSize', '##buff.fontSize', sizeSpec);
     end
