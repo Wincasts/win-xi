@@ -139,6 +139,8 @@
 --     player's own, else an estimate or '-') and whether the player put it there; debuffs.UsualSeconds, and at and known in debuffs.Statuses
 -- 76: statustimes.WatchParty; the landing on the player and the party kept through a change of area, and
 --     whose it is while it is on them; Watch ignores reads between areas, and one unwatched FORGET seconds is new
+-- 77: owntimers, the player's own statuses' timers read to the second (Clock, Seconds), winbuff's and
+--     statustimes' alike; the count's wrap is 2^32, not one short of it
 return {
-    Number = 76,
+    Number = 77,
 };

@@ -17,7 +17,7 @@
 --     statustimes.Unknown                       the label where the time cannot be known: '-'
 --
 -- What can be known is not the same for everyone:
---   the player's own    the game keeps each one's end, read to the second: exact
+--   the player's own    the game keeps each one's end, read to the second (winxi.owntimers): exact
 --   the party's         the game keeps only what they are. Seen to land (winxi.debuffs), the spell's or
 --                       move's usual time from then; seen to appear on them, the status's usual time from
 --                       then (the server's durations set); otherwise, or once that time is past and it is
@@ -37,13 +37,12 @@
 -- Watch for the party members it reads.
 local debuffs = require('winxi.debuffs');
 local partystatus = require('winxi.partystatus');
+local owntimers = require('winxi.owntimers');
 
 local statustimes = {};
 
 statustimes.Unknown = '-';
 
-local NO_TIMER   = 0x7FFFFFFF;  -- what the game keeps for a status of the player's that does not run out
-local VANA_EPOCH = 0x3C307D70;  -- when the game's count of time starts, in seconds of ours
 local SLOTS      = 32;          -- statuses kept for the player
 local FORGET     = 30;          -- seconds a member not watched is kept for: back after that, they are new
 local LANDED_SLACK = 2;         -- seconds a landing may be seen before the status appears on the member
@@ -65,45 +64,6 @@ for member = 1, 5 do
     party[member] = { id = 0, count = 0 };
 end
 
--- Where the game keeps the time it goes by, as the buff addon finds it: looked for the first time the
--- player's timers are wanted
-local stampPointer = nil;
-
-local function Stamp()
-    if (stampPointer == nil) then
-        stampPointer = ashita.memory.find('FFXiMain.dll', 0, '8B0D????????8B410C8B49108D04808D04808D04808D04C1C3', 2, 0) or 0;
-    end
-    if (stampPointer == 0) then
-        return nil;
-    end
-    local pointer = ashita.memory.read_uint32(stampPointer);
-    pointer = pointer ~= 0 and ashita.memory.read_uint32(pointer) or 0;
-    if (pointer == 0) then
-        return nil;
-    end
-    return ashita.memory.read_uint32(pointer + 0x0C);
-end
-
--- The seconds one of the player's statuses has left, from what the game keeps for it (sixtieths of a
--- second, on its own count of time): false for one that does not run out, nil while it cannot be read
-local function OwnSeconds(raw, stamp)
-    if (raw == NO_TIMER) then
-        return false;
-    end
-    if (raw == nil or stamp == nil) then
-        return nil;
-    end
-    local left = raw - (stamp - VANA_EPOCH) * 60;
-    -- the count wraps round every few years
-    while (left < -2147483648) do
-        left = left + 0xFFFFFFFF;
-    end
-    if (left < 1) then
-        return 0;
-    end
-    return math.ceil(left / 60);
-end
-
 local function ReadOwn()
     ownRead = true;
     for id in pairs(ownCount) do
@@ -116,7 +76,7 @@ local function ReadOwn()
     if (player == nil or ownId == 0 or zoning) then
         return;
     end
-    local ids, timers, stamp = player:GetStatusIcons(), player:GetStatusTimers(), Stamp();
+    local ids, timers, stamp = player:GetStatusIcons(), player:GetStatusTimers(), owntimers.Clock();
     if (ids == nil) then
         return;
     end
@@ -133,7 +93,7 @@ local function ReadOwn()
                 times = {};
                 ownTimes[id] = times;
             end
-            times[count] = OwnSeconds(timers ~= nil and timers[slot] or nil, stamp);
+            times[count] = owntimers.Seconds(timers ~= nil and timers[slot] or nil, stamp);
         end
     end
     for index = #ownList, listed + 1, -1 do
