@@ -42,7 +42,11 @@ ashita.memory.read_uint32=function(at)
     if at==0x3000C then return stamp end
     return 0
 end
+-- the clock's place is looked for once, the first time it is read (winxi.owntimers): a fresh reader, found
+-- while the search is supplied
+package.loaded['winxi.owntimers']=nil
 local clocked=dofile(root .. '/statuses.lua')
+require('winxi.owntimers').Clock()
 ashita.memory.find=originalFind
 statuses.Read=clocked.Read
 local o=H.options(); o.fadeInOut[1]=false
