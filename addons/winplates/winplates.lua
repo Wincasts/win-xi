@@ -229,6 +229,15 @@ local function WhenEnabled(draw)
     end;
 end
 
+-- What /winplates help lists, a command a line
+local helpLines = {
+    '/winplates - opens or closes the settings.',
+    '/winplates diag - turns diagnostics on or off; /winplates diag on, /winplates diag off.',
+    '/winplates diag log - writes a diagnostics log now.',
+    '/winplates report - writes a support report, with nothing private in it.',
+    '/winplates help - lists these commands.',
+};
+
 -- The settings, the settings window and the command are the shell's
 app = shell.New({
     defaults     = defaults,
@@ -238,7 +247,7 @@ app = shell.New({
     command      = '/winplates',
     aliases      = { '/name' },
     formerName   = 'name',
-    help         = 'Use /winplates to open General, Names, Bars, Check Details, Statuses and Visibility. Diagnostics is under General.',
+    help         = 'Use /winplates to open General, Names, Bars, Check Details, Statuses and Visibility. Diagnostics is under General. /winplates help lists the commands.',
     drawSettings = WhenEnabled(DrawSettings),
     settingsLabel = 'Visibility',
     leadingTabs  = {
@@ -255,6 +264,10 @@ app = shell.New({
 
     -- for testers: /winplates diag on or off, /winplates diag log
     commands     = {
+        help = function ()
+            app:Say('Commands (/name works as /winplates):');
+            for _, line in ipairs(helpLines) do app:Say(line); end
+        end,
         report = function ()
             local path, problem = diag.Report();
             app:Say(path and ('Support report written to ' .. path) or ('Could not write support report: ' .. tostring(problem)));

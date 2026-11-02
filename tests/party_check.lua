@@ -265,6 +265,13 @@ H.print('/xif closes it', H.command('/xif') and o.showConfig[1] == false, '| /pt
     '| old /xiframes is left alone', H.command('/xiframes') == false,
     '| /party (the game\'s party chat) is left alone', H.command('/party hello') == false)
 H.print('/winparty opens and closes it', H.command('/winparty') and o.showConfig[1] == true, H.command('/WinParty') and o.showConfig[1] == false)
+local helpFrom, helpShowing = #H.printed, o.showConfig[1]
+assert(H.command('/winparty help') and o.showConfig[1] == helpShowing, '/winparty help does not toggle settings')
+local helpText = table.concat(H.printed, '\n', helpFrom + 1)
+for _, verb in ipairs({ '/winparty native', '/winparty native status', '/winparty perf', '/winparty menu', '/winparty cursor', '/winparty help' }) do
+    assert(helpText:find(verb, 1, true), '/winparty help lists ' .. verb)
+end
+H.print('/winparty help lists every command, settings left as they were', true)
 H.unload(); H.print('unload ran; saves', H.saves() > 0)
 
 -- Alliance Scale: the alliance's other two parties drawn at it, on top of the Scale; the player's own party not

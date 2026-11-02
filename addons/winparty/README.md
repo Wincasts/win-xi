@@ -50,7 +50,7 @@ the compact one of the Windower addon [XivParty](https://github.com/Tylas11/XivP
   spell is seen.
 
 ## usage
-`/winparty` (or `/pt`, or `/xif`) opens the settings. `/party` is left alone for the game's own party chat;
+`/winparty` (or `/pt`, or `/xif`) opens the settings; `/winparty help` lists every command in the chat log. `/party` is left alone for the game's own party chat;
 `/xiframes` is no longer used. The Style tab sets how every frame is drawn (sizes,
 fonts, bars, statuses). The Party, Target and Pets tabs have what belongs to each one. The dark edge round names
 and values is Winxi Theme's Text Outline, set in wxi for every addon.

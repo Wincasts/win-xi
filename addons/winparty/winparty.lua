@@ -465,6 +465,17 @@ ashita.events.register('packet_out', 'packet_out_handler', function(e)
     perf.Packet(PacketOut, e)
 end)
 
+-- What /winparty help lists, a command a line
+local helpLines = {
+    '/winparty - opens or closes the settings.',
+    '/winparty native on|off - replaces the game\'s party and alliance lists (uihook); /winparty native target on|off the target.',
+    '/winparty native status - says how the replacement is doing.',
+    '/winparty perf - measures five seconds of winparty\'s CPU time; /winparty perf counters counts its work as well.',
+    '/winparty menu - says which of the game\'s menus is open.',
+    '/winparty cursor - loads the game\'s cursor again and says whether it could.',
+    '/winparty help - lists these commands.',
+}
+
 ashita.events.register('command', 'command_handler', function(e)
     local cmd = e.command:match('%S+')
     if cmd == nil then
@@ -493,6 +504,10 @@ ashita.events.register('command', 'command_handler', function(e)
         end
         nativeHook = nativeHook or require('hook')
         print('[winparty] ' .. nativeHook.Status())
+        return
+    elseif subcommand == 'help' then
+        print('[winparty] Commands (/pt and /xif work as /winparty):')
+        for _, line in ipairs(helpLines) do print('[winparty] ' .. line) end
         return
     elseif subcommand == 'menu' then
         print(('[winparty] Current native menu: %q'):format(winxiGame.MenuName()))

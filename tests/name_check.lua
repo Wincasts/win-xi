@@ -156,6 +156,13 @@ block.Count, block.Sequence = 2, block.Sequence + 1
 H.load()
 H.frames(1)
 H.print('rendering on by default', block.Claimed ~= 0, '| retired setting absent', o.customNames == nil)
+local helpFrom = #H.printed
+H.command('/winplates help')
+local helpText = table.concat(H.printed, '\n', helpFrom + 1)
+for _, verb in ipairs({ '/winplates diag', '/winplates diag log', '/winplates report', '/winplates help' }) do
+    assert(helpText:find(verb, 1, true), '/winplates help lists ' .. verb)
+end
+H.print('/winplates help lists every command', true)
 H.print('/name custom compatibility command kept from the game', H.command('/name custom'), '| said:', H.printed[#H.printed])
 block.Frame = 78
 H.frames(1)

@@ -14,8 +14,9 @@ loaded.
 /addon load winplates
 ```
 
-- `/winplates`: opens or closes the settings. It is the only command, apart from `/winplates diag` (see
-  [Diagnostics](#diagnostics)). Anything else after it only brings up this help. Use Visibility to choose which names appear. Unload winplates to get the game's names back.
+- `/winplates` (or `/name`): opens or closes the settings. Besides it there are only `/winplates diag`,
+  `/winplates diag log` and `/winplates report` (see [Diagnostics](#diagnostics)); `/winplates help` lists them all
+  in the chat log. Anything else after it only brings up a line of help. Use Visibility to choose which names appear. Unload winplates to get the game's names back.
 
 ## Settings
 
