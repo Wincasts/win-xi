@@ -1,9 +1,5 @@
 # Changelog
 
-## namehook 1.54 — letters kept clear of lens's ink
-
-- While [lens](../lens) 0.95 draws ink outlines over the world (`/lens ink on`), each name, bubble and layer namehook draws into the world is drawn once more into lens's ink mask (`InkMask` in the LENS-WARP block, `lens::InkMaskOf`): in white wherever it shows (its edges and shadow too), tested against the world's depth as it is, so a name behind a wall is not in the mask either. lens leaves those pixels without ink, so the letters are not outlined twice or darkened. The device's render target, viewport, texture factor and the names' states are put back before the depth pass. Nothing changes without lens, with its ink off, with a lens before 0.95, or where the picture is not the mask's size.
-
 ## namehook 1.53 — the game's own sizes unless told otherwise
 
 - Loaded with nothing asked of it, the plugin leaves names and damage numbers as the game draws them. `fontsize` and `damagefontsize` take 0, or `game`, for the game's own size, and that is the default now: what the client's code the size patches go over computed, from the client's own values and constants (read from that code as the patches go in), stretched as the game stretches it on a wide screen. A size that was saved stays; `/namehook fontsize 22` is what the plugin did before.

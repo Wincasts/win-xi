@@ -126,7 +126,6 @@ private:
     void SayPerformance() override;
     void RenderCustom(uint32_t slot, const HookDrawing& drawing, const HookQuad* quads, const float* position, Layer layer, bool over = false, uint32_t owner = 0);
     bool PrepareCamera(IDirect3DDevice8* device);
-    void DrawInkMask(IDirect3DDevice8* device, uint32_t runCount, IDirect3DBaseTexture8* const* textures);
 
     bool MakeNameStates();
     void PublishNames(bool frameDone);
@@ -952,9 +951,6 @@ void AshitaNameplate::RenderCustom(uint32_t slot, const HookDrawing& drawing, co
         device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
     }
 
-    // into lens's ink mask as well, while it draws ink, so the letters get none (1.54)
-    DrawInkMask(device, runCount, textures);
-
     // Again for the picture's depth alone, where the name is solid: what the client draws after it,
     // and behind it, is then not drawn over it. A name faded past half is solid nowhere, the texture
     // making it no more so, and has nothing to draw here.
@@ -975,64 +971,6 @@ void AshitaNameplate::RenderCustom(uint32_t slot, const HookDrawing& drawing, co
     if (!NameStateBlocks::Restore(device, m_SavedStates, m_StatesCaptured)) {
         m_CanDraw = false;
         m_PopupsCanDraw = false;
-    }
-}
-
-// lens's ink mask (lens/src/shared.h InkMask): while lens draws ink outlines over the world, what was just
-// drawn goes into it as well, in white where it shows at all (its edges too), tested against the world's
-// depth as it was, so lens leaves it without ink: the letters stay as drawn. Nothing without lens, with
-// its ink off, or with a picture of another size than the mask's. The device's targets, viewport and the
-// states changed here are put back to the names' for the depth pass after.
-void AshitaNameplate::DrawInkMask(IDirect3DDevice8* device, uint32_t runCount, IDirect3DBaseTexture8* const* textures) {
-    HMODULE lensModule = GetModuleHandleA("lens.dll");
-    const auto* warp = lensModule ? reinterpret_cast<const lens::Shared*>(GetProcAddress(lensModule, "LensWarp")) : nullptr;
-    const uint32_t maskAddress = lens::InkMaskOf(warp);
-    if (maskAddress == 0 || runCount == 0) {
-        return;
-    }
-    auto* mask = reinterpret_cast<IDirect3DSurface8*>(static_cast<uintptr_t>(maskAddress));
-    IDirect3DSurface8* target = nullptr;
-    D3DSURFACE_DESC desc = {};
-    if (FAILED(device->GetRenderTarget(&target)) || target == nullptr) {
-        return;
-    }
-    if (FAILED(target->GetDesc(&desc)) || desc.Width != warp->InkWidth || desc.Height != warp->InkHeight) {
-        target->Release();
-        return;
-    }
-    IDirect3DSurface8* depth = nullptr;
-    device->GetDepthStencilSurface(&depth); // the world's, so the mask is hidden where the letters are
-    D3DVIEWPORT8 view = {};
-    device->GetViewport(&view);
-    if (SUCCEEDED(device->SetRenderTarget(mask, depth))) {
-        device->SetViewport(&view);
-        DWORD factor = 0;
-        device->GetRenderState(D3DRS_TEXTUREFACTOR, &factor);
-        device->SetRenderState(D3DRS_TEXTUREFACTOR, 0xFFFFFFFF);
-        device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
-        device->SetRenderState(D3DRS_ALPHATESTENABLE, TRUE);
-        device->SetRenderState(D3DRS_ALPHAREF, 0x30);
-        device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-        device->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TFACTOR);
-        for (uint32_t i = 0; i < runCount; i++) {
-            if (runCount > 1) {
-                device->SetTexture(0, textures[Runs[i].texture]);
-            }
-            device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, Runs[i].count / 3, &Vertices[Runs[i].first], sizeof(NameVertex));
-            m_PerfNow.draws++;
-        }
-        device->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-        device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
-        device->SetRenderState(D3DRS_ALPHAREF, NAME_SOLID);
-        device->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
-        device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-        device->SetRenderState(D3DRS_TEXTUREFACTOR, factor);
-        device->SetRenderTarget(target, depth);
-        device->SetViewport(&view);
-    }
-    target->Release();
-    if (depth != nullptr) {
-        depth->Release();
     }
 }
 
