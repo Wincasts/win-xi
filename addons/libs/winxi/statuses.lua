@@ -3,6 +3,9 @@
 --
 --     statuses.Harmful(id)    whether the status does its bearer harm: one place for every addon that
 --                             tells debuffs from buffs (party's order, sct's colours, simplelog's lines)
+--     statuses.Removable(id)  what can take it off, as the server flags it: 'erase' (Erase, and the
+--                             waltzes where it is waltzable as well), 'waltz' (a waltz alone), 'dispel'
+--                             (Dispel and the like), or nil; nil for all where winxi's data is not installed
 --
 -- The server says what Erase or a waltz removes (the erasable and waltzable flags); what cannot be
 -- cancelled and still does harm it does not say, so those are named here (sleep, petrification,
@@ -50,9 +53,33 @@ function statuses.Harmful(id)
     return harmful[id] == true;
 end
 
+local removable = nil;
+
+function statuses.Removable(id)
+    if (removable == nil) then
+        removable = {};
+    end
+    local kind = removable[id];
+    if (kind == nil) then
+        kind = false;
+        local record = statuses.Get(id);
+        local erasable, waltzable, dispelable = false, false, false;
+        for _, flag in ipairs(record and record.Flags or {}) do
+            if (flag == 'erasable') then erasable = true; end
+            if (flag == 'waltzable') then waltzable = true; end
+            if (flag == 'dispelable') then dispelable = true; end
+        end
+        if (erasable) then kind = 'erase';
+        elseif (waltzable) then kind = 'waltz';
+        elseif (dispelable) then kind = 'dispel'; end
+        removable[id] = kind;
+    end
+    return kind or nil;
+end
+
 local clear = statuses.Clear;
 function statuses.Clear()
-    harmful = nil;
+    harmful, removable = nil, nil;
     clear();
 end
 

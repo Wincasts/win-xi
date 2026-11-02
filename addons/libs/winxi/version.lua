@@ -141,6 +141,8 @@
 --     whose it is while it is on them; Watch ignores reads between areas, and one unwatched FORGET seconds is new
 -- 77: owntimers, the player's own statuses' timers read to the second (Clock, Seconds), winbuff's and
 --     statustimes' alike; the count's wrap is 2^32, not one short of it; statustimes.CastBy
+-- 78: statustimes.Text's seconds left (its fourth), statustimes.Landing (what put a status there, by
+--     whom), statuses.Removable (what takes a status off, from the server's flags)
 return {
-    Number = 77,
+    Number = 78,
 };

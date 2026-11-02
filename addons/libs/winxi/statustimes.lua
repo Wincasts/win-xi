@@ -12,9 +12,12 @@
 --     statustimes.WatchParty()                  the five others of the party read and watched, for an addon
 --                                               that does not read them every frame itself
 --     statustimes.Text(serverId, id, nth)       the label for the nth (1 if not given) of that status on them,
---                                               true when it is an estimate, and true when the player put it
---                                               there; nil when nothing is written (a status that does not run
---                                               out, or one the game writes no time under)
+--                                               true when it is an estimate, true when the player put it
+--                                               there, and the seconds left (nil where not known); nil when
+--                                               nothing is written (a status that does not run out, or one the
+--                                               game writes no time under)
+--     statustimes.Landing(serverId, id)         the landing seen that put that status there, { by, category,
+--                                               param } (the action's: 4 and the spell for a spell), or nil
 --     statustimes.Label(seconds)                45, 3m, 2h: seconds under a minute, then minutes, then hours
 --     statustimes.Unknown                       the label where the time cannot be known: '-'
 --
@@ -57,7 +60,7 @@ local ownCount = {};   -- status -> how many of it the player has this frame
 local ownList = { count = 0 }; -- the player's statuses this frame, to be watched as a member's are
 local zoning = false;  -- between areas: nothing is watched, and no one forgotten
 -- server id -> { seen = time last watched, since = { [status] = when it was seen to begin, or false },
--- landed = { [status] = { from, by, at, expires, known }, the landing of what is on them, from being
+-- landed = { [status] = { from, by, at, expires, known, category, param }, the landing of what is on them, from being
 -- winxi.debuffs' entry it was copied from } }
 local watched = {};
 local lastPrune = 0;
@@ -165,6 +168,7 @@ function statustimes.Watch(serverId, ids)
                     landed[id] = kept;
                 end
                 kept.from, kept.by, kept.at, kept.expires, kept.known = entry, entry.by, entry.at or 0, entry.expires, entry.known;
+                kept.category, kept.param = entry.category, entry.param;
             end
         end
     end
@@ -230,6 +234,30 @@ local function HidesTimer(id)
     return hidden;
 end
 
+-- What is known of a status on them: the landing kept with a watched member, or winxi.debuffs' entry
+-- for anyone else, and when it was seen to begin, and whether the player put it there
+local function Known(serverId, id)
+    local member = serverId ~= nil and watched[serverId] or nil;
+    if (member ~= nil) then
+        local entry = member.landed[id];
+        return entry, member.since[id], entry ~= nil and ownId ~= 0 and entry.by == ownId;
+    end
+    local on = serverId ~= nil and debuffs.Statuses(serverId) or nil;
+    local entry = on and on[id];
+    return entry, nil, entry ~= nil and ownId ~= 0 and entry.by == ownId and now < entry.expires;
+end
+
+function statustimes.Landing(serverId, id)
+    if (not ownRead) then
+        ReadOwn();
+    end
+    local entry, _, _ = Known(serverId, id);
+    if (entry ~= nil and (watched[serverId] ~= nil or now < entry.expires)) then
+        return entry;
+    end
+    return nil;
+end
+
 function statustimes.Text(serverId, id, nth)
     if (id == nil or HidesTimer(id)) then
         return nil;
@@ -237,17 +265,8 @@ function statustimes.Text(serverId, id, nth)
     if (not ownRead) then
         ReadOwn();
     end
-    local member = serverId ~= nil and watched[serverId] or nil;
     -- the player and the party: what is kept with them; anyone else: what winxi.debuffs saw land
-    local since, entry, mine;
-    if (member ~= nil) then
-        since, entry = member.since[id], member.landed[id];
-        mine = entry ~= nil and ownId ~= 0 and entry.by == ownId;
-    else
-        local on = serverId ~= nil and debuffs.Statuses(serverId) or nil;
-        entry = on and on[id];
-        mine = entry ~= nil and ownId ~= 0 and entry.by == ownId and now < entry.expires;
-    end
+    local entry, since, mine = Known(serverId, id);
     if (serverId ~= nil and serverId ~= 0 and serverId == ownId) then
         local count = ownCount[id] or 0;
         if (count > 0) then
@@ -256,22 +275,22 @@ function statustimes.Text(serverId, id, nth)
                 return nil;
             end
             if (seconds ~= nil) then
-                return statustimes.Label(seconds), false, mine;
+                return statustimes.Label(seconds), false, mine, seconds;
             end
         end
-        return statustimes.Unknown, true, mine;
+        return statustimes.Unknown, true, mine, nil;
     end
 
     if (entry ~= nil and entry.known ~= false and now < entry.expires) then
-        return statustimes.Label(entry.expires - now), true, mine;
+        return statustimes.Label(entry.expires - now), true, mine, entry.expires - now;
     end
     if (since) then
         local usual = debuffs.UsualSeconds(id);
         if (usual ~= nil and since + usual > now) then
-            return statustimes.Label(since + usual - now), true, mine;
+            return statustimes.Label(since + usual - now), true, mine, since + usual - now;
         end
     end
-    return statustimes.Unknown, true, mine;
+    return statustimes.Unknown, true, mine, nil;
 end
 
 return statustimes;
