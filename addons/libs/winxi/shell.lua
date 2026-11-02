@@ -21,7 +21,7 @@
 --         hideAppearance = true,                 -- optional: omit the Winxi Theme tab
 --         visibility  = function(options) ... end,  -- optional: more for the Visibility tab, after Fade In And Out
 --         menuOnlyCommands = true,               -- optional: only the bare command opens the menu; other
---                                                --   verbs say the help, but for those in commands
+--                                                --   verbs ('toggle' and 'config' too) say the help, but for those in commands
 --         bareOpensConfig = true,                -- optional: the bare command opens or closes the settings,
 --                                                --   and 'toggle' shows or hides the window
 --         settingsLabel = 'Settings',             -- optional: label of the main settings tab
@@ -299,14 +299,14 @@ local function OnCommand(app, e)
     local verb = args[2] and args[2]:lower() or nil;
     if verb == nil and (spec.window == nil or spec.bareOpensConfig) then
         app:ToggleConfig();
+    elseif verb ~= nil and spec.menuOnlyCommands and (spec.commands == nil or spec.commands[verb] == nil) then
+        app:Say(spec.help or 'Use the settings menu.');
     elseif verb == nil or (verb == 'toggle' and spec.bareOpensConfig) then
         options.isVisible[1] = not options.isVisible[1];
         -- for a window that is not always there to be seen changing
         if spec.toggleSays ~= nil then
             app:Say(options.isVisible[1] and spec.toggleSays.shown or spec.toggleSays.hidden);
         end
-    elseif spec.menuOnlyCommands and (spec.commands == nil or spec.commands[verb] == nil) then
-        app:Say(spec.help or 'Use the settings menu.');
     elseif verb == 'config' then
         app:ToggleConfig();
     elseif spec.commands ~= nil and spec.commands[verb] ~= nil then

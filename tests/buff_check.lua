@@ -227,8 +227,19 @@ H.unload(); H.print('unload puts them back', written[100] == 101, written[200] =
 ashita.memory.find = originalFind
 
 assert(addon.name == 'winbuff')
-assert(H.command('/winbuff config'))
-assert(H.command('/winbuff') and o.isVisible[1] == false)
-assert(H.command('/buff') and o.isVisible[1] == true)
+-- the windows begun in a frame: one more while the settings are open
+local function begunInAFrame() local before = H.calls.Begin or 0; H.frames(1); return (H.calls.Begin or 0) - before end
+local shownBefore, closed = o.isVisible[1], begunInAFrame()
+assert(H.command('/winbuff') and o.isVisible[1] == shownBefore, '/winbuff leaves the bar as it is')
+local opened = begunInAFrame()
+assert(H.command('/winbuff') and begunInAFrame() < opened, '/winbuff again closes the settings')
+assert(H.command('/buff') and o.isVisible[1] == shownBefore and begunInAFrame() == opened, '/buff opens them as well')
+H.command('/buff')
+assert(opened > closed, '/winbuff opens the settings')
+assert(H.command('/winbuff toggle') and o.isVisible[1] == shownBefore, '/winbuff toggle no longer hides the bar')
+local helpFrom = #H.printed
+assert(H.command('/winbuff help') and o.isVisible[1] == shownBefore)
+local helpText = table.concat(H.printed, '\n', helpFrom + 1)
+assert(helpText:find('/winbuff - opens or closes the settings', 1, true) and helpText:find('/winbuff help', 1, true), '/winbuff help lists the commands')
 assert(not H.command('/buffs') and not H.command('/buffx'))
-H.print('/winbuff config and toggle handled, /buff as well; /buffs and /buffx left alone: passed')
+H.print('/winbuff and /buff open the settings, toggle shows nothing, help lists the commands; /buffs and /buffx left alone: passed')

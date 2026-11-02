@@ -51,6 +51,18 @@ function anchoring.Position(nudge, display, menu)
         math.floor(nativeOrigin[2] * sy + 0.5) + nudge[2];
 end
 
+-- The window begun and the bar drawn in it, in pcall: made once rather than as a closure each frame.
+-- begun and drawn say how far it got
+local begun, drawn = false, false;
+local function BeginAndDraw(name, options, draw, wanted)
+    drawn = imgui.Begin(name, nil, bit.bor(style.TitlelessFlags(),
+        ImGuiWindowFlags_NoMove, ImGuiWindowFlags_NoSavedSettings,
+        ImGuiWindowFlags_NoFocusOnAppearing, ImGuiWindowFlags_NoBringToFrontOnFocus,
+        wanted and 0 or ImGuiWindowFlags_NoInputs));
+    begun = true;
+    if drawn then draw(options); end
+end
+
 -- The bar as a window of imgui's, over everything: without the uihook plugin
 function anchoring.Draw(name, options, draw)
     -- Do not linger when the HUD itself is hidden.
@@ -68,15 +80,8 @@ function anchoring.Draw(name, options, draw)
     imgui.PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
     imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, spacing);
     local pushedFont = fonts.Push();
-    local begun, drawn = false, false;
-    local ok, err = pcall(function()
-        drawn = imgui.Begin(name, nil, bit.bor(style.TitlelessFlags(),
-            ImGuiWindowFlags_NoMove, ImGuiWindowFlags_NoSavedSettings,
-            ImGuiWindowFlags_NoFocusOnAppearing, ImGuiWindowFlags_NoBringToFrontOnFocus,
-            wanted and 0 or ImGuiWindowFlags_NoInputs));
-        begun = true;
-        if drawn then draw(options); end
-    end);
+    begun, drawn = false, false;
+    local ok, err = pcall(BeginAndDraw, name, options, draw, wanted);
     local ended, endError = true, nil;
     if begun then ended, endError = pcall(imgui.End); end
     fonts.Pop(pushedFont);

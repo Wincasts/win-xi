@@ -8,8 +8,8 @@ addon.link    = 'https://github.com/Wincasts/win-xi';
 -- of winxi's (FFXIV's: see winxi.statusicons) or the game's own where winxi has none, and the time it has left under it. After the statustimers addon (heals), which showed
 -- how the times are read and how the game's own icons are switched off.
 --
---   /winbuff        shows or hides the window (it only appears while there is a status to show)
---   /winbuff config opens or closes the settings
+--   /winbuff        opens or closes the settings (Visible, in them, shows or hides the bar)
+--   /winbuff help   lists the commands
 --
 -- In the game's buff selector, with the plugin loaded, the game's hand (which points at where the
 -- game's icons would be) is drawn again at the left of the status the game's cursor is on; a click on an icon then removes it.
@@ -943,7 +943,7 @@ local markSpec = {};                 -- greyed while Removable Marks is off
 
 local function DrawSettings(options)
     if widgets.Header('Window', true) then
-        widgets.Check('Visible', 'Shows the bar while you are under a status. /buff switches it too.', options.isVisible, '##buff.visible');
+        widgets.Check('Visible', 'Shows the bar while you are under a status.', options.isVisible, '##buff.visible');
         widgets.Check('Anchor To Default Location', 'Puts the bar where the game default status icons are.', options.anchorToDefault, '##buff.anchorToDefault');
         if options.anchorToDefault[1] then
             local problem = hook.Problem();
@@ -1011,7 +1011,16 @@ app = shell.New({
     command = '/winbuff',
     aliases = { '/buff' },
     formerName = 'buff',
-    help = '/winbuff shows or hides the window; /winbuff config opens or closes the settings.',
+    help = 'Use /winbuff to open the settings; Visible, under Window, shows or hides the bar. /winbuff help lists the commands.',
+    bareOpensConfig = true,
+    menuOnlyCommands = true,
+    commands = {
+        help = function()
+            app:Say('Commands (/buff works as /winbuff):');
+            app:Say('/winbuff - opens or closes the settings.');
+            app:Say('/winbuff help - lists these commands.');
+        end,
+    },
     drawSettings = DrawSettings,
     onSettings = function(options)
         -- the kind of controller whose confirm button is heard, set as the settings load

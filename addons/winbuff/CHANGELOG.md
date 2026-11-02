@@ -2,6 +2,8 @@
 
 ## 1.2
 
+- `/winbuff` (and `/buff`) opens or closes the settings rather than showing or hiding the bar, which **Visible** under Window does; `/winbuff help` lists the commands. `/winbuff toggle` and `/winbuff config` only say how.
+- The anchored bar without uihook makes nothing new each frame (its window was begun in a function made afresh every frame).
 - The settings have **Durations** (Show Durations, as Show Time Left is now called, Your Colour, Low Time Warning, Font and Font Size) and **Removable Marks** sections of their own after Icons.
 - **Removable Marks** (a section of its own, off): a small square in a dark border inside the top right corner of each of your debuffs that Erase, a -na spell or a waltz takes off, in **Curable Mark Colour**, in the window and handed to uihook alike; **Only What You Can Remove** leaves only those a spell you can cast now takes off, level sync followed (winxi.cleanse). Requires winxi 78.
 - **Low Time Warning** (Durations, 10 seconds to begin with, 0 for none): an icon with that little time left fades out and in, smoothly, in the window and handed to uihook alike; its time keeps its colour.

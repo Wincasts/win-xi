@@ -4,8 +4,9 @@ The statuses you are under, in a window, with FFXIV's icons and the time each ha
 for the game's own row of status icons, which it switches off. It needs only the `winxi` library
 (`addons/libs/winxi`).
 
-- `/winbuff` shows or hides the window (it only appears while there is a status to show)
-- `/winbuff config` opens or closes the settings
+- `/winbuff` opens or closes the settings. **Visible**, under Window, shows or hides the bar (it only
+  appears while there is a status to show).
+- `/winbuff help` lists the commands.
 
 `/buff` still works as `/winbuff`.
 
