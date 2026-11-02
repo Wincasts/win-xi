@@ -2518,7 +2518,11 @@ ashita.events.register('d3d_present', 'inv_present', function()
     if not options.lockMovement[1] then growth.locked = false end
     zone.shown = false
     local shown = attached.shown[1]
+    -- how faded the window is drawn this frame, for the Tooltip Window beside it: 0 where it is not drawn
+    -- (the shell sets it only for a window it draws)
+    app.windowStyle.alpha = 0
     app:Window(attached.shown, DrawWindow, windowExtra)
+    local windowAlpha = app.windowStyle.alpha or 0
     attached.shown[1] = shown
 
     -- where the window is this frame, or was last; still fading out, it is on screen
@@ -2532,13 +2536,14 @@ ashita.events.register('d3d_present', 'inv_present', function()
     end
     pool.Draw(options, attached.pool, shown)
     -- the Tooltip Window, attached: at the window's right, under the attached pool while it is there
-    local px, py, pw, ph = pool.Rect(true)
+    -- as faded as the window it is beside, so that it goes as that goes
+    local px, py, pw, ph, poolAlpha = pool.Rect(true)
     if placed and px ~= nil then
-        tipwindow.Attach(x + pad.windowWidth + attached.gap, py + ph + attached.gap)
+        tipwindow.Attach(x + pad.windowWidth + attached.gap, py + ph + attached.gap, windowAlpha)
     elseif placed then
-        tipwindow.Attach(x + pad.windowWidth + attached.gap, y)
+        tipwindow.Attach(x + pad.windowWidth + attached.gap, y, windowAlpha)
     elseif px ~= nil then
-        tipwindow.Attach(px + pw + attached.gap, py)
+        tipwindow.Attach(px + pw + attached.gap, py, poolAlpha)
     end
     PadEndFrame()
     tipwindow.Draw()

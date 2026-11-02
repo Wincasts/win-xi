@@ -13,8 +13,13 @@
 --   tipwindow.Offer(content, arg, icon)   this frame's: a string, or a function drawn as content(arg); icon
 --                                         the item whose icon goes at its left, or nil for none
 --   tipwindow.Show(text, icon)            text for the window when it is on, else winxi's tooltip
---   tipwindow.Attach(x, y)                where it goes attached this frame, or nil where there is nowhere
---                                         (the inventory window off screen, and no pool): its own place then
+--   tipwindow.Attach(x, y, alpha)         where it goes attached this frame, and how faded what it is attached
+--                                         to is; not called where there is nowhere (the inventory window off
+--                                         screen, and no pool): attached, it is not drawn then
+--
+-- It fades with what it tells of: as faded as the window that offered what it shows (the style alpha
+-- that window was drawn at), and attached, as the window it is attached to, so that it goes as they go
+-- and never outlasts them. Then its own coming and going, quickly, held a moment between two items.
 --   tipwindow.Draw()                      once a frame, after everything has been offered
 --   tipwindow.DrawSettings(options)       the Tooltips tab of the settings
 local bit = require('bit')
@@ -31,7 +36,7 @@ local sizing = require('sizing')
 local tipwindow = {}
 
 local windowName = 'winxi.inventory.tooltip'
-local HOLD = 0.15 -- seconds the last tooltip stays, so that the mouse going between two items does not blink it
+local HOLD = 0.06 -- seconds the last tooltip stays, so that the mouse going between two items does not blink it
 
 local options = nil
 local previewing = false
@@ -42,6 +47,8 @@ local shownLast = false              -- whether the window was up last frame: it
 local placeAgain = true              -- the saved place to be given to the window: at first, and when the settings change it
 local attachAt = { 0, 0 }             -- where it goes attached this frame
 local attachable = false
+local attachAlpha = 1                 -- how faded what it is attached to is, this frame
+local sourceAlpha = 1                 -- how faded the window that offered what it shows was, as it last did
 
 local sample = 'Tooltip Window\nWhat is said of an item, a treasure pool line or an equipment slot shows here, while it is under the mouse or the controller\'s highlight.\nDrag this window to place it.'
 local sampleAttached = 'Tooltip Window\nWhat is said of an item, a treasure pool line or an equipment slot shows here, while it is under the mouse or the controller\'s highlight.\nIt sits at the inventory\'s right, under the treasure pool. Detach it from the inventory to place it yourself.'
@@ -61,9 +68,9 @@ function tipwindow.Begin(drawOptions, settingsOpen, sheet)
     iconSheet = sheet
 end
 
-function tipwindow.Attach(x, y)
+function tipwindow.Attach(x, y, alpha)
     attachable = x ~= nil and y ~= nil
-    if attachable then attachAt[1], attachAt[2] = x, y end
+    if attachable then attachAt[1], attachAt[2], attachAlpha = x, y, tonumber(alpha) or 1 end
 end
 
 function tipwindow.On()
@@ -72,6 +79,10 @@ end
 
 function tipwindow.Offer(what, arg, icon)
     content, contentArg, contentIcon, offered, offeredAt = what, arg, icon, true, os.clock()
+    -- the window it comes from, as faded as it is drawn (winxi.style pushes its fade as imgui's alpha);
+    -- from outside any window (the controller's), 1
+    local style = imgui.GetStyle()
+    sourceAlpha = math.max(0, math.min(1, tonumber(style and style.Alpha) or 1))
 end
 
 function tipwindow.Show(text, icon)
@@ -127,15 +138,20 @@ function tipwindow.Draw()
     end
     local now = os.clock()
     local wanted = offered or (content ~= nil and now - offeredAt < HOLD)
-    local attached = attachable and not options.tooltipDetached[1]
+    local detached = options.tooltipDetached[1] == true
+    local attached = attachable and not detached
     if not wanted and previewing then
         content, contentArg, contentIcon, wanted = attached and sampleAttached or sample, nil, nil, true
+        sourceAlpha = 1
     end
     local alpha = wanted and 1 or 0
     if options.fadeInOut[1] then
         alpha = fade.Presence(windowName, wanted)
     end
-    if alpha <= 0.01 or content == nil then
+    -- as faded as what it tells of, and attached, as what it is beside; attached with nothing to be
+    -- beside, nowhere (rather than at its detached place for the last moments of a fade)
+    alpha = alpha * sourceAlpha * (attached and attachAlpha or 1)
+    if alpha <= 0.01 or content == nil or (not detached and not attachable) then
         shownLast = false
         return
     end

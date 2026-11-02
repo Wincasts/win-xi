@@ -130,5 +130,45 @@ tipwindow.Show('Fire Crystal\nNo one has lotted yet.')
 check('text for it goes to the window while it is on', text == 'Fire Crystal\nNo one has lotted yet.')
 tipwindow.Offer = offer
 
+-- the inventory toggled off with Fade In And Out: the attached window fades with it, never more
+-- opaque than it, never anywhere but beside it, and gone when it is
+do
+    o.tooltipWindow[1], o.tooltipDetached[1], o.tooltipLock[1], o.tooltipGrowFrom = true, false, false, 'TopLeft'
+    o.fadeInOut[1], o.isVisible[1] = true, true
+    H.pool(0)
+    H.ret.IsWindowHovered, H.ret.GetMousePos = { true }, { 15 + 2 * 40, 25 }
+    local alphas = {}
+    local full = window.Full
+    window.Full = function(name, open, flags, draw, style)
+        if name == NAME or name == 'winxi.inventory' then alphas[name] = style.alpha end
+        return full(name, open, flags, draw, style)
+    end
+    local clock, now = os.clock, os.clock()
+    os.clock = function() return now end
+    local function Step()
+        alphas[NAME], alphas['winxi.inventory'], placed = nil, nil, nil
+        now = now + 0.02
+        Frame()
+    end
+    for _ = 1, 10 do Step() end
+    local full1 = alphas[NAME] ~= nil and alphas[NAME] > 0.99
+    o.isVisible[1] = false
+    local inStep, besideIt, goneWithIt, frames = true, true, true, 0
+    for _ = 1, 15 do
+        Step()
+        local tip, inventory = alphas[NAME], alphas['winxi.inventory']
+        if tip ~= nil then
+            frames = frames + 1
+            inStep = inStep and inventory ~= nil and tip <= inventory + 1e-6
+            besideIt = besideIt and (placed == nil or (placed[1] == 100 + 300 + 6 and placed[2] == 200))
+        end
+        goneWithIt = goneWithIt and (inventory ~= nil or tip == nil)
+    end
+    os.clock = clock
+    window.Full = full
+    check('toggled off: fades with the inventory, beside it, gone with it', full1 and frames > 0 and inStep and besideIt and goneWithIt)
+    o.fadeInOut[1], o.isVisible[1] = false, true
+end
+
 rawset(imgui, 'Begin', begin); rawset(imgui, 'SetNextWindowPos', setPos)
 H.print('Tooltip Window: passed', true)

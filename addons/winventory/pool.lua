@@ -406,13 +406,14 @@ function pool.Draw(drawOptions, at, invShown)
     window.Full(windowName, open, flags, DrawWindow, windowStyle)
 end
 
--- Drawn this frame: where its window is, x, y, width and height, for what goes beside or under it
--- (the Tooltip Window, attached); otherwise nil. attachedOnly leaves out a pool detached from the inventory
+-- Drawn this frame: where its window is, x, y, width and height, and how faded it is drawn, for what
+-- goes beside or under it (the Tooltip Window, attached); otherwise nil. attachedOnly leaves out a pool
+-- detached from the inventory
 function pool.Rect(attachedOnly)
     if not pad.shown or (attachedOnly and options.treasureDetached[1]) then
         return nil
     end
-    return pad.windowX, pad.windowY, pad.windowWidth, pad.windowHeight
+    return pad.windowX, pad.windowY, pad.windowWidth, pad.windowHeight, windowStyle.alpha
 end
 
 function pool.Focus(binding)
