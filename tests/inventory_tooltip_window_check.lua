@@ -170,5 +170,50 @@ do
     o.fadeInOut[1], o.isVisible[1] = false, true
 end
 
+-- a treasure pool line: all that is said of the item, as in the inventory, then who is winning it;
+-- by the mouse in the window or beside it, and by the controller
+do
+    local texts = {}
+    local text = imgui.Text
+    rawset(imgui, 'Text', function(words, ...) texts[#texts + 1] = words; return text(words, ...) end)
+    local function Said(words) for _, w in ipairs(texts) do if w == words then return true end end return false end
+    local tipwindow = require('tipwindow')
+    local offer, got = tipwindow.Offer, nil
+    tipwindow.Offer = function(what, arg, icon) got = { what = what, arg = arg, icon = icon }; return offer(what, arg, icon) end
+    o.fadeInOut[1], o.isVisible[1], o.tooltipWindow[1], o.tooltipDetached[1] = false, true, true, false
+    H.pool(2)
+    -- the mouse over the first line's name (nothing of the grid under it)
+    H.ret.IsWindowHovered, H.ret.GetMousePos, H.ret.IsItemHovered = { false }, { -1000, -1000 }, { true }
+    H.frames(1)
+    texts = {}
+    Frame()
+    check('pool, Tooltip Window: the item\'s details offered, with its icon', got ~= nil and type(got.what) == 'function'
+        and got.arg ~= nil and got.arg.id == 101 and got.icon == 101)
+    check('drawn: its details as the inventory has them (its description), then who is winning it', Said('About item 101') and Said('No one has lotted yet.'))
+    o.tooltipWindow[1] = false
+    texts = {}
+    local tips = Frame()
+    check('pool, beside the mouse: the same', tips > 0 and Said('About item 101') and Said('No one has lotted yet.'))
+    H.ret.IsItemHovered = nil
+    -- the controller on the pool's first line, the window on
+    o.tooltipWindow[1], o.controller[1] = true, true
+    H.command('/winventory focus'); H.frames(1)
+    H.tap(H.Button.Y); H.frames(1)
+    got = nil
+    texts = {}
+    Frame()
+    check('controller on a pool line: the same, in the window', got ~= nil and type(got.what) == 'function' and got.arg ~= nil
+        and got.arg.id ~= nil and Said('No one has lotted yet.'))
+    o.tooltipWindow[1] = false
+    texts = {}
+    Frame()
+    check('controller on the pool\'s first line, the window off: its details in the label beside the line', begun['winxi.label.' .. addon.name] ~= nil
+        and Said('About item 100') and Said('No one has lotted yet.'))
+    H.command('/winventory focus'); o.controller[1] = false
+    tipwindow.Offer = offer
+    rawset(imgui, 'Text', text)
+    H.pool(0)
+end
+
 rawset(imgui, 'Begin', begin); rawset(imgui, 'SetNextWindowPos', setPos)
 H.print('Tooltip Window: passed', true)

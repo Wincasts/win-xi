@@ -241,6 +241,23 @@ end
 
 local lotWidth, timeWidth, passWidth = nil, nil, nil
 
+-- What draws a line's tooltip: winventory's, which knows the items (cycle.DrawPoolLine)
+local details = nil
+
+function pool.SetDetails(draw)
+    details = draw
+end
+
+-- Who is winning a line's item, as its tooltip says it under the item: made again only as that changes
+function pool.LotLine(item)
+    if item.lotLine == nil or item.lotLineBy ~= item.winner or item.lotLineAt ~= item.winnerLotText then
+        item.lotLineBy, item.lotLineAt = item.winner, item.winnerLotText
+        item.lotLine = item.winner ~= nil and ('Best lot: %s, by %s'):format(item.winnerLotText, item.winner)
+            or 'No one has lotted yet.'
+    end
+    return item.lotLine
+end
+
 -- Each slot's Lot and Pass buttons' labels (the pool has ten, 0 to 9), made once rather than every frame
 local lotIds, passIds = {}, {}
 for slot = 0, 9 do
@@ -286,11 +303,13 @@ local function DrawContent()
 
             imgui.TableNextColumn()
             Write(item, item.name)
-            if imgui.IsItemHovered() then
-                if item.winner ~= nil then
-                    tipwindow.Show(('%s\nBest lot: %s, by %s'):format(item.name, item.winnerLotText, item.winner), item.id)
-                else
-                    tipwindow.Show(('%s\nNo one has lotted yet.'):format(item.name), item.id)
+            if imgui.IsItemHovered() and details ~= nil then
+                -- all there is to say of the item, then who is winning it: in the Tooltip Window, or beside the mouse
+                if tipwindow.On() then
+                    tipwindow.Offer(details, item, item.id)
+                elseif tooltip.Begin() then
+                    details(item)
+                    tooltip.End()
                 end
             end
 

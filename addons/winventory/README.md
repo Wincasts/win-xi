@@ -39,7 +39,7 @@ top-left growth, so you can move it freely.
 
 The **Tooltips** tab puts what winventory says of things in a window of its own, with the item's icon at
 its left. With **Tooltip Window** on (it is off by default), an item's details (its name, slot and
-races, stats and description, level and jobs), a treasure pool line's best lot and an equipment slot's
+races, stats and description, level and jobs), a treasure pool line's (the same, and who is winning it) and an equipment slot's
 gear show there, for whatever is under the mouse or the controller's highlight, in place of the tooltip
 beside the mouse and the box beside the highlight. That keeps the grid clear while you work it with a
 controller; **Controller Item Info** is then greyed, as the window always shows everything.
@@ -134,7 +134,7 @@ an Xbox one, L1 / R1 or LB / RB as small pills, and a cross for the d-pad. Turn 
 
 While there is treasure, the treasure pool sits to the right of the window. It has a line for each
 item, with the best lot so far, the time left, and buttons to lot and pass, with Lot All and Pass All
-over them. Hover over an item to see who is winning it. It comes and goes with the inventory window.
+over them. Hover over an item, or highlight it with the controller, for all there is to say of it, as for an item in your bags, and who is winning it. It comes and goes with the inventory window.
 Detach From Inventory, under Treasure Pool in the settings, makes it a window of its own that you can
 move, with its own **Position** and **Lock**. Show When Empty fills an empty pool with sample
 treasure, so you can see how it looks; its buttons do nothing. With a controller, Y takes you to it

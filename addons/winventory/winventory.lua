@@ -1164,6 +1164,25 @@ end
 -- the main chunk being near Lua's limit of locals)
 local cycle = { }
 
+-- A treasure pool line's tooltip: all that is said of the item in the inventory (its name, slot and
+-- races, stats and description, level and jobs), then who is winning it. Made-up treasure, or an item
+-- the game does not know, has its name alone. The pool's mouse and the controller alike draw it
+function cycle.DrawPoolLine(item)
+    local info = item.id ~= nil and Info(item.id) or nil
+    if info then
+        DrawVerbose(info) -- its verbose lines are kept on the item's info, made once for it
+    else
+        imgui.Text(item.name or '?')
+    end
+    imgui.Spacing()
+    imgui.Text(pool.LotLine(item))
+end
+pool.SetDetails(cycle.DrawPoolLine)
+-- The same for the controller's label, which draws with no item given: the line is kept to one side
+function cycle.DrawPoolLabel()
+    cycle.DrawPoolLine(cycle.poolItem)
+end
+
 -- The windows Y cycles the controller through, in order, and whether each can take it now: the pool
 -- while it is on screen with treasure in it, the monitor while it is on screen, either only if it is in
 -- the cycle
@@ -1472,9 +1491,11 @@ function cycle.EndFrame()
         local x, y = pool.Place()
         if item ~= nil and x ~= nil then
             if tipwindow.On() then
-                tipwindow.Offer(cycle.TreasureLabel(item), nil, item.id)
+                tipwindow.Offer(cycle.DrawPoolLine, item, item.id)
             else
-                controller.Label(cycle.TreasureLabel(item), x, y, true)
+                -- the label's words name it, so that it is brought forward as it changes
+                cycle.poolItem = item
+                controller.Label(cycle.DrawPoolLabel, x, y, true, cycle.TreasureLabel(item))
             end
         end
         return
