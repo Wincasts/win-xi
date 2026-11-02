@@ -121,6 +121,7 @@ echo
 run simplelog  tests/empty.lua          simplelog_ui_check.lua
 run controller tests/empty.lua          controller_check.lua
 run debuffs    tests/empty.lua          debuffs_check.lua
+run statustimes tests/empty.lua          winxi_statustimes_check.lua
 run game       tests/empty.lua          winxi_game_check.lua
 run widgets    tests/empty.lua          winxi_widgets_check.lua
 luajit tests/winxi_statusdat_check.lua || exit 1

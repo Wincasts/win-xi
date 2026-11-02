@@ -18,10 +18,12 @@
 -- Those are the kinds above, from the spells of a table of this file's own. Apart from them, any status
 -- the server says took hold on anyone is kept by its number, whatever put it there:
 --
---     debuffs.Statuses(serverId)                       -- status -> { id, expires, by, category, param },
+--     debuffs.Statuses(serverId)                       -- status -> { id, expires, at, known, by, category, param },
 --                                                      -- as kept: one that has run out may be in it
 --     debuffs.StatusRemaining(serverId, status)        -- seconds left of it, or nil when it is not on
+--     debuffs.UsualSeconds(status)                     -- how long it usually lasts, or nil where not known
 --
+-- at is when it landed, known whether the server's data gave its length (false: DEFAULT_SECONDS, a guess).
 -- category and param are the action's that put it there (4 and the spell's number for a spell). How long
 -- it lasts is the server's base duration for that spell or monster's move, or failing that the usual
 -- one for the status (the server's durations set, made from its scripts), or failing that
@@ -584,9 +586,14 @@ do
     TICK_SECONDS = resting and resting.EffectPass or TICK_SECONDS;
 end
 
+-- How long it lasts, and whether the server's data said so (false: DEFAULT_SECONDS, a guess)
 local function Seconds(category, param, status)
     local by = (category == SPELL and durations.spells[param]) or (category == MOVE and durations.mobskills[param]) or nil;
-    return (by and by[status]) or durations.statuses[status] or DEFAULT_SECONDS;
+    local seconds = (by and by[status]) or durations.statuses[status];
+    if seconds ~= nil then
+        return seconds, true;
+    end
+    return DEFAULT_SECONDS, false;
 end
 
 local function Has(target, set)
@@ -668,7 +675,7 @@ local function Wake(target, hurt)
     end
 end
 
-local function Put(target, status, seconds, actor, category, param)
+local function Put(target, status, seconds, known, actor, category, param)
     if status == nil or status <= 0 or status >= 0x400 then
         return;
     end
@@ -677,7 +684,8 @@ local function Put(target, status, seconds, actor, category, param)
         on = {};
         statuses[target] = on;
     end
-    on[status] = { id = status, expires = os.time() + seconds, by = actor, category = category, param = param };
+    local now = os.time();
+    on[status] = { id = status, expires = now + seconds, at = now, known = known, by = actor, category = category, param = param };
     -- sleep on one that bleeds, or bleeding on one asleep: the next tick wakes it
     if (Asleep[status] and Has(target, Bleeds)) or (Bleeds[status] and Has(target, Asleep)) then
         WakeSoon(target);
@@ -713,13 +721,15 @@ local function Statuses(action)
                 Wake(target.id, hurt);
             end
             if Lands[message] then
-                Put(target.id, result.param, Seconds(action.category, action.param, result.param), action.actor_id, action.category, action.param);
+                local seconds, known = Seconds(action.category, action.param, result.param);
+                Put(target.id, result.param, seconds, known, action.actor_id, action.category, action.param);
             elseif Removes[message] then
                 Take(target.id, result.param);
             end
             if proc ~= nil then
                 if ProcLands[proc] then
-                    Put(target.id, result.proc_param, Seconds(nil, nil, result.proc_param), action.actor_id, action.category, action.param);
+                    local seconds, known = Seconds(nil, nil, result.proc_param);
+                    Put(target.id, result.proc_param, seconds, known, action.actor_id, action.category, action.param);
                 elseif ProcRemoves[proc] then
                     Take(target.id, result.proc_param);
                 end
@@ -738,8 +748,7 @@ function debuffs.Action(action)
 
     -- the server's base duration for it, or its status's usual one, or DEFAULT_SECONDS
     local status = debuffs.StatusIds[spell.type];
-    local byServer = durations.spells[action.param];
-    local seconds = (byServer and byServer[status]) or durations.statuses[status] or DEFAULT_SECONDS;
+    local seconds, known = Seconds(action.category, action.param, status);
     local expires = os.time() + seconds;
     for _, target in pairs(action.targets) do
         for _, result in pairs(target.actions) do
@@ -751,7 +760,7 @@ function debuffs.Action(action)
                 end
                 on[spell.type] = { kind = spell.type, name = spell.name, expires = expires, by = action.actor_id, element = spell.ele };
                 -- by its number as well: Dia and Bio say only the damage they do as they land
-                Put(target.id, status, seconds, action.actor_id, action.category, action.param);
+                Put(target.id, status, seconds, known, action.actor_id, action.category, action.param);
                 if spell.over then
                     on[spell.over] = nil;
                     Take(target.id, debuffs.StatusIds[spell.over]);
@@ -843,6 +852,12 @@ function debuffs.StatusRemaining(serverId, status)
         return entry.expires - now;
     end
     return nil;
+end
+
+-- How long a status usually lasts, whatever put it there, as the server's data has it; nil where it
+-- does not say
+function debuffs.UsualSeconds(status)
+    return durations.statuses[status];
 end
 
 function debuffs.Clear()
