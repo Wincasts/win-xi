@@ -16,12 +16,17 @@ Each character's settings are brought over the first time it logs in with winven
 `config/addons/inventory/` where it has them, otherwise from `config/addons/inv/`. Remove the old
 `addons/inventory` folder.
 
-The settings are in four tabs, each in collapsible sections: **General** (Window, Controller and
-Visibility), **Inventory** (Grid, Tabs and Currencies), **Treasure** (Treasure Pool and Display), and
-**Equipment** (Equipment Monitor, Display and Slots). The Treasure and Equipment tabs are laid out
-alike: **Enable**, **Detach From Inventory**, the pin, and, when detached, the position; then how it
-looks. While one is not enabled, the rest of its tab is hidden. Every setting's tooltip is in winxi's
+The settings are in five tabs, each in collapsible sections: **General** (Window and Controller),
+**Inventory** (Grid, Tabs and Currencies), **Treasure** (Treasure Pool and Display), **Equipment**
+(Equipment Monitor, Display and Slots) and **Tooltips** (Tooltip Window and Display), then Visibility.
+The Treasure and Tooltips tabs are laid out alike: what turns it on, **Detach From Inventory**, and,
+when detached, its position and lock; then how it looks. While one is not enabled, the rest of its tab is hidden. Every setting's tooltip is in winxi's
 themed tooltip.
+
+**Scale** sizes each window: the inventory's (General → Window) its icons, the room between them and its
+words; the treasure pool's (Treasure → Display) and the Tooltip Window's (Tooltips → Display) are theirs
+while they are detached, and while attached they take the inventory's, so the three stay in step; the
+equipment monitor's (Equipment → Display) its slots, their spacing and its words.
 
 **Lock**, in General → Window, stops you dragging the inventory window when it is on.
 It is off by default. The **Position** fields still work while locked.
@@ -32,8 +37,8 @@ and down. **Top Right** grows left and down, **Bottom Left** grows right and up,
 grows left and up. Changing the anchor does not move the window. Unlocking brings back the normal
 top-left growth, so you can move it freely.
 
-**Tooltips**, in General, puts what winventory says of things in a window of its own. With
-**Tooltip Window** on (it is off by default), an item's details (its name, slot and
+The **Tooltips** tab puts what winventory says of things in a window of its own, with the item's icon at
+its left. With **Tooltip Window** on (it is off by default), an item's details (its name, slot and
 races, stats and description, level and jobs), a treasure pool line's best lot and an equipment slot's
 gear show there, for whatever is under the mouse or the controller's highlight, in place of the tooltip
 beside the mouse and the box beside the highlight. That keeps the grid clear while you work it with a
@@ -141,7 +146,7 @@ Turn on **Enable** in `/winventory` → **Equipment** for a live equipment windo
 by default. It does not need the reference addon or its assets. While it is off, the rest of its
 settings are hidden.
 
-The monitor is a window of its own. The first time it is shown it goes under the inventory window,
+The monitor is a window of its own, with the theme's shadow under it as every winxi window has. The first time it is shown it goes under the inventory window,
 its left edge in line with the window's; from then on it stays where you put it: drag it, or set its
 **Position**. **Lock** holds it still. It comes and goes (and fades) with the inventory, unless pinned
 (see Pinning below). Before 1.2 it could be attached under the inventory: a monitor that was is put

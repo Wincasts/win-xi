@@ -22,6 +22,7 @@ local style = require('winxi.style')
 local widgets = require('winxi.widgets')
 local tooltip = require('winxi.tooltip')
 local tipwindow = require('tipwindow') -- tooltips go to the Tooltip Window when it is on
+local sizing = require('sizing')
 local itemicons = require('winxi.itemicons')
 local text = require('winxi.text')
 local fade = require('winxi.fade')
@@ -65,7 +66,7 @@ local backdropColors = {
 local backdropTints = {}
 local transparent = { 0, 0, 0, 0 }
 local open = { true }
-local windowStyle = { shadow = false, title = 'Equipment' }
+local windowStyle = { title = 'Equipment', fontSize = nil } -- the theme's shadow, as every winxi window has
 -- High-quality gear has a white border, as the game gives it; anything else has none
 local hqColor = { 1, 1, 1, 1 }
 local wardrobeNumbers = { [8] = 1, [10] = 2, [11] = 3, [12] = 4, [13] = 5, [14] = 6, [15] = 7, [16] = 8 }
@@ -292,7 +293,7 @@ local function DrawContent()
                 text = text .. '\nStored in: ' .. (wardrobe and ('Wardrobe ' .. wardrobe) or 'Inventory')
             end
             if bit.band(encumbered, bit.lshift(1, slot[1])) ~= 0 then text = text .. '\nEncumbered' end
-            tipwindow.Show(text)
+            tipwindow.Show(text, slot.id)
         end
     end
     pad.shown = true
@@ -328,8 +329,9 @@ function equipment.Draw(options, sheet, invShown)
     if type(sheet) == 'function' then sheet = sheet() end
     frameOptions, frameSheet = o, sheet
     frameScale = math.max(0.5, math.min(3, o.scale[1]))
+    windowStyle.fontSize = sizing.FontSize(frameScale) -- its words, the title's too, at its Scale
     frameSize = 32 * frameScale
-    framePitch = frameSize + math.max(0, math.min(20, o.spacing[1]))
+    framePitch = frameSize + math.floor(math.max(0, math.min(20, o.spacing[1])) * frameScale + 0.5) -- the room between them grows with them
     gridSize[1], gridSize[2] = frameSize + framePitch * 3, frameSize + framePitch * 3
     local flags = style.TitlelessFlags()
     -- Restore per-character positioning even when ImGui remembers the old window.
@@ -360,7 +362,7 @@ function equipment.Highlighted()
         return nil
     end
     local slotId = slot[1]
-    return slotId, slot[2], slot.id ~= nil and slot.info or nil, bit.band(encumbered, bit.lshift(1, slotId)) ~= 0
+    return slotId, slot[2], slot.id ~= nil and slot.info or nil, bit.band(encumbered, bit.lshift(1, slotId)) ~= 0, slot.id
 end
 
 function equipment.Place()
@@ -394,7 +396,7 @@ function equipment.DrawSettings(options)
     if widgets.Header('Display') then
         widgets.Label('Scale')
         imgui.SliderFloat('##inv.equipment.scale', o.scale, 0.5, 3, '%.2fx')
-        tooltip.Hover('How large the slots are: 1 is the game\'s 32 pixels.')
+        tooltip.Hover('How large the monitor is: its slots (1 is the game\'s 32 pixels), the room between them and its words.')
         widgets.Label('Spacing')
         imgui.SliderFloat('##inv.equipment.spacing', o.spacing, 0, 20, '%.0f px')
         tooltip.Hover('The gap between slots, in pixels.')

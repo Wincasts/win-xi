@@ -146,7 +146,7 @@ check('monitor has independent movement lock', flags == bit.bor(unlocked, ImGuiW
 check('transparent background and opacity applied', background and background[4] == 0 and alpha == 0.5)
 e.scale[1], e.spacing[1] = 2, 6
 frame()
-check('scale and spacing resize the equipment grid', hasSize(274))
+check('scale and spacing resize the equipment grid, the spacing scaled too', hasSize(64 + 3 * (64 + 12)))
 e.scale[1], e.spacing[1], e.showEncumbrance[1] = 1, 5, true
 -- Main and Feet are encumbered (bits 0 and 8).
 H.packetData(0x01B, string.rep('\0', 0x60) .. string.char(1, 1, 0, 0))

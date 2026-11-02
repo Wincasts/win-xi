@@ -35,6 +35,7 @@ local fade = require('winxi.fade')
 local widgets = require('winxi.widgets')
 local tooltip = require('winxi.tooltip')
 local tipwindow = require('tipwindow') -- tooltips go to the Tooltip Window when it is on
+local sizing = require('sizing')
 local packets = require('winxi.packets')
 local controller = require('winxi.controller')
 local sound = require('winxi.sound')
@@ -181,6 +182,7 @@ local function Read()
             local item = items[count]
             item.sample = false
             item.slot = slot
+            item.id = treasure.ItemId
             item.name = name or '?'
             item.winner = treasure.WinningLot > 0 and treasure.WinningEntityName or nil
             item.winning = item.winner ~= nil and item.winner == player
@@ -210,6 +212,7 @@ local function Read()
         local item = items[i]
         item.sample = true
         item.slot = i - 1
+        item.id = nil -- no icon for made-up treasure
         item.name = sample.name
         item.winner = sample.winner or (sample.winnerLot and player) or nil
         item.winning = item.winner ~= nil and item.winner == player
@@ -244,8 +247,12 @@ for slot = 0, 9 do
     lotIds[slot], passIds[slot] = ('Lot##inv.pool.lot%d'):format(slot), ('Pass##inv.pool.pass%d'):format(slot)
 end
 
+local measuredAt = nil -- the font size the columns were measured at: again at another (the pool's Scale)
+
 local function DrawContent()
-    if lotWidth == nil then
+    local fontSize = imgui.GetFontSize()
+    if lotWidth == nil or fontSize ~= measuredAt then
+        measuredAt = fontSize
         lotWidth = imgui.CalcTextSize('Lot') + framePadding[1] * 2
         timeWidth = imgui.CalcTextSize('0:00')
         passWidth = imgui.CalcTextSize('Pass') + framePadding[1] * 2
@@ -281,9 +288,9 @@ local function DrawContent()
             Write(item, item.name)
             if imgui.IsItemHovered() then
                 if item.winner ~= nil then
-                    tipwindow.Show(('%s\nBest lot: %s, by %s'):format(item.name, item.winnerLotText, item.winner))
+                    tipwindow.Show(('%s\nBest lot: %s, by %s'):format(item.name, item.winnerLotText, item.winner), item.id)
                 else
-                    tipwindow.Show(('%s\nNo one has lotted yet.'):format(item.name))
+                    tipwindow.Show(('%s\nNo one has lotted yet.'):format(item.name), item.id)
                 end
             end
 
@@ -373,6 +380,9 @@ function pool.Draw(drawOptions, at, invShown)
         return
     end
     windowStyle.alpha = alpha
+    -- the inventory's size attached, its own detached
+    local scale = sizing.Clamp(detached and options.treasureScale[1] or options.inventoryScale[1])
+    windowStyle.fontSize = sizing.FontSize(scale)
 
     if attachedFlags == nil then
         detachedFlags = style.TitlelessFlags()
@@ -388,7 +398,7 @@ function pool.Draw(drawOptions, at, invShown)
         imgui.SetNextWindowPos(placed, ImGuiCond_Always)
         flags = attachedFlags
     end
-    local width = math.min(600, math.max(200, options.treasureWidth[1]))
+    local width = math.floor(math.min(600, math.max(200, options.treasureWidth[1])) * scale + 0.5)
     sizeMin[1], sizeMax[1] = width, width
     sizeMin[2], sizeMax[2] = 0, 10000
     imgui.SetNextWindowSizeConstraints(sizeMin, sizeMax)
@@ -504,6 +514,11 @@ function pool.DrawSettings(drawOptions)
         imgui.SetNextItemWidth(widgets.NumberWidth(1))
         imgui.InputInt('##inv.pool.width', drawOptions.treasureWidth, 0, 0)
         tooltip.Hover('How wide the pool is, in pixels, from 200 to 600.')
+        widgets.Label('Scale')
+        imgui.BeginDisabled(not drawOptions.treasureDetached[1])
+        imgui.SliderFloat('##inv.pool.scale', drawOptions.treasureScale, sizing.Least, sizing.Most, '%.2fx')
+        imgui.EndDisabled()
+        tooltip.Hover('How big the detached pool and its words are, its width included.\nAttached, it is the inventory\'s Scale.')
         widgets.Label('Show When Empty')
         imgui.Checkbox('##inv.pool.showEmpty', drawOptions.treasureShowEmpty)
         tooltip.Hover('Fills an empty pool with sample treasure, to see where it sits and how it looks. Its buttons do nothing.')

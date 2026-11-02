@@ -12,7 +12,7 @@ local tooltip = require('winxi.tooltip')
 local shell = require('winxi.shell')
 local anchor = require('winxi.anchor')
 local currency = require('currency')
-local tipwindow = require('tipwindow')
+local sizing = require('sizing')
 
 local config = { tabGroups = { }, tabNames = { } }
 local windowName = 'winxi.inventory'
@@ -50,7 +50,7 @@ local function DrawControllerSettings(options)
     end
     imgui.EndDisabled()
     if inWindow then
-        widgets.Note('The Tooltip Window (Tooltips, above) shows all there is to say of the highlighted item.')
+        widgets.Note('The Tooltip Window (the Tooltips tab) shows all there is to say of the highlighted item.')
     end
 
     widgets.Check('Cycle Treasure Pool', 'Y (triangle) moves the controller to the treasure pool while there is treasure, to lot and pass.',
@@ -75,6 +75,9 @@ function config.General(options)
             imgui.SetWindowPos(windowName, options.pos)
         end
         widgets.Lock(options.lockMovement, '##inv.lockMovement', { label = 'Lock', tooltip = 'Prevent dragging the inventory window. The Position fields can still move it.\nWhile it is locked, items can be dragged with the mouse: onto another item to swap their places, or onto another tab\'s name to move them to that tab\'s bags.' })
+        widgets.Label('Scale')
+        imgui.SliderFloat('##inv.inventoryScale', options.inventoryScale, sizing.Least, sizing.Most, '%.2fx')
+        tooltip.Hover('How big the inventory window is: its icons, the room between them, and its words.\nThe treasure pool and the Tooltip Window take it while they are attached.')
         widgets.Label('Growth Anchor')
         if imgui.BeginCombo('##inv.growthAnchor', anchor.Labels[options.growthAnchor] or 'Top Left') then
             for _, mode in ipairs(anchor.Modes) do
@@ -86,8 +89,6 @@ function config.General(options)
         end
         tooltip.Hover('The corner that stays fixed while the locked inventory window changes size.\nTop Left: grows right and down. Top Right: grows left and down.\nBottom Left: grows right and up. Bottom Right: grows left and up.\nUnlock the window to move it; Position still moves it while locked.')
     end
-
-    tipwindow.DrawSettings(options)
 
     if widgets.Header('Controller') then
         shell.ControllerSettings(options, controllerTip, DrawControllerSettings)

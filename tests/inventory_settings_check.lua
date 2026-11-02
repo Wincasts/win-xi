@@ -36,10 +36,10 @@ local o = H.options()
 o.isVisible[1], o.fadeInOut[1], o.controller[1], o.treasurePool[1] = false, false, false, true
 H.command('/winventory')
 frame(1)
-check('settings tabs ordered General, Inventory, Treasure, Equipment, Visibility', table.concat(tabs, ',') == 'General,Inventory,Treasure,Equipment,Visibility')
-check('General sections ordered Window, Tooltips, Controller; the hiding rules on the Visibility tab', table.concat(headers, ',') == 'Window,Tooltips,Controller')
-check('the Window section: shown, pinned, where, growth (Lock a row of its own; fading on the Visibility tab)', table.concat(labels, ',', 1, 4)
-    == 'Visible,Pin Inventory,Position,Growth Anchor')
+check('settings tabs ordered General, Inventory, Treasure, Equipment, Tooltips, Visibility', table.concat(tabs, ',') == 'General,Inventory,Treasure,Equipment,Tooltips,Visibility')
+check('General sections ordered Window, Controller; the hiding rules on the Visibility tab', table.concat(headers, ',') == 'Window,Controller')
+check('the Window section: shown, pinned, where, its Scale, growth (Lock a row of its own; fading on the Visibility tab)', table.concat(labels, ',', 1, 5)
+    == 'Visible,Pin Inventory,Position,Scale,Growth Anchor')
 check('the inventory window has its pin', hasLabel('Pin Inventory'))
 check('General excludes bag and treasure controls', not hasLabel('Rows') and not hasLabel('Pin Treasure Pool'))
 frame(2)
@@ -51,13 +51,16 @@ check('Inventory excludes General and treasure controls', not hasLabel('Lock') a
 frame(3)
 check('Treasure has the pool and how it looks', table.concat(headers, ',') == 'Treasure Pool,Display')
 check('Treasure contains pool controls, in the order the monitor has them', table.concat(labels, ',')
-    == 'Enable,Detach From Inventory,Pin Treasure Pool,Width,Show When Empty')
+    == 'Enable,Detach From Inventory,Pin Treasure Pool,Width,Scale,Show When Empty')
 check('Treasure excludes General and Bags controls', not hasLabel('Pin Inventory') and not hasLabel('Rows'))
 check('attached, the pool has no lock or position of its own', not hasLabel('Lock') and not hasLabel('Position'))
 o.treasureDetached[1] = true
 frame(3)
 check('detached, it has its position and lock', table.concat(labels, ',')
-    == 'Enable,Detach From Inventory,Pin Treasure Pool,Position,Lock,Width,Show When Empty')
+    == 'Enable,Detach From Inventory,Pin Treasure Pool,Position,Lock,Width,Scale,Show When Empty')
+frame(5)
+check('Tooltips: the window, then how it looks, and nothing of the other tabs', table.concat(headers, ',') == 'Tooltip Window,Display'
+    and checks['##inv.tooltipWindow'] and checks['##inv.tooltipDetached'] and not hasLabel('Rows') and not hasLabel('Pin Treasure Pool'))
 o.treasureDetached[1] = false
 frame(4)
 check('Equipment disabled: only its Enable', table.concat(headers, ',') == 'Equipment Monitor'

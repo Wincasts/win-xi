@@ -44,6 +44,7 @@ local itemicons = require('winxi.itemicons')
 local tabs = require('winxi.tabs')
 local pool = require('pool')
 local tipwindow = require('tipwindow') -- the Tooltip Window, where tooltips go when it is on
+local sizing = require('sizing') -- each window's Scale
 local equipment = require('equipment')
 local config = require('config')
 local currency = require('currency')
@@ -57,7 +58,6 @@ local function Say(text)
     print(('\30\81[winventory]\30\01 %s'):format(text))
 end
 
-local fontWidth = imgui.CalcTextSize('A')
 
 -- Puts together the row at the foot of each tab; defined with the row, further down
 local BuildCounts
@@ -770,6 +770,7 @@ end
 -- All there is to say of an item: its name, its description (where the game puts an item's stats and
 -- what it has to say of it), how many of how many, and for gear its level, slot and jobs
 local function DrawItemInfo(item)
+    local fontWidth = imgui.CalcTextSize('A') -- in the font as it is now: the windows are drawn at their Scale
     imgui.PushTextWrapPos(fontWidth * 64)
     imgui.Text(item.name)
     imgui.Text(item.desc)
@@ -1073,13 +1074,15 @@ local function ParseDescription(raw)
     return lines
 end
 
-local _, fontHeight = imgui.CalcTextSize('A')
-fontHeight = fontHeight or 14 -- should the size come back as its width alone
-local dotSize = { fontHeight, fontHeight }
+local dotSize = { 14, 14 }
 local dotCenter = { 0, 0 }
 
 local function DrawDescription(lines)
     local drawList = imgui.GetWindowDrawList()
+    -- an element's dot is as high as a line, in the font as it is now
+    local _, fontHeight = imgui.CalcTextSize('A')
+    fontHeight = fontHeight or imgui.GetFontSize()
+    dotSize[1], dotSize[2] = fontHeight, fontHeight
     for _, pieces in ipairs(lines) do
         for index, piece in ipairs(pieces) do
             if index > 1 then
@@ -1100,13 +1103,13 @@ end
 
 -- The jobs that can wear a piece of gear, after its level, across as many lines as they need, with
 -- the player's own job in yellow
-local jobsWidth = fontWidth * 44
 
 local function DrawLevelAndJobs(item)
     imgui.Text(item.levelText)
 
     local own = jobs[AshitaCore:GetMemoryManager():GetPlayer():GetMainJob()]
-    local spacing = fontWidth
+    local spacing = imgui.CalcTextSize('A') -- a letter's width, in the font as it is now
+    local jobsWidth = spacing * 44
     local across = imgui.CalcTextSize(item.levelText)
     for _, job in ipairs(item.jobList) do
         local width = imgui.CalcTextSize(job)
@@ -1469,7 +1472,7 @@ function cycle.EndFrame()
         local x, y = pool.Place()
         if item ~= nil and x ~= nil then
             if tipwindow.On() then
-                tipwindow.Offer(cycle.TreasureLabel(item))
+                tipwindow.Offer(cycle.TreasureLabel(item), nil, item.id)
             else
                 controller.Label(cycle.TreasureLabel(item), x, y, true)
             end
@@ -1477,7 +1480,7 @@ function cycle.EndFrame()
         return
     end
 
-    local slotId, slotName, worn, encumbered = equipment.Highlighted()
+    local slotId, slotName, worn, encumbered, wornId = equipment.Highlighted()
     local x, y, size = equipment.Place()
     if not equipment.Shown() or slotId == nil or x == nil then
         pad.target, pad.menu = 'inventory', nil
@@ -1486,7 +1489,7 @@ function cycle.EndFrame()
     if pad.menu ~= nil then
         pad.menu:Draw(x + size + 8, y)
     elseif tipwindow.On() then
-        tipwindow.Offer(cycle.EquipmentLabel(slotName, worn, encumbered))
+        tipwindow.Offer(cycle.EquipmentLabel(slotName, worn, encumbered), nil, wornId)
     else
         controller.Label(cycle.EquipmentLabel(slotName, worn, encumbered), x, y + size + 3 + labelGap, true)
     end
@@ -1556,7 +1559,7 @@ local function PadEndFrame()
         if item ~= nil and x ~= nil then
             if tipwindow.On() then
                 -- all there is to say of it, in the Tooltip Window, where the player put it
-                tipwindow.Offer(DrawVerbose, item)
+                tipwindow.Offer(DrawVerbose, item, item.id)
             elseif pad.options.controllerInfo == 'verbose' then
                 infoItem = item
                 if pad.options.controllerInfoPlace == 'item' or pad.below == nil then
@@ -2054,7 +2057,7 @@ local function FinishTab(group, unified)
     end
     if hoveredItem ~= nil and not itemMenu.open and not drag.moving then
         if tipwindow.On() then
-            tipwindow.Offer(DrawVerbose, hoveredItem)
+            tipwindow.Offer(DrawVerbose, hoveredItem, hoveredItem.id)
         else
             AddTooltip(hoveredItem)
         end
@@ -2307,6 +2310,8 @@ local defaults = T{
     tooltipPos = T{ 700, 256 }, -- where it is: the place of the corner it grows from
     tooltipLock = T{ false },   -- it cannot be dragged, and clicks go through it
     tooltipGrowFrom = 'TopLeft', -- the corner held still as it changes size
+    tooltipScale = T{ 1 },      -- how big it is detached; attached, the inventory's
+    inventoryScale = T{ 1 },    -- how big the inventory window is: its icons, the room between them, its font
     controllerType = 'auto', -- which kind: Automatic (the game's own setting) or a key of winxi.controller's Layouts
     cycleTreasure = T{ true }, -- Y takes the controller to the treasure pool, while there is treasure
     cycleEquipment = T{ true }, -- and to the equipment monitor, while it is shown
@@ -2321,6 +2326,7 @@ local defaults = T{
     treasureLock = T{ false }, -- detached, it cannot be dragged
     treasurePos = T{ 256, 100 }, -- where it is, detached
     treasureWidth = T{ 400 }, -- how wide it is
+    treasureScale = T{ 1 },   -- how big it is detached; attached, the inventory's
     equipment = T{
         enabled = T{ false },
         detached = T{ false }, -- a window of its own, rather than under the inventory window
@@ -2361,6 +2367,7 @@ local app = shell.New({
         { label = 'Inventory', draw = config.Inventory },
         { label = 'Treasure', draw = pool.DrawSettings },
         { label = 'Equipment', draw = equipment.DrawSettings },
+        { label = 'Tooltips', draw = tipwindow.DrawSettings },
     },
     hideAppearance = true,
     import = {
@@ -2454,7 +2461,8 @@ ashita.events.register('d3d_present', 'inv_present', function()
         return
     end
     local options = app.options
-    tipwindow.Begin(options, app.showConfig[1])
+    sizing.Begin()
+    tipwindow.Begin(options, app.showConfig[1], IconSheet)
 
     -- Combat gear changes have first access to the icon upload budget (the monitor is drawn before the
     -- inventory window, below). Equipment never waits for inventory packets to settle.
@@ -2476,6 +2484,12 @@ ashita.events.register('d3d_present', 'inv_present', function()
     options.gridColumns[1] = math.max(6, math.min(30, math.floor(options.gridColumns[1])))
     options.gridRows[1] = math.max(5, math.min(30, math.floor(options.gridRows[1])))
     rowLengthIsh = options.gridColumns[1]
+    -- the window at its Scale: the icons, the room between them and its font
+    local scale = sizing.Clamp(options.inventoryScale[1])
+    iconSize = math.floor(32 * scale + 0.5)
+    itemGap[1], itemGap[2] = math.floor(8 * scale + 0.5), math.floor(4 * scale + 0.5)
+    stepX, stepY = iconSize + itemGap[1], iconSize + itemGap[2]
+    app.windowStyle.fontSize = sizing.FontSize(scale)
     local rows = options.gridRows[1]
     viewportSize[1] = rowLengthIsh * (iconSize + itemGap[1]) - itemGap[1]
     previewSlots = rows * rowLengthIsh

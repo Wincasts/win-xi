@@ -28,6 +28,7 @@ run winventory addons/winventory/winventory.lua inventory_growth_check.lua
 run winventory addons/winventory/winventory.lua inventory_cycle_check.lua
 run winventory addons/winventory/winventory.lua inventory_former_check.lua
 run winventory addons/winventory/winventory.lua inventory_tooltip_window_check.lua
+run winventory addons/winventory/winventory.lua inventory_scale_check.lua
 run mark       addons/mark/mark.lua     mark_check.lua
 run mark       addons/mark/mark.lua     mark_performance_check.lua
 run mark       addons/mark/mark.lua     mark_persistence_check.lua
