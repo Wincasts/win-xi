@@ -11,21 +11,22 @@ python3 -m unittest discover -s tools -p test_phoenix_modules.py || exit 1
 python3 -m unittest discover -s tools -p test_package_release.py || exit 1
 luajit tests/winxi_tips_check.lua || exit 1
 run() { echo "== $1"; luajit tests/harness.lua "$1" "$2" "tests/$3" 2>&1; echo; }
-run inventory  addons/inventory/inventory.lua inventory_check.lua
-run inventory  addons/inventory/inventory.lua inventory_grid_check.lua
-run inventory  addons/inventory/inventory.lua inventory_bag_tabs_check.lua
-run inventory  addons/inventory/inventory.lua inventory_drag_check.lua
-run inventory  addons/inventory/inventory.lua inventory_menu_check.lua
-run inventory  addons/inventory/inventory.lua inventory_scrollbar_check.lua
-run inventory  addons/inventory/inventory.lua inventory_currency_check.lua
-run inventory  addons/inventory/inventory.lua inventory_sort_check.lua
-run inventory  addons/inventory/inventory.lua inventory_settings_check.lua
-run inventory  addons/inventory/inventory.lua inventory_equipment_check.lua
-run inventory  addons/inventory/inventory.lua inventory_equipment_decorations_check.lua
-run inventory  addons/inventory/inventory.lua inventory_equipment_performance_check.lua
-run inventory  addons/inventory/inventory.lua inventory_performance_check.lua
-run inventory  addons/inventory/inventory.lua inventory_growth_check.lua
-run inventory  addons/inventory/inventory.lua inventory_cycle_check.lua
+run winventory addons/winventory/winventory.lua inventory_check.lua
+run winventory addons/winventory/winventory.lua inventory_grid_check.lua
+run winventory addons/winventory/winventory.lua inventory_bag_tabs_check.lua
+run winventory addons/winventory/winventory.lua inventory_drag_check.lua
+run winventory addons/winventory/winventory.lua inventory_menu_check.lua
+run winventory addons/winventory/winventory.lua inventory_scrollbar_check.lua
+run winventory addons/winventory/winventory.lua inventory_currency_check.lua
+run winventory addons/winventory/winventory.lua inventory_sort_check.lua
+run winventory addons/winventory/winventory.lua inventory_settings_check.lua
+run winventory addons/winventory/winventory.lua inventory_equipment_check.lua
+run winventory addons/winventory/winventory.lua inventory_equipment_decorations_check.lua
+run winventory addons/winventory/winventory.lua inventory_equipment_performance_check.lua
+run winventory addons/winventory/winventory.lua inventory_performance_check.lua
+run winventory addons/winventory/winventory.lua inventory_growth_check.lua
+run winventory addons/winventory/winventory.lua inventory_cycle_check.lua
+run winventory addons/winventory/winventory.lua inventory_former_check.lua
 run mark       addons/mark/mark.lua     mark_check.lua
 run mark       addons/mark/mark.lua     mark_performance_check.lua
 run mark       addons/mark/mark.lua     mark_persistence_check.lua
@@ -165,8 +166,8 @@ run winparty      addons/winparty/winparty.lua party_debuff_list_check.lua
 run winparty      addons/winparty/winparty.lua winxi_fonts_check.lua
 run winparty      addons/winparty/winparty.lua winxi_settings_window_check.lua
 run winparty      addons/winparty/winparty.lua winxi_backgrounds_check.lua
-run inventory  addons/inventory/inventory.lua winxi_tabs_check.lua
-run inventory  addons/inventory/inventory.lua winxi_child_background_check.lua
+run winventory addons/winventory/winventory.lua winxi_tabs_check.lua
+run winventory addons/winventory/winventory.lua winxi_child_background_check.lua
 luajit tests/winxi_mapdat_check.lua
 luajit tests/winxi_cursor_check.lua
 luajit tests/winxi_font_texture_check.lua

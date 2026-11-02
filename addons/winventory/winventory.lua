@@ -1,6 +1,6 @@
-addon.name    = 'inventory'
+addon.name    = 'winventory'
 addon.author  = 'lin, win'
-addon.version = '1.1-pre1'
+addon.version = '1.2'
 addon.desc    = 'The bags in a window: what is in them, and what can be done with it, by mouse or controller.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -8,12 +8,13 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 -- look of its windows, the controller, the sounds, the packets and what is asked of the game are
 -- all the library's.
 --
---   /inventory           opens or closes the settings (/inv does the same, as do the verbs after it)
---   /inventory toggle    shows or hides the window
---   /inventory config    opens or closes the settings
---   /inventory focus     gives the open window the controller, or takes it away again
+--   /winventory          opens or closes the settings (/inventory and /inv do the same, as do the verbs after them)
+--   /winventory toggle   shows or hides the window
+--   /winventory focus    gives the open window the controller, or takes it away again
+--   /winventory help     lists the commands
 --
--- It was called inv: the settings it kept under that name are brought over once for each character.
+-- It was called inventory, and before that inv: the settings it kept under the newer of those names
+-- that it has for a character are brought over once.
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
@@ -52,7 +53,7 @@ local yellow = { 1.00, 1.00, 0.00, 1.0 }
 local framePadding = { 4, 2 }
 
 local function Say(text)
-    print(('\30\81[inventory]\30\01 %s'):format(text))
+    print(('\30\81[winventory]\30\01 %s'):format(text))
 end
 
 local fontWidth = imgui.CalcTextSize('A')
@@ -866,8 +867,8 @@ end
 local pad = {
     options = nil,     -- the tool's settings, as of the frame last drawn
     target = 'inventory', -- which window the buttons work: 'inventory', 'treasure' or 'equipment'
-    focused = false,   -- whether the window has the controller: from being opened (or /inv focus)
-                       -- until B, /inv focus again, or its being closed
+    focused = false,   -- whether the window has the controller: from being opened (or /winventory focus)
+                       -- until B, /winventory focus again, or its being closed
     drawn = 0,         -- when the window was last drawn: the controller is only the inventory's while it is
     active = false,    -- as of the frame being drawn
     grid = controller.NewGrid(),
@@ -1364,7 +1365,7 @@ local function PadPress(action)
         pad.menuItem = nil
         sound.Play('confirm')
     elseif action == 'back' then
-        -- the controller goes back to the game; the window stays, until /inv toggle closes it
+        -- the controller goes back to the game; the window stays, until /winventory toggle closes it
         pad.focused = false
         sound.Play('back')
     end
@@ -2275,7 +2276,7 @@ end
 -- hiding, the theme.
 local defaults = T{
     isVisible = T{ true },
-    isPinned = T{ false }, -- the window stays when /inv toggle hides the rest
+    isPinned = T{ false }, -- the window stays when /winventory toggle hides the rest
     isUnified = T{ true },
     showEmptySlots = T{ true },
     maxHeight = T{ 432 }, -- retained for legacy settings import; no longer controls the window
@@ -2299,14 +2300,14 @@ local defaults = T{
     treasurePool = T{ true }, -- the treasure pool, beside the window
     treasureShowEmpty = T{ false }, -- sample treasure in an empty pool, to see it
     treasureDetached = T{ false }, -- the treasure pool as a window of its own
-    treasurePinned = T{ false }, -- it stays when /inv toggle hides the inventory
+    treasurePinned = T{ false }, -- it stays when /winventory toggle hides the inventory
     treasureLock = T{ false }, -- detached, it cannot be dragged
     treasurePos = T{ 256, 100 }, -- where it is, detached
     treasureWidth = T{ 400 }, -- how wide it is
     equipment = T{
         enabled = T{ false },
         detached = T{ false }, -- a window of its own, rather than under the inventory window
-        pinned = T{ false }, -- it stays when /inv toggle hides the inventory
+        pinned = T{ false }, -- it stays when /winventory toggle hides the inventory
         pos = T{ 100, 100 }, -- where it is, detached
         lockMovement = T{ false },
         scale = T{ 1 },
@@ -2330,12 +2331,13 @@ local app = shell.New({
     defaults = defaults,
     window = windowName,
     title = 'Inventory',
-    configTitle = 'Inventory Settings',
-    command = '/inventory',
-    aliases = { '/inv' },
-    formerName = 'inv',
-    help = '/inventory (or /inv) opens or closes the settings; /inv toggle shows or hides the window; /inv focus gives the window the controller, or takes it away.',
+    configTitle = 'winventory Settings',
+    command = '/winventory',
+    aliases = { '/inventory', '/inv' },
+    formerName = { 'inventory', 'inv' },
+    help = '/winventory opens or closes the settings; /winventory toggle shows or hides the window. /winventory help lists the commands.',
     bareOpensConfig = true,
+    menuOnlyCommands = true,
     settingsLabel = 'General',
     drawSettings = config.General,
     tabs = {
@@ -2364,11 +2366,20 @@ local app = shell.New({
         end
     end,
     commands = {
+        -- shown or hidden by the shell itself (bareOpensConfig): listed so that menuOnlyCommands lets it by
+        toggle = function(options) options.isVisible[1] = not options.isVisible[1] end,
+        help = function()
+            Say('Commands (/inventory and /inv work as /winventory):')
+            Say('/winventory - opens or closes the settings.')
+            Say('/winventory toggle - shows or hides the window, the treasure pool and the equipment monitor with it; bind it to a macro to open the window with the controller.')
+            Say('/winventory focus - gives the open window the controller, or gives it back to the game.')
+            Say('/winventory help - lists these commands.')
+        end,
         focus = function(options)
             if not options.controller[1] then
-                Say('Controller Navigation is off: switch it on in /inv config.')
+                Say('Controller Navigation is off: switch it on in /winventory, General.')
             elseif not options.isVisible[1] then
-                Say('The window is closed: /inv toggle opens it.')
+                Say('The window is closed: /winventory toggle opens it.')
             else
                 pad.focused = not pad.focused
             end
@@ -2377,7 +2388,7 @@ local app = shell.New({
 })
 
 local windowExtra = { flags = 0 }
--- Whether the window is shown this frame: switched on by /inv toggle, or pinned. The treasure pool and
+-- Whether the window is shown this frame: switched on by /winventory toggle, or pinned. The treasure pool and
 -- equipment monitor are shown with it, or pinned without it.
 -- And where the attached treasure pool and equipment monitor go: beside the window and under it
 -- while it is on screen; while it is not, the pinned ones take its place, the monitor at its top-left

@@ -5,7 +5,7 @@
 --
 --   config.General(options)   the General tab
 --   config.Inventory(options) the Inventory tab
---   config.tabGroups, config.tabNames   the inventory's main tabs, set by inventory.lua
+--   config.tabGroups, config.tabNames   the inventory's main tabs, set by winventory.lua
 local imgui = require('imgui')
 local widgets = require('winxi.widgets')
 local tooltip = require('winxi.tooltip')
@@ -16,7 +16,7 @@ local currency = require('currency')
 local config = { tabGroups = { }, tabNames = { } }
 local windowName = 'winxi.inventory'
 
-local controllerTip = 'Work the inventory with a controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or give the controller back to the game (the window stays open: /inv toggle closes it, /inv focus gives it the controller again).\nY (triangle): move the controller to the treasure pool (while there is treasure), then the equipment monitor, then back to the inventory. In the pool the highlight starts on the first item\'s Lot: left and right go to Pass and back, up from the first item to Lot All and Pass All, and A presses the button; in the monitor A opens what can be put on in the slot. B goes back to the inventory.\nX (square): the sort menu. Auto puts the tab back in the usual order and part stacks together; Manual swaps the places of two items; Recycle Bin takes back what was dropped.\nThose buttons do not reach the game while the window is showing. Open it with /inv toggle, from a macro.'
+local controllerTip = 'Work the inventory with a controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or give the controller back to the game (the window stays open: /winventory toggle closes it, /winventory focus gives it the controller again).\nY (triangle): move the controller to the treasure pool (while there is treasure), then the equipment monitor, then back to the inventory. In the pool the highlight starts on the first item\'s Lot: left and right go to Pass and back, up from the first item to Lot All and Pass All, and A presses the button; in the monitor A opens what can be put on in the slot. B goes back to the inventory.\nX (square): the sort menu. Auto puts the tab back in the usual order and part stacks together; Manual swaps the places of two items; Recycle Bin takes back what was dropped.\nThose buttons do not reach the game while the window is showing. Open it with /winventory toggle, from a macro.'
 
 -- Two choices, one under the other, in the column of the controls
 local function Choice(firstLabel, firstOn, secondLabel)
@@ -57,10 +57,10 @@ function config.General(options)
     if widgets.Header('Window', true) then
         widgets.Label('Visible')
         imgui.Checkbox('##inv.visible', options.isVisible)
-        tooltip.Hover('Whether the inventory window is shown; /inv toggle switches it.')
+        tooltip.Hover('Whether the inventory window is shown; /winventory toggle switches it.')
         widgets.Label('Pin Inventory')
         imgui.Checkbox('##inv.pinned', options.isPinned)
-        tooltip.Hover('Keeps the inventory window on screen when /inv toggle hides it; the treasure pool and equipment monitor have pins of their own.\nToggled off while pinned, the window stays but gives the controller back to the game.')
+        tooltip.Hover('Keeps the inventory window on screen when /winventory toggle hides it; the treasure pool and equipment monitor have pins of their own.\nToggled off while pinned, the window stays but gives the controller back to the game.')
         widgets.Label('Position')
         imgui.SetNextItemWidth(widgets.NumberWidth(2))
         if imgui.InputInt2('##inv.position', options.pos) then

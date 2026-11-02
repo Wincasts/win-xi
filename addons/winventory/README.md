@@ -1,14 +1,20 @@
-# inventory
+# winventory
 
 The bags in a window: what is in them, and what you can do with it, by mouse or controller. It was
-the `inv` tool of xitools and is now an addon of its own. It needs only the `winxi` library
-(`addons/libs/winxi`).
+the `inv` tool of xitools, then the `inventory` addon, and is now winventory. It needs only the `winxi`
+library (`addons/libs/winxi`).
 
-- `/inventory` opens or closes the settings (`/inventory config` does the same)
-- `/inventory toggle` shows or hides the window
-- `/inventory focus` gives the open window the controller, or takes it away again
+- `/winventory` opens or closes the settings
+- `/winventory toggle` shows or hides the window (bind it to a macro to open the window with a controller)
+- `/winventory focus` gives the open window the controller, or takes it away again
+- `/winventory help` lists the commands in the chat log
 
-`/inv` is the same command, shorter: `/inv`, `/inv toggle` and `/inv focus` all work.
+`/inventory` and `/inv` still work as `/winventory`: `/inv toggle` and `/inv focus` too. Anything else
+after the command only says how to open the settings.
+
+Each character's settings are brought over the first time it logs in with winventory: from
+`config/addons/inventory/` where it has them, otherwise from `config/addons/inv/`. Remove the old
+`addons/inventory` folder.
 
 The settings are in four tabs, each in collapsible sections: **General** (Window, Controller and
 Visibility), **Inventory** (Grid, Tabs and Currencies), **Treasure** (Treasure Pool and Display), and
@@ -85,7 +91,7 @@ are worked with the mouse.
 With the mouse, right-click an item to see what you can do with it. With a controller (Controller
 Navigation, in the settings): the d-pad moves the highlight, LB / RB change tab, A opens the item's
 menu, B backs out of a menu or gives the controller back to the game, and X (square) opens the sort
-menu. The window takes the controller as `/inv toggle` opens it, and only `/inv toggle` closes it.
+menu. The window takes the controller as `/winventory toggle` opens it, and only `/winventory toggle` closes it.
 
 Y (triangle) moves the controller on to the next window: the inventory, then the treasure pool (only
 while there is treasure), then the equipment monitor (only while it is shown), then back to the
@@ -115,7 +121,7 @@ treasure, so you can see how it looks; its buttons do nothing. With a controller
 
 ## Equipment monitor
 
-Turn on **Enable** in `/inv` → **Equipment** for a live equipment window, like EquipMon. It is off
+Turn on **Enable** in `/winventory` → **Equipment** for a live equipment window, like EquipMon. It is off
 by default. It does not need the reference addon or its assets. While it is off, the rest of its
 settings are hidden.
 
@@ -128,7 +134,7 @@ Turn on **Detach From Inventory** to make it a window of its own, with its own *
 
 ### Pinning
 
-`/inv toggle` shows and hides the inventory window, the treasure pool and the equipment monitor
+`/winventory toggle` shows and hides the inventory window, the treasure pool and the equipment monitor
 together, attached or detached. Each has a pin that keeps it on screen when they are toggled off:
 **Pin Inventory** (General → Window), **Pin Treasure Pool** (Treasure) and **Pin Equipment**
 (Equipment). A pinned inventory window toggled off stays, but gives the controller back to the game.

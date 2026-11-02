@@ -1,4 +1,4 @@
--- Run with: luajit tests/harness.lua inventory addons/inventory/inventory.lua tests/winxi_child_background_check.lua
+-- Run with: luajit tests/harness.lua winventory addons/winventory/winventory.lua tests/winxi_child_background_check.lua
 local imgui = require('imgui')
 local style = require('winxi.style')
 local theme = require('winxi.theme')

@@ -18,9 +18,28 @@ do
 end
 
 local before = H.calls.Begin
-H.print('/inv config kept from the game', H.command('/inv config')); H.frames(1)
+H.print('/winventory kept from the game', H.command('/winventory')); H.frames(1)
 H.print('settings window drawn', H.calls.Begin - before == 2, '| checkboxes', H.calls.Checkbox > 0, '| radio buttons', H.calls.RadioButton > 0)
-H.command('/inv config')
+H.command('/winventory')
+do
+    -- /inventory and /inv open the settings as /winventory does; config and anything else only say how,
+    -- and help lists the commands
+    local function begunInAFrame() local at = H.calls.Begin; H.frames(1); return H.calls.Begin - at end
+    local closed, shown = begunInAFrame(), o.isVisible[1]
+    for _, typed in ipairs({ '/inventory', '/inv' }) do
+        local opened = H.command(typed) and begunInAFrame(); assert(opened and opened > closed, typed .. ' opens the settings')
+        H.command(typed); H.frames(1)
+    end
+    assert(H.command('/winventory config') and begunInAFrame() == closed and o.isVisible[1] == shown, 'config only says how')
+    local from = #H.printed
+    assert(H.command('/winventory help') and begunInAFrame() == closed and o.isVisible[1] == shown)
+    local said = table.concat(H.printed, '\n', from + 1)
+    for _, line in ipairs({ '/winventory - ', '/winventory toggle', '/winventory focus', '/winventory help' }) do
+        assert(said:find(line, 1, true), '/winventory help lists ' .. line)
+    end
+    assert(said:find('[winventory]', 1, true), 'said as winventory')
+    H.print('/inventory and /inv open the settings, config only says how, help lists the commands', true)
+end
 
 H.print('A is the window\'s', H.tap(H.Button.A), '| B gives the controller back', H.tap(H.Button.B), '| window still open', o.isVisible[1])
 H.print('then A is the game\'s', H.tap(H.Button.A) == false)

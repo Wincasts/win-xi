@@ -1,4 +1,4 @@
--- Run with: luajit tests/harness.lua inventory addons/inventory/inventory.lua tests/inventory_bag_tabs_check.lua
+-- Run with: luajit tests/harness.lua winventory addons/winventory/winventory.lua tests/inventory_bag_tabs_check.lua
 -- In the unified view, a group of more than one bag has tabs under the grid: all of its bags, or one.
 local imgui = require('imgui')
 local tabs = require('winxi.tabs')

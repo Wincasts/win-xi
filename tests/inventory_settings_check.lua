@@ -1,4 +1,4 @@
--- Run with: luajit tests/harness.lua inventory addons/inventory/inventory.lua tests/inventory_settings_check.lua
+-- Run with: luajit tests/harness.lua winventory addons/winventory/winventory.lua tests/inventory_settings_check.lua
 local widgets = require('winxi.widgets')
 local imgui = require('imgui')
 local header, label, beginTab, checkbox = widgets.Header, widgets.Label, imgui.BeginTabItem, imgui.Checkbox
@@ -34,7 +34,7 @@ end
 H.play(true)
 local o = H.options()
 o.isVisible[1], o.fadeInOut[1], o.controller[1], o.treasurePool[1] = false, false, false, true
-H.command('/inv config')
+H.command('/winventory')
 frame(1)
 check('settings tabs ordered General, Inventory, Treasure, Equipment, Visibility', table.concat(tabs, ',') == 'General,Inventory,Treasure,Equipment,Visibility')
 check('General sections ordered Window, Controller; the hiding rules on the Visibility tab', table.concat(headers, ',') == 'Window,Controller')

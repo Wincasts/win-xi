@@ -1,4 +1,4 @@
--- Run with: luajit tests/harness.lua inventory addons/inventory/inventory.lua tests/inventory_scrollbar_check.lua
+-- Run with: luajit tests/harness.lua winventory addons/winventory/winventory.lua tests/inventory_scrollbar_check.lua
 -- The grid's slim scroll bar is dragged with the mouse, anywhere in the strip from the grid's right
 -- edge to the window's, and a press there does not move the window.
 local imgui = require('imgui')

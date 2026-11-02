@@ -2,11 +2,11 @@
 -- Uses Winxi windows and the shared icon atlas rather than separate D3D textures/assets.
 -- Attached (the default) it sits under the inventory window, its left edge in line with the
 -- window's, as the treasure pool does beside it; detached in the settings, it is a window of its own
--- that can be moved. Either way /inv toggle shows and hides it with the inventory, unless it is
+-- that can be moved. Either way /winventory toggle shows and hides it with the inventory, unless it is
 -- pinned: then it stays, and attached, with the inventory hidden, it takes the inventory's place.
 --
--- With the controller (inventory.lua's cycle brings it here) the d-pad moves a highlight over the
--- slots, as the game's equipment menu lays them out; what A does with one is inventory.lua's.
+-- With the controller (winventory.lua's cycle brings it here) the d-pad moves a highlight over the
+-- slots, as the game's equipment menu lays them out; what A does with one is winventory.lua's.
 --
 --   equipment.Focus(binding)         this frame, the monitor has the controller: binding marks its
 --                                    window; nil, it has not. The highlight is winxi.selection's
@@ -395,10 +395,10 @@ function equipment.DrawSettings(options)
         if not o.enabled[1] then return end
         widgets.Label('Detach From Inventory')
         imgui.Checkbox('##inv.equipment.detached', o.detached)
-        tooltip.Hover('Attached, the monitor sits under the inventory window, in line with its left edge.\nDetached, it is a window of its own that can be moved.\nEither way /inv toggle shows and hides it with the inventory, unless it is pinned.')
+        tooltip.Hover('Attached, the monitor sits under the inventory window, in line with its left edge.\nDetached, it is a window of its own that can be moved.\nEither way /winventory toggle shows and hides it with the inventory, unless it is pinned.')
         widgets.Label('Pin Equipment')
         imgui.Checkbox('##inv.equipment.pinned', o.pinned)
-        tooltip.Hover('Keeps the monitor on screen when /inv toggle hides the inventory.\nAttached, it then takes the inventory window\'s place, at its top-left corner.')
+        tooltip.Hover('Keeps the monitor on screen when /winventory toggle hides the inventory.\nAttached, it then takes the inventory window\'s place, at its top-left corner.')
         if o.detached[1] then
             widgets.Label('Position')
             imgui.SetNextItemWidth(widgets.NumberWidth(2))

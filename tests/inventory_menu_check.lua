@@ -1,4 +1,4 @@
--- Run with: luajit tests/harness.lua inventory addons/inventory/inventory.lua tests/inventory_menu_check.lua
+-- Run with: luajit tests/harness.lua winventory addons/winventory/winventory.lua tests/inventory_menu_check.lua
 -- The right-click menu, with popups as imgui keeps them: by name and the window they were opened in.
 -- The grid is a child window inside the inventory's; a menu opened in one and begun in the other
 -- never shows.

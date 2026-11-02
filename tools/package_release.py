@@ -66,7 +66,7 @@ RELEASES = {
     # Released for people who use no other winxi addon: its own winxi, for the zones' kinds and the rules
     'vis': {'standalone': True, 'private_winxi': True,
             'checks': [('vis', 'addons/vis/vis.lua', 'vis_check.lua'), ('vis', 'addons/vis/vis.lua', 'vis_game_check.lua')]},
-    'inventory': {},
+    'winventory': {},
     'winplates': {'plugin': 'namehook'},
     'occlusionfix': {'standalone': True},
     'winparty': {'plugin': 'uihook'},
@@ -156,7 +156,7 @@ def stage_notes(version, base, title):
 
 
 # An addon's name before it was renamed, for the releases made under it (write_downloads reads it too)
-FORMER = {'winplates': 'name', 'winchat': 'chatbox', 'winparty': 'party', 'winbuff': 'buff'}
+FORMER = {'winplates': 'name', 'winchat': 'chatbox', 'winparty': 'party', 'winbuff': 'buff', 'winventory': 'inventory'}
 
 
 def released(addon):

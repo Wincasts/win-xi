@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2
+
+- Renamed winventory: the addon is `winventory` (`addons\winventory`, `/addon load winventory`), its settings window winventory Settings and its command `/winventory`, with `/inventory` and `/inv` kept as other ways in. Each character's settings are brought over the first time it logs in, from `config\addons\inventory` where it has them, otherwise from `config\addons\inv` (winxi.shell's formerName, now a list). Remove the old `addons\inventory` folder.
+- `/winventory help` lists the commands. `/winventory config` is gone: `/winventory` alone opens the settings, and any other word after it only says so. `toggle` and `focus` are as they were.
+- The treasure pool's Lot and Pass buttons no longer have their labels made afresh each frame.
+
 ## 1.1
 
 - The controller's highlight, on an item, an equipment slot or a treasure pool button, is winxi's selection box (winxi 73): the Selection Style and Selection Color set in winxisettings → Styles for every addon, Bevel in a pale gold to begin with (Outline is the old look, in the new colour; Glow, Glass, Satin and Brushed Metal too). Requires winxi 73.

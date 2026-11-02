@@ -20,7 +20,7 @@ from package_release import FORMER, RELEASES, REPOSITORY, ROOT
 WHAT = {
     'winbuff': 'The statuses you are under, in a window, with the time each has left.',
     'winchat': 'A replacement chat log and input bar, with an info panel. Experimental.',
-    'inventory': 'Your bags in a window, by mouse or controller, with the treasure pool and an equipment monitor.',
+    'winventory': 'Your bags in a window, by mouse or controller, with the treasure pool and an equipment monitor.',
     'winplates': 'The names over players, NPCs and monsters, drawn your way, with health and cast bars.',
     'occlusionfix': 'Stops characters near walls and door frames from blinking out of view.',
     'parse': 'A combat parser: damage, hit rates and DPS for everyone in the fight.',

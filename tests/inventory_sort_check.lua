@@ -1,4 +1,4 @@
--- Run with: luajit tests/harness.lua inventory addons/inventory/inventory.lua tests/inventory_sort_check.lua
+-- Run with: luajit tests/harness.lua winventory addons/winventory/winventory.lua tests/inventory_sort_check.lua
 -- A group's bags together (the unified view's all tab) are in the same order whether they were all
 -- sorted again or only the bag that changed was, and merged with the others still in order.
 local icons = require('winxi.itemicons')

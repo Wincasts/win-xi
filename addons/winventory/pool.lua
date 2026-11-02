@@ -9,7 +9,7 @@
 --                               and invShown whether the inventory window is to be shown
 --   pool.DrawSettings(options)  its section of the settings
 --
--- With the controller (inventory.lua's cycle brings it here) a highlight goes over the buttons: it
+-- With the controller (winventory.lua's cycle brings it here) a highlight goes over the buttons: it
 -- starts on the first item's Lot, left and right go between Lot and Pass, up and down between the
 -- lines, and up from the first line to Lot All and Pass All. A presses the button the highlight is on.
 --
@@ -473,7 +473,7 @@ function pool.DrawSettings(drawOptions)
         tooltip.Hover('Attached, the pool sits to the right of the inventory window.\nDetached, it is a window of its own that can be moved.\nEither way it shows while there is treasure and the inventory does, or, pinned, whether the inventory does or not.')
         widgets.Label('Pin Treasure Pool')
         imgui.Checkbox('##inv.pool.pinned', drawOptions.treasurePinned)
-        tooltip.Hover('Keeps the pool on screen, while there is treasure, when /inv toggle hides the inventory.\nAttached, it then takes the inventory window\'s place, at its top-left corner, or beside the equipment monitor if that is there too.')
+        tooltip.Hover('Keeps the pool on screen, while there is treasure, when /winventory toggle hides the inventory.\nAttached, it then takes the inventory window\'s place, at its top-left corner, or beside the equipment monitor if that is there too.')
         if drawOptions.treasureDetached[1] then
             widgets.Label('Position')
             imgui.SetNextItemWidth(widgets.NumberWidth(2))

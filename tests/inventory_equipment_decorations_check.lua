@@ -1,4 +1,4 @@
--- Run with: luajit tests/harness.lua inventory addons/inventory/inventory.lua tests/inventory_equipment_decorations_check.lua
+-- Run with: luajit tests/harness.lua winventory addons/winventory/winventory.lua tests/inventory_equipment_decorations_check.lua
 local imgui = require('imgui')
 local icons = require('winxi.itemicons')
 local text = require('winxi.text')

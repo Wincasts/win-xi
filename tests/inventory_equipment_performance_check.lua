@@ -1,4 +1,4 @@
--- Run with: luajit tests/harness.lua inventory addons/inventory/inventory.lua tests/inventory_equipment_performance_check.lua
+-- Run with: luajit tests/harness.lua winventory addons/winventory/winventory.lua tests/inventory_equipment_performance_check.lua
 -- This measures Lua + mocked ImGui, NOT actual Ashita/GPU frame time.
 local imgui = require('imgui')
 local icons = require('winxi.itemicons')

@@ -1,4 +1,4 @@
--- Run with: luajit tests/harness.lua inventory addons/inventory/inventory.lua tests/inventory_currency_check.lua
+-- Run with: luajit tests/harness.lua winventory addons/winventory/winventory.lua tests/inventory_currency_check.lua
 -- Gil, or one of the game's currencies, in the gil's place at the foot of the window, and a second
 -- after it with a comma: currencies asked of the server as the game's Currencies menus ask, while the
 -- window is shown, and read from its answers. The choices are the server's era's, and any other the
@@ -124,7 +124,7 @@ check('and is shown with its short name', order('1,234,567 Bayld', '300 Sparks')
 
 -- the settings: opening the list asks both menus, so the player's own come into it
 local sent115 = asked('115')
-H.command('/inv config')
+H.command('/winventory')
 H.tab(2)
 local beginCombo = imgui.BeginCombo
 local listed = {}
@@ -143,5 +143,5 @@ frame()
 check('the Retail list offers more', #listed > phoenixListed and #listed == #currency.list + 1)
 o.currencyList = 'phoenix'
 imgui.BeginCombo, imgui.Selectable = beginCombo, selectable
-H.command('/inv config')
+H.command('/winventory')
 H.unload()

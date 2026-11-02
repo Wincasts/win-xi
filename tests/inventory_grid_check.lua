@@ -1,4 +1,4 @@
--- Run with: luajit tests/harness.lua inventory addons/inventory/inventory.lua tests/inventory_grid_check.lua
+-- Run with: luajit tests/harness.lua winventory addons/winventory/winventory.lua tests/inventory_grid_check.lua
 local function check(label, ok)
     H.print(label, ok)
     assert(ok, label)
@@ -112,7 +112,7 @@ local function hasGrid(width, height)
 end
 check('closed settings only reserve actual items', hasGrid(112, 32))
 H.ret.GetWindowPos, H.ret.GetWindowSize = { 0, 0 }, { 1000, 1000 }
-H.command('/inv config'); frame()
+H.command('/winventory'); frame()
 check('settings preview reserves chosen rows', children[1][4] == children[1][3])
 check('settings preview draws all chosen slots', hasGrid(232, 176))
 -- a square for every slot, the three items' first: the sixth ends the first row, the seventh wraps
@@ -147,7 +147,7 @@ check('a slim scroll bar just outside the grid\'s right edge, as long and as far
 H.ret.GetScrollMaxY, H.ret.GetScrollY = nil, nil
 frame()
 check('the bar goes when the grid no longer scrolls', #scrollBars == 0)
-H.command('/inv config'); frame()
+H.command('/winventory'); frame()
 check('closing settings removes preview slots', hasGrid(112, 32) and children[1][4] == 1)
 check('full slots keep their square behind the icon', #slotRects == 3
     and slotRects[1][1] == 10 and slotRects[3][1] == 90)

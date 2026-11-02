@@ -21,6 +21,7 @@ settings window.
 | [winbuff](addons/winbuff) | Shows the statuses you are under in a window, with FFXIV's icons and the time each has left | `/winbuff` |
 | [winchat](addons/winchat) | Experimental WinXI chat log that the game still drives. It sets the game log's place and size (both log windows, routed as the game routes them). It has a native-backed input bar with its own auto-translate picker on Tab, native selection, the expanded log in WinXI tabs, scrollbar and font, and an info panel that shows the Vana'diel calendar, the zone's weather forecast and the ships' and airships' timetable under the mouse. Needs `uihook` | `/winchat` |
 | [winplates](addons/winplates) | Shows and hides the names over characters' heads by what they are, and draws them in winxi's style. Needs the `namehook` plugin | `/winplates` |
+| [winventory](addons/winventory) | Your bags in a window, by mouse or controller, with the treasure pool and an equipment monitor. It was called inventory | `/winventory` |
 | [winui](addons/winui) | Gives the game's own menus a uihook skin (the winxi look), and moves the menus the game stacks over the chat log (the command menu, shops, yes-or-no, item descriptions) to where you want them. Needs `uihook` | `/winui` |
 | [wxi](addons/wxi) | The look shared by every winxi addon, in one settings window | `/winxi` |
 | [zone](addons/zone) | Zone, region and weather banners, and a location line | `/zone` |
@@ -29,8 +30,8 @@ Each addon's folder has a README with all of its commands and settings.
 
 ## Installing
 
-**inventory**, **occlusionfix**, **parse**, **sct**, **trigger**,
-**vis**, **winbuff**, **winchat**, **winparty**, **winplates** and **zone**, the **lens** plugin and **mobdb**'s Phoenix data are released one at a time, on the
+**occlusionfix**, **parse**, **sct**, **trigger**,
+**vis**, **winbuff**, **winchat**, **winparty**, **winplates**, **winventory** and **zone**, the **lens** plugin and **mobdb**'s Phoenix data are released one at a time, on the
 [Releases](https://github.com/Wincasts/win-xi/releases) page. The newest of each is listed on one page,
 [DOWNLOADS.md](DOWNLOADS.md). Each zip has everything the addon needs:
 the `winxi` library and `wxi`; with winplates, the `namehook` plugin; and with winbuff, winchat and
@@ -69,7 +70,7 @@ See the uihook README for migration and testing steps.
 
 ## What else is here
 
-- `addons/` also holds addons built on other people's work (simplelog, targetlines, inventory, winparty),
+- `addons/` also holds addons built on other people's work (simplelog, targetlines, winventory, winparty),
   and `forks/addons` holds copies of other people's addons with changes made here (cbind, hideparty,
   cooldowns (formerly imrecast), mobdb, tcrossbar). Both are under their authors' terms, not the license below.
 - `archive/` holds retired addons, plugins and their checks, including [treas](archive/addons/treas).
