@@ -1,6 +1,6 @@
 addon.name    = 'winparty'
 addon.author  = 'lin, win'
-addon.version = '0.5.1'
+addon.version = '0.6.0'
 addon.desc    = 'Party, target and pet frames in the style of XivParty'
 
 -- The addon in outline:
@@ -15,7 +15,7 @@ addon.desc    = 'Party, target and pet frames in the style of XivParty'
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 67 -- winxi.castbar (64: partystatus, 57: abi, 56: presence)
+local winxiNeeded = 75 -- winxi.statustimes (67: winxi.castbar, 64: partystatus, 57: abi, 56: presence)
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -46,6 +46,7 @@ local fishing = require('fishing')
 local notices = require('notices')
 local debuffs = require('debuffs')
 local debufflist = require('debufflist')
+local statustimes = require('winxi.statustimes')
 local packets = require('packets')
 local game = require('game')
 local perf = require('perf')
@@ -267,7 +268,8 @@ local function DrawDebuffList(sample)
     debufflist.Draw(saved, entity, sample)
 end
 
--- Whether any target window shows debuffs: nothing is tracked unless one does, or the debuff list
+-- Whether any target window shows debuffs: nothing is tracked unless one does, the debuff list, or the
+-- party's durations
 local function ShowsDebuffs()
     return (saved.target.showMain[1] and saved.target.mainDebuffs[1])
         or (saved.target.showSub[1] and saved.target.subDebuffs[1])
@@ -276,7 +278,9 @@ end
 
 local tracking = false
 local function UpdateTracking()
+    -- the durations under the party's icons are estimated from what is seen to land on them
     local wanted = (saved.target.enabled[1] and ShowsDebuffs()) or saved.target.debuffList[1]
+        or (saved.style.showStatuses[1] and saved.style.showDurations[1])
     if wanted ~= tracking then
         require('winxi.debuffs').Clear()
         tracking = wanted
@@ -376,6 +380,7 @@ local function Present()
     -- Every tooltip on the windows waits for Show Tooltips; with Clickthrough they are still hovered for
     -- them, just not clicked or dragged.
     details.BeginFrame(saved.style.hoverDetails[1] and not hidden, saved.clickThrough[1])
+    statustimes.Begin() -- the time now, for the durations under the icons
     if saved.automaticPositioning[1] then
         local count = 0
         if saved.pets.enabled[1] then

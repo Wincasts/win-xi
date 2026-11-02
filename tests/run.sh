@@ -135,6 +135,7 @@ run winparty      addons/winparty/winparty.lua party_customization_check.lua
 run winparty      addons/winparty/winparty.lua party_fantasy_styles_check.lua
 run winparty      addons/winparty/winparty.lua party_bar_finish_check.lua
 run winparty      addons/winparty/winparty.lua party_organize_statuses_check.lua
+run winparty      addons/winparty/winparty.lua party_durations_check.lua
 run winparty      addons/winparty/winparty.lua party_tracking_check.lua
 run winparty      addons/winparty/winparty.lua party_borders_check.lua
 run winparty      addons/winparty/winparty.lua party_resolution_check.lua

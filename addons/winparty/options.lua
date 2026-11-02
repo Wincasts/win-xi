@@ -227,6 +227,14 @@ local extra = {
           sentence = 'Which side of the window the status icons grow out from.' },
         { kind = 'check', key = 'buffFitScreen', label = 'Fit Status Icons To Screen', default = true,
           sentence = 'Draws fewer status icons where they would run off the screen.' },
+        { kind = 'check', key = 'showDurations', label = 'Show Durations', default = false,
+          sentence = 'Writes the time left under each status icon. Others\' times are estimates, or - if unknown.' },
+        { kind = 'slider', key = 'durationSize', label = 'Duration Text Size', default = 45, min = 30, max = 100, format = '%d%%',
+          under = function(saved) return saved.style.showDurations[1] end,
+          sentence = 'How tall the durations are, compared with the status icons.' },
+        { kind = 'color', key = 'estimateColor', label = 'Estimate Color', default = { 1, 0.82, 0.35, 1 },
+          under = function(saved) return saved.style.showDurations[1] end,
+          sentence = 'The colour of estimated durations and -.' },
     },
     Pets = {
         { kind = 'slider', key = 'reserve', label = 'Reserved Pet Rows', default = 2, min = 1, max = 6,
@@ -250,7 +258,7 @@ local groups = {
         { 'Appearance', 'scale', 'barShadows' },
         { 'Names', 'nameFont', 'nameSize', 'zoneAbbr' },
         { 'Values', 'valueFont', 'valueSize', 'showMp', 'showTp' },
-        { 'Status Display', 'showStatuses', 'buffSize', 'buffSpacing', 'buffDistance', 'buffLimit', 'buffRows', 'buffDirection', 'buffFitScreen', 'buffOverflow', statuses = true },
+        { 'Status Display', 'showStatuses', 'buffSize', 'buffSpacing', 'buffDistance', 'buffLimit', 'buffRows', 'buffDirection', 'buffFitScreen', 'buffOverflow', 'showDurations', 'durationSize', 'estimateColor', statuses = true },
         { 'Status Filtering', 'debuffsFirst', 'priorityStatuses', 'hiddenStatuses', statuses = true },
         { 'Warnings', 'lowHp', 'tpFlash', 'tpColor' },
         { 'Advanced: Range Indicators', 'castRange', 'targetRange', 'nearOpacity', 'farOpacity', collapsed = true },
@@ -642,6 +650,8 @@ function options.Style(saved)
     style.buffLimit, style.buffRows = kept.buffLimit[1], kept.buffRows[1]
     style.buffOverflow, style.buffFitScreen = kept.buffOverflow[1], kept.buffFitScreen[1]
     style.buffDirection = kept.buffDirection
+    style.showDurations = kept.showDurations[1] == true
+    style.durationSize, style.estimateColor = kept.durationSize[1], kept.estimateColor
     style.nameChars, style.trimLast, style.showJobs = nil, nil, false
     return style
 end

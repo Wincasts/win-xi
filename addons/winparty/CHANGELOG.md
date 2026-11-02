@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.0
+
+- **Show Durations** (Style → Status Display, off by default): the time left under each status icon beside the party and the target windows, in the value font, outlined as the rest. Your own are exact, read from the game. Your party's and a target's are estimates in **Estimate Color** (yellow by default): a status seen to land lasts its spell's or monster move's usual time on the server, one seen to appear on a member its status's usual time from then, and `-` is written where neither is known or the estimate has run out while the status is still on. **Duration Text Size** (30–100% of the icons, 45 by default); each row is taller to make room. While organizing, the sample members show sample times. What lands is counted while durations are shown, whether or not a target window shows debuffs. The estimates are winxi 75's `winxi.statustimes`. Requires winxi 75.
+
 ## 0.5.1
 
 - **Debuff List** (Target → Debuff List, off to begin with): a box of its own listing every debuff seen to land on your target, with the time each has left, the soonest to run out first, under the target's name; no box while nothing is on the target. A plain imgui box dragged by its body, held still by Lock Windows, placed by **Debuff List Position** (a drag sets it too); **Winxi Theme** (off to begin with) draws it as a window of the theme instead, moved, faded and organized as the target windows are. While organizing it lists the sample statuses. The debuffs are counted while the list is on, whether or not a target window shows them.

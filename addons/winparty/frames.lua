@@ -63,6 +63,7 @@ local outlinedText = require('winxi.text')
 local draw = require('draw')
 local colors = require('colors')
 local statusicons = require('winxi.statusicons')
+local statustimes = require('winxi.statustimes')
 local cursor = require('winxi.cursor')
 local statuses = require('statuses')
 local details = require('details')
@@ -204,9 +205,20 @@ local outlined = true     -- whether the names and figures have winxi's dark edg
 local nameChars = nil     -- how much of a name is written, where it is not the layout's own
 local activeStyle = {}
 local rowHeight = layout.rowHeight
+-- How tall the durations under the status icons are, in the layout's units, for icons size tall: 0 when
+-- none are written
+local function DurationHeight(style, size)
+    if not style.showDurations then return 0 end
+    return math.floor(size * (tonumber(style.durationSize) or 45) / 100 + 0.5)
+end
 local function RowHeight(style, kind)
-    if (kind == 'party' or kind == 'target') and (style.buffRows or 1) > 1 then
-        return math.max(layout.rowHeight, layout.buffs.y + 2 * layout.buffs.size * (style.buffSize or 100) / 100 + 3)
+    if kind == 'party' or kind == 'target' then
+        local size = layout.buffs.size * (style.buffSize or 100) / 100
+        local rows = math.max(1, math.min(2, style.buffRows or 1))
+        local text = DurationHeight(style, size)
+        if rows > 1 or text > 0 then
+            return math.max(layout.rowHeight, layout.buffs.y + rows * (size + text) + (rows - 1) * 2 + 3)
+        end
     end
     return layout.rowHeight
 end
@@ -700,6 +712,24 @@ local function DrawFigure(place, member, kept, fontSize, figure)
     Write(words, x, y, color, width)
 end
 
+-- The durations under the icons: the width of each label in their font, measured once
+local durationWidths, durationWidthsFont, durationWidthsFace = { }, nil, nil
+local function DurationWidth(text, font, face)
+    if durationWidthsFont ~= font or durationWidthsFace ~= face then
+        durationWidths, durationWidthsFont, durationWidthsFace = { }, font, face
+    end
+    local width = durationWidths[text]
+    if width == nil then
+        width = TextSize(text)
+        durationWidths[text] = width
+    end
+    return width
+end
+-- what a made-up member's icons have under them, and whether each is an estimate
+local SAMPLE_TEXT = { '25m', '2m', '45', statustimes.Unknown }
+local SAMPLE_ESTIMATE = { true, true, false, true }
+local seenOfId = { } -- how many of each status this member has had drawn, for the player's own repeats
+
 -- A member's buffs, running leftwards: the first has its right edge at x
 local function DrawBuffs(member, x, StatusTexture)
     if member.statusIds == nil or StatusTexture == nil then return end
@@ -717,14 +747,39 @@ local function DrawBuffs(member, x, StatusTexture)
     local shown = 0
     local iconCapacity = capacity
     if activeStyle.buffOverflow ~= false and #ids > capacity then iconCapacity = math.max(0, capacity - 1) end
+    -- the durations under the icons, in the figures' font, as tall as Duration Text Size says
+    local textTall = DurationHeight(activeStyle, size)
+    local durationFont = textTall > 0 and FontSize(textTall) or nil
+    local serverId = member.statusServerId or member.serverId
+    local sample = type(serverId) == 'number' and serverId < 0
+    if durationFont then
+        -- in the figures' font
+        imgui.PushFont(fonts.Get(activeStyle.valueFont), durationFont)
+        for seen in pairs(seenOfId) do seenOfId[seen] = nil end
+    end
     for _, id in ipairs(ids) do
         if shown >= iconCapacity then break end
         local texture, own = StatusTexture(id, ownIcons)
         if texture ~= nil then
-            if shown > 0 and shown % columns == 0 then x = start; y = y + size + 2 end
+            if shown > 0 and shown % columns == 0 then x = start; y = y + size + textTall + 2 end
             local width = own and size * statusicons.OwnAspect or size
             if direction == 'left' then x = x - width end
             Image(texture, x, y, width, size, nil, nil, own and statusicons.OwnRight or nil, own and statusicons.OwnLeft or nil)
+            if durationFont then
+                local text, estimate
+                if sample then
+                    text, estimate = SAMPLE_TEXT[shown % #SAMPLE_TEXT + 1], SAMPLE_ESTIMATE[shown % #SAMPLE_TEXT + 1]
+                else
+                    local nth = (seenOfId[id] or 0) + 1
+                    seenOfId[id] = nth
+                    text, estimate = statustimes.Text(serverId, id, nth)
+                end
+                if text then
+                    -- its middle under the icon's
+                    Write(text, x + width / 2, y + size, estimate and (activeStyle.estimateColor or textColor) or textColor,
+                        DurationWidth(text, durationFont, activeStyle.valueFont) / 2)
+                end
+            end
             if details.Hover(itemX + x * scale, itemY + y * scale,
                 itemX + (x + width) * scale, itemY + (y + size) * scale) then
                 details.Status(id, member.statusServerId)
@@ -736,7 +791,7 @@ local function DrawBuffs(member, x, StatusTexture)
     if activeStyle.buffOverflow ~= false and #ids > shown then
         -- Reserve the last status slot for the badge rather than covering HP/name text.
         if capacity > 0 then
-            if shown > 0 and shown % columns == 0 then x = start; y = y + size + 2 end
+            if shown > 0 and shown % columns == 0 then x = start; y = y + size + textTall + 2 end
             if direction == 'left' then x = x - size end
         else
             -- No external room at all: a compact badge in the otherwise empty lower-left corner.
@@ -746,6 +801,7 @@ local function DrawBuffs(member, x, StatusTexture)
         Write('+' .. (#ids - shown), x, y, textColor)
         imgui.PopFont()
     end
+    if durationFont then imgui.PopFont() end
 end
 
 -- How far down its row the lowest thing on a line is, in the layout's units: the line's height when

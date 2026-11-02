@@ -67,6 +67,12 @@ calls per category; averages and maxima cover the full interval.
 - **Style → Status Display** has an icon limit of 1–32, one or two rows, growth to the left, to the right or towards the most space,
   fitting to the screen edge, and overflow badges. Screen fitting plays safe: in mixed sets it reserves room for the widest icon. When needed, the last free slot becomes a `+N` badge; with no space outside the frame the
   badge uses the frame's lower-left corner. Two rows increase the row height.
+- **Style → Status Display → Show Durations**, off by default, writes the time left under each status
+  icon: seconds, then minutes (`m`), then hours (`h`). Your own times are exact, read from the game.
+  Your party's and a target's are estimates, written in **Estimate Color** (yellow by default): from when
+  the status was seen to land, or to appear on the member, for the server's usual time. Where that cannot
+  be known, `-` is written. **Duration Text Size** sets how tall the times are next to the icons, and
+  each row grows to make room for them.
 - **Party → Casting → Show Cast Bars**, on by default: while a member of your party or the alliance casts a
   spell, their HP bar fills as the cast goes, in a pale blue, their name is the spell's, and the time
   left is written where their HP was. The casts are seen in the action packets (winxi.castbar, as name's
