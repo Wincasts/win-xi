@@ -71,8 +71,9 @@ calls per category; averages and maxima cover the full interval.
   icon: seconds, then minutes (`m`), then hours (`h`). Your own times are exact, read from the game.
   Your party's and a target's are estimates, written in **Estimate Color** (yellow by default): from when
   the status was seen to land, or to appear on the member, for the server's usual time. Where that cannot
-  be known, `-` is written. **Duration Text Size** sets how tall the times are next to the icons, and
-  each row grows to make room for them.
+  be known, `-` is written. Statuses you cast are written in **Your Color** (green by default), so you can
+  see when someone else's replaces yours. **Duration Text Size** sets how tall the times are next to the
+  icons, and each row grows to make room for them.
 - **Party → Casting → Show Cast Bars**, on by default: while a member of your party or the alliance casts a
   spell, their HP bar fills as the cast goes, in a pale blue, their name is the spell's, and the time
   left is written where their HP was. The casts are seen in the action packets (winxi.castbar, as name's

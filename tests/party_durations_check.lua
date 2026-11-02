@@ -11,15 +11,16 @@ for _, tab in ipairs(options.Tabs) do
 end
 H.print('settings: Show Durations off to begin with', o.style.showDurations[1] == false,
     '| Duration Text Size', o.style.durationSize[1], '| Estimate Color', table.concat(o.style.estimateColor, ','))
-H.print('greyed while Show Durations is off', entries.durationSize.under(o) == false and entries.estimateColor.under(o) == false)
+H.print('greyed while Show Durations is off', entries.durationSize.under(o) == false and entries.estimateColor.under(o) == false
+    and entries.mineColor.under(o) == false, '| Your Color', table.concat(o.style.mineColor, ','))
 
 -- what the module says of each status: 40 exact, 33 an estimate, 4 not known, 253 nothing written
-local said = { [40] = { '1m', false }, [33] = { '30m', true }, [4] = { '-', true } }
+local said = { [40] = { '1m', false }, [33] = { '30m', true }, [4] = { '-', true }, [41] = { '2m', true, true } }
 local asked = {}
 statustimes.Text = function(serverId, id, nth)
     asked[#asked + 1] = ('%s:%d:%d'):format(tostring(serverId), id, nth or 0)
     local entry = said[id]
-    if entry then return entry[1], entry[2] end
+    if entry then return entry[1], entry[2], entry[3] end
     return nil
 end
 
@@ -74,6 +75,13 @@ local colours = {}
 for _, pair in ipairs(found) do colours[pair.text.words] = pair.text.color end
 H.print('exact in the text colour, estimates and - in Estimate Color', colours['1m'] ~= style.estimateColor,
     colours['30m'] == style.estimateColor, colours['-'] == style.estimateColor)
+-- 41 cast by the player: Your Color, an estimate or not
+member.statusIds = { 40, 41 }
+paint()
+colours = {}
+for _, pair in ipairs(under()) do colours[pair.text.words] = pair.text.color end
+H.print('one you cast: Your Color', colours['2m'] == style.mineColor, colours['1m'] ~= style.mineColor)
+member.statusIds = { 40, 33, 4, 253 }
 local _, timedHeight = frames.FullSize(6, 'party', style)
 H.print('room made under the row', timedHeight > plainHeight, plainHeight, timedHeight)
 

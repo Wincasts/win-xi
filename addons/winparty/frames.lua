@@ -728,6 +728,7 @@ end
 -- what a made-up member's icons have under them, and whether each is an estimate
 local SAMPLE_TEXT = { '25m', '2m', '45', statustimes.Unknown }
 local SAMPLE_ESTIMATE = { true, true, false, true }
+local SAMPLE_MINE = { false, true, false, false } -- and whether each is one you cast
 local seenOfId = { } -- how many of each status this member has had drawn, for the player's own repeats
 
 -- A member's buffs, running leftwards: the first has its right edge at x
@@ -766,17 +767,21 @@ local function DrawBuffs(member, x, StatusTexture)
             if direction == 'left' then x = x - width end
             Image(texture, x, y, width, size, nil, nil, own and statusicons.OwnRight or nil, own and statusicons.OwnLeft or nil)
             if durationFont then
-                local text, estimate
+                local text, estimate, mine
                 if sample then
-                    text, estimate = SAMPLE_TEXT[shown % #SAMPLE_TEXT + 1], SAMPLE_ESTIMATE[shown % #SAMPLE_TEXT + 1]
+                    local which = shown % #SAMPLE_TEXT + 1
+                    text, estimate, mine = SAMPLE_TEXT[which], SAMPLE_ESTIMATE[which], SAMPLE_MINE[which]
                 else
                     local nth = (seenOfId[id] or 0) + 1
                     seenOfId[id] = nth
-                    text, estimate = statustimes.Text(serverId, id, nth)
+                    text, estimate, mine = statustimes.Text(serverId, id, nth)
                 end
                 if text then
-                    -- its middle under the icon's
-                    Write(text, x + width / 2, y + size, estimate and (activeStyle.estimateColor or textColor) or textColor,
+                    -- its middle under the icon's: yours in Your Color, then an estimate in Estimate Color
+                    local color = textColor
+                    if mine then color = activeStyle.mineColor or textColor
+                    elseif estimate then color = activeStyle.estimateColor or textColor end
+                    Write(text, x + width / 2, y + size, color,
                         DurationWidth(text, durationFont, activeStyle.valueFont) / 2)
                 end
             end

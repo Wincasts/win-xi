@@ -235,6 +235,9 @@ local extra = {
         { kind = 'color', key = 'estimateColor', label = 'Estimate Color', default = { 1, 0.82, 0.35, 1 },
           under = function(saved) return saved.style.showDurations[1] end,
           sentence = 'The colour of estimated durations and -.' },
+        { kind = 'color', key = 'mineColor', label = 'Your Color', default = { 0.45, 1, 0.55, 1 },
+          under = function(saved) return saved.style.showDurations[1] end,
+          sentence = 'The colour of durations of statuses you cast, so you can see when someone else\'s replaces yours.' },
     },
     Pets = {
         { kind = 'slider', key = 'reserve', label = 'Reserved Pet Rows', default = 2, min = 1, max = 6,
@@ -258,7 +261,7 @@ local groups = {
         { 'Appearance', 'scale', 'barShadows' },
         { 'Names', 'nameFont', 'nameSize', 'zoneAbbr' },
         { 'Values', 'valueFont', 'valueSize', 'showMp', 'showTp' },
-        { 'Status Display', 'showStatuses', 'buffSize', 'buffSpacing', 'buffDistance', 'buffLimit', 'buffRows', 'buffDirection', 'buffFitScreen', 'buffOverflow', 'showDurations', 'durationSize', 'estimateColor', statuses = true },
+        { 'Status Display', 'showStatuses', 'buffSize', 'buffSpacing', 'buffDistance', 'buffLimit', 'buffRows', 'buffDirection', 'buffFitScreen', 'buffOverflow', 'showDurations', 'durationSize', 'estimateColor', 'mineColor', statuses = true },
         { 'Status Filtering', 'debuffsFirst', 'priorityStatuses', 'hiddenStatuses', statuses = true },
         { 'Warnings', 'lowHp', 'tpFlash', 'tpColor' },
         { 'Advanced: Range Indicators', 'castRange', 'targetRange', 'nearOpacity', 'farOpacity', collapsed = true },
@@ -652,6 +655,7 @@ function options.Style(saved)
     style.buffDirection = kept.buffDirection
     style.showDurations = kept.showDurations[1] == true
     style.durationSize, style.estimateColor = kept.durationSize[1], kept.estimateColor
+    style.mineColor = kept.mineColor
     style.nameChars, style.trimLast, style.showJobs = nil, nil, false
     return style
 end
