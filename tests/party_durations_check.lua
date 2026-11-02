@@ -1,5 +1,6 @@
 -- winparty's Show Durations: the time left written under each status icon, its middle under the icon's,
--- an estimate in Estimate Color, and room made for it under the row
+-- an estimate in Estimate Color; the icon smaller, so icon and time fit the room the icon had, and the
+-- rows as tall as without
 H.load()
 local o = H.options()
 local options, frames, draw, imgui = require('options'), require('frames'), require('draw'), require('imgui')
@@ -54,6 +55,7 @@ end
 
 paint()
 local _, plainHeight = frames.FullSize(6, 'party', style)
+local plainTop, plainFoot = icons[1].y1, icons[1].y2
 H.print('off: nothing under the icons, nothing asked', #under() == 0, #asked == 0)
 
 o.style.showDurations[1] = true
@@ -83,7 +85,10 @@ for _, pair in ipairs(under()) do colours[pair.text.words] = pair.text.color end
 H.print('one you cast: Your Color', colours['2m'] == style.mineColor, colours['1m'] ~= style.mineColor)
 member.statusIds = { 40, 33, 4, 253 }
 local _, timedHeight = frames.FullSize(6, 'party', style)
-H.print('room made under the row', timedHeight > plainHeight, plainHeight, timedHeight)
+H.print('the windows no taller', timedHeight == plainHeight, plainHeight, timedHeight)
+local iconTall, textTall = icons[1].y2 - icons[1].y1, (plainFoot - plainTop) - (icons[1].y2 - icons[1].y1)
+H.print('the icon smaller, from the same top; it and the time as tall as the icon was', icons[1].y1 == plainTop,
+    iconTall < plainFoot - plainTop, math.abs(textTall - iconTall * o.style.durationSize[1] / 100) <= 1, iconTall, textTall)
 
 -- the player's own repeats: each asked for by its place among its kind
 member.statusIds = { 214, 214 }
@@ -108,5 +113,9 @@ local lowestText = 0
 for _, pair in ipairs(under()) do if pair.icon.y2 == firstFoot then lowestText = math.max(lowestText, pair.text.y + 1) end end
 H.print('two rows: the second starts below the first\'s durations', icons[#icons].y1 > firstFoot + 1, icons[#icons].y1 - firstFoot)
 local _, twoRows = frames.FullSize(6, 'party', style)
-H.print('and has room for both', twoRows > timedHeight)
+o.style.showDurations[1] = false
+local untimed = options.Style(o)
+untimed.bookends, untimed.barGlow, untimed.buffDirection, untimed.buffFitScreen, untimed.buffRows, untimed.buffLimit = false, 0, 'right', false, 2, 4
+local _, twoRowsPlain = frames.FullSize(6, 'party', untimed)
+H.print('two rows as tall with durations as without', twoRows == twoRowsPlain, twoRows, twoRowsPlain)
 o.style.showDurations[1] = false

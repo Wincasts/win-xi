@@ -205,19 +205,20 @@ local outlined = true     -- whether the names and figures have winxi's dark edg
 local nameChars = nil     -- how much of a name is written, where it is not the layout's own
 local activeStyle = {}
 local rowHeight = layout.rowHeight
--- How tall the durations under the status icons are, in the layout's units, for icons size tall: 0 when
--- none are written
-local function DurationHeight(style, size)
-    if not style.showDurations then return 0 end
-    return math.floor(size * (tonumber(style.durationSize) or 45) / 100 + 0.5)
+-- The room a status icon has, size tall in the layout's units, shared between the icon and the
+-- duration under it: how tall each is, the duration Duration Text Size of the icon. The rows are as tall
+-- with durations as without: the icons are smaller. The duration 0 when none are written.
+local function DurationSplit(style, size)
+    if not style.showDurations then return size, 0 end
+    local icon = math.floor(size * 100 / (100 + (tonumber(style.durationSize) or 45)) + 0.5)
+    return icon, size - icon
 end
 local function RowHeight(style, kind)
     if kind == 'party' or kind == 'target' then
         local size = layout.buffs.size * (style.buffSize or 100) / 100
         local rows = math.max(1, math.min(2, style.buffRows or 1))
-        local text = DurationHeight(style, size)
-        if rows > 1 or text > 0 then
-            return math.max(layout.rowHeight, layout.buffs.y + rows * (size + text) + (rows - 1) * 2 + 3)
+        if rows > 1 then
+            return math.max(layout.rowHeight, layout.buffs.y + rows * size + (rows - 1) * 2 + 3)
         end
     end
     return layout.rowHeight
@@ -736,8 +737,10 @@ local function DrawBuffs(member, x, StatusTexture)
     if member.statusIds == nil or StatusTexture == nil then return end
     local ids = statuses.Select(member.statusIds, activeStyle)
     local buffs = layout.buffs
-    local size = buffs.size * buffScale
-    local y = buffs.y + (buffs.size - size) / 2
+    local room = buffs.size * buffScale
+    local y = buffs.y + (buffs.size - room) / 2
+    -- the icon and the duration under it share the room an icon has without one
+    local size, textTall = DurationSplit(activeStyle, room)
     local windowLeft = imgui.GetWindowPos()
     local windowWidth = imgui.GetWindowSize()
     local distance = buffs.gap + (tonumber(activeStyle.buffDistance) or 0) * scale
@@ -749,7 +752,6 @@ local function DrawBuffs(member, x, StatusTexture)
     local iconCapacity = capacity
     if activeStyle.buffOverflow ~= false and #ids > capacity then iconCapacity = math.max(0, capacity - 1) end
     -- the durations under the icons, in the figures' font, as tall as Duration Text Size says
-    local textTall = DurationHeight(activeStyle, size)
     local durationFont = textTall > 0 and FontSize(textTall) or nil
     local serverId = member.statusServerId or member.serverId
     local sample = type(serverId) == 'number' and serverId < 0

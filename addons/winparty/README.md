@@ -73,7 +73,7 @@ calls per category; averages and maxima cover the full interval.
   the status was seen to land, or to appear on the member, for the server's usual time. Where that cannot
   be known, `-` is written. Statuses you cast are written in **Your Color** (green by default), so you can
   see when someone else's replaces yours. **Duration Text Size** sets how tall the times are next to the
-  icons, and each row grows to make room for them.
+  icons. The windows stay the same size: the icons get smaller to make room for the times under them.
 - **Party → Casting → Show Cast Bars**, on by default: while a member of your party or the alliance casts a
   spell, their HP bar fills as the cast goes, in a pale blue, their name is the spell's, and the time
   left is written where their HP was. The casts are seen in the action packets (winxi.castbar, as name's
