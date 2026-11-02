@@ -3,6 +3,9 @@
 --     pets.Lines(sample, settings)     the lines, the player's own first; settings are the pets' own
 --     pets.HandlePacket(e)             every packet in goes by this while pets are listed
 --
+-- Each line has the pet's server id as statusServerId, for its statuses: the game keeps none for a pet,
+-- so what is shown is what winxi.debuffs saw land on it.
+--
 -- A pet's HP is known as a percentage. Only its owner is told its MP and TP, so another member's pet
 -- has an HP bar alone; and only a puppetmaster is told their automaton's HP and MP as figures.
 --
@@ -65,6 +68,7 @@ end
 ---@field tp       integer? only known for the player's own pet
 ---@field hp       integer? exact HP, shown in place of the percentage when known
 ---@field mp       integer? exact MP, shown in place of the percentage when known
+---@field serverId integer? the pet's server id, for what is seen to land on it; nil for a made-up one
 
 -- The entity of the pet belonging to the entity at ownerIndex, if it has one the client knows about
 local function GetPetEntity(ownerIndex)
@@ -96,6 +100,7 @@ local function Info(place)
         infos[place] = info
     end
     info.name, info.owner, info.hpp, info.mpp, info.tp, info.hp, info.mp = nil, nil, nil, nil, nil, nil, nil
+    info.serverId = nil
     return info
 end
 
@@ -109,7 +114,7 @@ local function GetOwnPet(settings, place)
 
     local player = AshitaCore:GetMemoryManager():GetPlayer()
     local pet = Info(place)
-    pet.name, pet.hpp = entity.Name, entity.HPPercent
+    pet.name, pet.hpp, pet.serverId = entity.Name, entity.HPPercent, entity.ServerId
     pet.mpp, pet.tp = player:GetPetMPPercent(), player:GetPetTP()
 
     -- Exact HP and MP are only known for a puppetmaster's automaton
@@ -129,7 +134,7 @@ local function AddPartyPets(list)
             local entity = GetPetEntity(party:GetMemberTargetIndex(i))
             if entity ~= nil then
                 local pet = Info(#list + 1)
-                pet.name, pet.owner, pet.hpp = entity.Name, party:GetMemberName(i), entity.HPPercent
+                pet.name, pet.owner, pet.hpp, pet.serverId = entity.Name, party:GetMemberName(i), entity.HPPercent, entity.ServerId
                 list[#list + 1] = pet
             end
         end
@@ -216,6 +221,8 @@ function pets.Lines(sample, settings)
             end
         end
         line.serverId = -(1000 + index)
+        -- what is seen to land on it goes by its own server id; a made-up pet has none, and sample statuses
+        line.statusServerId = (info.serverId ~= nil and info.serverId ~= 0) and info.serverId or nil
         line.hp, line.mp, line.mpp, line.tp = info.hp, info.mp, info.mpp, info.tp
 
         -- HP as a percentage unless the figure itself is known, and MP the same

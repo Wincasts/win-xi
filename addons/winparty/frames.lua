@@ -214,7 +214,7 @@ local function DurationSplit(style, size)
     return icon, size - icon
 end
 local function RowHeight(style, kind)
-    if kind == 'party' or kind == 'target' then
+    if kind == 'party' or kind == 'target' or kind == 'pets' then
         local size = layout.buffs.size * (style.buffSize or 100) / 100
         local rows = math.max(1, math.min(2, style.buffRows or 1))
         if rows > 1 then
@@ -847,7 +847,7 @@ local function LineHeight(member, kind, showMp, showTp)
         end
     end
 
-    if kind == 'party' or kind == 'target' then bottom = math.max(bottom, rowHeight > layout.rowHeight and rowHeight - 1.2 or 0) end
+    if kind == 'party' or kind == 'target' or kind == 'pets' then bottom = math.max(bottom, rowHeight > layout.rowHeight and rowHeight - 1.2 or 0) end
     return math.min(rowHeight, bottom + 1.2)
 end
 
@@ -1141,8 +1141,9 @@ function frames.Draw(members, kind, StatusTexture, style)
                 draw.Packed(textColor, 1), words, outlineEdge, dark)
         end
         imgui.PopFont()
-    -- Otherwise only the player's own party shows buffs, and targets their debuff icons.
-    elseif kind == 'party' or kind == 'target' then
+    -- Otherwise only the player's own party shows buffs, targets their debuff icons, and pets what was
+    -- seen to land on them.
+    elseif kind == 'party' or kind == 'target' or kind == 'pets' then
         local buffsX = (imgui.GetWindowPos() - layout.buffs.gap - itemX) / scale - (tonumber(style.buffDistance) or 0)
         for index = 1, count do
             if lineStates[index].inZone then

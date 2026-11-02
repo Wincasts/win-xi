@@ -88,6 +88,9 @@ local drawing = { list = 1, sample = false, pets = nil }
 local partyCursor = nil
 local rearranging = false
 
+-- Paralyze, Slow and Dia, to show where a target's or a made-up pet's statuses go
+local sampleStatuses = { 4, 13, 134 } -- Paralyze, Slow and Dia, to show where they go
+
 local function DrawPartyContent()
     local own = drawing.list == 1
     local members = roster.Members(drawing.list, drawing.sample, saved.party.sortByRole[1] and not rearranging and not nativeBehaviorGroups.party, partyCursor)
@@ -114,7 +117,19 @@ local function DrawPartyContent()
         imgui.Separator()
         imgui.SetCursorPosY(imgui.GetCursorPosY() + room)
         style.showJobs = false
-        frames.Draw(petLines, 'pets', nil, style)
+        -- their statuses: what was seen to land on each, a made-up pet's the samples
+        local showStatuses = saved.style.showStatuses[1]
+        for _, line in ipairs(petLines) do
+            if not showStatuses then
+                line.statusIds = nil
+            elseif line.statusServerId ~= nil then
+                line.petStatuses = line.petStatuses or { }
+                line.statusIds = debuffs.Ids(line.statusServerId, line.petStatuses)
+            else
+                line.statusIds = drawing.sample and sampleStatuses or nil
+            end
+        end
+        frames.Draw(petLines, 'pets', showStatuses and roster.StatusTexture or nil, style)
     end
 
     -- an invitation waiting for an answer, and anything in the treasure pool, have icons beside the
@@ -138,11 +153,20 @@ end
 -- its buffs beside it, and has the pets under it. The other two grow downwards.
 local partyWindows = { windows.List.party1, windows.List.party2, windows.List.party3 }
 
+-- Whether a real pet was listed when the party was last drawn: what lands is followed for its statuses
+local petsListed = false
+
 local function DrawParty(list, sample)
     drawing.list, drawing.sample = list, sample
     drawing.pets = nil
-    if list == 1 and saved.pets.enabled[1] then
-        drawing.pets = pets.Lines(sample, saved.pets)
+    if list == 1 then
+        petsListed = false
+        if saved.pets.enabled[1] then
+            drawing.pets = pets.Lines(sample, saved.pets)
+            for _, line in ipairs(drawing.pets) do
+                if line.statusServerId ~= nil then petsListed = true end
+            end
+        end
     end
     windows.Draw(partyWindows[list], DrawPartyContent, nil, list == 1 and 'BottomLeft' or nil)
 end
@@ -181,7 +205,6 @@ local targetKeys = { 'main', 'sub', 'tot' }
 local drawingKey, drawingEntity, drawingIndex = nil, nil, nil
 
 local targetStatuses = { }
-local sampleStatuses = { 4, 13, 134 } -- Paralyze, Slow and Dia, to show where they go
 
 local function DrawTargetContent()
     local showDebuffs = saved.target[drawingKey .. 'Debuffs'][1]
@@ -279,8 +302,9 @@ end
 local tracking = false
 local function UpdateTracking()
     -- the durations under the party's icons are estimated from what is seen to land on them
+    -- and the statuses of a pet listed are what is seen to land on it
     local wanted = (saved.target.enabled[1] and ShowsDebuffs()) or saved.target.debuffList[1]
-        or (saved.style.showStatuses[1] and saved.style.showDurations[1])
+        or (saved.style.showStatuses[1] and (saved.style.showDurations[1] or (saved.pets.enabled[1] and petsListed)))
     if wanted ~= tracking then
         require('winxi.debuffs').Clear()
         tracking = wanted

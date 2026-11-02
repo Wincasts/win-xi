@@ -42,7 +42,12 @@ the compact one of the Windower addon [XivParty](https://github.com/Tylas11/XivP
   **Lock-On Brackets** (Target tab → Lock-On, on to begin with) stand a [ and a ] outside the left and right
   of the main target's window while you are locked on to it. They enclose its frame without touching it, as the game frames its own target. They are drawn in the **Bracket
   Color** (white to begin with) with the theme's Text Outline.
-- **Pets**: your pet, and your party members' pets, listed under your party below a line.
+- **Pets**: your pet, and your party members' pets, listed under your party below a line. With
+  Show Statuses on, each pet has its statuses beside it, as your party's are. The game doesn't say what
+  is on a pet, so these are the ones seen to land on it in the battle messages. With Show Durations on,
+  each has an estimated time under it, and those you cast are in Your Color. When a monster's debuff
+  wears off a pet nobody is told, so its icon stays until its usual time runs out. Removing it with a
+  spell is seen.
 
 ## usage
 `/winparty` (or `/pt`, or `/xif`) opens the settings. `/party` is left alone for the game's own party chat;
