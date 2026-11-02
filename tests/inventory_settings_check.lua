@@ -37,7 +37,7 @@ o.isVisible[1], o.fadeInOut[1], o.controller[1], o.treasurePool[1] = false, fals
 H.command('/winventory')
 frame(1)
 check('settings tabs ordered General, Inventory, Treasure, Equipment, Visibility', table.concat(tabs, ',') == 'General,Inventory,Treasure,Equipment,Visibility')
-check('General sections ordered Window, Controller; the hiding rules on the Visibility tab', table.concat(headers, ',') == 'Window,Controller')
+check('General sections ordered Window, Tooltips, Controller; the hiding rules on the Visibility tab', table.concat(headers, ',') == 'Window,Tooltips,Controller')
 check('the Window section: shown, pinned, where, growth (Lock a row of its own; fading on the Visibility tab)', table.concat(labels, ',', 1, 4)
     == 'Visible,Pin Inventory,Position,Growth Anchor')
 check('the inventory window has its pin', hasLabel('Pin Inventory'))

@@ -34,6 +34,7 @@ local window = require('winxi.window')
 local fade = require('winxi.fade')
 local widgets = require('winxi.widgets')
 local tooltip = require('winxi.tooltip')
+local tipwindow = require('tipwindow') -- tooltips go to the Tooltip Window when it is on
 local packets = require('winxi.packets')
 local controller = require('winxi.controller')
 local sound = require('winxi.sound')
@@ -280,9 +281,9 @@ local function DrawContent()
             Write(item, item.name)
             if imgui.IsItemHovered() then
                 if item.winner ~= nil then
-                    tooltip.Show(('%s\nBest lot: %s, by %s'):format(item.name, item.winnerLotText, item.winner))
+                    tipwindow.Show(('%s\nBest lot: %s, by %s'):format(item.name, item.winnerLotText, item.winner))
                 else
-                    tooltip.Show(('%s\nNo one has lotted yet.'):format(item.name))
+                    tipwindow.Show(('%s\nNo one has lotted yet.'):format(item.name))
                 end
             end
 

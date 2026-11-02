@@ -21,6 +21,7 @@ local window = require('winxi.window')
 local style = require('winxi.style')
 local widgets = require('winxi.widgets')
 local tooltip = require('winxi.tooltip')
+local tipwindow = require('tipwindow') -- tooltips go to the Tooltip Window when it is on
 local itemicons = require('winxi.itemicons')
 local text = require('winxi.text')
 local fade = require('winxi.fade')
@@ -293,7 +294,7 @@ local function DrawContent()
                 text = text .. '\nStored in: ' .. (wardrobe and ('Wardrobe ' .. wardrobe) or 'Inventory')
             end
             if bit.band(encumbered, bit.lshift(1, slot[1])) ~= 0 then text = text .. '\nEncumbered' end
-            tooltip.Show(text)
+            tipwindow.Show(text)
         end
     end
     pad.shown = true

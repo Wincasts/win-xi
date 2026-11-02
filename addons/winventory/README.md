@@ -32,6 +32,18 @@ and down. **Top Right** grows left and down, **Bottom Left** grows right and up,
 grows left and up. Changing the anchor does not move the window. Unlocking brings back the normal
 top-left growth, so you can move it freely.
 
+**Tooltips**, in General, puts what winventory says of things in a window of its own, placed where
+you want it. With **Tooltip Window** on (it is off by default), an item's details (its name, slot and
+races, stats and description, level and jobs), a treasure pool line's best lot and an equipment slot's
+gear show there, for whatever is under the mouse or the controller's highlight, in place of the tooltip
+beside the mouse and the box beside the highlight. That keeps the grid clear while you work it with a
+controller; **Controller Item Info** is then greyed, as the window always shows everything. Drag the
+window to place it, or set **Tooltip Position X** and **Y**. While the settings are open it shows a sample, so you
+can place it with nothing selected. **Lock Tooltip Window** holds it still and lets clicks through it.
+**Grow From** is the corner that stays put as the window changes size with what it says: place it at
+the bottom right of the screen with Bottom Right, and it grows up and left. The window is held for a
+moment as the mouse goes from one item to the next, so it does not blink.
+
 While the window is locked, you can drag items with the mouse. Drop an item on another item of the
 tab to swap their places (your own order, as the controller's Manual sort makes it; Auto sort puts
 the usual order back). Drop it on another tab's name at the top to move it into that tab's bags: the

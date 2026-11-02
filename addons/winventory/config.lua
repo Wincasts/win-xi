@@ -12,6 +12,7 @@ local tooltip = require('winxi.tooltip')
 local shell = require('winxi.shell')
 local anchor = require('winxi.anchor')
 local currency = require('currency')
+local tipwindow = require('tipwindow')
 
 local config = { tabGroups = { }, tabNames = { } }
 local windowName = 'winxi.inventory'
@@ -31,6 +32,9 @@ local cycleSpec = { parent = true }
 
 -- The inventory's own controller settings, between the sounds and the kind of controller
 local function DrawControllerSettings(options)
+    -- with the Tooltip Window on, what is said of the highlighted item is said there, all of it
+    local inWindow = options.tooltipWindow[1] == true
+    imgui.BeginDisabled(inWindow)
     widgets.Label('Controller Item Info')
     local verbose = options.controllerInfo == 'verbose'
     local simple, chose = Choice('Simple##inv.controllerInfo', not verbose, 'Verbose##inv.controllerInfo')
@@ -43,6 +47,10 @@ local function DrawControllerSettings(options)
             'Under Item##inv.controllerInfoPlace')
         if window then options.controllerInfoPlace = 'window' elseif item then options.controllerInfoPlace = 'item' end
         tooltip.Hover('Where the verbose box goes: under the inventory window (or the equipment monitor under it), in line with its left edge, or under the highlighted item.')
+    end
+    imgui.EndDisabled()
+    if inWindow then
+        widgets.Note('The Tooltip Window (Tooltips, above) shows all there is to say of the highlighted item.')
     end
 
     widgets.Check('Cycle Treasure Pool', 'Y (triangle) moves the controller to the treasure pool while there is treasure, to lot and pass.',
@@ -78,6 +86,8 @@ function config.General(options)
         end
         tooltip.Hover('The corner that stays fixed while the locked inventory window changes size.\nTop Left: grows right and down. Top Right: grows left and down.\nBottom Left: grows right and up. Bottom Right: grows left and up.\nUnlock the window to move it; Position still moves it while locked.')
     end
+
+    tipwindow.DrawSettings(options)
 
     if widgets.Header('Controller') then
         shell.ControllerSettings(options, controllerTip, DrawControllerSettings)

@@ -2,6 +2,7 @@
 
 ## 1.2
 
+- **Tooltips** (General, a section of its own): **Tooltip Window** (off) shows an item's details, a treasure pool line's best lot and an equipment slot's gear in a winxi window of their own, for what is under the mouse or the controller's highlight, in place of the tooltip beside the mouse and the box beside the highlight; Controller Item Info is greyed while it is on. **Tooltip Position X** and **Y** (or drag the window), **Lock Tooltip Window** (held still, clicks go through) and **Grow From** (the corner that stays put as it changes size). A sample shows while the settings are open, to place it by.
 - Renamed winventory: the addon is `winventory` (`addons\winventory`, `/addon load winventory`), its settings window winventory Settings and its command `/winventory`, with `/inventory` and `/inv` kept as other ways in. Each character's settings are brought over the first time it logs in, from `config\addons\inventory` where it has them, otherwise from `config\addons\inv` (winxi.shell's formerName, now a list). Remove the old `addons\inventory` folder.
 - `/winventory help` lists the commands. `/winventory config` is gone: `/winventory` alone opens the settings, and any other word after it only says so. `toggle` and `focus` are as they were.
 - The treasure pool's Lot and Pass buttons no longer have their labels made afresh each frame.

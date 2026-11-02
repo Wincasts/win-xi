@@ -43,6 +43,7 @@ local sound = require('winxi.sound')
 local itemicons = require('winxi.itemicons')
 local tabs = require('winxi.tabs')
 local pool = require('pool')
+local tipwindow = require('tipwindow') -- the Tooltip Window, where tooltips go when it is on
 local equipment = require('equipment')
 local config = require('config')
 local currency = require('currency')
@@ -1467,7 +1468,11 @@ function cycle.EndFrame()
         local item = pool.Highlighted()
         local x, y = pool.Place()
         if item ~= nil and x ~= nil then
-            controller.Label(cycle.TreasureLabel(item), x, y, true)
+            if tipwindow.On() then
+                tipwindow.Offer(cycle.TreasureLabel(item))
+            else
+                controller.Label(cycle.TreasureLabel(item), x, y, true)
+            end
         end
         return
     end
@@ -1480,6 +1485,8 @@ function cycle.EndFrame()
     end
     if pad.menu ~= nil then
         pad.menu:Draw(x + size + 8, y)
+    elseif tipwindow.On() then
+        tipwindow.Offer(cycle.EquipmentLabel(slotName, worn, encumbered))
     else
         controller.Label(cycle.EquipmentLabel(slotName, worn, encumbered), x, y + size + 3 + labelGap, true)
     end
@@ -1549,7 +1556,10 @@ local function PadEndFrame()
         local item = pad.grid.count > 0 and pad.items[pad.grid.cursor] or nil
         local x, y = pad.grid:Position()
         if item ~= nil and x ~= nil then
-            if pad.options.controllerInfo == 'verbose' then
+            if tipwindow.On() then
+                -- all there is to say of it, in the Tooltip Window, where the player put it
+                tipwindow.Offer(DrawVerbose, item)
+            elseif pad.options.controllerInfo == 'verbose' then
                 infoItem = item
                 if pad.options.controllerInfoPlace == 'item' or pad.below == nil then
                     controller.Label(DrawInfoBox, x, y + iconSize + 3 + labelGap, true, item.uniqueId)
@@ -2045,7 +2055,11 @@ local function FinishTab(group, unified)
         imgui.GetWindowDrawList():AddRectFilled(scrollBar.min, scrollBar.max, imgui.GetColorU32(color), 1)
     end
     if hoveredItem ~= nil and not itemMenu.open and not drag.moving then
-        AddTooltip(hoveredItem)
+        if tipwindow.On() then
+            tipwindow.Offer(DrawVerbose, hoveredItem)
+        else
+            AddTooltip(hoveredItem)
+        end
     end
     DrawItemMenu()
     DrawCountsRow(group, unified)
@@ -2290,6 +2304,10 @@ local defaults = T{
     controllerSounds = T{ false }, -- sounds as the controller works the window
     controllerInfo = 'simple', -- what is said of the highlighted item: 'simple' or 'verbose'
     controllerInfoPlace = 'window', -- where the verbose box goes: under the 'window' or the 'item'
+    tooltipWindow = T{ false }, -- the tooltips in a window of their own (tipwindow.lua), in place of beside the mouse or the highlight
+    tooltipPos = T{ 700, 256 }, -- where it is: the place of the corner it grows from
+    tooltipLock = T{ false },   -- it cannot be dragged, and clicks go through it
+    tooltipGrowFrom = 'TopLeft', -- the corner held still as it changes size
     controllerType = 'auto', -- which kind: Automatic (the game's own setting) or a key of winxi.controller's Layouts
     cycleTreasure = T{ true }, -- Y takes the controller to the treasure pool, while there is treasure
     cycleEquipment = T{ true }, -- and to the equipment monitor, while it is shown
@@ -2435,6 +2453,7 @@ ashita.events.register('d3d_present', 'inv_present', function()
         return
     end
     local options = app.options
+    tipwindow.Begin(options, app.showConfig[1])
 
     -- Give combat gear changes first access to the icon upload budget and read them before
     -- any debounced bag scans/sorting. Equipment never waits for inventory packets to settle.
@@ -2499,4 +2518,5 @@ ashita.events.register('d3d_present', 'inv_present', function()
     end
     pool.Draw(options, attached.pool, shown)
     PadEndFrame()
+    tipwindow.Draw()
 end)
