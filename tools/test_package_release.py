@@ -1,7 +1,8 @@
 from pathlib import Path
 import unittest
 
-from package_release import ROOT, RELEASES, data_sets, plugin_version, stage_notes, staged, winxi_data, winxi_modules
+import package_release
+from package_release import ROOT, RELEASES, data_sets, plugin_version, released, stage_notes, staged, winxi_data, winxi_modules
 
 
 class PluginVersionTests(unittest.TestCase):
@@ -25,6 +26,20 @@ class StageTests(unittest.TestCase):
         self.assertEqual(stage_notes('1.86', '1.86', 'name'), '')
         self.assertTrue(stage_notes('1.86-pre1', '1.86', 'name').startswith('**Pre-release pre1 of name 1.86**'))
         self.assertTrue(stage_notes('0.94-rc1', '0.94', 'lens').startswith('**Release candidate rc1 of lens 0.94**'))
+
+
+class ReleasedTests(unittest.TestCase):
+    def test_releases_under_a_former_name_count(self):
+        # winplates was name: its releases are name's tags as well as its own, less tests and stages
+        tags = {'winplates-v*': 'winplates-v1.91-pre1\n', 'name-v*': 'name-v1.32\nname-v1.64\nname-v1.86-pre1\nname-v1.70-test\n',
+                'zone-v*': 'zone-v2.9\nzone-v2.11-pre1\n'}
+        real = package_release.git
+        package_release.git = lambda *args, **kw: tags.get(args[-1], '')
+        try:
+            self.assertEqual(released('winplates'), ['1.32', '1.64'])
+            self.assertEqual(released('zone'), ['2.9'])
+        finally:
+            package_release.git = real
 
 
 class DataSetTests(unittest.TestCase):

@@ -14,7 +14,7 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from package_release import RELEASES, REPOSITORY, ROOT
+from package_release import FORMER, RELEASES, REPOSITORY, ROOT
 
 # One plain line each, for the page
 WHAT = {
@@ -36,10 +36,6 @@ WHAT = {
 
 def gh(*args):
     return json.loads(subprocess.check_output(['gh', *args, '-R', REPOSITORY]))
-
-# An addon's name before it was renamed, for the releases made under it
-FORMER = {'winplates': 'name', 'winchat': 'chatbox', 'winparty': 'party', 'winbuff': 'buff'}
-
 
 def carries(extras):
     if extras.get('kind') == 'plugin':

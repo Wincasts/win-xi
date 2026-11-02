@@ -155,10 +155,15 @@ def stage_notes(version, base, title):
             f'The release notes below are those {base} will carry.\n\n')
 
 
+# An addon's name before it was renamed, for the releases made under it (write_downloads reads it too)
+FORMER = {'winplates': 'name', 'winchat': 'chatbox', 'winparty': 'party', 'winbuff': 'buff'}
+
+
 def released(addon):
-    """The versions released before, from the repository's tags: <addon>-v<version>; not tests,
-    pre-releases or release candidates."""
-    return [tag[len(addon) + 2:] for tag in git('tag', '-l', f'{addon}-v*').split()
+    """The versions released before, from the repository's tags: <addon>-v<version>, and the same under
+    the addon's former name where it had one; not tests, pre-releases or release candidates."""
+    names = [addon] + ([FORMER[addon]] if addon in FORMER else [])
+    return [tag[len(name) + 2:] for name in names for tag in git('tag', '-l', f'{name}-v*').split()
             if not re.search(r'-(test|pre\d+|rc\d+)', tag)]
 
 
