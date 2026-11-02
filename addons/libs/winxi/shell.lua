@@ -31,7 +31,8 @@
 --         onSettings  = function(options) ... end,      -- optional: the settings have been loaded, or swapped for another character's
 --         toggleSays  = { shown = '...', hidden = '...' },   -- optional: said in the chat log as the command shows or hides the window
 --         import      = { tool = 'example', keys = { 'isVisible', 'pos' } },   -- optional: bring these over from xitools, once
---         formerName  = 'ex',                    -- optional: the addon's name before it was renamed: its settings
+--         formerName  = 'ex',                    -- optional: the addon's name before it was renamed (or a list of them,
+--                                                --   newest first, the first with settings taken): its settings
 --                                                --   under that name are brought over, once for each character
 --     });
 --
@@ -99,7 +100,12 @@ local function Prepare(app)
     local former = app.spec.formerName;
     if former ~= nil and not options.importedFromFormer and settings.logged_in then
         options.importedFromFormer = true;
-        local saved = legacy.ReadSettings(former);
+        -- a list of names, renamed more than once: the first that has settings, newest first
+        local saved = nil;
+        for _, name in ipairs(type(former) == 'table' and former or { former }) do
+            saved = legacy.ReadSettings(name);
+            if saved ~= nil then former = name; break; end
+        end
         if saved ~= nil then
             for key, value in pairs(saved) do
                 if key ~= 'importedFromFormer' then

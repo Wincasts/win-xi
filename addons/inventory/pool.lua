@@ -237,6 +237,12 @@ end
 
 local lotWidth, timeWidth, passWidth = nil, nil, nil
 
+-- Each slot's Lot and Pass buttons' labels (the pool has ten, 0 to 9), made once rather than every frame
+local lotIds, passIds = {}, {}
+for slot = 0, 9 do
+    lotIds[slot], passIds[slot] = ('Lot##inv.pool.lot%d'):format(slot), ('Pass##inv.pool.pass%d'):format(slot)
+end
+
 local function DrawContent()
     if lotWidth == nil then
         lotWidth = imgui.CalcTextSize('Lot') + framePadding[1] * 2
@@ -298,13 +304,13 @@ local function DrawContent()
                 Write(item, item.lotText)
             elseif item.passed then
                 imgui.TextDisabled('-')
-            elseif imgui.SmallButton(('Lot##inv.pool.lot%d'):format(item.slot)) then
+            elseif imgui.SmallButton(lotIds[item.slot] or ('Lot##inv.pool.lot%d'):format(item.slot)) then
                 Lot(item)
             end
 
             imgui.TableNextColumn()
             MarkCell(i, 2, passWidth)
-            if not item.passed and imgui.SmallButton(('Pass##inv.pool.pass%d'):format(item.slot)) then
+            if not item.passed and imgui.SmallButton(passIds[item.slot] or ('Pass##inv.pool.pass%d'):format(item.slot)) then
                 Pass(item)
             end
         end
