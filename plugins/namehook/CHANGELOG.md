@@ -1,5 +1,9 @@
 # Changelog
 
+## namehook 1.54 — names kept out of lens's colour
+
+- While [lens](../lens) 0.95 colours the world (`/lens tone`) or shades it like a comic (`/lens comic`), each name, bubble, layer and damage number namehook draws into the world is drawn once more into lens's name mask (`NameMask` in the LENS-WARP block, `lens::NameMaskOf`): in white wherever it shows (its edges and shadow too), tested against the world's depth as it is, so a name behind a wall is not in the mask either. lens keeps those pixels as they were drawn, so names are not saturated, tinted or dotted. The device's render target, viewport, texture factor and the names' states are put back before the depth pass. Nothing changes without lens, with neither on, with a lens before 0.95, or where the picture is not the mask's size.
+
 ## namehook 1.53 — the game's own sizes unless told otherwise
 
 - Loaded with nothing asked of it, the plugin leaves names and damage numbers as the game draws them. `fontsize` and `damagefontsize` take 0, or `game`, for the game's own size, and that is the default now: what the client's code the size patches go over computed, from the client's own values and constants (read from that code as the patches go in), stretched as the game stretches it on a wide screen. A size that was saved stays; `/namehook fontsize 22` is what the plugin did before.
