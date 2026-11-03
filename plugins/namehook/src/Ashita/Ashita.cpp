@@ -979,7 +979,7 @@ void AshitaNameplate::RenderCustom(uint32_t slot, const HookDrawing& drawing, co
 }
 
 // lens's name mask (lens/src/shared.h NameMask): while lens colours the world (its tone or comic), what was
-// just drawn goes into it as well, in white where it shows at all (its edges too), tested against the
+// just drawn goes into it as well, in red where it shows at all (its edges too), tested against the
 // world's depth as it was, so lens keeps it as drawn: the letters keep their colour. Nothing without lens,
 // with neither on, or with a picture of another size than the mask's. The device's targets, viewport and
 // the states changed here are put back to the names' for the depth pass after.
@@ -1012,6 +1012,9 @@ void AshitaNameplate::DrawNameMask(IDirect3DDevice8* device, uint32_t runCount, 
         device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
         device->SetRenderState(D3DRS_ALPHATESTENABLE, TRUE);
         device->SetRenderState(D3DRS_ALPHAREF, 0x30);
+        // red alone (1.55): lens puts each character's number into green and blue under the names, and its
+        // silhouette would take a name's white for another character and line the character around it
+        device->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED);
         device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
         device->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TFACTOR);
         for (uint32_t i = 0; i < runCount; i++) {
@@ -1027,6 +1030,7 @@ void AshitaNameplate::DrawNameMask(IDirect3DDevice8* device, uint32_t runCount, 
         device->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
         device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
         device->SetRenderState(D3DRS_TEXTUREFACTOR, factor);
+        device->SetRenderState(D3DRS_COLORWRITEENABLE, 0x0F);
         device->SetRenderTarget(target, depth);
         device->SetViewport(&view);
     }
