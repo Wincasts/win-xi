@@ -25,5 +25,6 @@ A pooled block holds only the lights that existed when its slot was first create
 does not restore a light the game first touches later. The game sets every light it uses each frame,
 so nothing is seen of that.
 
-Load it before `d3dcount` if both are wanted; they patch the same device slots, and the later one
-has to be unloaded first. Found with [d3dcount](../d3dcount) and `tools/leakwatch.py`.
+Found with the d3dcount plugin and `tools/leakwatch.py`, both since retired to `archive/` (kept locally,
+not in the repository). If d3dcount is brought back, load blockpool first: they patch the same device
+slots, and the later one has to be unloaded first.

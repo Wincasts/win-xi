@@ -1,7 +1,8 @@
 # Native chat selection and expansion — 0.7, 0.8 and 0.9 implementation
 
 Static evidence from the unpacked Phoenix client captured 2026-10-15:
-`addons/codedump/ffximain.bin` in the local test install (image base 031C0000).
+`addons/codedump/ffximain.bin` from the local test install, kept since codedump's retirement under
+`deploy-backups/codedump/` (image base 031C0000).
 Addresses below are **disassembly evidence, never runtime constants**. Discovery uses
 unique byte patterns, in-module pointer checks and guarded live reads. Live GPU/interaction
 validation remains required.

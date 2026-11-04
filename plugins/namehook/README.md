@@ -328,7 +328,7 @@ none with the game's `/names` off. A drawing that does not hold together is refu
 In `winxi.layers`: `Take(owner, order)`, then every frame `Begin(layer, owner)` (the scale from the screen's pixels
 to the picture's, or nil once the layer is lost), `AtEntity(index, serverId, dx, dy, dz, alpha, edge, edgeColor,
 over)` or `AtWorld(x, y, z, ...)`, `Quad(...)` as `nameplates.Quad`, `End()`, `SetTexture(0 to 31, texture)`, and
-`Release(layer, owner)` on unload. `addons/namehooktest` shows a layer, the camera and a claim slot at the target.
+`Release(layer, owner)` on unload.
 
 ### How it works
 
