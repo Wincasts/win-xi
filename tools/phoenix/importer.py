@@ -4,8 +4,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = ROOT / 'forks/addons/mobdb/mobdb/import_phoenix.py'
-CLIENT_NAMES = ROOT / 'forks/addons/mobdb/mobdb/client_names.json'
+SCRIPT = ROOT / 'tools/phoenix/import_phoenix.py'
+CLIENT_NAMES = ROOT / 'tools/phoenix/client_names.json'
 
 
 def load(name='phoenix_import'):

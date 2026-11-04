@@ -13,7 +13,6 @@ python3 tools/build_tooltips.py --check
 python3 tools/abi_check.py
 python3 -m unittest discover -s tools -p test_build_tooltips.py
 python3 -m unittest discover -s tools -p test_build_name_cast_times.py
-python3 -m unittest discover -s tools -p test_deploy.py
 python3 -m unittest discover -s tools -p test_phoenix_modules.py
 python3 -m unittest discover -s tools -p test_package_release.py
 luajit tests/winxi_tips_check.lua
@@ -36,16 +35,8 @@ run winventory addons/winventory/winventory.lua inventory_cycle_check.lua
 run winventory addons/winventory/winventory.lua inventory_former_check.lua
 run winventory addons/winventory/winventory.lua inventory_tooltip_window_check.lua
 run winventory addons/winventory/winventory.lua inventory_scale_check.lua
-run mark       addons/mark/mark.lua     mark_check.lua
-run mark       addons/mark/mark.lua     mark_performance_check.lua
-run mark       addons/mark/mark.lua     mark_persistence_check.lua
-run mark       addons/mark/mark.lua     mark_map_check.lua
-run mark       addons/mark/mark.lua     mark_stats_ui_check.lua
-run mark       addons/mark/mark.lua     mark_database_check.lua
-luajit tests/mark_stats_check.lua
 luajit tests/winxi_version_check.lua
 luajit tests/winxi_perf_check.lua
-run perf       addons/perf/perf.lua     perf_check.lua
 luajit tests/winxi_presence_check.lua
 luajit tests/winxi_partystatus_check.lua
 luajit tests/winxi_statuses_check.lua
@@ -100,35 +91,14 @@ luajit tests/nativetext_check.lua
 run sct        addons/sct/sct.lua       sct_check.lua
 luajit tests/sct_acquisitions_check.lua
 run mobcast    addons/mobcast/mobcast.lua mobcast_check.lua
-run tempo      addons/tempo/tempo.lua   tempo_ui_check.lua
-run targetlines tests/targetlines_fixture.lua targetlines_check.lua
-luajit tests/tempo_check.lua
-luajit tests/expbar_check.lua
-luajit tests/harness.lua expbar addons/expbar/expbar.lua tests/expbar_ui_check.lua
 run vis        addons/vis/vis.lua       vis_check.lua
 run vis        addons/vis/vis.lua       vis_game_check.lua
 run vis        addons/vis/vis.lua       vis_adopt_check.lua
 luajit tests/vis_detail_check.lua
 luajit tests/vis_view_check.lua
 luajit tests/occlusionfix_check.lua
-run atlas      addons/atlas/atlas.lua   atlas_check.lua
-run atlas      addons/atlas/atlas.lua   shell_logout_check.lua
-luajit tests/tcrossbar_shadow_check.lua
-luajit tests/tcrossbar_border_check.lua
-luajit tests/tcrossbar_gloss_check.lua
-luajit tests/tcrossbar_cooldown_check.lua
-luajit tests/tcrossbar_backdrop_check.lua
-luajit tests/tcrossbar_recast_check.lua
-luajit tests/tcrossbar_catalog_check.lua
-luajit tests/tcrossbar_context_check.lua
-luajit tests/tcrossbar_settings_check.lua
-luajit tests/tcrossbar_subjob_check.lua
-luajit tests/tcrossbar_weapon_check.lua
-luajit tests/mark_map_view_check.lua
-python3 tools/test_build_mark_maps.py
-luajit tests/mark_data_check.lua
+run parse      addons/parse/parse.lua   shell_logout_check.lua
 echo
-run simplelog  tests/empty.lua          simplelog_ui_check.lua
 run controller tests/empty.lua          controller_check.lua
 run debuffs    tests/empty.lua          debuffs_check.lua
 run statustimes tests/empty.lua          winxi_statustimes_check.lua
@@ -180,13 +150,6 @@ run winventory addons/winventory/winventory.lua winxi_child_background_check.lua
 luajit tests/winxi_mapdat_check.lua
 luajit tests/winxi_cursor_check.lua
 luajit tests/winxi_font_texture_check.lua
-luajit tests/chatbubbles_world_check.lua
-luajit tests/chatbubbles_check.lua
-luajit tests/chatbubbles_npc_check.lua
-luajit tests/chatbubbles_colors_check.lua
-run winbubbles addons/winbubbles/winbubbles.lua chatbubbles_config_check.lua
-run winbubbles addons/winbubbles/winbubbles.lua chatbubbles_absent_check.lua
-luajit tests/hideparty_cursor_check.lua
 luajit tests/winxi_lens_check.lua
 luajit tests/map_files_check.lua
 echo
@@ -202,9 +165,6 @@ luajit tests/harness.lua cooldowns tests/cooldowns_stand_in.lua tests/cooldowns_
 luajit tests/harness.lua cooldowns tests/cooldowns_migration_stand_in.lua tests/cooldowns_migration_check.lua
 luajit tests/harness.lua cooldowns tests/cooldowns_stand_in.lua tests/cooldowns_performance_check.lua
 luajit tests/harness.lua cooldowns tests/cooldowns_stand_in.lua tests/cooldowns_optimization_check.lua
-run puppet     addons/puppet/puppet.lua puppet_check.lua
-luajit tests/harness.lua puppet addons/puppet/puppet.lua tests/puppet_regression_check.lua
-luajit tests/harness.lua puppet addons/puppet/puppet.lua tests/puppet_attachments_check.lua
 run winbuff       addons/winbuff/winbuff.lua     buff_check.lua
 run winbuff       addons/winbuff/winbuff.lua     buff_mine_check.lua
 run winbuff       addons/winbuff/winbuff.lua     buff_performance_check.lua
@@ -237,9 +197,6 @@ run zoneinfo-settings tests/zoneinfo_fixture.lua zoneinfo_settings_ui_check.lua
 run zoneinfo-more tests/zoneinfo_fixture.lua zoneinfo_more_styles_check.lua
 echo
 run winplates addons/winplates/winplates.lua name_check.lua
-run windamage addons/windamage/windamage.lua damage_check.lua
-run windamage addons/windamage/windamage.lua damage_absent_check.lua
-run windamage tests/damage_upgrade_stand_in.lua damage_upgrade_check.lua
 run winplates addons/winplates/winplates.lua name_token_options_check.lua
 run winplates addons/winplates/winplates.lua name_types_check.lua
 run winplates addons/winplates/winplates.lua name_colours_check.lua
@@ -269,6 +226,9 @@ luajit tests/name_badges_check.lua
 echo '== winplates badge atlas'
 luajit tests/name_gdi_texture_check.lua
 echo
+
+# Checks kept out of the public repository, where this checkout has them
+[[ -f tests/run.local.sh ]] && source tests/run.local.sh
 
 # What party draws, call for call, against a kept copy: any difference is printed. After a change
 # that is meant to alter what is drawn, look the difference over and keep the new copy with

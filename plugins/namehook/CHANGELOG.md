@@ -6,7 +6,7 @@
 
 ## namehook 1.54 — names kept out of lens's colour
 
-- While [lens](../lens) 0.95 colours the world (`/lens tone`) or shades it like a comic (`/lens comic`), each name, bubble, layer and damage number namehook draws into the world is drawn once more into lens's name mask (`NameMask` in the LENS-WARP block, `lens::NameMaskOf`): in white wherever it shows (its edges and shadow too), tested against the world's depth as it is, so a name behind a wall is not in the mask either. lens keeps those pixels as they were drawn, so names are not saturated, tinted or dotted. The device's render target, viewport, texture factor and the names' states are put back before the depth pass. Nothing changes without lens, with neither on, with a lens before 0.95, or where the picture is not the mask's size.
+- While lens 0.95 colours the world (`/lens tone`) or shades it like a comic (`/lens comic`), each name, bubble, layer and damage number namehook draws into the world is drawn once more into lens's name mask (`NameMask` in the LENS-WARP block, `lens::NameMaskOf`): in white wherever it shows (its edges and shadow too), tested against the world's depth as it is, so a name behind a wall is not in the mask either. lens keeps those pixels as they were drawn, so names are not saturated, tinted or dotted. The device's render target, viewport, texture factor and the names' states are put back before the depth pass. Nothing changes without lens, with neither on, with a lens before 0.95, or where the picture is not the mask's size.
 
 ## namehook 1.53 — the game's own sizes unless told otherwise
 

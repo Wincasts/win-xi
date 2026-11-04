@@ -8,7 +8,7 @@ in LuaJIT against stand-ins for the server's globals, with the zone's real IDs, 
 the lists read off. Both are taken. The zone data is as the modules patch it (the importer's
 load_zone, phoenix.modules.load_yaml); a module override of a zone's script that gives a list of
 its own (phList) stops the build (phoenix.modules.guard), for it is not read.
-Names are resolved by the MobDB importer (forks/addons/mobdb/mobdb/import_phoenix.py).
+Names are resolved by the MobDB importer (tools/phoenix/import_phoenix.py).
 Requires PyYAML and luajit. Reads the live branch of phoenixffxi/Phoenix, fetched from GitHub
 (tools/phoenix), and writes winxi's placeholders set (addons/libs/winxi/data/<server>/placeholders);
 tools/build_winxi_data.py runs it with the other sets.

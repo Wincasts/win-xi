@@ -5,7 +5,7 @@
 local current = dofile('addons/libs/winxi/version.lua').Number
 local released = {
     'addons/winchat/winchat.lua', 'addons/parse/parse.lua', 'addons/winbuff/winbuff.lua', 'addons/winplates/winplates.lua', 'addons/winparty/winparty.lua', 'addons/winventory/winventory.lua',
-    'addons/trigger/trigger.lua', 'addons/wxi/wxi.lua', 'forks/addons/hideparty/hideparty.lua',
+    'addons/trigger/trigger.lua', 'addons/wxi/wxi.lua',
 }
 local said
 print = function(text) said = text end -- what the addon writes in the chat

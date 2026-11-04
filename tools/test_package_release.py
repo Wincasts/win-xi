@@ -8,7 +8,7 @@ from package_release import ROOT, RELEASES, data_sets, plugin_version, released,
 class PluginVersionTests(unittest.TestCase):
     def test_each_released_plugin_has_a_version(self):
         # GetVersion in src/<plugin>.cpp (uihook, lens) or src/Version.h's MAJOR.MINOR (namehook)
-        for plugin in ('namehook', 'uihook', 'lens'):
+        for plugin in ('namehook', 'uihook'):
             with self.subTest(plugin=plugin):
                 self.assertRegex(plugin_version(plugin), r'^\d+\.\d+$')
 

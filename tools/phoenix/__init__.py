@@ -3,7 +3,7 @@
     from phoenix import source, importer, lotteries, modules
 
     server, commit = source.fetch()     # the live branch of phoenixffxi/Phoenix, up to date
-    module = importer.load()            # forks/addons/mobdb/mobdb/import_phoenix.py, as a module
+    module = importer.load()            # tools/phoenix/import_phoenix.py, as a module
     lotteries.from_slots(zone_document)  # a zone's lottery slots: each NM, its placeholders, chance, cooldown
     modules.guard(server, prefixes, handle)  # the module overrides live loads over what a script reads
 

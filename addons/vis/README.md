@@ -37,7 +37,7 @@ place. Don't load both: they patch the same places in the game.
   once, and vis says so at load. `/vis terrain` alone toggles it.
 
 The field of view and the world's true proportions were `fov` and `square` until 2.0. They belong
-to the [lens](../../plugins/lens) plugin now: `/lens fov`, `/lens middle` and `/lens square`, with
+to the lens plugin now: `/lens fov`, `/lens middle` and `/lens square`, with
 lens's warp or without it. A character's saved fov and square are said once at load, as the lens
 commands that set them. A zone's or preset's own fov and square are gone.
 

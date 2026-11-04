@@ -86,6 +86,16 @@ LUA_ORDER = ['addons/libs/winxi/nameplates.lua', 'addons/libs/winxi/layers.lua',
              'addons/libs/winxi/nativemenus.lua', 'addons/libs/winxi/nativetext.lua', 'addons/libs/winxi/nativehistory.lua',
              'addons/libs/winxi/gamekeys.lua', 'addons/winbuff/hook.lua', 'addons/winparty/hook.lua', 'addons/winui/groupmirror.lua']
 
+# Only what this checkout has: a plugin or addon that is not here is left out of the check
+def _present(path):
+    return (ROOT / path).is_file()
+
+
+SOURCES = {plugin: sources for plugin, sources in SOURCES.items() if all(_present(s) for s in sources)}
+BLOCKS = [block for block in BLOCKS if block[0] in SOURCES and _present(block[4])]
+RECORD_LUA = {name: lua for name, lua in RECORD_LUA.items() if _present(lua[1])}
+LUA_ORDER = [path for path in LUA_ORDER if _present(path)]
+
 FIELD = re.compile(r'^\s*(\d+)(?::\d+-\d+)? \|   (\S.*?) ([A-Za-z_]\w*)$')
 RECORD = re.compile(r'^\s*0 \| (?:struct|class) (\S+)$')
 SIZE = re.compile(r'\[sizeof=(\d+),')

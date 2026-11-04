@@ -220,7 +220,7 @@ Each name is drawn twice: once blended into the picture and tested against its d
 
 The device's state is captured before the first name of a run and put back after each one. While the client draws nothing itself between two names, what was captured is still its state and is not captured again (`keepstates`, on by default). The client drawing a line of a name with its own functions, a new scene's names and the frame's end each have it captured afresh. With `keepstates off` it is captured before every name, as it was up to 1.28.
 
-Under the [lens](../lens) plugin's warp, which bends the client's picture as it is put on the screen, each name and bubble is drawn through the counter of the warp's stretch where it stands (1.30), so that it comes out at its own shape and size rather than squeezed toward the sides. It is still drawn in the client's picture, hidden by what is in front of it as before. Without lens, or with its warp off, nothing changes.
+Under the lens plugin's warp, which bends the client's picture as it is put on the screen, each name and bubble is drawn through the counter of the warp's stretch where it stands (1.30), so that it comes out at its own shape and size rather than squeezed toward the sides. It is still drawn in the client's picture, hidden by what is in front of it as before. Without lens, or with its warp off, nothing changes.
 
 ### Additive world-space speech bubbles (1.24+)
 

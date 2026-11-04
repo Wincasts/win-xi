@@ -675,7 +675,7 @@ in 1.58: nothing used them once the group, the inset and the size did it for eve
 - `src/modules/party/`: party/alliance/target identification, ImGui capture/clipping/replay,
   scoped stock-HUD suppression and native target-arrow exceptions. `hud.h` adds clock/compass
   discovery and scope helpers, sharing the same renderer/filter rather than installing another.
-  Under the [lens](../lens) plugin's warp (0.93), each native target/subtarget arrow's tip is moved
+  Under the lens plugin's warp (0.93), each native target/subtarget arrow's tip is moved
   to where the warp shows the target (`WarpArrow` in `target.h`, from the block lens.dll exports as
   `LensWarp`, in menu-layer pixels); without lens, or with its warp off, the arrows are untouched.
   `partyhook.cpp` is the one place the game's draws and `Window::Render` come in: it does the capture and replay

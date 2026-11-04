@@ -424,7 +424,7 @@ settings have `useSharedTheme`, `theme`, `hide` and `fadeInOut` to take them.
 
 ## Over the world, under lens
 
-The [lens](../../../plugins/lens) plugin draws the game's world bent (Panini or cylindrical) and the
+The lens plugin draws the game's world bent (Panini or cylindrical) and the
 UI flat over it. Anything an addon places over the world by the view and projection, a line to a
 target or a cursor over one, lands where the flat projection would put it, which near the edges is
 beside where the warp shows the thing. `winxi.lens` moves such a point to where the warp shows it,

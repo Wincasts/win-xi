@@ -1,7 +1,7 @@
 -- winxi.shell as the character logs out: Ashita's settings library gives every addon the defaults
 -- then, in which the window is open, and the addon runs on for half a second as the game shuts down.
 -- The shell draws nothing from the logout until a character's settings come, so that a window kept
--- closed does not show over the black screen. Run with atlas, a shell addon whose window is open to
+-- closed does not show over the black screen. Run with parse, a shell addon whose window is open to
 -- begin with.
 local settings = require('settings')
 local o = H.options()

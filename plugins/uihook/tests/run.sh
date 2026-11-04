@@ -25,8 +25,11 @@ done
 cd "$HERE/../.."
 luajit tests/nativehud_check.lua
 luajit tests/nativechat_check.lua
-luajit tests/harness.lua winui addons/winui/winui.lua tests/nativeui_check.lua
-luajit tests/groupmirror_check.lua > /dev/null && echo 'groupmirror: 0 failures'
-luajit tests/harness.lua winui tests/nativeui_group_stand_in.lua tests/nativeui_group_check.lua
+# winui's checks, where this checkout has it (it is kept out of the public repository)
+if [[ -f addons/winui/winui.lua ]]; then
+    luajit tests/harness.lua winui addons/winui/winui.lua tests/nativeui_check.lua
+    luajit tests/groupmirror_check.lua > /dev/null && echo 'groupmirror: 0 failures'
+    luajit tests/harness.lua winui tests/nativeui_group_stand_in.lua tests/nativeui_group_check.lua
+fi
 luajit tests/party_hook_check.lua
 luajit tests/harness.lua winbuff addons/winbuff/winbuff.lua tests/buff_hook_check.lua

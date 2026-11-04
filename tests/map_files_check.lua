@@ -62,13 +62,19 @@ local function Survey(label, dats)
     return read, onlyPack, #bad;
 end
 
--- mark: every map's file, and each one the game has, as mark has to show a map without the pack too
-local markDats = {};
-for _, floors in pairs(dofile('addons/mark/data/maps.lua')) do
-    for _, floor in ipairs(floors) do markDats[#markDats + 1] = floor.dat; end
+-- mark (where this checkout has it): every map's file, and each one the game has, as mark has to show a
+-- map without the pack too
+local read, onlyPack, bad;
+local markMaps = io.open('addons/mark/data/maps.lua', 'rb');
+if markMaps then
+    markMaps:close();
+    local markDats = {};
+    for _, floors in pairs(dofile('addons/mark/data/maps.lua')) do
+        for _, floor in ipairs(floors) do markDats[#markDats + 1] = floor.dat; end
+    end
+    read, onlyPack, bad = Survey('mark', markDats);
+    check('mark: every map read, none the pack\'s alone', read == #markDats, onlyPack == 0, bad == 0);
 end
-local read, onlyPack, bad = Survey('mark', markDats);
-check('mark: every map read, none the pack\'s alone', read == #markDats, onlyPack == 0, bad == 0);
 
 -- zoneinfo: every map in the browser; those the pack alone has are its own other pictures of a map,
 -- blank in the browser without it

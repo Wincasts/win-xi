@@ -29,8 +29,6 @@ WHAT = {
     'trigger': 'Plays a sound when something happens: a tell, an invite, a trade, low HP and more.',
     'vis': 'How far the world and the people in it are drawn, with the fog where you want it.',
     'zone': 'Banners for the zone, region, sub-zone and weather, and a location line.',
-    'lens': 'The world through a wide-screen projection, with anti-aliasing and your choice of field of view.',
-    'mobdb': "Phoenix's monsters for ThornyFFXI's MobDB addon: the data alone.",
 }
 
 

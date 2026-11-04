@@ -55,12 +55,6 @@ REPOSITORY = 'Wincasts/win-xi'
 RELEASES = {
     'winbuff': {'plugin': 'uihook'},
     'winchat': {'plugin': 'uihook'},
-    'lens': {'kind': 'plugin'},
-    # Phoenix's monsters for ThornyFFXI's MobDB as it is: the data folder alone, versioned by the date it was made
-    # the data is winxi's mobs set, the same files mobdb reads as data/<zone>.lua
-    'mobdb': {'kind': 'data', 'source': 'forks/addons/mobdb/mobdb', 'from': 'addons/libs/winxi/data/phoenix/mobs', 'data': 'data',
-              'changelog': 'forks/addons/mobdb/DATA_CHANGELOG.md',
-              'title': 'mobdb data for Phoenix'},
     'parse': {},
     'sct': {},
     # Released for people who use no other winxi addon: its own winxi, for the zones' kinds and the rules
@@ -88,7 +82,7 @@ MIT = {'addons/libs/winxi', 'addons/wxi', 'addons/winbuff', 'addons/winplates', 
 # The art a winxi module draws, which goes with it into an addon's own copy
 WINXI_ART = {'backgrounds': 'assets/backgrounds', 'borders': 'assets/borders', 'bars': 'assets/bars'}
 # The terms each plugin is under: namehook is a fork of GPL code, the others this repository's own
-PLUGIN_LICENSES = {'namehook': 'the GNU GPL v3.0', 'uihook': 'the MIT License', 'lens': 'the MIT License'}
+PLUGIN_LICENSES = {'namehook': 'the GNU GPL v3.0', 'uihook': 'the MIT License'}
 # Kept with the addons to make their art and sounds, and of no use in the game
 LEFT_OUT = ('*.py', '*.sh')
 # Text no release should hold: the author's character's settings folder
