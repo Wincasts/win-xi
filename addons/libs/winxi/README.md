@@ -2,189 +2,77 @@
 
 Shared drawing for Ashita addons that render with imgui: one look, set once, used by every addon.
 
-Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
+winxi is a library, not an addon: there is nothing to load. Nearly every addon of this project draws
+its windows with it, and the look they share is set in one window, wxi's `/winxi` (see
+[wxi](../../wxi/README.md)).
 
-| Module | What it gives |
-|---|---|
-| `winxi.theme` | The shared theme (background, border, text, chosen-tab highlight and Winxi Theme tab colours, padding, drop shadow, the base font and its size, the outline round text over bars and the game, and the styles: window border art and its opacity, window background, tab style, bar texture, bar bookends, custom status icons), saved in `config\addons\winxi\theme.lua` and kept in step across addons; or an addon's own |
-| `winxi.style` | Puts the theme on imgui's style stack around a window: `PushPlain` (text and icons) or `PushFull` (controls), then `Pop` |
-| `winxi.window` | A themed window in one call: `window.Plain` / `window.Full` |
-| `winxi.nativemenus` | Winxi 22: `new()` → `Set(panelRect, hostSlot)`, `Stop()`, `Status()`; `PlaceLog(left, bottom)` and `StopLog()` place the game's expanded chat log by its bottom-left, renewed each frame. Publish only after successful compact chat capture; renew each frame. Independent menu ABI 1 in uihook 0.6; checked registry/native layout moves, not render-only offsets. Unknown clients/menus unchanged. |
-| `winxi.nativehistory` | `new()` → `Request()`, `Lines()` (once served: the game's first log window's last 100 lines, oldest first, each `{ text, mode, serial, flags, extra }`, text as the game was given it), `Status()`. Independent history ABI 1 in uihook 0.6; read only. |
-| `winxi.gamekeys` | `new()` → `Hold(keys)` (virtual keys to keep from the game's chat editor this frame, `{ [vk] = true }`; named again each frame), `Ready()`, `Status()`. The editor reads keys in the game's message loop before Ashita's `key` event, so blocking that event keeps nothing from it; uihook keeps each named key's press, repeats, character and release. Independent keys ABI 1 in uihook 1.61. |
-| `winxi.frame` | A themed frame attachment on the current window's captured draw list: `Draw(rect, draw, options)` with explicit `{left,top,width,height}` bounds; background, border art and captured shadow, without an extra ImGui window or layout item. `winchat` uses it for its Info Panel. |
-| `winxi.infopanel.*` | Shared info-panel layout/fields, EXP tracking, icon sets and settings. `infopanel.chat` owns chat attachment selection/sampling/rendering; its source never claims a native HUD slot. Bundled icons live in `infopanel/icons`. `clock` compatibility modules delegate here. Winxi 21. `infopanel.forecast` (the zone's weather odds from the server's `weather` set) and `infopanel.calendar` (the Vana'diel month, built and drawn) Winxi 31. |
-| `winxi.shadow` | The drop shadow, drawn inside a window |
-| `winxi.text` | Text with a dark edge all round it: how anything written over a bar, an image or the game itself is written |
-| `winxi.fade` | Fading an addon's windows out while the player is idle, from settings the addon keeps (`widgets.Fade` draws their controls) |
-| `winxi.organize` | Arranging an addon's windows: an Organize button, labels, an alignment grid, and linking one window against another |
-| `winxi.controller` | Working an addon's windows with a controller (XInput, or DirectInput by make): taking button presses, a highlight that moves over things drawn in rows, and a menu of choices |
-| `winxi.selection` | The box round what a controller's highlight is on, in the theme's Selection Style (Outline, Glow, Bevel, Glass, Satin, Brushed Metal) and Selection Color, set in winxisettings → Styles: `Draw(drawList, x1, y1, x2, y2)`, reaching `Room` (3) pixels outside (winxi 73) |
-| `winxi.legend` | Which buttons do what, under a window the controller is working: each button's glyph and a word, in the theme's font and size (winxi 72). Every winxi window worked with a controller shows one |
-| `winxi.anchor` | "Grow from": which corner of a self-sizing window stays put |
-| `winxi.widgets` | Settings windows as described rows (winxi 65: `Check`, `Slider`, `Numbers`, `Dropdown`, `Color`, `Action`, `BeginRow`/`EndRow`, `Note`, `Status`, collapsible `Header`), and the ready-made ones: the theme with its "Use Shared Theme" checkbox (`Appearance`), the Winxi Theme tab that holds it (`BeginThemeTab`), Grow From (`GrowFrom`), the fade settings (`Fade`) and the rules for hiding (`Hide`), an addon's own font and its size (`FontFile`, `FontSize`), and Lock Window (`Lock`). See [Settings windows: the rules](#settings-windows-the-rules) |
-| `winxi.sound` | The small sounds a menu makes, off until an addon turns them on |
-| `winxi.game` | What is asked of the game itself: the menu on top, whether the map is open or an event running, bag access, and the rules for when windows hide |
-| `winxi.packets` | The packets addons send and read, set out once |
-| `winxi.debuffs` | Which statuses are on each enemy (or anyone) and for how long yet, worked out from what the server says took hold and wore off; durations from the server's `durations` set, made by `tools/build_debuff_durations.py` from its scripts |
-| `winxi.abi` | How every plugin block is accepted, as `plugins/ABI.md` promises until 2.0: `Accepts(block, ctype, version)` (this Version and at least the addon's size, so a newer plugin's grown block is still read) and `Has(block, ctype, field)` (the plugin is new enough for a field). WinXI 57. |
-| `winxi.perf` | Every event handler the addon registers after it is timed, and the sums (calls, time, longest call, by kind of event) go into shared memory one row an addon, for the [perf](../../perf) addon to show: `Rows()`, `Events`, `ResetMax()`, `Seconds()`. `winxi.shell` requires it, so every shell addon is timed; the others add one `require`. WinXI 63. |
-| `winxi.layers` | Drawing into the world through namehook 1.46: an addon takes one of four layers (`Take(owner, order)`), and each frame `Begin`s it, anchors drawings `AtEntity` (its name point, offset in the world) or `AtWorld` (a point), fills them with `Quad` as `nameplates.Quad`, and `End`s each; `SetTexture` 0 to 31; `Release` on unload. Each drawing is placed and hidden as a name is, under lens too; layers are drawn by order, lowest first. WinXI 62. |
-| `winxi.camera` | The camera namehook (1.44) places names with: `Get()` this frame's (nil when more than two frames old, or with an older namehook) and `Project(x, y, z)`, a point of the world in imgui's pixels, its depth and whether it is in the picture, placed as a name at that point would be, through lens's warp when it bends the world. WinXI 60. |
-| `winxi.presence` | Whether another addon is loaded in this game: `Announce(name)` while loaded, `Present(name)` from any other addon (a named mutex of this process's, asked at most once a second). hideparty announces itself, so party's native windows are refused while it is loaded. WinXI 56. |
-| `winxi.popups` | The damage numbers the game pops up over whoever was hit, from the `namehook` plugin (1.38): what each says, who was hit and who hit them, where it is; `Hits` gives one for each hit (each makes two popups); `Claim` keeps the game from drawing them and `BeginDrawing`, `BeginPopup`, `Quad` and `EndPopup` have the plugin draw an addon's in their place, rising and fading with the game's. |
-| `winxi.nameplates` | The names the game draws over characters' heads, from the `namehook` plugin: what each is over, where it is on screen, and showing and hiding them by category or one by one. `Quad` accepts optional final `softRect=true` for constant-UV, unedged rectangles: namehook 1.32 adds a screen-space antialiased fringe after Lens correction; older plugins ignore the flag. Final `tightEdge=true` caps an edged icon's halo at one target pixel and omits its shadow (namehook 1.33). Final `edgeRadius` overrides width independently of the text edge (namehook 1.34), including text edge zero; explicit width overrides the tight cap but keeps its shadow-free style. WinXI 46 adds `Supports(Feature.IconOutline, hook)` / `Problem(requiredFeatures)` using namehook 1.35's optional capability sidecar, and `ClearDrawing(hook)` to unpublish texture pointers before releasing owners. WinXI 47 adds `Capabilities(hook)`, returning a copied `{version, features, build}` table or nil; no DLL pointer is exposed. WinXI 54 adds `FillQuad`, one quad written as `Quad` writes it, for `winxi.popups`. WinXI 61: a second addon drawing names takes one of namehook 1.45's claim slots (`OwnerOf`, `TakeSlot`, `ClaimSlot` each frame, `SlotDrawing` handed to `BeginDrawing`, `ReleaseSlot`); of those claiming a name, by priority, the first that has drawn it draws it, the plugin's own claim (Name's) being `SharedPriority`, 100. WinXI 59: `TextureSlots()` is 32 with namehook 1.43 (`Feature.Textures32`), and `SetTexture` takes slots 8 to 31 there, writing past the eighth only when the plugin has them. WinXI 55: `Hook` checks each time that namehook's DLL is still the one its block was found in (its base, time stamp and size), so a namehook unloaded and loaded again between two looks is never read through the old block; `Generation()` changes each time that happens, for `winxi.popups` and any addon keeping a block of namehook's own (winbubbles' world bubbles). ABI 3 and speech bubbles are unchanged. |
-| `winxi.fonts` | The theme's font: a `.ttf` of `C:\Windows\Fonts` (or imgui's own) and a size (or the base size), pushed around every window `winxi.window` draws. An addon drawing its own windows calls `Push()` before `Begin` and `Pop(pushed)` after `End`. A font or size an addon pushes inside its window overrides it: `imgui.PushFont(nil, size)` keeps the theme's font at the addon's size. A settings window (`kind = window.Settings`, or `Push(true)`) has the font at the base size, so the Font Size slider does not resize it. `Texture()` is the Direct3D texture imgui draws the font from, for drawing its letters elsewhere (a plugin's quads), or nil and what imgui said: asked of the atlas's texture data first, then its reference, each apart, as the reference can throw (winxi 2) |
-| `winxi.borders` | The theme's window border art, from `assets\borders`: nine-slice images drawn in place of a window's own border, on windows of the game kind. `winxi.window` draws it on its own; an addon drawing its own windows asks `Texture(style)` before `Begin`, `Push` around `Begin`, and `Draw` after its content |
-| `winxi.titles` | A window's title across its top edge, at the right, as the theme has it: Frame Titles, Title Style (Outlined Text, Break In Border, Break With Shadow, Plate), Title Color, Title Font, Title Size, Title Position X and Y, Title Shadow, Title All Caps. `winxi.window` draws it for a game window given `options.title`; an addon drawing its own windows passes `titles.Breaks(words)` to `borders.Push`, `titles.Gap(words)` to `borders.Draw`, then calls `titles.Draw(words)`. A frame drawn inside another window (`winxi.frame`) takes `options.title`, or `titles.Gap(words, rect)` and `titles.Draw(words, { rect = rect })` (winxi 38) |
-| `winxi.clip` | A clip opened past a window's edges, kept on the screen: `clip.Push(list, min, max)` in place of `list:PushClipRect(min, max, false)`, returning whether anything is left (and only then is there a clip to pop). Ashita draws imgui on Direct3D 8, which turns each clip into a viewport; one off the screen is refused and what it holds is stretched over the whole screen, as a window's title was when the window was dragged to the edge (winxi 50). `clip.Screen(list, min, max)` pushes the whole screen as the clip where any of min to max is on it: a clip that is the whole screen is drawn as it is whatever viewport it is given, and a title's own clip, on the screen, was still seen stretched; titles use it (winxi 51) |
-| `winxi.bars` | A bar in the theme's Bar Texture, from `assets\bars` (winparty's HP art of each set): `Draw(list, x, y, width, height, fraction, color)` draws its back, fill and front tinted one colour, at any size, its ends keeping their shape, with the theme's Fill End Glow over the fill's end and, with Custom Bar Backdrop, the empty part in Bar Backdrop Color (winxi 45); `tempo` uses it |
-| `winxi.backgrounds` | The theme's window background style, on windows of the game kind: a gradient, the FFXI-inspired gradient with a fine line every other row (a tile of lines, `lines.png`, laid over the gradient), or a greyscale tile of `assets\backgrounds` drawn side by side at its own size, all in the background colour. `winxi.window` (through `winxi.style`, which leaves the window's own background clear under it) draws it on its own; an addon drawing its own windows asks `For(nil)` before `Begin`, pushes a clear `WindowBg` where that is not nil, and calls `Draw(chosen, color)` before its content. Tiles are made by `tools/generate_winxi_backgrounds.py` |
-| `winxi.tabs` | The theme's tab style, over the tabs of a window of the game kind: Sheen (light at the top, shade at the foot, drawn), or an image of `assets\tabs` (Glass, Bevel, Brushed Metal, Grain, FFXI-inspired, Satin), faint white and black over the tab imgui draws so it keeps its colours, its edges kept and its middle repeated across the tab, inside its rounded top. With any style but Plain the line under the tabs is drawn too, in the Highlight Color: solid across the bar, brighter under the chosen tab, with a soft shade below. Plain is imgui's own tabs and line. `BeginBar(id, flags)` in place of `imgui.BeginTabBar`, and `Begin(label, flags)` in place of `imgui.BeginTabItem` (or `Draw(chosen)` straight after one); `winventory` and `mark` use them. `Over(list, left, top, right, bottom, radius)` puts the style over a tab an addon draws itself on a draw list, and `Line(list, left, right, y, chosenLeft, chosenRight)` the line under such a row; `winchat` uses them where the game's expanded-log tabs are. Images are made by `tools/generate_winxi_tabs.py` |
-| `winxi.rules` | The server's game rules the addons work out what will happen with, read from its code by `tools/build_rules.py` (a set of `build_winxi_data`): `Get(name)` for `treasureHunter`, `treasurePool`, `haste`, `hasteEffects`, `swing`, `resting` and `bind`, or nil without winxi's data; `Source()`. Each reader stops the build where the server's code changes shape, or a module, C++ module or core patch touches it. Used by mark, tempo, winventory and `winxi.debuffs` |
-| `winxi.statuses` | Every status effect the server has, from its `data/status_effects.yaml` as the modules patch it (`tools/build_action_data.py`, a set of `build_winxi_data`): `Ids()`, `Get(id)` with `Name`, `Symbol`, `Flags` (erasable, waltzable, dispelable, no_cancel, ...), `Element`, `Overwrite` and `WearOff`; `Removable(id)`, what takes a status off: `erase`, `waltz`, `dispel` or nil. Used by name's status list, and winparty's and winplates' Removable Marks |
-| `winxi.castbar` | The casts seen in the action packets, by the caster's server ID: `Configure(on, withSkills)` switches tracking, `HandlePacket(e)` takes every inbound packet, `Of(who, entities, now, dead)` gives `who`'s cast (name, kind, progress 0 to 1, timer: a base cast time marked `~`, or `Waiting`) or nil; the finish, an interruption, death, a despawn or the area changing ends it. Moved from winplates. Used by winplates (its cast bars) and winparty (Show Cast Bars) |
-| `winxi.partystatus` | The statuses of the player (`Own(list)`) and of the five others of the player's own party (`Member(serverId, list)`, or all five at once with `Party(lists)`), read from the game's memory as it keeps them; anyone else's is `winxi.debuffs`' to count. Used by winparty and winplates |
-| `winxi.cleanse` | What takes a status off, from the server's flags and scripts: `Kind(status)` (`cure` for Erase, a -na spell or a waltz, `dispel` for Dispel and the like), `Spells(status)` and `Can(status)`, whether the player can cast one of them now: learned, and its level reached by the main job, or by a support job that is not restricted, at the game's own levels, so level sync is followed. Abilities are not counted yet, and blue magic counts when learned. Used by winparty's and winplates' Removable Marks |
-| `winxi.owntimers` | The time the player's own statuses have left, to the second, from the game's timers (`Clock()`, `Seconds(raw, clock)`: false for one that does not run out). Used by winbuff and `winxi.statustimes` |
-| `winxi.statustimes` | How long a status has left, as a label to write under its icon (`Text(serverId, id, nth)`: `45`, `3m`, `2h`, or `-` where it cannot be known) whether it is an estimate, whether the player put it there, and the seconds left; `Landing(serverId, id)`, the landing that put it there (by whom, and the spell or move), (the last landing of it seen was theirs, so one cast over it by anyone else is not): exact for the player's own, read from the game; for the party, from when it was seen to land or to appear on them (`Watch`), for the server's usual time, the landing kept with them through a change of area (`WatchParty` reads and watches the five every frame); for anyone else, `winxi.debuffs`' count. Used by winparty and winplates |
-| `winxi.statusicons` | A status's icon to draw: the chosen set of custom icons' (a folder of `statusicons`; `ffxiv`, made by `tools/build_status_icons.py`, to start), or the game's own where the set has none. `Sets()` lists the folders. A set is in one picture as well, for what draws from few pictures: `Sheet()` and `SheetPlace(id)`, ffxiv's `sheet.png` or, for any other set, made at run time a few a frame; and the game's own, made into one at run time a few a frame: `GameSheet()` and `GameSheetPlace(id)`; and the two together as party and buff draw them, the set's icon where it has one and the game's where not, in one picture made at run time a few a frame: `MixedSheet()` and `MixedPlace(id)`, which says too whether the icon is the set's |
-| `winxi.statusdat` | Pivot-aware game status artwork: `Get(index)` reads the FTABLE-selected English status DAT through `mapdat.Read`, validates its records, and returns a D3DX-ready bitmap or nil. Used by every game-artwork path in `statusicons`; resource-manager bitmaps are fallback only. |
-| `winxi.cursor` | The game's animated cursors, loaded from the client's menu DAT through the pivot-aware map reader. `Get(forceRetry, group, neutral)` returns a texture handle and the current frame (or nil and why): its UVs, its pixel rect in the atlas, and the corners it is drawn to around its pivot. `group` is `anc_s` (the right-pointing party cursor, the default) or `anc_l` (the downward target cursor); `neutral` gives a grey copy to tint. `Parse(buffer, length, group)` validates the `anc` DXT3 atlas and the group. Used by Party instead of text arrows, with text fallback if unavailable, and by hideparty for the target cursor it hides |
-| `winxi.mapdat` | The game's own map pictures as a texture to draw: `Load(dat)` with a map's file by its place under the game's folder (`'ROM/283/75.DAT'`), read the way pivot turns towards its overlays, so with XICombinedMaps installed it is the pack's 2048-pixel picture and without it the game's own. DXT and 8-bit bitmaps. `Load(dat, mask)` multiplies the picture's alpha by a mask (`{ width, height, values }`, 0 to 255 a pixel, laid over the whole picture), for DXT3 and bitmaps; `mapoverlay` uses it to show only a map's walkable ground |
-| `winxi.tips` | Editable tooltip content: `Get('name.appearance.bold')` returns plain text from generated catalogues; optional named values replace `{placeholders}`. Content only, independent of rendering. |
-| `winxi.tooltip` | Tooltips in winxi's look: `Hover(text)` after a control, `Show(text)`, or `Begin()` / `End()` around anything else. Whether they show, their delay, colours, padding, text size and width are the shared theme's Tooltip values, set in wxi's Tooltips tab, whether or not the addon follows the shared theme |
-| `winxi.nativechat` | The `uihook` plugin's chat slots (primary log, split log, input): `new(slot)` gives `Begin`, `Capture` (inside a window, from its `capture` option, after its border and title; for the expanded log, with the theme colours for the game's controls and which of them, tabs, scrollbar or text, the addon draws itself), `Stop`, `Rect`, `Tabs`, `Scrollbar` and `Rows` (where the game drew its own, as uihook measured them; the rows with their text, as the game was given it), `Routes` and `Shows` (which of the game's two log windows shows a message of a chat mode, as the game's Log Window settings route it; `Rect` on the split slot is the second window's place), `Lines` (a window's lines as the game grows and shrinks it), `Colors` (the game's chat colours as configured: a mode's, and what a 1E or 1F code names), `State` and `Status`, for an addon that draws its own chat in the game's place, as winchat does |
-| `winxi.debounce` | Running a function once things have gone quiet |
-| `winxi.quests` | Quest identities by log/ID, hidden interactions, NPC/zone references, declared reward tables, factory metadata and enabled module/source evidence. `Get`, `GetBySymbol`, `Search`, `ForZone`, `ForNpc`, `ForReward`, `Tooltip`. Winxi 30. See [Quest catalog](quests.md) |
-| `winxi.spells`, `abilities`, `weaponskills`, `traits` | Phoenix action definitions, job requirements, charge/trait variants, SQL changes and Lua source evidence. `Get`, `Ids`, `ForJob`, `ForSkill`, `Search`, `Tooltip`, `ClientResource`. Winxi 29. See [Shared catalogs](catalogs.md) |
-| `winxi.jobs`, `skills`, `elements` | Server reference enums; jobs' related actions; skill ranks/caps including enabled YAML overlays. Winxi 29. See [Shared catalogs](catalogs.md) |
-| `winxi.autotranslate` | Installed-client English/Japanese phrase dictionary, categories, search, exact phrase/item/key-item tokens, decoding and game expansion. Winxi 29. See [Shared catalogs](catalogs.md#auto-translate) |
-| `winxi.items` | Shared Phoenix item catalog: `Get(id)`, `Ids()`, `Tooltip(id, optionalClientResource)`, `Index()`, `Script(path)`, `ModName(id)`, `Clear()`. Winxi 28. See [Item data](items.md) for fields, units, provenance and coverage limits |
-| `winxi.gamedata` | What is known of the game that the client does not say, made from a server's data by `tools/build_winxi_data.py` (a profile per server in `tools/phoenix/profiles.py`) and kept in `data\<server>\<set>\<key>.lua`: `Read(set, key)` (the chosen server's folder, else `data`'s own, for what is no server's and for the older flat layout), `Manifest()` (the server's name, repository, branch, commit, the sets), `Datasets()`, `Dataset()`, `UseDataset(key)` (kept in `config\addons\winxi\dataset.lua` for every addon, chosen in wxi's Server Data tab), `OnChange(fn)` (the readers clear their pages), `Root(path)` |
-| `winxi.mobs` | An area's monsters as the server has them (levels, aggro and senses, links, family, drops, spells), from `gamedata`'s `mobs` set: `Zone(zone, subZone)`, `Find(tables, index, name)`, and each notorious monster's placeholders, `Placeholders(zone)`. Winxi 27 |
-| `winxi.mob_letters` | The spawn letters name writes after a monster's name: `Set(names, zone)` with an area's `{ [index] = name }`, then `Of(index, name, serverId)`, `a` to `z` among the slots of one name by index (or double letters, `Double(on)`), `''` where the list has not that name there. The same for every player of a server. `Problem()` says when the list differs from what the game shows, which is also printed once unless `Quiet`. Winxi 52 |
-| `winxi.zone_names` | `Read(zone)`: the game's own list of an area's names by entity index, read from its files (`{ [index] = name }`, or nil and why not); `Parse(bytes, zone)`. Winxi 52 |
-| `winxi.legacy` | Bringing settings over for a tool of xitools that has become an addon of its own |
-| `winxi.shell` | Everything an addon with one main window would otherwise write for itself: settings, the settings window, the command, the window's frame |
+## Installing
 
-## Game status icons and Pivot
+An addon that uses winxi needs this folder installed alongside it, at `addons/libs/winxi`. Every addon's
+zip carries a copy, so extracting the zip into your Ashita folder puts it there.
 
-Individual game status icons, the game-only sheet, and the mixed custom/game sheet all load their game artwork through the same Pivot-aware DAT reader. Pivot chooses the winning overlay in its configured order; winxi does not guess overlay folders or reorder them. The installed client's FTABLE mapping selects the status DAT (file id 87, normally `ROM/119/57.DAT`). If the DAT cannot be opened or an icon is unsupported/malformed, that icon falls back to Ashita's resource-manager bitmap.
+Each addon is released on its own, with its own copy of winxi, so installing one addon can put an older
+winxi over the one another addon came with. Every addon that is released checks, as it loads, that the
+winxi it finds is at least the one it was made with, and says so plainly if it is not:
 
-Pivot's `redirect_fopens=true` setting must be enabled for this reader, as it must for winxi's map/cursor reader. Explicit custom status sets still take precedence when enabled: turn custom status icons off to use only game/Pivot artwork. DATs and textures are cached per addon; after changing Pivot overlays, reload the affected addons to rebuild their icons and sheets.
-
-## Style rule: transparent child regions
-
-Game windows can override colours per draw without modifying the theme: pass RGBA `background`,
-`border`, `textColor` and/or `titleColor` in `window.Plain`/`window.Full` options. Omitted values
-follow the theme. `border` is an art tint for textured borders, or the plain border colour;
-its alpha replaces Border Opacity. Title plates use that window's background/border overrides.
-`textColor` sets ImGui's default text colour; explicitly coloured addon draw calls still take precedence.
-
-Child regions must show the base Winxi window underneath, never a separate child background.
-`winxi.style.PushPlain` and `PushFull` enforce a transparent `ImGuiCol_ChildBg` for both game and
-settings windows, after applying the theme palette. This is a shared style rule, not an addon setting.
-Do not override `ChildBg` or paint a separate background behind a child region. For child-specific
-window flags, `ImGuiWindowFlags_NoBackground` may also be used. Inputs, buttons and other controls
-keep their normal themed backgrounds.
-
-## A window
-
-```lua
-local window = require('winxi.window');
-local style = require('winxi.style');
-
-local open = { true };
-
-ashita.events.register('d3d_present', 'example_present', function()
-    window.Plain('example', open, style.TitlelessFlags(), function()
-        imgui.Text('Hello');
-    end);
-end);
+```text
+<addon> needs winxi <number> or newer, and addons/libs/winxi is <number>: install the newest release of any winxi addon.
 ```
 
-Use `window.Full` for a window with tabs, tables, buttons or inputs: it also tints those from the
-border colour. Options (padding, background, border, textColor, titleColor, fontSize, alpha, shadow, growFrom, kind, capture, locked, clickThrough) are described at the top
-of `window.lua`.
+The addon then does not load. Install the newest package of any winxi addon from
+[DOWNLOADS.md](../../../DOWNLOADS.md), which brings the newest winxi, and load the addon again. A newer
+winxi serves every older addon.
 
-Every window is one of two kinds, given as `kind` in its options:
+## The theme
 
-| kind | for | border | font |
-|---|---|---|---|
-| `window.Game` (the default) | what is drawn on the screen as the game is played | the theme's Window Border art, colours, padding and shadow | the theme's Font at its Font Size |
-| `window.Settings` | settings windows, and anything else for changing how things are set | the plain border; the theme's settings window colours and padding; no shadow | the theme's Settings Font at its Settings Font Size |
+The theme is the background, border, text and highlight colours, padding, drop shadow, the font and its
+size, the outline round text over bars and the game, and the styles: window border art and its opacity,
+window background, frame titles, tab style, bar texture, bar bookends and custom status icons. It is
+saved in `config\addons\winxi\theme.lua` and kept in step across addons.
 
-```lua
-window.Full('Example Settings', showConfig, flags, DrawSettings, { kind = window.Settings });
-```
+It is set in wxi's `/winxi` window, or in the Winxi Theme tab of an addon's own settings window, the last
+tab, in its own colour. A change made there shows at once in that addon, and reaches every other addon
+using winxi when the control is let go.
 
-The theme keeps the two apart: a settings window's colours, padding, font and font size are values of
-its own (`theme.SettingsKeys`: `SettingsBackgroundColor` for `BackgroundColor`, and so on, with
-`ThemeTabColor` a settings window's alone), and `theme.For(key, settingsKind)` gives either. So what is
-chosen for the game's windows does not change the window it is chosen in. `widgets.Appearance` sets the
-game's windows, `widgets.SettingsAppearance` the settings windows; the `wxi` addon has both,
-a tab each. A theme saved before the two were apart gives its colours and font to both. `winxi.shell`'s settings window is one already.
+Every addon that uses winxi gives you the choice, with its "Use Shared Theme" checkbox: follow the shared
+theme, or keep colours, padding and shadow of its own. The addon's own theme starts from the shared
+theme's values, so switching the shared theme off changes nothing until something is changed.
 
-A settings window can always be resized, whatever flags it is given (`AlwaysAutoResize` and
-`NoResize` are taken off). It fits its content as it changes, until a grip or an edge is taken hold
-of; from then it keeps the size it is given, never bigger than the screen, with `widgets.PushControlWidth`
-controls narrowed to fit and anything still too big scrolling. A double-click on a grip or an edge
-fits it to its content again. `window.IsResized()` says, while its content is drawn, whether it has
-been resized.
-
-## Text over bars and images
+Settings windows have colours, padding, a font and a font size of their own, set on wxi's Settings
+Windows tab, so what is chosen for the game's windows does not change the window it is chosen in.
 
 Text written over a bar, an image or the game itself has a dark edge all round it, so it can be read
-whatever is behind it. That is the standard for winxi addons; plain text is for the plain background
-of a window.
+whatever is behind it. Its thickness is the theme's Text Outline, one setting for every addon, and its
+colour the theme's Outline Color.
 
-```lua
-local text = require('winxi.text');
+Tooltips follow the shared theme's Tooltip values, set in wxi's Tooltips tab, whether or not the addon
+follows the shared theme: whether they show, their delay, colours, padding, text size and width. Words go
+on to another line at the Max Width.
 
-text.Outlined('1250');                              -- in a window, where imgui.Text would put it
-text.Draw(drawList, x, y, color, '1250', edge);     -- anywhere, on a draw list of the addon's choosing
-```
+## Settings windows
 
-`text.Outlined` uses the theme's text colour unless given one. `edge` is the edge's thickness in
-pixels: the theme's Text Outline unless given, which every addon should leave it at, so that one setting
-changes them all (`text.Edge()`); 0 is none. The edge is the theme's Outline Color (`text.EdgeColor()`).
+Every addon's settings window is laid out the same way, so that someone who has set one addon up knows
+every other: Settings (the addon's behaviour), then the addon's own tabs, then Visibility (for an addon
+with a window: Fade In And Out and the rules for hiding), then Winxi Theme last. Every setting is a row:
+its name, a sentence under the name saying what it does, and its control at the right.
 
-## The theme in a settings window
+A settings window can always be resized. It fits its content as it changes, until a grip or an edge is
+taken hold of; from then it keeps the size it is given, never bigger than the screen, with anything too
+big scrolling. A double-click on a grip or an edge fits it to its content again. How a settings window
+opens is set on wxi's Settings Windows tab: Minimum Width (Fit To Content, or at least so many pixels
+wide), Starting Height (Fit To Content, or a height in pixels that its content scrolls within), and a
+button that takes both from that window as it stands.
 
-```lua
-local widgets = require('winxi.widgets');
+### Sections collapse
 
-if widgets.BeginThemeTab() then
-    widgets.Appearance();
-    widgets.EndThemeTab();
-end
-```
-
-`BeginThemeTab` names the tab "Winxi Theme", colours it apart from the addon's own tabs in the theme's Theme Tab Color, and holds it
-against the right edge of the tab bar, so it is the last tab whatever order the tabs are begun in. Any other tab, when chosen, and the line
-imgui draws under the tab bar are in the theme's Highlight Color.
-
-A change made there shows at once in that addon, and reaches every other addon using winxi when the
-control is let go: the theme file is saved and a `winxi_theme_changed` plugin event tells the others to
-load it.
+Every section of a menu can be collapsed: its title starts `[-]` while open and `[+]` while collapsed,
+and a click on the title changes which. Which sections are collapsed is kept while the addon is loaded.
+The titles are in the Sub-Category Color on wxi's Settings Windows tab.
 
 ## Fading while idle
 
-```lua
-local fade = require('winxi.fade');
-local widgets = require('winxi.widgets');
-
-fade.Complete(settings.Fade);            -- once, after loading: fills in whatever is missing
-
-fade.Update(settings.Fade);              -- once a frame
-window.Plain('example', open, flags, draw, { alpha = fade.Alpha() });
-
-widgets.Fade(settings.Fade, SaveSettings);   -- in the settings window
-```
-
-The fade settings are each addon's own, not shared like the theme. An addon with several windows can
-give `fade.Alpha()` to only some of them.
+An addon can fade its windows out while you are idle. The fade settings are each addon's own, not
+shared like the theme.
 
 Idle is standing still, unless the Moving setting is off: then moving about does not keep the windows
 up, and they fade on the move too once nothing else has kept them up. What else counts as not idle is
@@ -192,492 +80,42 @@ each a setting: being engaged, having a target (a change of target brings the wi
 being below full HP, resting, and a change to the party list (someone joining, leaving or changing
 area).
 
-A window can also fade in as it appears and out as it goes:
-
-```lua
-local alpha = fade.Presence('example', wanted);     -- every frame the window might be drawn
-if alpha > 0 then
-    window.Plain('example', open, flags, draw, { alpha = alpha * fade.Alpha() });
-end
-```
-
-Fading in needs nothing more. Fading out means drawing the window a little longer than it is wanted:
-keep calling with `wanted` false, and keep drawing, while `fade.Lingering('example')` is true.
-
 ## Arranging windows
 
-```lua
-local organize = require('winxi.organize');
+An addon that arranges its windows this way has an Organize button in its settings window. While organizing, windows are
+labelled, a grid can be shown, and dropping one window onto another links them: the dropped one is held
+against the side it was dropped towards. Links are between the windows of one addon.
 
-organize.SetLinks(settings.Links);       -- once, after loading: a list the addon saves
-organize.SetLabels({ ['example'] = 'Example' });
-
--- every frame
-organize.BeginFrame();
-organize.Place('example', settings.Pos);                -- before the window's Begin
-window.Plain('example', open, flags, function()
-    organize.Label('example');
-    DrawContent(organize.IsActive());                   -- sample data while organizing
-    organize.Track('example', settings.Pos);
-end);
-organize.EndFrame();
-
-organize.Controls();                     -- the Organize button, in the settings window
-```
-
-While organizing, windows are labelled, a grid can be shown, and dropping one window onto another
-links them: the dropped one is held against the side it was dropped towards. Links are between the
-windows of one addon.
+Every addon's settings can be kept for each screen resolution, on wxi's Layouts tab.
 
 ## Controller input
 
-```lua
-local controller = require('winxi.controller');
-
-local grid = controller.NewGrid();
-local menu = nil;
-
-controller.Bind({
-    active  = function() return windowIsShowing end,    -- take the controller only while there is reason to
-    actions = controller.StandardActions(),             -- d-pad, A confirm, B back, X sort, LB previous, RB next
-    repeats = controller.StandardRepeats(),             -- the d-pad repeats while held
-    press   = function(action)
-        if menu then
-            menu = menu:Press(action);                  -- the menu to show next, or nil once closed
-        elseif action == 'confirm' then
-            menu = controller.NewMenu('Title', { { label = 'Use', run = Use }, { label = 'Cancel' } });
-        elseif action == 'back' then
-            windowIsShowing = false;
-        else
-            grid:Move(action);
-        end
-    end,
-});
-
--- drawing
-grid:Begin();
-for _, thing in ipairs(things) do
-    local x, y = imgui.GetCursorScreenPos();
-    local index = grid:Add(x, y);
-    Draw(thing, grid:IsOn(index));                      -- highlighted when the grid is on it
-end
-grid:End();
-if menu then
-    local x, y = grid:Position();
-    menu:Draw(x + 40, y);
-end
-```
-
-`controller.Label(text, x, y, below)` draws a small floating box with a line of text, its bottom left
-corner at x, y: given the top left of the highlighted thing, it names it from just above. With `below`
-set it is the box's top left corner that goes there, for a place under the thing. A function may be
-given in place of the text, to draw more than a line, with a fifth argument that changes when what it
-draws does.
-
-Only the buttons in `actions` are taken, and only while `active` says so: they are kept from the game,
+Some addons' windows can be worked with a controller (XInput, or DirectInput by make). Only the buttons
+an addon uses are taken, and only while its window has reason to take them: they are kept from the game,
 and the sticks and every other button still reach it. A button already down when the addon takes the
-controller is not counted as a press.
-
-To show which window the buttons will act in, mark it while its binding has the controller: a bright
-line is drawn around its edge. Keep what `controller.Bind` returns, and either give it to
-`winxi.window` as the `controller` option, or call it while drawing a window of the addon's own:
-
-```lua
-local binding = controller.Bind({ ... });
-
-window.Full(name, open, flags, draw, { controller = binding });
--- or, between a window's Begin and End:
-controller.Highlight(binding);
-```
+controller is not counted as a press. The window the buttons will act in has a bright line drawn around
+its edge, and under it the buttons it uses, each with a word for what it does.
 
 Buttons are named as an Xbox controller's are. XInput is the default. For a DirectInput controller,
-the addon says which make it is, and its buttons are read as the Xbox buttons in the same positions:
-
-```lua
-controller.SetLayout(settings.ControllerType);    -- 'xinput', 'playstation', 'switch' or 'stadia', or 'auto'
--- controller.Layouts lists them, each with a key and a label, for a settings window to offer;
--- controller.Choices is the same with Automatic first. Automatic (controller.Automatic, winxi 68) follows
--- the kind the game reads, its padmode000's Enable XInput in Ashita's boot configuration as the launcher
--- writes it (controller.GameKind), a DirectInput controller taken for a PlayStation one; where that cannot
--- be read, the kind heard pressing buttons
-```
-
-To tell the player which button to press, `controller.ButtonName(controller.Button.A)` gives what is
-printed on it for the kind in use (winxi 70): A on an Xbox controller, Cross on a PlayStation one, B on a
-Switch Pro.
-`controller.Glyph(drawList, button, x, y, size)` draws the button as it looks (winxi 71): PlayStation's
-cross, circle, square and triangle in their colours, an Xbox controller's coloured letters, the
-others' letters, pills for the shoulder and other buttons, and `controller.Dpad` for the d-pad. It
-returns its width; `controller.GlyphWidth(button, size)` gives the width without drawing.
-
-A window worked with a controller says which buttons do what with `winxi.legend` (winxi 72), under it,
-the same in every addon: a glyph for each button and a word for what it does, in the theme's font and
-size, outlined over the game. Keep the words to one where you can (Move, Select, Back, Tab, Sort, Next,
-Exit):
-
-```lua
-local legend = require('winxi.legend');
-local pieces = { { controller.Dpad, 'Move' }, { controller.Button.A, 'Select' }, { controller.Button.B, 'Back' } };
--- each frame the window has the controller, under it:
-local height = legend.Draw(pieces, x, bottom + 6, width);
-```
+the addon's settings say which make it is (PlayStation, Switch or Stadia), and its buttons are read as
+the Xbox buttons in the same positions. Automatic follows the kind the game reads, its Enable XInput
+setting as the launcher writes it, a DirectInput controller taken for a PlayStation one; where that
+cannot be read, the kind heard pressing buttons. Buttons are shown as they look on the kind in use: A on
+an Xbox controller, Cross on a PlayStation one, B on a Switch Pro.
 
 ## Menu sounds
 
-```lua
-local sound = require('winxi.sound');
+Menus can make small sounds as they are worked (opening, moving, changing tabs, confirming, going back
+and errors). They are off until an addon turns them on. The ones that come with winxi are plain tones,
+not the game's. Each sound is a wav file called by its name: `sounds\move.wav` in an addon's own folder
+is used before the one in `libs\winxi\sounds`, so an addon may bring its own. Ashita plays one sound at
+a time, at the volume of the file.
 
-sound.SetEnabled(settings.MenuSounds);    -- off until an addon turns it on
-sound.Play('move');                       -- 'open', 'move', 'tab', 'confirm', 'back' or 'error'
-```
+## Game status icons and Pivot
 
-The controller's grid and menu play these by themselves as they are worked, and a binding plays
-`open` as it takes the controller (as its window opens), so an addon using those need only turn the
-sounds on. Anything else an addon does with a menu (changing tabs, refusing
-something) it plays itself.
+Individual game status icons, the game-only sheet, and the mixed custom/game sheet all load their game artwork through the same Pivot-aware DAT reader. Pivot chooses the winning overlay in its configured order; winxi does not guess overlay folders or reorder them. The installed client's FTABLE mapping selects the status DAT (file id 87, normally `ROM/119/57.DAT`). If the DAT cannot be opened or an icon is unsupported/malformed, that icon falls back to Ashita's resource-manager bitmap.
 
-Each sound is a wav file called by its name. `sounds\move.wav` in the addon's own folder is used
-before the one in `libs\winxi\sounds`, so an addon may bring its own; `sound.Set(name, path)` gives a
-name any file, and `sound.Refresh()` looks for the files again. The ones that come with winxi are
-plain tones made by `sounds/generate.py`, not the game's.
-
-Ashita plays one sound at a time, at the volume of the file.
-
-## Game data
-
-`data/` holds shared game definitions, primarily made from Phoenix's server data, plus an
-independently generated installed-client auto-translate dictionary, one folder to each set:
-
-| Set | What it is | Read with |
-|---|---|---|
-| `mobs` | Each area's monsters, `<zoneId>.lua` (or a part of an area's, numbered from 1000): `Names` and `Indices` of monsters as mobdb has them | `winxi.mobs.Zone`, `Find` |
-| `placeholders` | Each area's notorious monsters and the entity indices each is drawn by lot from | `winxi.mobs.Placeholders` |
-| `items` | Every server item ID; base stats plus enabled module SQL, conditional modifiers, food definitions and Lua source evidence. Includes a portable `catalog.json` list | `winxi.items.Get`, `Tooltip`, `Ids` |
-| `spells`, `abilities`, `weaponskills`, `traits` | Base SQL plus enabled module SQL, job requirements, blue magic, charges/trait variants, source evidence and portable catalogs | `winxi.<set>.Get`, `ForJob`, `Tooltip` |
-| `jobs`, `skills`, `elements` | Server enums; job names; skill ranks/caps with enabled YAML overlays | `winxi.<set>.Get` |
-| `autotranslate` | Independently generated from installed-client dictionaries, with its own provenance in `index.lua` | `winxi.autotranslate` |
-| `quests` | Numbered quest-log identities and separate hidden interactions; source coverage, NPC/zone references, base reward declarations and enabled module associations | `winxi.quests.Get`, `Search`, `ForZone` |
-
-`data/manifest.lua` says what it was made from: the repository, branch and commit, when, and each
-set's file count (`winxi.gamedata.Manifest()`).
-
-Server sets are made from Phoenix's live branch on GitHub by default, or an explicitly supplied
-checkout. The independent client-data build is described in [Shared catalogs](catalogs.md#auto-translate).
-To rebuild server sets:
-
-```sh
-python3 tools/build_winxi_data.py                 # fetch live, make every set, write the manifest
-python3 tools/build_winxi_data.py --only mobs     # one set; the others are kept
-python3 tools/build_winxi_data.py --offline       # from the copy fetched last time
-python3 tools/build_winxi_data.py --server PATH   # another checkout, for a change not on GitHub yet
-```
-
-`tools/phoenix` does the fetching: a shallow, sparse clone of only what the scripts read (`data`,
-`scripts`, `modules`, `settings`, `sql`) into `.cache/phoenix-live`, moved to the branch's newest
-commit each time. Each set is made beside the old one and put in its place only once it is whole,
-so a zone the server no longer has is gone from it, and a set that fails leaves the old one.
-
-To add a set: an entry in `SETS` in `tools/build_winxi_data.py` (its folder, what it is, and a
-function given the server checkout and the folder to fill), and a module that reads it through
-`winxi.gamedata.Read`. A data file is read with nothing of an addon's to reach: it must only return
-a table.
-
-## The game, packets and bursts
-
-Three small modules hold what an addon would otherwise copy from another:
-
-```lua
-local game = require('winxi.game');
-local packets = require('winxi.packets');
-local debounce = require('winxi.debounce');
-
--- when the addon's windows should get out of the way (map open, chat opened out, loading, events,
--- the game's interface hidden): rules kept in the addon's settings, with controls from widgets.Hide
-game.CompleteHide(settings.hide);
-if game.IsHidden(settings.hide) then return end
-
-game.HasBagAccess(bag);    -- also MenuName, IsMapOpen, IsChatExpanded, IsEventHappening, IsInterfaceHidden, IsLoading
-
-AshitaCore:GetPacketManager():AddOutgoingPacket(packets.outbound.inventorySort:make(bag));
-
-debounce(Refresh);         -- Refresh runs once, a second after the last time it was asked for
-```
-
-`winxi.packets` has only what an addon has needed so far (the bags, the treasure pool, equipment (`equipSet`, winxi 69), and actions and
-the messages that follow them); add to it as others are needed.
-
-For a tool of xitools that has become an addon of its own, `winxi.legacy` brings over what xitools kept
-for it, once for each character:
-
-```lua
-local legacy = require('winxi.legacy');
-
-if not options.importedFromXitools and settings.logged_in then
-    options.importedFromXitools = true;
-    legacy.FromXitools('inv', options, { 'isVisible', 'pos' });    -- the tool's settings to copy
-    settings.save();
-end
-```
-
-It also copies xitools' theme, its rules for hiding and whether the tool faded, where the addon's
-settings have `useSharedTheme`, `theme`, `hide` and `fadeInOut` to take them.
-
-## Over the world, under lens
-
-The lens plugin draws the game's world bent (Panini or cylindrical) and the
-UI flat over it. Anything an addon places over the world by the view and projection, a line to a
-target or a cursor over one, lands where the flat projection would put it, which near the edges is
-beside where the warp shows the thing. `winxi.lens` moves such a point to where the warp shows it,
-and leaves it alone without lens or with its warp off:
-
-```lua
-local lens = require('winxi.lens');
-
-local warp = lens.Current();                                  -- once a frame: nil without a warp
-x, y = lens.Point(warp, x, y, width, height);                 -- each point, in any pixels across the screen
-```
-
-`nameplates.Screen` does it already. targetlines and hideparty's target cursor use it; name's
-nameplates and winbubbles' world bubbles are drawn into the world by namehook, which counters the
-warp's stretch for each itself (1.30).
-
-## Debuffs on an enemy
-
-The server never says what is on an enemy, so `winxi.debuffs` keeps count from what it does say: the
-spells cast nearby and whether each took hold, effects wearing off, and enemies being defeated.
-
-```lua
-local debuffs = require('winxi.debuffs');
-
-ashita.events.register('packet_in', 'example_packet_in', function(e)
-    debuffs.HandlePacket(e);                          -- every packet in
-end);
-
-debuffs.Remaining(serverId, debuffs.Kinds.Dia);       -- seconds left, or nil when it is not on
-debuffs.Get(serverId, 'slow');                        -- { kind, name, expires, by, element }, or nil
-debuffs.Active(serverId);                             -- a list of those, the first to run out first
-debuffs.On(serverId);                                 -- kind -> entry as kept, or nil: nothing made or sorted
-debuffs.StatusIds[kind];                              -- the game's number for the status, for its icon
-```
-
-Apart from those kinds, any status the server says took hold on anyone, by spell, ability, weapon
-skill, monster's move or additional effect, is kept by its number, and taken off when the server says
-it wore off, was dispelled or erased, or its owner was defeated:
-
-```lua
-debuffs.Statuses(serverId);                           -- status -> { id, expires, by, category, param }, as kept
-debuffs.StatusRemaining(serverId, status);            -- seconds left, or nil when it is not on
-```
-
-How long each lasts is the server's base duration for the spell or monster's move that put it there,
-or the usual one for the status, from the server's `durations` set (`tools/build_debuff_durations.py`
-makes it from the Phoenix server's live branch on GitHub), or 180 seconds where nothing says. Merits, gear and partial
-resists are not known.
-
-Sleep ends with a blow or a cure. The server wakes anyone who takes damage or is cured, and says so
-only to the one who put the sleep there (and to the sleeper, when a player), so the tracker takes it
-off when an action's result says the target took damage or recovered HP, by its message number and an
-amount above 0, an additional effect's damage among them. A sleeper with Poison, Dia, Bio, an
-elemental debuff or Requiem on them is woken by the server's next regen tick, which nothing announces:
-the sleep is given three seconds at most from when the two meet.
-
-`debuffs.On` is for an addon that asks about many enemies every frame. An entry in it may have run
-out: `os.time() < entry.expires` says whether it is still on.
-
-`name` is the spell that put it there and `by` the server id of who cast it. An enemy's server id is
-its entity's `ServerId`. An addon that parses actions itself hands the result to `debuffs.Action` in
-place of the packet, and likewise `debuffs.Message`.
-
-Each addon is its own Lua state: every addon that wants the count keeps its own, from the packets it
-hands over. It knows nothing of a debuff that landed out of range or before the area was entered, of
-one put there by anything but a spell, or of one cut short by a partial resist until the server says
-it has worn off. Everything is forgotten on a change of area.
-
-## Letting an addon keep its own theme
-
-Every addon that uses winxi gives its user the choice: follow the shared theme, or keep colours,
-padding and shadow of its own. That takes two settings of the addon's, a flag and a table:
-
-```lua
-local theme = require('winxi.theme');
-local widgets = require('winxi.widgets');
-
--- in the addon's settings: UseSharedTheme = true, Theme = {}
-
--- once a frame, before anything is drawn (cheap: nothing happens unless one of the two has changed)
-theme.Configure(settings.UseSharedTheme, settings.Theme);
-
--- in the Winxi Theme tab
-widgets.Appearance({
-    onUseShared = function(useShared)       -- the "Use Shared Theme" checkbox was changed
-        settings.UseSharedTheme = useShared;
-        SaveSettings();
-    end,
-    onOwnChanged = function()                -- the addon's own theme was changed
-        SaveSettings();
-    end,
-});
-```
-
-The table is filled in by winxi the first time it is handed over, starting from the shared theme's
-values, so switching the shared theme off changes nothing until something is changed. The addon only
-has to save and load it with the rest of its settings.
-
-## An addon in a few lines: the shell
-
-For an addon with one main window, `winxi.shell` does everything that is not the addon's own: the
-settings for each character, the theme, the rules for hiding, fading in and out, the window's place, a
-settings window with Settings and Winxi Theme tabs, and the command.
-
-```lua
-local shell = require('winxi.shell');
-
-local app = shell.New({
-    defaults     = T{ isVisible = T{ true }, pos = T{ 100, 100 } },   -- the addon's own settings
-    window       = 'winxi.example',
-    configTitle  = 'Example Settings',
-    command      = '/example',                          -- alone: show or hide; 'config': the settings
-    help         = '/example shows or hides the window; /example config opens the settings.',
-    drawSettings = function(options) ... end,           -- the Settings tab, above the hiding rules
-});
-
-ashita.events.register('d3d_present', 'example_present', function()
-    if not app:BeginFrame() then return end             -- false while the windows should hide
-    app:Window(app.options.isVisible, Draw);            -- Draw(options) draws what the window holds
-end);
-```
-
-`app.options` is the settings table; read it from `app` each time, as it is another table after a change
-of character. `BeginFrame` is false, and nothing of the addon's is drawn, from the moment a character
-logs out until a character's settings are loaded again: Ashita's settings library hands every addon the
-defaults at the logout, in which the window is open and at its first place, and the addons run on for
-half a second as the game shuts down, so a window kept closed showed over the black screen until then.
-An addon loaded at the title screen draws nothing until the login, by the same rule. Optional in the spec: `drawAppearance` (more for the Winxi Theme tab's Addon section), `visibility` (more for the Visibility tab, after Fade In And Out),
-`commands` (more verbs), `onSettings` (called when the settings are loaded or swapped), `toggleSays`
-(`{ shown = '...', hidden = '...' }`, said in the chat log as the command shows or hides the window: for
-a window that is only there some of the time, where the change cannot otherwise be seen) and `import` (a
-tool's settings to bring over from xitools, once) and `formerName` (an addon's name before it was renamed:
-what it saved under that name is brought over, once for each character). `shell.ControllerSettings(options, tooltip, between)`
-draws the controller settings an addon's Settings tab has. `winventory` and `treas` are written this way.
-
-An addon with settings and no window of its own leaves `window` out of the spec: its command alone then
-opens or closes the settings, which say nothing of hiding or fading, and it calls `app:BeginFrame()`
-each frame for the settings window alone. `trigger` is written this way (its optional indicator uses `winxi.window` as well).
-
-## Tooltips
-
-```lua
-local tooltip = require('winxi.tooltip');
-
-imgui.Button('Go');
-tooltip.Hover('Goes.');                      -- in place of: if imgui.IsItemHovered() then imgui.SetTooltip('Goes.') end
-
-if imgui.IsItemHovered() and tooltip.Begin() then
-    imgui.Image(icon, size);                 -- anything, in a tooltip of winxi's look
-    tooltip.End();
-end
-```
-
-Words go on to another line at the Max Width. `Begin` returns false while tooltips are off or the
-mouse has not rested for the Delay yet; `End` is called only when it returned true. winxi's own
-tooltips (`winxi.widgets`, `winxi.shell`, `winxi.organize`) all go through it.
-
-## Settings windows: the rules
-
-Every addon's settings window is laid out the same way, by `winxi.widgets` and `winxi.shell`, so that
-someone who has set one addon up knows every other. The rules, in the order a window is read:
-
-1. **Tabs.** Settings (the addon's behaviour; `settingsLabel` may rename it), then the addon's own tabs,
-   then Visibility (for an addon with a window: one section with Fade In And Out, whatever the addon adds
-   with `visibility`, then a rule and the rules for hiding), then Winxi Theme last, in its own colour. `winxi.shell`
-   draws the tabs; an addon without the shell draws the same ones.
-2. **Sections.** Every tab is sections under `widgets.Header`, each collapsible, its body inside the `if`.
-   A section's title sits on a band in the settings windows' Highlight Color across the window's
-   content, from the padding on the left to the padding or the scrollbar on the right, with a solid
-   line along its foot and the [-] or [+] at the right end of the row, both a little in from the band's
-   ends; a sub-section has only a fainter line, from its indent. A settings window fitted to its content is
-   never taller than three quarters of the screen; the rest scrolls.
-   The first section of a tab is `Header(name, true)`, flush with the tab bar. A header sets itself apart
-   from the section above: never a `Gap` before one. `Gap` goes only between families of settings inside
-   a section, and draws a faint rule across the window with a little air either side, so the families
-   can be told apart at a glance. A section with many families is split into sub-sections instead
-   (`widgets.SubHeader`): each a title indented a step under the section, collapsible as a section is,
-   with its rows a step further in. The next sub-section or section ends it; a row after the last
-   sub-section calls `widgets.EndSub()` first. The theme's Styles is one: Border And Background, Titles,
-   Bars and Icons. The first section of the Settings tab is **Window**, where there is a
-   window: Visible, Lock Window, Position, and whatever else is about the window itself, under those
-   names in every addon.
-3. **Rows.** Every setting is a described row: its name, a sentence under the name saying what it does,
-   and its control at the right. `widgets.Check`, `Slider`, `Numbers`, `Dropdown`, `Color` and `Action`
-   draw one each; `BeginRow` / `EndRow` hold a control of the addon's own. An addon never calls imgui's
-   controls for a setting by itself, and never sets a control's width: the rows do.
-4. **The sentence.** One short line, written for someone who does not know the game's insides: what
-   happens when the setting is on, or what the number is. Plain words, no keys, no addon names where
-   "this window" will do, no "whether": "Shows the bar while you are under a status", not "Whether the
-   window is visible". Where a command does the same, say so at the end: "/winbuff switches it too." There
-   is no other help: no tooltips, no (?) marks, no explanatory lines between controls. What the sentence
-   cannot say in one line is left out. Say "game default" for what the game has by itself and "Winxi
-   Theme" for what the theme gives, never "the game's own" or "winxi's own".
-5. **Names.** Each word capitalised: "Shadow Opacity", "Fade When Idle". No unit in the name: the unit
-   goes in the value, with `widgets.Pixels`, `Percent`, `Seconds` and `Milliseconds` or a `format` of the
-   addon's own ("%d px/s"). An experimental setting has `[Experimental]`, in yellow, before its name
-   (`spec.experimental`).
-6. **Dependents.** A setting that only means something while another is on takes that one as its
-   `parent`: it is indented under it and greyed while it is off, not hidden. Hide a row only when it is
-   meaningless rather than idle (a style's own settings while another style is chosen).
-7. **Choices.** One of a few is always a dropdown, never a row of radio buttons; the Winxi Theme's Grow
-   From is one too (`widgets.GrowFrom`).
-8. **Colours.** A swatch; the picker opens on it (`widgets.Color`, `ImGuiColorEditFlags_NoInputs`).
-9. **Buttons.** An action is a row too (`widgets.Action`): a name, a sentence saying what it does, and a
-   button at the right reading a verb (Reset, Test, Save). A reset row is last in its tab, after a `Gap`.
-   Anything that loses something asks first, in a popup. `SmallButton` only inside tables.
-10. **Status.** What the addon is doing now is one dim line at the foot of the tab, over a rule
-    (`widgets.Status`), never between controls. Diagnostics get a section of their own, collapsed to
-    start (`Header(name, false, true)`).
-
-```lua
-if widgets.Header('Window', true) then
-    widgets.Check('Visible', 'Shows the bar while you are under a status. /winbuff switches it too.', options.isVisible, '##buff.visible');
-    widgets.Lock(options.locked, '##buff.locked');
-    widgets.Numbers('Position', 'Where the bar\'s corner is on the screen.', options.pos, '##buff.position');
-end
-if widgets.Header('Icons') then
-    widgets.Slider('Icon Size', 'How tall each icon is.', options.iconSize, 16, 96, '##buff.iconSize', widgets.Pixels);
-    widgets.Check('Show Time Left', 'Writes under each icon how long the status has left.', options.showTimers, '##buff.showTimers');
-    widgets.Slider('Flash Below', 'An icon flashes when this much time is left.', options.flashBelow, 0, 60, '##buff.flashBelow', { parent = options.showTimers, format = '%d s' });
-end
-widgets.Status(('%d icons shown.'):format(count));
-```
-
-Rows are 30 text heights of name and sentence, a gap, and 13 of control (`widgets.DescriptionWidth`,
-`widgets.RowControlWidth`), measured from the window's content edge, so every control and every [-] or
-[+] is at the same x whatever a row's indentation; an indented sentence wraps that much sooner. A
-settings window fits itself to them, and one that has been resized keeps the control column and gives
-the sentence what is left. How a settings window opens is the theme's, on
-wxi's Settings Windows tab: Minimum Width (Fit To Content, or at least so many pixels wide),
-Starting Height (Fit To Content, or a height in pixels that its content scrolls within), and a button
-that takes both from that window as it stands. The section titles are written in the theme's Header
-Font at its Header Size there, or the window's own.
-
-On rows so far: the theme's own sections, the shell's Visibility and Controller rows, and the winbuff, sct,
-atlas, mark and wxi addons. The rest (winparty, winplates, winchat, winventory, zone and the others)
-still draw labelled columns with `widgets.Label`, which stays until they are converted.
-
-## Converting an addon: checklist
-
-An addon with one main window can use `winxi.shell` (above), which does all of this. Otherwise:
-
-1. Draw its windows with `winxi.window`, or `winxi.style` pushes around its own `Begin`.
-2. Add the `UseSharedTheme` flag and `Theme` table to its settings, saved and loaded with the rest.
-3. Call `theme.Configure` once a frame.
-4. Give it a Winxi Theme tab (`widgets.BeginThemeTab`) in five sections. `widgets.Appearance`, given
-   both functions, draws the first four: **Theme** (the "Use Shared Theme" checkbox), **Window**
-   (colours, padding, drop shadow), **Font** (the base font and size) and **Styles** (window border, frame titles, bar texture, bar bookends and their
-   style, Custom Icons), then Reset Appearance, which asks first when it is the shared theme
-   being reset. An addon that draws HP and MP bars or statuses reads the styles from `theme.Get()`:
-   `BarTexture`, `Bookends`, `BookendStyle`, `StatusIcons` (whether custom icons are drawn) and `StatusIconSet` (which set). The addon draws the last section itself, under `widgets.Header('Addon')`, for its own appearance options, as described rows.
-5. Remove the addon's own colour, padding and shadow settings and the code that drew with them.
-6. Lay its settings out by the rules above.
+Pivot's `redirect_fopens=true` setting must be enabled for this reader, as it must for winxi's map/cursor reader. Explicit custom status sets still take precedence when enabled: turn custom status icons off to use only game/Pivot artwork. DATs and textures are cached per addon; after changing Pivot overlays, reload the affected addons to rebuild their icons and sheets.
 
 ## Custom icons
 
@@ -700,32 +138,9 @@ return { name = 'FFXIV', left = 8 / 64, right = 56 / 64 };
 For the winplates addon, which draws statuses from a single picture, a set is put on one sheet a few icons
 a frame the first time it is wanted; ffxiv's comes ready made, as `sheet.png`.
 
-## Sections collapse
+## Game data
 
-Every section of a menu is a `widgets.Header`, and every one can be collapsed: its title starts `[-]`
-while open and `[+]` while collapsed, and a click on the title changes which. `widgets.Header`
-returns whether it is open, and the section is drawn only then:
-
-```lua
-if widgets.Header('Window') then
-    -- the section's settings
-end
-```
-
-A header whose return is not used still shows `[-]`, but collapsing it hides nothing: always draw a
-section inside its `if`. Which sections are collapsed is kept while the addon is loaded. The titles are
-in the theme's `SettingsHeaderColor`, Sub-Category Color on wxi's Settings Windows tab.
-
-## Checks
-
-`tests/run.sh`, at the top of the project, loads `winventory`, `treas` and parts of winxi against a stand-in for
-Ashita and prints what it finds: that they load, draw, answer their commands and take the controller as
-expected. It does not show that anything looks right or that the game agrees. Run it after changing
-winxi.
-
-## Notes
-
-- Each addon runs in its own Lua state, so each loads its own copy of the library; only the theme file
-  is shared.
-- An addon that uses winxi needs this folder installed alongside it.
-- Each module's own header comment is its reference.
+winxi carries what is known of the game that the client does not say (each area's monsters, items,
+spells, abilities, quests and the like), made from the Phoenix server's data, plus an auto-translate
+dictionary made from the installed client. Which server's data is used is chosen in wxi's Server Data
+tab.

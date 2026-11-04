@@ -91,8 +91,8 @@ Without the plugin, or with one that did not recognise the client, the anchored 
 drawn over everything, at the place measured below, and the settings say why. Draggable mode is
 always a window.
 
-**Placement without the plugin:** the default origin was measured from
-`screenshots/Screenshot_20261014_111534.png` at 1:1 menu scale, not read from the live native buff
+**Placement without the plugin:** the default origin was measured from a screenshot at 1:1 menu
+scale, not read from the live native buff
 bar. The menu resolution is cached by Ashita's scaling helper when winbuff loads; reload winbuff after
 changing that configuration.
 
@@ -124,60 +124,6 @@ The settings window has Window, Icons, **Durations**, **Removable Marks** and Co
 - **Hide Game's Icons**: stops the game drawing its own row. The row comes back when this is switched
   off or the addon unloads. Anchored with the plugin, the bar takes the row's place whatever this says.
 
-## Optimization check
-
-```
-luajit tests/harness.lua winbuff addons/winbuff/winbuff.lua tests/buff_check.lua
-luajit tests/harness.lua winbuff addons/winbuff/winbuff.lua tests/buff_performance_check.lua
-luajit tests/harness.lua winbuff addons/winbuff/winbuff.lua tests/buff_hook_performance_check.lua
-```
-
-The performance check counts work over 120 warmed-up frames with 32 statuses. Compared with the
-previous live `buffs` implementation using the same fixture:
-
-| Work over 120 frames | Before | After |
-| --- | ---: | ---: |
-| Timer metadata lookups, timers enabled | 2,880 | 0 |
-| Text measurements, timers enabled | 2,040 | 0 |
-| Menu checks, anchored bar visible (the selector, once a frame) | 240 | 120 |
-| Timer-array fetches, timers disabled | 120 | 0 |
-| Game-clock reads, timers disabled | 360 | 0 |
-| Timer-array fetches, empty bar | 120 | 0 |
-| Status-array fetches, visibility off and fading disabled | 120 | 0 |
-
-Static timer flags and text widths are cached; a change of font face or size clears the text
-measurements. Status entries are reused, not rebuilt. Timer arrays are read only if asked for, and
-only when at least one status is present. The game clock is read only for finite timers. Tooltip
-cancellation reuses the resource lookup the tooltip already needs. Native patch scanning stays
-outside the frame loop, and the shared icon textures already use the library's cache.
-
-The hook check counts the anchored bar handed to the buffhook plugin, over 120 frames with 32
-statuses, each with a time:
-
-| Work over 120 frames, handed to the plugin | First version | Then | Now |
-| --- | ---: | ---: | ---: |
-| Bars written (the times going down once a second) | 120 | 120 | 4 |
-| Quads written, times steady | 47,040 | 47,040 | 0 |
-| Letter fields read from imgui (each a call into it) | 475,200 | 475,200 | 480 |
-| Letter lookups | 720 | 720 | 120 |
-| Textures the bar is drawn from, winxi's icon sheet ready | 33 | 33 | 2 |
-| Lua memory made, per frame | 0.53 KiB | 0.09 KiB | about 0.1 KiB |
-
-The bar changes as a time does, about once a second. Everything it is made from (the statuses, their
-icons and times, the layout, the colours, the cursor, the font) is noted each frame and compared with
-the last bar written. If nothing changed, the same bar is handed over again and nothing is written,
-and the plugin draws from the vertices it made of it last. The letters are copied out of imgui once
-each, and one is looked at each frame to check that imgui has not moved them in its texture. Icons
-come from winxi's sheet of every icon once they are on it (it fills a few a frame), so the bar is
-drawn in a run or two, not one for each icon. Ashita is asked once a frame whether the plugin is
-still loaded, as its block goes with it, and the game's menu is asked once a frame for the selector.
-
-These are synthetic call-count checks, **not an FPS claim or an in-game CPU/GPU benchmark**.
-Rendering still emits one image per icon and updates the countdowns every visible frame. Fade-out
-frames still read statuses when fading is on. To print only the main measurement scenes without
-enforcing the optimized budgets (to compare against an older implementation), add `measure` to the
-end of the performance-check command.
-
 ## The icons
 
 The icons are winxi's, shared with the winparty addon. `libs/winxi/statusicons/ffxiv/<status number>.png`
@@ -185,14 +131,9 @@ is the icon for an FFXI status: FFXIV's, 48 by 64 in the middle of a square of 6
 file there has the game's own icon. You can put any 64 by 64 PNG of that shape in its place, or make
 a set of your own beside it (see Custom icons in the winxi README).
 
-They are made by `tools/build_status_icons.py` from `tools/status_icons.csv`, which says which FFXIV
-icon stands for each FFXI status. To change one, put another FFXIV status name or icon number on its
-line (`references/ffxiv-status-icons/index.html` is there to pick from) and run the tool again.
-`--sheet sheet.png` draws every status beside its icon, so you can look the choices over. A line's
-`tint` is a colour the icon is turned to: a bard's songs, a corsair's rolls and a puppetmaster's
-maneuvers each share one FFXIV icon, in the colours FFXI gives them. Statuses with exactly the same
-name are matched as they are. The rest are a first choice by what the status does, and many could be
-bettered.
+A bard's songs, a corsair's rolls and a puppetmaster's maneuvers each share one FFXIV icon, in the
+colours FFXI gives them. Statuses with exactly the same name are matched as they are. The rest are a
+first choice by what the status does, and many could be bettered.
 
 After the `statustimers` addon by heals, which showed how the times are read and how the game's own
 icons are switched off.

@@ -47,9 +47,8 @@ The values above are the general ones. Two more layers sit over them. Each holds
 in it, and every value in force comes from the most particular layer that has it:
 
 - A preset for each kind of zone. Every zone the server has is a city, outdoors or a dungeon
-  (its dungeons, instanced areas, Dynamis and battlefields). The kind comes from `zones.lua`, built
-  from the server's zone data (winxi's `zonekinds` set) with `tools/build_zone_kinds.py`.
-  `/vis dungeon world 2` sets the world for every dungeon; `/vis city terrain off`,
+  (its dungeons, instanced areas, Dynamis and battlefields). The kind comes from the server's zone
+  data. `/vis dungeon world 2` sets the world for every dungeon; `/vis city terrain off`,
   `/vis outdoors fog 1.5` and the rest work the same way. `/vis dungeon` alone shows the preset,
   `/vis dungeon world clear` takes one value out of it, and `/vis dungeon clear` empties it. To
   begin with, cities and dungeons have world x2 in their presets, and the outdoors preset is empty,
@@ -68,21 +67,13 @@ its own if it has any.
 
 ## How it works
 
-The client multiplies its far clip, fog, zone-object ranges and entity cull distance by two floats,
-world and entity. Every distance asks one small function for the scale. vis sets the two floats,
-and sends particular calls to that function through stubs of its own: the fog's two calls (its
-start and end) multiply their answer by fog / world, and the zone-object range's call multiplies by
-objects² / world. The mesh-detail comparisons go through four more stubs that scale the squared
-distance by 1 / detail². The visibility-list read is replaced by a read of nothing.
+The client multiplies all of its draw distances by two values, world and entity. vis sets those two,
+and changes the few places that read the fog, the object range, the mesh detail and the zone's
+visibility lists, so that each follows its own setting.
 
-The client DLL is packed on disk, so everything is found in the running game, by byte patterns. The
-scale function is found by the bytes drawdistance looks for. Its entry is found by the calls to it
-(92 bytes before those bytes, as of 2026-10-20). The fog's calls are found by their shape, in the
-function just before: pushing the world selector and multiplying by the answer, twice. The object
-range's call is found by where it stores the answer. If a client update moves any of them, the
-setting concerned says so at load, and the others keep working.
-
-For the record, and for the next time the client changes:
+Everything is found in the running game, by byte patterns. If a client update moves any of them, the
+setting concerned says so at load, and the others keep working. These commands are there for the next
+time the client changes:
 
 - `/vis callers` lists every call to the scale function: a number, the address, which
   multiplier it selects, what it pushes, and the first thing done with the answer. The fog's two and
@@ -97,5 +88,4 @@ Ashita unloads an addon whose event errors without letting it put the game back.
 that way (drawscale 1.6 could do this, 2026-10-21) shows as the fog, range and detail sites not
 found at load. A restart of the game clears it.
 
-Unloading restores every patched byte and puts both multipliers back to 1. The stubs stay allocated,
-since the render thread may be inside one at that moment.
+Unloading restores every patched byte and puts both multipliers back to 1.

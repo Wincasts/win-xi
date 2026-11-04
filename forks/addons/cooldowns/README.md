@@ -45,6 +45,9 @@ changed by the player ability-name color setting.
 Names are left-aligned and all countdowns are right-aligned to the same content edge, across both
 player and pet groups. No dash separates them; long countdowns reserve enough room to avoid overlap.
 
+Player recasts are scanned at most ten times per second. Newly started or reset recasts appear on the
+next scan (normally within about 100 ms).
+
 Example layout:
 
 ```text
@@ -88,29 +91,6 @@ used by Puppet. Pet timers use the same recast formatting and urgency colors as 
 If a pet timer is missing, run `/cooldowns debug` after the pet acts. This prints the detected pet,
 head/frame, last observed Shot time, and the ten most recent pet action category/parameter pairs.
 The history is bounded, temporary, and cleared with the pet observations.
-
-## Performance
-
-Player recasts are scanned at most ten times per second. Cached snapshots count down every frame,
-so display, thresholds, sorting and expiry remain smooth; newly started or reset recasts appear on
-the next scan (normally within about 100 ms). Name lookups, including unknown abilities/spells, are
-cached. The fallback ability-resource map is built once when needed, rather than scanned per frame.
-Job/subjob, character, zone and settings changes invalidate these caches. Returning from a hidden
-UI refreshes the snapshot immediately.
-
-Disabling pet cooldowns skips pet row calculations, but packet observation continues so re-enabling
-the display can show already-observed running timers. Countdown text is reused between measurement
-and drawing, and retained while a cached row's displayed second is unchanged. Empty/single-row
-sections skip sorting.
-
-Run the synthetic profile with:
-
-```sh
-luajit tests/harness.lua cooldowns tests/cooldowns_stand_in.lua tests/cooldowns_performance_check.lua
-```
-
-The profile reports native-call counts and harness CPU/allocation measurements; it does not measure
-actual Ashita memory access or in-game rendering performance.
 
 ## Upgrading from imrecast / recast
 

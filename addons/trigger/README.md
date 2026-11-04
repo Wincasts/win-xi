@@ -52,14 +52,10 @@ for each event:
 - a spoken one in a woman's voice, `voicef-tell.wav` and so on ("Tell", "Mentioned", "Invite", "Trade",
   "Examined", "TP ready", "Low HP", "Low MP", "Member down", "Skill up", "Item drop"). This is what an
   event starts on;
-- the same in a man's voice, `voicem-tell.wav` and so on.
-  The spoken ones were made with the Piper text-to-speech program and its voices en_US-amy-medium and
-  en_US-ryan-high, by `sounds/generate_voices.sh`. There is one more of each that belongs to no event,
+- the same in a man's voice, `voicem-tell.wav` and so on. There is one more of each that belongs to no event,
   `voicef-twister.wav` and `voicem-twister.wav` ("Twister"), to choose for whatever you like;
 - a tone of plain notes, `tone-tell1.wav` and so on;
 - a second tone, on bells, `tone-tell2.wav` and so on.
-
-Both tones are made by `sounds/generate.py`.
 
 ### Playback
 
@@ -73,10 +69,8 @@ The overlap backend takes mono or stereo integer PCM WAVs (8, 16, 24 or 32-bit),
 per file. All the bundled sounds work. A file it cannot play, or a playback failure, gives a
 chat message (once per reason). Turn overlap off to play such custom files with Ashita instead.
 If the Windows backend cannot start, Trigger says so and uses the normal queue.
-Volume copies are used in either mode. Buffers in use are released when they finish or when the
-addon unloads. There is no Lua-side mixing and no background Lua callback. Audio is read only when
-it is asked for, and at most eight buffers are held. How well it works with real devices in Ashita
-still needs testing.
+Volume copies are used in either mode. How well it works with real devices in Ashita still needs
+testing.
 
 ### Volume
 
@@ -89,8 +83,6 @@ plays: notifications, triggers, Test buttons, previews when you choose a sound, 
 
 The High and Low copies live in `sounds/high/` and `sounds/low/`, so they do not clutter the sound
 lists. The setting is saved. A queued sound uses the level chosen when it starts playing.
-After you regenerate the bundled sounds or add PCM WAVs of your own, run
-`python3 addons/trigger/sounds/generate_volumes.py` from the repository root to make their copies.
 A custom sound with no matching volume copy plays the original WAV.
 
 Item Drop listens for the items named in its settings, under its line. Write their names with a comma
@@ -142,18 +134,10 @@ of the settings. A trigger starts on `voicef-trigger.wav` ("Heads up"). `voicem-
 same in the other voice, and `tone-trigger1.wav` and `tone-trigger2.wav` are tones for it.
 
 What the kinds can do, and which kind each area's mobs are, is in the server's `triggermobs` set
-(winxi's data). It holds only the mobs that do something. It is made from the server's live branch
-by `tools/build_trigger_mobs.py` (which uses MobDB's importer through `tools/phoenix`, reads the
-server as its modules leave it, and says how the file is laid out). It needs making again when the
-server's mobs change. A kind is the server's family for a mob. A mob's weaponskills and abilities are
+(winxi's data). It holds only the mobs that do something. A kind is the server's family for a mob. A mob's weaponskills and abilities are
 those of its skill list, those its own script names, and its main job's special where its script
 takes one and names none. What a mob is given some other way is not among them. A mob the file does
 not have is not known as one of its kind.
-
-The file costs nothing until it is wanted, and it is never kept. The Triggers tab reads it when first
-drawn, and lets go of it when the settings are closed. Listening for triggers reads it once in an
-area, the first time a mob there does what a trigger is for, to find out which kind each of the
-area's mobs is. That much is kept, a few dozen names, and the file is let go of at once.
 
 With Overlap Sounds off, Ashita plays one sound at a time, at the volume of the chosen file copy. A
 new sound would cut short the one before it, so one asked for while another is playing waits for it

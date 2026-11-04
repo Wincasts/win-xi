@@ -16,14 +16,25 @@ bright scene. The first time you come to an area, **Discovery** celebrates it.
 
 ## Install
 
-Extract the release zip into your Ashita folder (the one holding `addons`, `plugins`
-and `config`). Then, in game:
+Download the zone package from [DOWNLOADS.md](../../DOWNLOADS.md). Extract the
+release zip into your Ashita folder (the one holding `addons`, `plugins` and
+`config`). Then, in game:
 
     /addon load zone
+
+Use `/addon reload zone` if it is already loaded.
 
 Zone needs nothing else. `addons/zone/winxi` is its own copy of the parts of winxi it
 uses. Winxi is the library behind the winxi addons. If you use other winxi addons, the
 look they share (set with wxi and `/winxi`) is zone's look too.
+
+### Coming from zoneinfo
+
+Zone used to be called zoneinfo. Unload `zoneinfo` before you install zone. While
+both are unloaded, copy your character settings and boundary overrides from
+`config/addons/zoneinfo/` to `config/addons/zone/`. Copy any background images of
+your own into `addons/zone/assets/backgrounds/`. The saved boundary file format has
+not changed. Do not run both addons together.
 
 ## Using it
 
@@ -37,127 +48,14 @@ look they share (set with wxi and `/winxi`) is zone's look too.
   `reveal`, `window`, `element`, `kind`, `classic`) shows it once in that style.
 - **Preview While Configuring** (Appearance → Preview) keeps a banner up while you
   change things.
+- `/zone debug on` opens the map browser and boundary editor (see "Browse and edit
+  any map" below).
 
-The rest of this file is the detail: how the areas were made, every setting, the
-map editor and the commands.
-
-### Coming from zoneinfo
-
-Zone used to be called zoneinfo. Unload `zoneinfo` before you install zone. While
-both are unloaded, copy your character settings and boundary overrides from
-`config/addons/zoneinfo/` to `config/addons/zone/`. Copy any background images of
-your own into `addons/zone/assets/backgrounds/`. The saved boundary file format has
-not changed. Do not run both addons together.
-
-## Coverage and what is guessed
-
-All **494 unique zone-map rasters across 204 zones** in the supplied
-`XICombinedMaps-2048` pack have their own editable area data. Duplicate copies of
-the same raster are stored once. Different raster variants and floors have
-separate save identities.
-
-The browser draws each map from the game's own files, read by `winxi.mapdat`
-the way pivot turns towards its overlays. With XICombinedMaps-2048 installed as
-an overlay, the pictures are its pictures. Without it, they are the game's own. 22
-of the 494 are other pictures of a map that only the pack has. Without it, they are
-blank.
-
-The dataset contains **835 polygons**:
-
-- **419 named features** on 82 maps. Every one was placed by eye on its map's
-  artwork, traced from it, placed from the server's own positions, or is a
-  player's own edit:
-  - 162 are **buildings** in 24 cities and towns (and Count Caffaule's
-    Manor, the player's own): shops, guilds, auction houses, consulates, manors
-    and rooms. See "City buildings" below.
-  - 28 are the player's saved edits, kept exactly. Among them is Southern San
-    d'Oria, laid out street by street (2026-10-24).
-  - 27 in 11 other cities were redrawn after Southern San d'Oria. Each street,
-    square, bridge and gate covers the whole of the walkable place it names,
-    end to end, not just a mark beside its label. Gingerberry Grove (Windurst
-    Waters south) is new. See `research/boundary_authoring_style.md`.
-  - 128 were drawn on the feature the map names: the square, bridge, pond or
-    stretch of river its label or leader line points at.
-  - 55 on past-era and Abyssea maps take the present-day map's shape. The two
-    maps' artwork was compared and found to be the same layout.
-  - 11 are copied between two rasters that are the same picture (Windurst
-    Waters North, Aht Urhgan Whitegate), so the one the client uses has them.
-  - 7 are unchanged: the four original POC shapes, Lake Mechieume, and two
-    (Colkhab's Hive, Hurkan's Roost) whose first placement already sat on
-    the feature.
-  - 1, **Tenshodo H.Q.** under Lower Jeuno, is placed from the Phoenix
-    server's positions of its doors, merchants and coffer. The map draws only
-    the streets above it. It is a building announced only below street level
-    (a minimum height of 1; the street is at about 0 and the H.Q. at 4).
-  - 409 are announced. The 9 that are off are city moats and rivers that you
-    cannot walk into.
-- **416 unnamed editor-only drafts**, one for each raster without reviewed
-  names. These do not announce invented sub-zone names. Rename or move them,
-  or add named areas, as you review the map.
-
-Ten of the named features were not in the label review and were added from the
-maps: eight outposts (named for their region, as the player named Ronfaure
-Outpost), Giddeus's second spring and the Metalworks' second cannonry.
-
-These shapes are judged from the map artwork, **not walked or terrain-traced in
-game**. See [`research/boundary_authoring_style.md`](https://github.com/Wincasts/win-xi/blob/main/addons/zone/research/boundary_authoring_style.md)
-for how the player's edits were read and applied. The map art writes Port
-Bastok's river as "Dalba River"; the name used is the game's, Dalha River.
-
-The pack does not include maps for 90 other resource-registry zones. Those
-cannot be shown from this pack. This is not a claim of complete FFXI map or
-named-sub-region coverage.
+The rest of this file is the detail: every setting, the map editor, the commands,
+and what is guessed.
 
 **Sub-zone popups are on by default; debugging starts OFF.** Use `/zone` to
 change the sub-zone popup settings. The POC command is kept for compatibility.
-
-## City buildings
-
-A building is an **exact** area. It is announced when you step inside its
-outline, not as you approach. It is taken about a third of a second after you
-cross (open-country features wait a full second). Inside a shop that stands in
-a named square, you are in the shop. Step out, and you are in the square again.
-
-The outlines come from the map artwork. Most buildings are painted a darker
-colour than the street, and `tools/trace_zoneinfo_buildings.py` follows that
-paint out to the building's wall line. Where the artwork only outlines a
-building, its polygon was drawn by hand on the outline. Names are the maps'
-own labels. The source is `research/building_seeds.json`. To add a building,
-put it there (a box round it, or a polygon) and run:
-
-```sh
-python3 tools/trace_zoneinfo_buildings.py references/XICombinedMaps-2048 --preview /tmp/buildings
-python3 tools/build_zoneinfo_maps.py references/XICombinedMaps-2048 --defaults-only
-```
-
-`--preview` writes each map with its buildings drawn on it, so you can check by eye.
-
-What this cannot know: the map shows a building's footprint, not where its
-door is or how thick its walls are. The outline is the outer wall, so the name
-appears as you pass through it, wherever the door is. A building whose inside
-is a separate zone or an upper floor is announced when you walk over its
-footprint. Buildings a map labels but does not draw were left out (Mhaura's
-guild salesrooms and Governor's House), or drawn small where the label's line
-ends (the shops along Lower Jeuno's bridge). Past-era cities have none. In the
-editor, **Exact Boundary (No Approach)** switches any area between the two kinds.
-
-## Deploy and open
-
-From a terminal, if needed:
-
-```sh
-./deploy.sh push zone
-```
-
-In Ashita:
-
-```text
-/addon load zone
-/zone debug on
-```
-
-Use `/addon reload zone` if it is already loaded. This update includes about 41 MB
-of new preview assets. Deploy the whole addon, not just the Lua entrypoint.
 
 ## Display settings (winxi)
 
@@ -167,8 +65,6 @@ of new preview assets. Deploy the whole addon, not just the Lua entrypoint.
 /zone reload
 ```
 
-The look is inspired by `references/Zonename`, but it uses the shared **winxi**
-ImGui renderer and theme instead of a separate GDI font engine or font DLL.
 `/zone test` shows the current zone at once. `config` / `settings` opens or closes
 the settings window. `reload` / `rl` reloads character settings and shows the
 current zone again.
@@ -237,8 +133,7 @@ there (King Ranperre's Tomb, Ghelsba Outpost, Davoi and most of the original
 dungeons have a label and an arrow, not a number), or the map's picture is too
 coarse to read one (Cape Teriggan, Eastern Altepa Desert and most [S] maps).
 Dungeon-to-dungeon passages are not included. The entrances are drawn in blue in
-the map browser and cannot be edited there. `tools/build_zone_entrances.py` makes
-them, with the numbers from `research/dungeon_entrances.json`.
+the map browser and cannot be edited there.
 
 **Announce Town Entrances** (on to start) names a town as you come up to its
 gates from the field or from a dungeon: `Southern San d'Oria Entrance`, or
@@ -279,6 +174,8 @@ smaller, are the weather's crystal (two for double weather) and name, the moon
 (`Waxing Gibbous 62%`, as the info panel's calendar works it out) and the
 Vana'diel day and time, read once a second.
 
+### Per-line timing
+
 Turn on **Use Per-Line Timing** for separate start delay, hold, fade-in and
 fade-out controls for the zone region, title and weather lines, and for the
 sub-zone title, zone-context and weather lines. Otherwise the shared timing
@@ -287,6 +184,8 @@ when the popup is created. Each popup lasts until its last enabled line has
 expired. Hidden lines do not make it last longer. Expired and delayed lines keep
 their space in the layout, so other text does not jump. Timing is taken when a
 popup starts; changes apply to the next popup.
+
+### Appearance and Classic Text
 
 **Appearance** has a section for each part, and shows only those for the styles
 in use: **Banner Style**, **Pennant** and **Kanji Watermark** (when chosen),
@@ -331,9 +230,7 @@ are drawn with ImGui under every winxi window, whichever Text Renderer is chosen
   Width**, **Pennant Length** and **Largest Letter Size** set its size.
 - **Kanji Watermark**: the zone's name from the Japanese client, huge and faint,
   beside the English name or (with **Vertical Text** off) across behind it.
-  The line above the name has the region's Japanese name too. The names are in
-  `data/zone_names_ja.lua`, made by `tools/build_zone_ja.py` from Boussole's
-  zone table, which is read out of the client's own strings. The font is the
+  The line above the name has the region's Japanese name too. The font is the
   **Japanese Font** you choose, or else the first found of IPA Mincho (which
   comes with Wine's Japanese fonts), Yu Mincho and MS Mincho. With none of them,
   there is no watermark. ImGui cannot turn a glyph, so when written top to
@@ -354,10 +251,9 @@ are drawn with ImGui under every winxi window, whichever Text Renderer is chosen
   title.
 - **Kind Frames**: a look for each kind of zone. A city's name is on a framed
   plaque. Open country's is over a horizon line. A dungeon's is carved in stone
-  in capitals, lit as if by a torch, and flickers in. The kinds are vis's
-  (winxi's `zonekinds` set, which vis reads too, made by `tools/build_zone_kinds.py`
-  from the Phoenix server's zone data). A zone of no known kind counts as open
-  country. The stone's colour is its own, whatever the text colour.
+  in capitals, lit as if by a torch, and flickers in. The kinds are the same as
+  vis uses. A zone of no known kind counts as open country. The stone's colour
+  is its own, whatever the text colour.
 - **Nation Seal**: the nation's flag as a round wax seal that stamps down beside
   the name, overshooting a little, in the nation's colours (the Pennant's). The
   region is above the name in the seal's gold, and the day and weather are
@@ -414,21 +310,20 @@ nation's flag behind every banner in that nation's own regions:
 | Jeuno | Grand Duchy of Jeuno |
 | Aht Urhgan | West Aht Urhgan, Western Aradjiah |
 
-Other regions show no flag. The table is `data/region_flags.lua`: a region ID
-and the name of a PNG in `assets/backgrounds/flags/`. A flag keeps its
+Other regions show no flag. A flag keeps its
 proportions. It is as large as **Image Size** allows, in the middle of it, and
 uses **Image Offset** and **Image Opacity**. Where there is a flag, it takes the
 place of the background image below. Elsewhere that image is shown as before.
 The flags are opaque squares, so lower the opacity or move the offset if the
-text is hard to read over one. The PNGs were made from the `.webp` files in
-`assets/flags/`, which the client cannot load.
+text is hard to read over one.
 
 ### Optional background image
 
-Place a PNG, JPG/JPEG or BMP in `addons/zone/assets/backgrounds/` (or the
-same folder in the deployed addon). Open **Appearance → Flag And Background Image**,
-turn on **Show Background Image** and enter its filename, such as `banner.png`.
-Full paths and subfolders are not accepted. Only the flags above come with the addon.
+Place a PNG, JPG/JPEG or BMP in `addons/zone/assets/backgrounds/`. Open
+**Appearance → Flag And Background Image**, turn on **Show Background Image** and
+enter its filename, such as `banner.png`. Full paths and subfolders are not
+accepted. Only the flags above come with the addon. See also
+[the backgrounds folder's README](assets/backgrounds/README.md).
 
 Set **Image Size**, **Image Offset** and **Image Opacity**, and use the banner
 preview. The image stretches to the size you set; transparent PNGs work well.
@@ -442,9 +337,9 @@ The image is loaded when first needed and then cached. Changing the filename
 reloads it. **Reload Background Image** reloads an edited file with the same
 name. A missing or unreadable image falls back to text only, retries at most
 every five seconds while visible, and reports an error in Appearance. Image
-settings save with the other per-character display settings. Native texture
-loading, transparency, layering and device-reset behavior still need checking in
-game.
+settings save with the other per-character display settings.
+
+### Defaults, preview and saving
 
 Defaults are centered, Y=110, zone and sub-zone title/detail sizes 32/16, a
 5-second hold, 0.2-second fade-in and 1-second fade-out. The fade-in happens
@@ -467,10 +362,6 @@ debug toggle, manual transforms and editor browsing last for the session only.
 The map editor window also follows the chosen winxi theme. Map overlays keep
 their diagnostic colors.
 
-The shared `addons/libs/winxi/` modules must be installed alongside the addon.
-Visual placement, font scaling and fading still need confirming in Ashita.
-Offline tests only exercise a mocked renderer.
-
 ## Experimental GDI banner renderer
 
 Open `/zone`, choose **Appearance → Classic Text → Text Renderer → GDI Fonts**
@@ -478,42 +369,50 @@ Open `/zone`, choose **Appearance → Classic Text → Text Renderer → GDI Fon
 Sub-zone Once**. ImGui stays the default. Choose **ImGui (Default)** to switch
 back.
 
-This uses Thorny's `gdifonts` full-string textures and Direct3D sprite rendering,
-as Zonename did. The banner's text does **not** load or bake ImGui fonts. The
-settings and editor UI still use ImGui. Zone and sub-zone detection, visibility
-rules, position and alignment, sizes, colors, outlines and per-line timing all
-still work. GDI currently draws **floating text only**; the Themed Panel option
-is ignored.
+The settings and editor UI still use ImGui. Zone and sub-zone detection,
+visibility rules, position and alignment, sizes, colors, outlines and per-line
+timing all still work. GDI currently draws **floating text only**; the Themed
+Panel option is ignored.
 
 Appearance has separate GDI family dropdowns for the zone and sub-zone titles
 and details, plus **Bold Titles** and **Bold Details**. The dropdowns list
 installed Windows family names, sorted with duplicates removed, rather than
-`.ttf` filenames. Vertical `@Family` variants are left out. The list is cached
-and does not depend on the texture DLL. If the list cannot be read, your saved
-choices are kept and an error is shown. A family that is missing for drawing
-falls back to Arial. Each enabled line is drawn as a full-string texture, cached
-until its text, font, size, colors or outline change. Fade opacity is applied by
-the sprite, without rebuilding textures.
+`.ttf` filenames. Vertical `@Family` variants are left out. If the list cannot
+be read, your saved choices are kept and an error is shown. A family that is
+missing for drawing falls back to Arial.
 
 The addon includes its own `gdifonts/` Lua files, `gdifonttexture.dll` and MIT
-license. It uses a private manager and explicit drawing instead of sharing
-`winplates`' GDI module or an automatic render tick. The texture-pointer lifetime fix
-from `winplates` is kept. Deploy the **whole zone addon**, not just the Lua
-entrypoint, and reload it before testing.
+license.
 
 **Experimental native code:** the DLL needs Windows and Ashita's Direct3D 8
 client. Lua error handling cannot recover from a native access violation, or
-prove that device loss is handled. Offline tests use a mocked renderer. Native
-font quality, placement and use at the same time as `winplates` still need checking
-in game. `gdi-diagnostic.txt` records initialization and texture-build
-checkpoints, to help look into a native failure. Cached frames do not log.
+prove that device loss is handled. `gdi-diagnostic.txt` records initialization
+and texture-build checkpoints, to help look into a native failure.
 
-Thorny's MIT license is in [`gdifonts/LICENSE`](gdifonts/LICENSE). The reference
-implementation is `references/Zonename`. Zone's private library turns off
-automatic drawing, uses a unique event ID, reports manager and sprite creation
-failures, and ends sprite drawing before passing on a Lua drawing error.
+Thorny's MIT license is in `gdifonts/LICENSE`.
+
+## City buildings
+
+A building is an **exact** area. It is announced when you step inside its
+outline, not as you approach. It is taken about a third of a second after you
+cross (open-country features wait a full second). Inside a shop that stands in
+a named square, you are in the shop. Step out, and you are in the square again.
+
+The outlines come from the map artwork. Names are the maps' own labels.
+
+What this cannot know: the map shows a building's footprint, not where its
+door is or how thick its walls are. The outline is the outer wall, so the name
+appears as you pass through it, wherever the door is. A building whose inside
+is a separate zone or an upper floor is announced when you walk over its
+footprint. Buildings a map labels but does not draw were left out (Mhaura's
+guild salesrooms and Governor's House), or drawn small where the label's line
+ends (the shops along Lower Jeuno's bridge). Past-era cities have none. In the
+editor, **Exact Boundary (No Approach)** switches any area between the two kinds.
 
 ## Browse and edit any map
+
+`/zone debug on` opens the debug window: the all-map browser and editor.
+`/zone debug off` closes it.
 
 You **do not need to travel to a zone to edit its maps**.
 
@@ -553,6 +452,13 @@ Editing another map does not reset live membership. Changing the viewed map,
 closing or collapsing the window, or turning off edit mode cancels an unfinished
 drag. Moves that cross or collapse edges are rejected. Vertices are kept within
 the 512-reference map bounds.
+
+### Map pictures and XICombinedMaps
+
+The browser draws each map from the game's own files. With the
+XICombinedMaps-2048 map pack installed as a pivot overlay, the pictures are its
+pictures. Without it, they are the game's own. 22 of the 494 maps are other
+pictures of a map that only the pack has. Without it, they are blank.
 
 ### Zoom for precise vertex placement
 
@@ -595,21 +501,16 @@ but the UI says the approach outline cannot be calibrated.
 
 ## Persistence and existing edits
 
-Overrides are saved inside the deployed addon at:
+Overrides are saved inside the addon at:
 
 ```text
 data/boundary_overrides.txt
 ```
 
-The new **v2 format** records the source raster's identity, the area ID, name,
-enable flag and vertices. After the name come two optional fields: `h:<min>:<max>`
-for an area with height limits (`~` for an open side), and `e:1` or `e:0` where
-an area's kind (exact or with approach) is not its built-in one. A file with
-neither is written as before. It is validated text, never executable Lua. Map
-identity includes the zone, texture and raster hash, so variants do not inherit
-each other's edits. The previous saved file is kept as `.bak`. Saving uses a
-temporary file, and tries to restore the old file if installing the new one
-fails.
+It records each map's identity, the area, its name, whether it is announced, its
+shape, and any height limits or change of kind. Map identity includes the zone,
+texture and raster hash, so variants do not inherit each other's edits. The
+previous saved file is kept as `.bak`.
 
 Your existing **v1 three-zone POC file imports automatically** into those zones'
 primary POC rasters. The next time you Save, it migrates to v2 and keeps the
@@ -620,26 +521,16 @@ limits are kept. The debug toggle, browsing state and manual transform settings
 last for the session only. Share the `.txt` file to have your boundaries added
 to the default dataset later. Saved edits are still experimental.
 
-Regenerating the defaults does not overwrite this local override file. A changed
-source raster has a new identity. Saved maps that do not match, or are unknown,
-are rejected rather than silently applying shapes to the wrong artwork.
+A changed source raster has a new identity. Saved maps that do not match, or are
+unknown, are rejected rather than silently applying shapes to the wrong artwork.
 
 ## Live map selection and alignment
 
-469 rasters have a matching zone and floor index in the Boussole reference
-metadata. The remaining 25 are marked **editor only** unless you calibrate them
-by hand. A metadata match alone does not prove the map works with the client or
-lines up. Every live transform read still checks the actual client zone ID,
-floor ID, nonzero scale and sane offsets before it allows classification.
-
-The three outdoor POC zones already tested keep their direct floor-zero path.
-Other zones with only one floor use that floor. Other zones with more than one
-reference client floor (even if the pack only includes one) use Boussole's
-signature-based native floor selection, including its X/Z/Y call convention.
-Missing signatures or pointers, or a returned floor that is not mapped, turn
-classification off rather than guessing. This native path needs checking
-against your client. Offline tests cannot check native addresses or calling
-conventions. The debug browser itself does not call the native floor function.
+469 maps have a matching zone and floor. The remaining 25 are marked **editor
+only** unless you calibrate them by hand. A match alone does not prove the map
+works with the client or lines up. Before it names an area, zone checks the
+client's zone, floor and map position, and if the floor you are on cannot be
+found it turns area detection off rather than guessing.
 
 Where one floor has more than one artwork variant, each can be edited on its
 own. Automatic selection prefers the existing POC, or the variant with more
@@ -658,17 +549,6 @@ Before trusting any new map's detection:
 4. Turn on POC detection, start outside the **expanded** boundary, wait a
    moment and approach the area. The first samples, or turning it on while
    inside an area, seed silently.
-
-Player position uses `Movement.LocalPosition`: X/Y horizontal, Z elevation.
-The standard image conversion in 512-reference coordinates is:
-
-```text
-map_x = world_x * abs(scale) / 5 - offset_x
-map_y = -world_y * abs(scale) / 5 - offset_y
-```
-
-Resizing the preview does not change this coordinate space. No arbitrary clamp is
-applied to the position before testing polygons.
 
 ## Commands and detection behavior
 
@@ -702,77 +582,20 @@ into named areas use a separate sub-zone popup. Zone entry keeps priority over
 queued area banners. A missing position or map selection clears stale area
 state. The ordinary zone, region and weather banners stay available on their own.
 
-## Files, generation and tests
+## Coverage and what is guessed
 
-The release zip leaves out `research/`, the `.webp` flags the PNGs were made from, and
-the data no code loads (`data/king_ranperres_tomb_*.lua`, `data/map_subregions.lua`).
-They are in the repository, for making the data again.
+Every one of the **494 maps across 204 zones** in the XICombinedMaps-2048 pack has
+its own editable area data. Different variants and floors are saved apart.
 
-- `data/all_maps.lua`: generated all-raster identities and polygons.
-- `research/boundary_refinements.json`: canonical player examples and visual drafts.
-- `data/boundary_refinements.lua`: generated raster-specific refinement layer.
-- `map_catalog.lua`: groups zones, floors and variants, and keeps the POC defaults.
-- `data/poc_areas.lua`: the original seven POC shapes.
-- `data/region_flags.lua`: which flag each nation's regions show.
-- `data/zone_names_ja.lua`: each zone's Japanese name, made by
-  `tools/build_zone_ja.py` from `references/boussole/data/zones.lua`.
-- `banner_styles.lua`: every style but Classic Text.
-- winxi's `zonekinds`, `entrances` and `regions` sets (the chosen server's data): each zone's kind
-  for Kind Frames (vis reads it too), its entrances, and each region's zones, made by
-  `tools/build_zone_kinds.py`, `build_zone_entrances.py` and `build_zone_regions.py`.
-- `research/building_seeds.json`: where each city building is, for the tracer.
-- `presentation.lua`, `banner_layout.lua`: winxi display settings, text layout
-  and timed fades, separate from the geometry and editor persistence.
-- `map_browser.lua`, `debug_view.lua`: browsing, maps and editing, on their own.
-- `boundary_editor.lua`: validation, undo, names and flags, and v1/v2 persistence.
-- `map_position.lua`, `area_tracking.lua`, `area_geometry.lua`: live mapping and
-  membership logic.
-- The exported map previews in `assets/maps/` are obsolete and no longer bundled.
-  The browser reads map textures directly from the game's DAT files.
-- `research/map_subregions.md`: where the reviewed names came from, and the
-  limits of the research.
-- `research/performance_audit.md`: optimization findings, offline measurements
-  and what still needs checking against the native client.
+**419 named features** on 82 maps have their shapes, among them 162 buildings
+in 24 cities and towns (see "City buildings" above). 409 are announced. The 9
+that are off are city moats and rivers that you cannot walk into. The other maps
+have an **unnamed editor-only draft** each. These do not announce invented
+sub-zone names. Rename or move them, or add named areas, as you review the map.
 
-Rebuild all draft defaults and previews (needs Pillow):
+These shapes are judged from the map artwork, **not walked or terrain-traced in
+game**. The map art writes Port Bastok's river as "Dalba River"; the name used is
+the game's, Dalha River.
 
-```sh
-python3 tools/build_zoneinfo_maps.py references/XICombinedMaps-2048
-# Or refresh defaults only, keeping already prepared previews:
-python3 tools/build_zoneinfo_maps.py references/XICombinedMaps-2048 --defaults-only
-```
-
-The previews keep the supplied community artwork, labels and attribution. No
-further ownership or licensing claim is made here.
-
-Focused offline checks, also included in `tests/run.sh`:
-
-```sh
-luajit tests/zone_math_check.lua
-luajit tests/zone_banner_check.lua
-luajit tests/zone_editor_check.lua
-luajit tests/zone_catalog_check.lua
-luajit tests/zone_geometry_regression_check.lua
-luajit tests/harness.lua zone tests/zone_fixture.lua tests/zone_check.lua
-luajit tests/harness.lua zone-presentation tests/zone_fixture.lua tests/zone_presentation_ui_check.lua
-luajit tests/harness.lua zone-subzone tests/zone_fixture.lua tests/zone_subzone_check.lua
-luajit tests/harness.lua zone-gdi tests/zone_fixture.lua tests/zone_gdi_check.lua
-luajit tests/harness.lua zone-styles tests/zoneinfo_fixture.lua tests/zoneinfo_styles_check.lua
-luajit tests/harness.lua zone-background tests/zone_background_fixture.lua tests/zone_background_check.lua
-luajit tests/zone_gdi_families_check.lua
-luajit tests/zone_height_check.lua
-luajit tests/zone_exact_check.lua
-luajit tests/harness.lua zone-features tests/zone_background_fixture.lua tests/zone_features_check.lua
-luajit tests/harness.lua zone-editor tests/zone_fixture.lua tests/zone_editor_ui_check.lua
-luajit tests/harness.lua zone-browser tests/zone_fixture.lua tests/zone_browser_ui_check.lua
-luajit tests/harness.lua zone-zoom tests/zone_fixture.lua tests/zone_zoom_ui_check.lua
-luajit tests/harness.lua zone-performance tests/zone_fixture.lua tests/zone_performance_ui_check.lua
-luajit tools/benchmark_zone.lua
-python3 -m unittest discover -s tools -p 'test_*.py'
-```
-
-The synthetic tests cover coverage accounting, geometry, editing, dropdowns,
-map and floor isolation, persistence and migration, mocked floor selection,
-fade timing, text visibility, settings reloads and winxi renderer cleanup.
-They do **not** prove compatibility with the real client, map alignment,
-physical terrain boundaries or how it looks.
+The pack does not include maps for 90 other zones. Those cannot be shown from
+this pack. This is not a claim of complete FFXI map or named-sub-region coverage.

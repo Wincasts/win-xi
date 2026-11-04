@@ -1,37 +1,22 @@
 # Shared info panel (Winxi 22)
 
-`chat` supplies defaults/validation, chooses the owning compact chat window and samples/draws its
-panel. `source` supplies time/zone/EXP and weather without requiring native clock rendering.
-Weather uses packets, fresh native HUD data, then `weather.Read()` (the game's current weather word).
-The last valid weather survives temporary HUD/read loss; zoning and character resets clear it.
-The optional map grid uses native HUD data or `grid.Read()` (the game's own grid function).
-Neither fallback requires the clock to render, and neither claims or stops a HUD slot.
-`panel`, `fields`, `exp`, `icons` and `panel_settings` are also used by the legacy clock addon
-through compatibility imports. Each addon still has its own Lua state, settings and EXP tracker.
-`forecast` gives the zone's weather odds as the server rolls them, from its `weather` set
-(built by `tools/build_zone_weather.py` from the server's `sql/zone_weather.sql` and zone types);
-`calendar` builds and draws the Vana'diel month for the tooltip over the time, day, date and moon;
-`schedule` builds and draws the ships' and airships' timetable (the next four to leave, of the lines the host
-puts in `context.timetable`; `schedule.Lines()` lists them for a settings whitelist) for the tooltip over the
-zone name, from `transports.lua` (built by `tools/build_transports.py` from the server's `data/zones/<name>/zone.yaml`
-transport runs, as `src/map/transports/ship_handler.cpp` cycles them).
-Words with a tooltip stand alone in the segments, their tooltips in `segments.tooltips[i]`; the host's
-`options.tooltip` is given the hovered word's or icon's tooltip, text, `{ calendar = month }` or
-`{ schedule = timetable }`.
+The info panel winchat draws against its chat log: the time, the zone, EXP and the weather, and
+optionally the map grid. Weather and the map grid are read even when the game's own clock is not drawn.
+The last weather read is kept while it cannot be read for a moment; zoning and changing character clear
+it.
 
-The attachment is drawn on its host's existing draw list before the host border/title; it uses
-`winxi.frame` for an explicit-rectangle background/border/shadow and sits flush against chat by
-default. It does not change the host's position, size, layout cursor, scroll hit regions or native
-published bounds. The game's menus are not moved.
+Some words in the panel have a tooltip:
+
+- over the time, day, date and moon, the Vana'diel month as a calendar;
+- over the zone name, the ships' and airships' timetable: the next four to leave, of the lines chosen.
+
+The panel also knows the zone's weather odds as the server rolls them.
+
+The panel sits flush against the chat log by default. It does not change the chat window's position or
+size, and the game's menus are not moved.
 
 Custom icon sets live in `icons/<set>/days` and `icons/<set>/weather`, using the filenames in the
 bundled `gems` set: the eight days, the eight elements, and `clear`, `clouds` and `fog` for the skies the game
 draws no icon for.
-
-Bundled gems are repository-generated MIT artwork. Regenerate this shared copy with:
-
-```sh
-python3 tools/generate_clock_icons.py --output addons/libs/winxi/infopanel/icons/gems
-```
 
 See [winchat](../../../winchat/README.md#optional-info-panel) for controls, data fields and migration.

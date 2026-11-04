@@ -1,18 +1,33 @@
 # winplates
 
-Up to 1.86 this addon was called name, and up to 1.5 nametoggle. Load `winplates` in place of `name`
-and remove the old `addons\name` folder: each character's settings are brought over from `name` the first
-time it logs in. `/name` still opens the settings too. Settings kept under nametoggle are not brought over:
-copy the folder `config\addons\nametoggle` to `config\addons\winplates` before you load the addon.
-
 Shows and hides the names over characters' heads, by what kind of character they are over. It is a
 settings window for the `namehook` plugin, which does the showing and hiding. The plugin has to be
 loaded.
+
+## Requirements and loading
+
+winplates needs the `namehook` plugin and WinXI (`libs\winxi`). winplates' own drawing needs
+namehook 1.35 or newer and WinXI 47 or newer. Plugins that do not support it keep the stock names and
+visibility controls, with a warning to update. The smoother text halo and antialiased HP-bar edges need
+namehook 1.32 or newer, and the softened end of a textured bar's fill namehook 1.37. Install the updated
+`namehook.dll` as well as winplates and WinXI. After updating, reload namehook and every addon that
+uses WinXI (or start the game again).
 
 ```
 /load namehook
 /addon load winplates
 ```
+
+With the addon unloaded, or the plugin not recognising the client, the game draws the names as before.
+
+## Renamed from name
+
+Up to 1.86 this addon was called name, and up to 1.5 nametoggle. Load `winplates` in place of `name`
+and remove the old `addons\name` folder: each character's settings are brought over from `name` the first
+time it logs in. `/name` still opens the settings too. Settings kept under nametoggle are not brought over:
+copy the folder `config\addons\nametoggle` to `config\addons\winplates` before you load the addon.
+
+## Commands
 
 - `/winplates` (or `/name`): opens or closes the settings. Besides it there are only `/winplates diag`,
   `/winplates diag log` and `/winplates report` (see [Diagnostics](#diagnostics)); `/winplates help` lists them all
@@ -20,11 +35,7 @@ loaded.
 
 ## Settings
 
-The format token reference under each kind of name's Format Tokens comes from winxi's tooltip
-catalogue (`addons/libs/winxi/data/tooltips/name.lua`, `name.format.*`). Every other sentence is
-written in the settings code itself.
-
-The preferred baseline is in `name_defaults.lua`. It is taken from the author's own settings.
+The preferred baseline is taken from the author's own settings.
 It uses **trebucbi.ttf**, not bold, maximum/minimum font sizes **30/10**, the sub-target's
 name at **125%**, **90% check size**, **90% icon size**, **4 px icon spacing**, **1 px outline**,
 and health bars (off) **120 × 7 px**. Statuses are
@@ -69,28 +80,9 @@ share the **Bars** tab.
   format strings do not change. Small names keep more outline contrast. Install
   the updated `namehook.dll` as well as winplates and WinXI. Older plugins still draw
   bars, but with their old hard edges. Outline 0 still turns off the halo and shadow.
-  Letter badges also use a 4×4 area-sampled box/cutout mask and a transparent
-  texture guard, so filtering can smooth their straight sides as well as their rounded
-  corners. The guard does not count in the visible size, text advance or baseline.
-  Single and double badge spacing, tint and nameplate centring do not change. This
-  badge pass is built once per cached atlas, not every frame, and needs no
-  plugin update beyond the halo changes above. winplates text still uses its existing
-  glyph atlas by default. **Smooth Font**, beside **Bold**, is optional. It builds a cached
-  atlas by area-averaging a 4× glyph raster down to native drawing pixels at each
-  existing distance-size rung. Transparent guards allow edge filtering without
-  changing the normal font's bearings, advances or baseline. Bold stays independent.
-  Icons and badges keep their existing rendering. Text uses the existing font texture
-  slot, with its own white tile for HP bars. Source-font icons and missing glyphs
-  keep the original texture in the sign slot, so no extra texture slot is needed.
+  **Smooth Font**, beside **Bold**, is optional.
   It is off by default, so you can compare. Smooth mode uses more atlas memory and can soften
-  very small text. Builds wait one stable frame for the source upload. They are cached
-  until the font, size, source texture or glyph UVs change. While a build is being prepared, or after
-  a build fails, direct glyph rendering is used instead. Failures are reported once and
-  retried at most once a second while the source is unchanged. Switching Smooth Font off
-  releases winplates' generated texture and high-resolution glyph-cache handles.
-  Switching it back on builds a fresh atlas. ImGui owns the shared source atlas
-  and may keep that allocation until it reclaims or rebuilds it. No further plugin
-  update is needed for filtered text.
+  very small text.
   **Text Outline Opacity (%)** (0–100, default 100%) softens the outline round text alone (names,
   levels, distances, check details and cast text), as Icon Outline Opacity does for icons.
   **Icon outlines** have their own **Icon Outline (px)** (0–3) and
@@ -101,12 +93,8 @@ share the **Bars** tab.
   badges are not affected. Width follows the existing resolution and distance scaling;
   small names may use a thinner edge. Aggro/passive glyphs
   still have no shadow, but now follow the width you chose instead of a fixed cap.
-  winplates 1.64 needs **namehook 1.35** and **WinXI 47**. A capability check stops
-  older ABI-compatible plugins from silently ignoring the independent width. Plugins that do not
+  winplates 1.64 needs **namehook 1.35** and **WinXI 47**. Plugins that do not
   support it keep the stock names and visibility controls, with a warning to update.
-  `./deploy.sh push winplates` includes changed WinXI and the built DLL before winplates;
-  reload every addon that uses WinXI, plus namehook. Deployment still asks for confirmation
-  and makes backups. Nothing is compiled or written live while developing.
 - **Appearance** (Names): three sub-sections. **Font** has Font, Bold and Smooth Font; **Size** has
   Maximum and Minimum Name Size, Subtarget Size, Letter Spacing and Vertical Offset; **Outlines** has
   Text Outline, Text Outline Opacity, Icon Outline and Icon Outline Opacity. One maximum/minimum pair
@@ -117,10 +105,10 @@ share the **Bars** tab.
   Default: `[party: space=2][icons: space=4][name]`. Leave out `[icons]` to hide icons, or move it anywhere
   in the string. The old icon visibility, size and spacing are brought over once.
   `[party]` draws a sign of each party and alliance member's place: Alliance Leader, Party Leader,
-  another party's leader (Alliance Party Leader), Alliance Member or Party Member, from
-  `assets/special/`. `[party: replace]` also leaves out the game's icons for a member who has the
+  another party's leader (Alliance Party Leader), Alliance Member or Party Member.
+  `[party: replace]` also leaves out the game's icons for a member who has the
   sign. Players outside your party and alliance keep the game's icons. There is no sign while you
-  are alone. Who leads is read from the party's memory. The Party Icons setting of 1.66 and before
+  are alone. The Party Icons setting of 1.66 and before
   is brought into the formats once: Beside as `[party: space=2]` before `[icons]`, Replace as
   `[party: replace, space=…]` with the icons' spacing, Off as no token.
 - **Enemy Names:** an **Enemy Format** you edit directly. Enemy strings you already have are kept.
@@ -128,10 +116,9 @@ share the **Bars** tab.
   checked enemies alike.
 - **NPC Names:** an **NPC Format** you edit directly, for non-combat NPCs. It does not depend on
   the player or enemy formats. Default: `[vendor: space=4][name]`.
-  `[vendor]` draws a coin (`assets/special/vendor.png`) where it is, for every NPC that sells: gil
+  `[vendor]` draws a coin where it is, for every NPC that sells: gil
   shops, guild merchants and outpost vendors. For any other NPC it draws nothing, with no space. The list is
-  the chosen server's `vendors` set (winxi's data), by area and name, made from its NPC scripts by
-  `tools/build_name_vendors.py`. The Vendor Icons setting of 1.66 and before becomes
+  the chosen server's `vendors` set (winxi's data), by area and name. The Vendor Icons setting of 1.66 and before becomes
   `[vendor: space=N]` (N its old spacing) before the NPC format once, if it was on.
 - Each format has its **Reset** as the row after the editor. **Format Tokens**, a sub-section
   that starts collapsed, lists every token that kind of name can have, an example format and its
@@ -158,8 +145,7 @@ share the **Bars** tab.
 - The name sizes in General stay the ones that count. Health bars were brought into one set of settings
   once: on if any old category had bars on, with the size taken from the
   first old category that had them on, in **Enemy → Player → NPC** order (Enemy if all were off).
-  The old per-type bar tables are then let go of. Shared
-  settings are never brought over again during later edits. Diagnostics stays collapsed.
+  Shared settings are never brought over again during later edits. Diagnostics stays collapsed.
 - Each format section has **Colour Overrides** that you can expand. They are off by default.
   A state that is on applies its RGB to the name, spawn letters and matching
   HP fill together, and wins over explicit name and letter token colours. Other coloured
@@ -202,8 +188,8 @@ Settings a character already has are kept.
 | Always Show Target | Your target's name is shown even when names like it are hidden. Your own is not: with Own Name off it stays hidden while you have yourself targeted |
 
 A name over someone under Invisible is never drawn, whatever the settings above say. This includes the
-target and whitelisted players. Who is invisible is read from the server's updates (another player's
-0x0D, your own 0x37), so someone who is already invisible when winplates is loaded keeps their name until their
+target and whitelisted players. Who is invisible is read from the server's updates, so someone who is
+already invisible when winplates is loaded keeps their name until their
 next update. With Enable winplates off the game draws its own names, and this is left to it.
 A name the game itself hides is not drawn either: a Chigoe's until it is engaged, or an NPC's the
 server keeps hidden. The game gives such a name no text, and only your own name is written from the
@@ -218,22 +204,14 @@ Enable winplates in General chooses between winplates' own drawing and the game'
 The Names tab sets up WinXI text, in the game's colours, with icons wherever
 `[icons]` appears in its format. Visibility still decides which names are shown.
 winplates' own drawing needs namehook 1.35 or newer and WinXI 47 or newer.
-Turning winplates off, losing the plugin, reloading settings or changing profile releases the
-generated atlases and file textures winplates owns. Cleaning up twice does no harm. Unloading the addon also
-invalidates the last submission and gives up the claim before releasing textures,
-including textures the plugin has not yet consumed. ImGui still owns its shared font atlas.
-The draw buffer and cached DLL writers are invalidated before the GPU owners are freed,
-so a texture released before the plugin's first scene cannot leave a stale pointer.
-Removing `[letters]` releases the cached badge texture. Rebuilds
-release replaced badge atlases promptly rather than waiting for Lua GC.
 
 | Setting | What it does |
 |---|---|
 | Bars → Health Bars → Enabled | Off by default. Shows a bar in the name's colour under damaged names of every type when HP is available. Full-health names have no bar. Bars follow visibility and fading, and leave room for check details and statuses |
 | Bar Width / Height (px, Bars → Shared Bar Settings) | One pair for the HP and cast rows of all types: the bar's size under a name at its largest. It shrinks with the name as the name goes further away, and grows with a hunted or sub-targeted one. Defaults to **60 × 6 px**, including the border. Width: 12–300; height: 3–40. Saved per character |
-| Bold | Makes names and check-detail text heavier. Each letter is drawn twice, a pixel apart. On in the preferred defaults; icons and stars do not change |
+| Bold | Makes names and check-detail text heavier. Each letter is drawn twice, a pixel apart. On in the preferred defaults; icons and stars do not change. If you prefer a font's designed bold face to simulated bold, choose a bold font file directly instead |
 | Smooth Font (beside Bold) | Off by default. Uses a cached, area-filtered text atlas made from 4× rasterised glyphs, with transparent edge guards. The native layout metrics and Bold's one-pixel stroke are kept; icons and badges do not change. It uses more atlas memory and has a one-time build cost. Direct rendering is used while it is being prepared or is unavailable |
-| Bar Texture (Bars → Health Bars, Cast Bars) | What the bars are drawn in, each kind its own: **Plain** (the dark-bordered bar, to begin with) or one of WinXI's Bar Textures, winparty's HP art, tinted the name's colour. Drawn from a sheet winplates makes of the sets in use and its own signs, at full, half and quarter size, so small bars stay clean. The fill's end is softened with namehook 1.37. Art that will not load leaves the bar Plain |
+| Bar Texture (Bars → Health Bars, Cast Bars) | What the bars are drawn in, each kind its own: **Plain** (the dark-bordered bar, to begin with) or one of WinXI's Bar Textures, winparty's HP art, tinted the name's colour. The fill's end is softened with namehook 1.37. Art that will not load leaves the bar Plain |
 | Preview (Bars → Shared Bar Settings) | For this session only: every bar that is on is shown while the section is open. Each name that can have a health bar shows one, emptying and filling again, at full health and out of combat too (Entity Types still apply). With cast bars on, a sample cast runs under the names. Never saved |
 | Combat Only (Health Bars) | Off by default. Needs each entity's own Engaged status (1) and HP above zero. Missing or invalid data hides the bar. Applies to players, enemies, pets, trusts and NPCs |
 | Maximum Name Size (px, General) | The shared text height when near, 6–48 pixels, for every entity type. It does not depend on the bar size |
@@ -283,8 +261,7 @@ entity identity. The Entity Types and Combat Only controls still filter
 HP bars only.
 
 **Shared Bar Settings**, at the top of the Bars tab, holds one **Bar Width / Bar Height** pair for
-both kinds of bar. They reuse the saved `healthBarWidth` / `healthBarHeight` values, so
-there is no separate cast-bar size to drift out of line. **Fit to Name**
+both kinds of bar, so there is no separate cast-bar size to drift out of line. **Fit to Name**
 (off by default) widens health and cast bars alike to fit the visible **entity name plus visible letter
 badges**, in either token order. The saved width stays as a minimum. It measures the
 span of the name and letters, including the spaces between them, not the action caption, the
@@ -304,7 +281,7 @@ name-token colour and fading, for spells, weaponskills and previews alike. It fi
 forward, with the **action name** and a **timer** on two centred
 lines below it. Labels may extend past a narrow bar rather than shrink to unreadable
 text. Below-name status rows start below these labels. Bars and labels take the
-nameplate's scaling and fading, use the existing font atlas, and need no new texture slot.
+nameplate's scaling and fading.
 Active casters stay fully detailed in crowd mode.
 
 Start packets do **not** include the effective cast duration. Timers marked **~** use
@@ -315,15 +292,10 @@ bounded safety timeout. Unknown timings show **+elapsed seconds** with an empty 
 not an invented percentage. Completed and instant weaponskills briefly show a full bar,
 the observed name and **Used**, never a made-up ready phase. Completed spells
 clear at once. Death, despawn, zone and profile changes, turning off winplates or cast bars, and
-plugin loss clear tracked actions. Actors are keyed by server ID, checked against
-live entity identity, and limited to 256 records. A cast already running cannot be
+plugin loss clear tracked actions. A cast already running cannot be
 picked up if its start packet was missed.
 
-Base mob ready times are made from Phoenix SQL (estimates, not runtime overrides):
-
-```sh
-python3 tools/build_name_cast_times.py --server references/Phoenix
-```
+Base mob ready times are estimates, made from the Phoenix server's data, not runtime overrides.
 
 ### Optional readability policies
 
@@ -343,7 +315,7 @@ HP bars and status rows are left out. A format made name-less on purpose stays n
 Your target and subtarget, yourself, party and alliance, your own pet, whitelisted and charmed players,
 and observed active casters (with Cast Bars on) stay
 fully detailed, at once. Plates are not moved or core names hidden because of
-overlaps. Font warming does not change.
+overlaps.
 
 **Distance Thresholds** colour the `[distance]` tokens you already have: warning at **20 y**, danger
 at **25 y**, with colours you can edit and a default **1 y** exit margin. Entry happens at the
@@ -354,63 +326,6 @@ Other text and artwork keep their colours. Comparisons use the full measured dis
 rounded display text. Invalid or unavailable distances show no stale digits or highlights.
 State resets on identity, settings/enable and zone changes. These are **distance thresholds,
 not guaranteed spell/ability range checks**. Formats and presets are not rewritten.
-
-### Rendering optimizations
-
-Text layout is cached by string and font-size set, including glyph advances and
-positions. The Bold switch also invalidates cached advances when its value changes.
-Simulated bold adds a shifted copy of each visible text glyph, with the spacing adjusted to
-match. It uses more quads when on, but does not thicken the outline or
-change the shared ImGui font. If you prefer a font's designed bold face to simulated bold, choose
-a bold font file directly instead. Each set keeps at most 512 runs. A font or atlas replacement makes new
-sets, so stale texture coordinates are not reused. Distance text still updates to
-a tenth, but unchanged text does not need decoding and measuring every frame.
-
-Each entity is listed once by namehook, even where the client draws its name more than once in a
-frame (a player who is fishing). The addon lays out every listed name it is given and no other.
-
-The shared drawing buffer checks its capacity per quad instead of reserving 256 slots
-for every name, so short names can safely use the last slots left.
-Font-size rungs are also cached until the maximum height changes, with the size setting or the window.
-The letters kept for the old heights are let go then, so dragging a window's edge does not leave a
-set behind for every height it passed through. Empty format parts skip the run-cache work, and check-detail layout uses no temporary
-width table.
-
-Nothing asked every frame (the frame itself, a format's lookup, the letter badges' lookup) makes a
-function inside itself, which LuaJIT cannot compile. What does is kept apart and called only when
-something has changed. Statuses read the player's and the party's status icons only in a frame in
-which a name needs them.
-
-Letter badges keep their A–Z definitions on the close-up font set. Warm frames only
-probe the font for atlas movement. They do not reread all 26 glyphs or serialize the
-badge cache key. Replacing the font set invalidates these immutable definitions,
-while the stable-frame delay and bounded texture retries stay in place.
-
-Run the Linux synthetic CPU/allocation check with:
-
-```sh
-luajit tests/harness.lua winplates addons/winplates/winplates.lua tests/name_performance_check.lua
-```
-
-It tests 0, 32, 128 and the plugin maximum of 256 names with letters off and on, checks that warm frames do no
-badge texture readback or upload, and reports time and allocations per frame. These
-are mocked addon-side measurements, not in-client GPU timings. Set
-`NAME_BENCH_FRAMES` to change the timing sample count (default 500).
-
-The updated plugin caches complete name bounds and skips vertex expansion and draw
-submission for names fully outside the viewport. A name with an off-screen anchor
-is still drawn if any of its text, icons, stars, outline or details can be visible.
-This does not change the ordering or depth passes of visible names.
-
-Inline aggro and magnifying-glass icons, and the check line's sense and link icons,
-use about 25% less outline opacity than text. Their fill does not change.
-Player-name icons use the same softened outline, including the base and small
-badges of composite status icons. Composite badges keep the exported font-shape
-size and offset: the seeking-party variant's star badge is half-size at the upper left,
-not a full-size star over the icon. Plain seeking-party status has no added badge.
-These status badges are separate from the three job-mastery stars, which still have no outline. Outline Thickness 0 turns off all of these
-outlines. This per-quad effect needs the
-updated plugin as well as `libs/winxi`.
 
 ### How a name is written
 
@@ -432,9 +347,9 @@ as well if you do not want that label. Check-detail icons are separate (Check De
 
 The **Statuses** tab puts a row of status icons above or below a name, for the statuses ticked there and no
 others. To begin with the icons are drawn as the winparty and winbuff addons draw them, by Custom Icons in wxi
-(`/wxi`). With it on, the chosen set's icons (FFXIV, `libs\winxi\statusicons\ffxiv`, to start) are used where the set has an
-icon for the status, and the game's where it has not. With it off, the game's icons are used. `libs/winxi` has to be deployed
-with its `statusicons` folder. The set's icons are as narrow as the set has them; the game's are square.
+(`/wxi`). With it on, the chosen set's icons (FFXIV, to start) are used where the set has an
+icon for the status, and the game's where it has not. With it off, the game's icons are used.
+The set's icons are as narrow as the set has them; the game's are square.
 **Icons** takes this choice over for winplates alone.
 
 | Setting | What it does |
@@ -465,30 +380,15 @@ A name has at most twelve icons, each status once. How much is known depends on 
 |---|---|
 | Your own | Everything you are under, as the game has it |
 | The five others of your party | Everything they are under, as the game has it, while they are in your area |
-| Everyone else | Enemies, other players, the other parties of an alliance and NPCs: any status the server was seen to say took hold on them, by spell, ability, weapon skill, monster's move or additional effect. `winxi.debuffs` keeps count, each lasting the server's base duration for what put it there (or 180 seconds where nothing says), until the server says it wore off or was dispelled. Not known: what landed out of sight or before you entered the area, and how gear, merits or a partial resist changed a duration |
-
-The plugin draws names from eight pictures and the names' own use seven, so the icons are all drawn
-from one, put together the first time it is wanted, 32 statuses a frame: the set's sheet
-(`statusicons\ffxiv\sheet.png`, which `tools/build_status_icons.py` makes with the icons) or, for
-another set, its icons one by one, and the game's icons in the places the set leaves. With Custom
-Icons off it is a sheet of the game's icons alone.
+| Everyone else | Enemies, other players, the other parties of an alliance and NPCs: any status the server was seen to say took hold on them, by spell, ability, weapon skill, monster's move or additional effect. Each lasts the server's base duration for what put it there (or 180 seconds where nothing says), until the server says it wore off or was dispelled. Not known: what landed out of sight or before you entered the area, and how gear, merits or a partial resist changed a duration |
 
 ### Monster data
 
-What name knows of monsters that the game does not say (the levels each can be, whether it is
+What winplates knows of monsters that the game does not say (the levels each can be, whether it is
 aggressive and what it notices you by, its family, and which monsters a notorious monster is drawn
-from) is winxi's, in `addons/libs/winxi/data`, read through `winxi.mobs`. Until 1.50 it was in this
-addon's `data` and `placeholders` folders. It is made from the live branch of the Phoenix server on
-GitHub, never from a local copy:
-
-```sh
-python3 tools/build_winxi_data.py
-```
-
-That fetches the branch's newest commit into `.cache/phoenix-live`, makes every set again and writes
-`data/manifest.lua`, which says the commit it was made from. Deploy `libs/winxi` afterwards. It needs
-PyYAML and luajit. After a client update nothing needs to be made again: each area's spawn names are read
-from the game's own files as you enter it.
+from) is winxi's game data. It is made from the live branch of the Phoenix server. After a client
+update nothing needs to be made again: each area's spawn names are read from the game's own files as
+you enter it.
 
 ### State colour overrides
 
@@ -510,10 +410,9 @@ your party and alliance; you, your pet and everyone else's are Normal. **Looking
 icons show they are seeking a party (with or without the star). The game has no colour of its
 own for it, so with it off the name is coloured as Normal, Party or Alliance would colour it. **Dead** comes first,
 so a corpse or a dead player never keeps a live colour. An NPC is dead by its status, since
-the server always gives NPCs full HP. **Call For Help** comes next. It is read from the
-entity update (0x0E), whose flags have 0x20 while the call stands, and is forgotten on the
-next update without it, a despawn, or a change of area. Claims use validated entity IDs and
-active party and alliance server IDs; unknown ownership data is not guessed. Being targeted or in
+the server always gives NPCs full HP. **Call For Help** comes next. It lasts while the server's
+updates say the call stands, and is forgotten on the next update without it, a despawn, or a change
+of area. Unknown ownership is not guessed. Being targeted or in
 combat no longer has a colour of its own. Opacity cannot be set here: a target's name
 and letters keep a steady opacity, status icons stay independent, and
 corpse, distance and disappearance fades still apply.
@@ -530,8 +429,7 @@ There is no separate switch for it or for double letters. `[letter]` still works
 
 The badge is a filled square with slightly rounded, antialiased corners and an **uppercase,
 transparent letter cutout**. The letters always use **Arial Bold** (`arialbd.ttf`), whatever
-the nameplate font or Bold setting, to match the clean sans-serif
-style in `references/letter_example.png`. The box is about 68% of the nameplate font height, with a corner radius of about 8% of its side.
+the nameplate font or Bold setting, in a clean sans-serif style. The box is about 68% of the nameplate font height, with a corner radius of about 8% of its side.
 All distances use the same close-up badge artwork, scaled down smoothly rather than switching
 to smaller letters rasterized separately. This keeps the letter's shape the same as you approach.
 The game scene shows through the letter. The fill uses the nameplate colour, or the explicit
@@ -541,18 +439,15 @@ the separate status-icon opacity. The whole badge scales and fades with the name
 keeps its saved token position. The badge uses the same
 outline effect as the nameplate, including its thickness and colour. This outlines both the
 outside edge and the letter cutout; the cutout's centre stays transparent where the outline
-leaves room. Size and indicator-atlas changes rebuild the cached badge atlas; unchanged frames reuse
-it. If the texture cannot be prepared, an uppercase letter in the same fixed font is used instead,
-and preparation is retried once a second. This plain fallback shares the badge's name-font
-lowercase baseline, so there is no vertical jump as the badge atlas becomes ready.
+leaves room. If the badge cannot be prepared, an uppercase letter in the same fixed font is used instead,
+with no vertical jump as the badge becomes ready.
 If Windows' Arial file cannot be loaded, the regular
 ImGui default font is the fallback. No updated plugin DLL is needed.
 
 Remove the token to hide letters. Player, pet and NPC nameplates are not affected. All mobs, including targeted and checked mobs, use the same format.
 
 **Consistency across users:** the addon reads the game's own list of the area's names from the client's
-files as you enter the area (winxi's `zone_names.lua`; the letters are winxi's `mob_letters.lua`, which party
-uses too). It groups the list by exact name, sorts each group by stable
+files as you enter the area. It groups the list by exact name, sorts each group by stable
 entity index, and labels those spawn slots `a` through `z`, then wraps to `a`. The first slot is `a`,
 even for a name with only one known slot. It includes slots you have not met or cannot
 see right now. So entering from a different side, a different draw or encounter order, checking, deaths, addon
@@ -560,11 +455,8 @@ reloads and respawns in the same slot do not renumber mobs. No addon communicati
 and nothing is bundled or exported from a server: two clients with the same game files have the same
 letters whatever server they are on and whatever version of the addon they have.
 
-Each area has one such file, numbered `6720 + zone` among the game's (`86491 + zone - 256` for areas
-past 255): 32-byte records, a 28-byte name and the 4-byte server id. It is where the game takes the name
-it writes over a monster, so no name is guessed. Ashita is asked for the file's path
-(`GetResourceManager():GetFilePath`), and it is opened with `fopen_s` so that pivot turns the read
-towards its overlays: Phoenix keeps its own lists in the launcher's `EraDATs` overlay, and they differ
+The list is where the game takes the name it writes over a monster, so no name is guessed. It is read
+through Pivot's overlays: Phoenix keeps its own lists in the launcher's `EraDATs` overlay, and they differ
 from the game's own files in 48 areas.
 
 The list is of every slot the game knows, including slots the server leaves empty and the area's
@@ -658,8 +550,8 @@ Square brackets round anything else are written as they are, so a format such as
 `[NM] Goblin`. Only the letters, figures and signs of plain English can be written.
 
 `[level]` is not the level of the one monster, which the game does not tell. It is the levels that
-monster can be, as `5-6`, or as `8` where it can only be the one. They are from winxi's game data
-(`winxi.mobs`), one table for each area, made from the server's own; see [Monster data](#monster-data). For what the tables do not have (a player, an NPC, a monster the server makes as it goes)
+monster can be, as `5-6`, or as `8` where it can only be the one. They are from winxi's game data,
+one table for each area, made from the server's own; see [Monster data](#monster-data). For what the tables do not have (a player, an NPC, a monster the server makes as it goes)
 `[level]` writes nothing, and what was typed round it is still written.
 
 When you `/check` a monster, the game's answer has its level in it. From then on `[level]` writes
@@ -680,7 +572,7 @@ addon is loaded.
 
 `[aggro]` draws a sign for whether a monster is aggressive and how strong it is, a quarter as high
 again as the name's letters and with the dark edge they have.
-It is from the `data` folder's tables, so it is there whether or not the monster has been checked.
+It is from the monster tables (see [Monster data](#monster-data)), so it is there whether or not the monster has been checked.
 For what the tables do not have it draws nothing. `[aggro][name]` puts it before the name. A colour
 given to it tints it.
 
@@ -696,9 +588,7 @@ There are twelve signs, six for a monster that is not aggressive and six for one
 | Sixth | A notorious monster, whatever its level, and one your check found impossible to gauge |
 
 The level is the one your check found, if you have checked the monster, and otherwise the highest
-the tables say it can be. The signs are the twelve pictures in `assets/aggro`, `Mob2_Icon.png` to
-`Mob13_Icon.png` in that order. They are gathered into the one sheet the addon draws from,
-`assets/aggro.png`, by `assets/make_aggro_sheet.py`: run it after changing any of them.
+the tables say it can be.
 
 ### What a check shows
 
@@ -734,42 +624,14 @@ The second part is there for an aggressive monster: what it notices you by (`Sig
 Sound` for one that sees or hears truly) and then `Aggro`. The third is there for one that links, and
 names the family it links with and the Sight/Hearing method worked out from the flags, when available.
 
-The first part is from the game's answer to your check. The rest is from the tables in the `data` folder,
+The first part is from the game's answer to your check. The rest is from the monster tables,
 and is what the server's own tables say of that kind of monster. For one the tables do not have, the
-first part is all there is. The signs for what it notices you by, and for linking, are mobdb's icons,
-gathered into `assets/senses.png`.
+first part is all there is. The signs for what it notices you by, and for linking, are mobdb's icons.
 
-The names are not drawn on the screen by this addon, as its windows are. An addon draws on the finished
-picture, where nothing of the world can hide what it draws, and a name drawn there would show through
-walls. So each name is set out here (`custom.lua`) as rectangles, one for each letter and icon, and
-left with the plugin. The plugin draws them in the game's own picture at the moment the game would have
-drawn the name, as deep in the picture as the name is. A wall, the ground or a character in front of
-a name hides it, or the part of it that it covers, as it hides the game's.
+### How names look in the world
 
-The letters are those of imgui's font. Where the game's picture is larger than its window (a
-background resolution above the window's) they are made larger to match, so that they are as sharp as
-the rest of the picture. Every frame, winplates reads the plugin's world render-target size and ImGui's
-live output size. The horizontal and vertical ratios are applied separately, so fonts, icons and
-spacing do not stretch when the background aspect ratio differs, or the client's menu resolution
-is different from the output resolution. The updated `namehook.dll` also applies the horizontal
-ratio to outline offsets and off-screen bounds; update the plugin together with the addon and library. Font sizes are measured in output pixels, not menu pixels. They are kept at three sizes only: the largest a name can be, three quarters
-of it and half of it. A name at its largest is drawn letter for letter. A smaller one is drawn from
-the next size up, scaled down to fit, so that names shrink smoothly with distance and imgui is not
-asked for letters of a new size at every step. What is set out in one frame is drawn in the next.
-
-Resolution regression check:
-
-```sh
-luajit tests/harness.lua winplates addons/winplates/winplates.lua tests/name_resolution_check.lua
-plugins/namehook/tests/run.sh
-```
-
-The Lua check covers every combination of 11 window, menu and background sizes (4:3, 16:9,
-16:10, ultrawide, portrait and square, through 8K), plus unknown dimensions, output fallback,
-resize transitions and legacy callers. It checks square geometry, centring, independent spacing
-and outline proportions. The native tests check aspect-aware bounds and cache invalidation. These
-are CPU and geometry tests, not an in-game GPU certification: check live resizing, depth occlusion,
-font-atlas changes and device resets in the client before you treat a setup as verified.
+Names are drawn in the game's own picture, as deep in it as the name is, so a wall, the ground or a
+character in front of a name hides it, or the part of it that it covers, as it hides the game's.
 
 Name visibility follows the game. The game shrinks a name to nothing over the last of its
 distance. Here it shrinks from the maximum size to the minimum and fades out, or keeps its
@@ -794,14 +656,13 @@ not start just because HP reaches zero while the corpse is still visible. Late n
 not restart it, respawning releases it, and an index reused by a different entity at once
 suppresses the stale label. Missing render-flag data alone does not start a disappearance.
 
+### Player icon source
+
 **Names → Player Names → Player Icon Source** chooses the artwork for player icons and mastery stars:
 
 - **Game DATs** (default): reads the client's menu DAT, including its icon UV mapping and composite
-  overlays, through the Pivot-aware file reader. XIPivot's `redirect_fopens` must be on for its
-  replacements to be seen. The menu resource's file-table path is honoured, with `ROM/119/51.DAT` as the fallback.
-  Supported artwork is a DXT3 `ustatshd` atlas with `fontshp` shapes; non-stock atlas sizes and
-  rearranged rectangles are supported. Alpha is doubled to match the game. A missing, malformed or
-  unsupported DAT falls back to the bundled icons without changing the saved choice.
+  overlays. XIPivot's `redirect_fopens` must be on for its replacements to be seen.
+  A missing, malformed or unsupported DAT falls back to the bundled icons without changing the saved choice.
 - **Bundled**: uses `assets/player-icons.png` and the included mapping, whatever DATs are installed.
 - **Custom**: loads `addons/winplates/assets/player-icons-custom.png`. Copy `player-icons.png` as a template:
   keep its proportional atlas layout, including the composite pieces. Higher-resolution versions of
@@ -810,26 +671,8 @@ suppresses the stale label. Missing render-flag data alone does not start a disa
 
 The linkshell pearl keeps its linkshell's colour, and two-part icons keep their overlay. The
 choice does not change party and alliance role icons, vendor icons, or monster aggro and sense icons.
-The UI reports a fallback and gives its reason on hover. Successful DAT reads and uploads are cached,
-not repeated every frame; failures retry at most every ten seconds. Switching sources releases the
-owned DAT texture and retries on returning to Game DATs. PNG failures retry once a second through the
-shared image loader. Reload winplates after changing an image that is already loaded, or after changing Pivot packs.
-No signatures, game font-memory scans, borrowed textures or Python are needed at runtime.
-
-The atlas and mapping were exported from the installed client's high-resolution `ustatshd` and
-`fontshp` resources in `ROM/119/51.DAT`, with icon alpha doubled to match the game's rendering.
-To make them again from a local install (Python with Pillow):
-
-```sh
-python tools/export_name_icons.py '/path/to/FINAL FANTASY XI/ROM/119/51.DAT'
-```
-
-This export stays as the independent fallback and the Custom PNG template. Game DATs mode reads the active
-artwork directly without making these files again. Source decoding is in `playerdat.lua`; the choice,
-fallback and per-source mapping changes are in `icons.lua`.
-
-With the addon unloaded, or the plugin not recognising the client, the game draws
-the names as before.
+The UI reports a fallback and gives its reason on hover.
+Reload winplates after changing an image that is already loaded, or after changing Pivot packs.
 
 ## The addon and the plugin
 
@@ -870,7 +713,7 @@ The reasons:
 | Reason | What it means |
 |---|---|
 | `unloaded`, `old`, `mismatch` | The namehook plugin is not loaded, or is not the version this addon reads. No log is written for `unloaded` |
-| `features` | The ABI can be read, but independent icon outlines are not supported; the stock names stay |
+| `features` | The plugin can be read, but independent icon outlines are not supported; the stock names stay |
 | `unhooked` | The plugin did not recognise this client's name drawing |
 | `texture` | imgui's font texture was not ready, or could not be read |
 | `draw` | The plugin had no drawing buffer |
@@ -880,51 +723,17 @@ With diagnostic recording off, no diagnostic history or errors are kept. The on-
 support report and the normal compatibility and fallback warnings still work.
 
 **Write Log** in General → Diagnostics, while diagnostics are on, writes a log as `/winplates diag log` does. Logs are small text files in
-`config\addons\winplates\logs`, named `winplates-<date>-<time>.txt`. Each holds:
-
-- The plugin's state: whether it is hooked, the frame and the last claim, what is claimed and
-  hidden, and the names of the last frame and who drew them.
-- The font atlas texture: whether imgui has it ready, what imgui says of it, and the texture the plugin read for it as it last drew the names; and the display size.
-- Pauses since loading, short and seen.
-- Lua errors.
-- The last 300 events: zone-ins, settings given to or taken from the plugin, stops and resumes, and
-  fonts or letter badges that would not load, and each time imgui makes the font texture again.
-- The settings.
-
+`config\addons\winplates\logs`, named `winplates-<date>-<time>.txt`.
 Detailed logs can contain character names, local paths, format strings and raw errors.
 Prefer **Write Report** for sharing. Look through a detailed log before you send it.
 
 ## Pre-releases and release candidates
 
-A testing round's package is a **pre-release**: the version carries `-pre1`, `-pre2`... (in `addon.version`, so
-`/addon list` and the settings window say it; in the zip's and the tag's name; marked pre-release on GitHub), and
-its notes say what it is. A pre-release that comes through a round with nothing left to fix becomes a
-**release candidate**, `-rc1`, built from the same code. A candidate that runs a round untouched is the release,
-its version without a suffix. The changelog section is the release's throughout: the stage is not a version
-of its own. Packages are made from the commit with `tools/package_release.py <name> --stage pre1` (or `rc1`),
-after `tests/run.sh`, and the command it prints makes the GitHub release, marked pre-release.
+A testing round's package is a **pre-release**: the version carries `-pre1`, `-pre2`..., so
+`/addon list` and the settings window say it, and it is marked pre-release on GitHub. A pre-release
+that comes through a round with nothing left to fix becomes a **release candidate**, `-rc1`. The
+namehook plugin in winplates' zip keeps a plain number for its version, which `/namehook` reports.
 
-The namehook plugin in winplates' zip is built from the same commit (`plugins/namehook-SOURCE.txt` says which),
-but its own version stays a number (1.53): Ashita gives a plugin a number for a version, so the stage is
-the package's, and `/namehook` reports the plain number. A pre-release of winplates is a pre-release of the
-namehook it carries.
-
-What a round of winplates and namehook covers before a release candidate is cut:
-
-- **Loading**: `/load namehook` then `/addon load winplates`, and the other way round; unload and load each
-  again while the other stays, both ways; a second character logged in after the first has logged out,
-  in both orders. The names come back each time, and Diagnostics says **Custom Names** is on, never
-  `old` or `mismatch`.
-- **Names**: players, NPCs, monsters and pets, each kind's format and colours, distance thresholds,
-  crowd decluttering, the check details, statuses over a name, cast bars; a zone change
-  and a long session (an hour or more) without names dropping to the game's own.
-- **The settings window**: every tab, each row doing what its sentence says, saving and reloading
-  the character's settings, and the Reset rows.
-- **With the others**: lens on (the names aligned under the warp), the windamage addon (damage popups
-  through namehook), a second names addon if any (claim slots), and the perf addon's figures for winplates.
-- **What to send**: **Write Report** (`/winplates report`, written to `config\addons\winplates\logs`, nothing
-  private in it), a screenshot where the look is the matter, and the lines of Ashita's log around any
-  error. Say which pre-release: the version in `/addon list`.
-
-A finding fixed within the round makes the next pre-release (`-pre2`). A round with nothing to fix
-makes `-rc1` from the same commit, and that candidate's untouched round makes the release.
+When you test one, send **Write Report** (`/winplates report`, written to `config\addons\winplates\logs`, nothing
+private in it), a screenshot where the look is the matter, and the lines of Ashita's log around any
+error. Say which pre-release: the version in `/addon list`.

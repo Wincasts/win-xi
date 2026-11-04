@@ -49,6 +49,12 @@ the compact one of the Windower addon [XivParty](https://github.com/Tylas11/XivP
   wears off a pet nobody is told, so its icon stays until its usual time runs out. Removing it with a
   spell is seen.
 
+## once called xiframes
+The addon was called xiframes until it was renamed party (now winparty). The first time each character logs in with it,
+what xiframes kept for them (`config\addons\xiframes`) is taken up as party's settings, so you need not
+copy anything by hand; xiframes' folder is left as it was. Unload xiframes and load winparty in its
+place (and change `xiframes` to `winparty` in any script that loads it).
+
 ## usage
 `/winparty` (or `/pt`, or `/xif`) opens the settings; `/winparty help` lists every command in the chat log. `/party` is left alone for the game's own party chat;
 `/xiframes` is no longer used. The Style tab sets how every frame is drawn (sizes,
@@ -59,11 +65,19 @@ and values is Winxi Theme's Text Outline, set in wxi for every addon.
 There is no Winxi Theme tab in Party. Use **wxi** for shared colours, padding, shadows,
 window borders, bar textures, bookends and custom status icons. Organize, at the foot of the window, fills the frames with sample data so you can drag them into place.
 `/winparty perf` measures five seconds of render and packet-handler CPU time: average, median, p95,
-p99 and worst latency. Memory is a **GC-sensitive net-growth estimate**, excluding negative deltas,
-not an exact allocation count. `/winparty perf counters` also counts addon-local entity reads, text
-measurements, image submissions, texture-load attempts and status reorderings; not all shared Winxi internals are counted.
-These measurements do not include GPU execution. Percentile samples are capped at the first 16,384
-calls per category; averages and maxima cover the full interval.
+p99 and worst latency. `/winparty perf counters` also counts addon-local entity reads, text
+measurements, image submissions, texture-load attempts and status reorderings.
+
+```text
+/winparty                        the settings (also /pt and /xif)
+/winparty help                   every command, in the chat log
+/winparty perf                   five seconds of render and packet-handler CPU time
+/winparty perf counters          the same, with operation counts
+/winparty native on|off          native party/alliance lists, with uihook
+/winparty native target on|off   native target windows, with uihook
+/winparty native status          a short mode/readiness status
+/winparty cursor                 retry loading the selection cursor, and say how it went
+```
 
 ## customization
 
@@ -92,8 +106,8 @@ calls per category; averages and maxima cover the full interval.
   there and who cast it, where that was seen, and what removes it.
 - **Party → Casting → Show Cast Bars**, on by default: while a member of your party or the alliance casts a
   spell, their HP bar fills as the cast goes, in a pale blue, their name is the spell's, and the time
-  left is written where their HP was. The casts are seen in the action packets (winxi.castbar, as name's
-  cast bars see them), so the time is the spell's base cast time, marked `~`; the server's finish or
+  left is written where their HP was. The casts are seen in the action packets, so the time is the
+  spell's base cast time, marked `~`; the server's finish or
   interruption ends it. While you organize, one sample member casts Cure IV.
 - **Style → Status Display → Show Statuses**, on by default, draws the buff and debuff icons beside your
   party, alliance and pets. Off, every status setting (Status Display, Status Durations, Removable Marks,
@@ -126,145 +140,29 @@ calls per category; averages and maxima cover the full interval.
   Tooltips with an enemy's durations say plainly that they are estimates, not exact server timers.
   There is no click to target.
 - **Style → Names → Short Zone Names**, on by default: a member in another zone has the game's own short
-  form of the zone's name where their bars would be (`zones.names_abbr`), or the whole name where
+  form of the zone's name where their bars would be, or the whole name where
   the game has none. Off, the whole name, cut short where it does not fit.
 - **Pets → Layout → Pet Names**: `Pet`, `Owner: Pet` (default), or `Pet (Owner)`.
 - The settings window has no section-reset buttons.
 
-The layout reservation is cached until a value it depends on changes. Hidden frames, and frames with both groups
-disabled or fully faded, skip layout and pet polling. A visible target whose party is hidden keeps
-the configured minimum pet reservation without polling live pets. Status filtering is cached per input
-list, and value comparisons detect in-place updates; caches release discarded lists. Hover details
-read the mouse position once per enabled frame. Automatic windows reuse their positioning vector.
-A change of theme font invalidates cached text measurements. Debuff tracking clears on disable, on
-settings or character switches and on zone-in and zone-out, including while the frames are disabled. When the frames
-are enabled again, tracking starts with only newly seen effects, never a rebuilt complete enemy status list.
-
-### Live validation
-
-After reloading winparty in Ashita, run `/winparty perf` with the settings closed for these cases: solo, full party, full alliance,
-many pets, and target debuffs. Repeat with `/winparty perf counters` when you are looking into work counts.
-Compare Full, Simple and Off bar shadows under the same conditions. Check six-pet positioning, theme-font
-switches, status overflow near both screen edges, two-row icons, tooltips, and
-zone/disable/re-enable tracking. Offline checks cannot test real GPU performance, DPI or mouse
-behaviour in the game.
-
-## once called xiframes
-The addon was called xiframes until it was renamed party (now winparty). The first time each character logs in with it,
-what xiframes kept for them (`config\addons\xiframes`) is taken up as party's settings, so you need not
-copy anything by hand; xiframes' folder is left as it was. Unload xiframes and load winparty in its
-place (and change `xiframes` to `winparty` in any script that loads it).
-
-## the code
-| file | what it does |
-|---|---|
-| `party.lua` | puts the rest together: what goes in which window each frame, which packets go where |
-| `roster.lua`, `pets.lua`, `target.lua` | read the game, and hand back lists of lines |
-| `frames.lua` | draws a list of lines: the bars, names and values |
-| `notices.lua` | invitations and treasure waiting, and their icons |
-| `debuffs.lua` | the row of letters or icons for what is on an enemy, which `winxi.debuffs` keeps count of |
-| `windows.lua` | the windows the lists are drawn in: themed, arranged, fading, held by a corner |
-| `options.lua` | the settings, each an entry in a list: defaults and the settings tabs come from it |
-| `config.lua` | the settings window |
-| `draw.lua`, `colors.lua`, `game.lua`, `packets.lua` | drawing on a draw list, the colours that mean something, small things asked of the game, and the packets read |
-| `perf.lua` | `/winparty perf`: render/packet CPU statistics and optional operation counters |
-| `geometry.lua` | cached automatic-layout reservations |
-| `statuses.lua`, `details.lua` | status filtering, screen capacity and hover details |
-
-`tests/run.sh` loads the addon against a stand-in for Ashita, and compares what it draws, call for
-call, with a kept copy.
-
-### Offline QA
-
-From the repository root, run winparty's checks on their own with:
-
-```sh
-for check in tests/party*_check.lua; do
-    luajit tests/harness.lua winparty addons/winparty/winparty.lua "$check" || exit 1
-done
-```
-
-`party_lifecycle_check.lua` covers null buff pointers, inactive-slot reads, cache reuse,
-immediate pet-setting changes, zone resets, invitations while disabled, and entity-index reuse
-during target fade-out. `party_performance_check.lua` isolates the geometry and letter-debuff
-allocation budgets from the harness's allocating stubs, with JIT disabled so runs repeat the same.
-`party_customization_check.lua` covers settings validation, status sorting and fitting, shadows,
-font invalidation, warning/overflow rendering, cached reservations, six pets, hidden-frame work
-and the effect picker.
-`party_tracking_check.lua` covers the debuff lifecycle, tooltip semantics and profiling statistics.
-`party_optimization_check.lua` checks the disabled/faded early exits, target-only reservations,
-once-per-frame mouse sampling, and status-cache invalidation.
-The lifecycle check also makes sure that the empty status IDs 0 and 255 never enter the player's buff list.
-The existing resolution, cursor, rearrangement, border and dropdown checks cover presentation
-and input paths. The full runner also compares the plain and bare draw snapshots.
-
-The first optimization pass kept both scenes byte for byte the same as the code before it.
-The customization pass changes pet-owner labels and screen-constrained status overflow on purpose;
-the snapshots also include cursor/title and shared-library changes not recorded before.
-The follow-up pass removes empty status 255 and fixes the Organize snapshot so it opens the settings with
-`/pt`, checking that settings and Organize are active. Measurement mode closes the settings with `/pt`
-and checks that both are off. The refreshed Organize scenes now really include sample rows.
-Isolated allocation measurements, before → after:
-
-| Operation | Bytes per call/row (JIT disabled) |
-|---|---:|
-| Full-list geometry reservation | 160 → 0 |
-| Letter-debuff row | 1,072 → 0 |
-
-The new cached-reservation and unchanged-status-filtering checks also measure **0 bytes per call**
-with JIT disabled after warm-up. These isolated budgets leave out rendering-library allocations.
-Native renewal, rectangle and anchoring paths also have zero-allocation budgets; idle-disabled hooks make
-no repeated DLL calls. Manual layout avoids unused display queries. Target polling skips discarded
-ToT entity lookups, or all target reads when every target window is disabled. Native capture and replay
-is uihook's party module (`plugins/uihook/src/modules/party`).
-
-Empty alliance slots skip stats, jobs and buffs. Pet options invalidate the pet snapshot
-at once rather than waiting for its polling interval. Invitations and automaton state
-keep receiving lifecycle packets while their frames are disabled. Zoning clears cached
-rosters, automaton exact values and lingering target identities. These are offline checks,
-not an in-game FPS benchmark. Check zoning, character switches, native selection, fading
-and the real rendering in Ashita before you treat live QA as complete.
-
-## window borders
-In **wxi → Styles → Window Border**, choose **Theme** (the existing border), **Brushed Silver**,
-**Bronze**, **FFXI-inspired** (a cool silver and lavender bevel that recalls the base UI),
-**Crystal** (icy blue facets), **Royal Gold** (warm gilding with tiny inlaid corner ornaments),
-**Obsidian** (dark violet metal with platinum corner highlights), **Plain Obsidian** (the same without
-the corner highlights; Match Border gives it Obsidian's bookends), **Royal Silver**
-(the Royal Gold ornament in cool silver), **Royal Platinum**
-(a lighter, near-white silver version with softer bevel shadows), **Mythril** (cool blue steel with
-corner studs), **Adaman** (dark crimson metal with riveted corner plates), **Jade** (green stone
-facets), or **Amethyst** (violet crystal facets).
-The border is part of winxi's theme, so it is drawn on every window of every addon that follows
-the same theme, including this addon's party, target and pet windows.
-The thin **3px** edging replaces the native window border; it does not sit on top of it.
-Corners keep their size as windows resize, and borders fade with the window.
-Theme stays the default; if textures are missing, the theme border stays visible.
-**Border Opacity** (beside it) fades the border of every game window, plain or art: 100 is solid, 0 is none.
-Settings windows keep a solid border.
-
-Preview: [`libs/winxi/assets/borders/preview.png`](../libs/winxi/assets/borders/preview.png). The blue background in the
-FFXI-inspired preview, and the tinted backgrounds of the other concepts, are only for show:
-choosing a border keeps your current theme background.
-For that look, use a dark navy background in Winxi Theme. Keep the theme padding at least **3px**
-to leave room for these borders. Regenerate the assets with
-`python3 tools/generate_party_borders.py` (requires Pillow); no extracted game art is used.
+Debuff tracking clears on disable, on settings or character switches and on zone-in and zone-out,
+including while the frames are disabled. When the frames are enabled again, tracking starts with only
+newly seen effects, never a rebuilt complete enemy status list.
 
 ## Experimental Native HUD Replacement
 
 Use [uihook](../../plugins/uihook/README.md) for new native-rendering installs; it combines
 buff and party/target support. Load `/load uihook` instead of `/load partyhook`, and never load both.
-The updated addon still supports the old partyhook, so you can roll back. The behaviour and testing notes below
+The updated addon still supports the old partyhook, so you can roll back. The notes below
 apply to both plugins.
 
-The opt-in `partyhook` plugin captures the existing Party windows and replays them at the native HUD's
-rendering stage, not as a final overlay. The native logic keeps running; only the GPU submissions
-inside the chosen native window's render call are blocked. Normal rendering stays the default.
+The opt-in plugin draws the Party windows at the native HUD's rendering stage, not as a final overlay,
+in place of the game's own. Normal rendering stays the default.
 User testing confirms party/rearranging, chat hiding, target/native arrows, menu overlap, subtarget
 range colours, rapid switching/despawns/doors, cutscenes, interface hide/show and independent toggles.
 **Zoning is still untested**, as are font/device-reset recovery and wider client compatibility.
 
-Build/install/update: [plugins/uihook](../../plugins/uihook/README.md) (party shared ABI 3).
+Install and update: [plugins/uihook](../../plugins/uihook/README.md).
 Unload Party and partyhook before you replace the DLL; keep hideparty unloaded.
 
 - `/winparty native on|off`: party/alliance lists, including embedded pet rows.
@@ -280,19 +178,18 @@ Unload Party and partyhook before you replace the DLL; keep hideparty unloaded.
 While a fish is on the line, party mode lets through what the game's own party list draws outside the list,
 because the game draws the fish's stamina gauge with it (in the middle of the screen, not where the list sits).
 So the gauge shows and winparty's windows stay. This needs uihook 1.65. With an older uihook, the game's whole party
-list is given back for the fight instead, and winparty's party windows step aside so the party is not shown twice. This lasts from the bite (packet 0x115)
+list is given back for the fight instead, and winparty's party windows step aside so the party is not shown twice. This lasts from the bite
 until the fight ends (the client's fishing packet ending or releasing the catch, a change of area, or the
 fight's time limit passing).
 
 Target mode keeps the **game's own overhead main/subtarget arrows**, including their placement, animation
-and range tints, by letting their two verified native draw calls through the HUD suppression. No Lua
-replacement cursor is drawn. All custom target windows share the native target window's lifecycle;
-no entity (for example some doors) may mean an arrow without a custom information bar.
+and range tints. No Lua replacement cursor is drawn. All custom target windows share the native target
+window's lifecycle; no entity (for example some doors) may mean an arrow without a custom information bar.
 
 Manual and automatic positions and styling stay the defaults. Outer window drop shadows are captured
 with native-rendered party/alliance and target windows, using Winxi's shadow settings. Only the outer
 shadow is drawn in native mode, so it cannot darken the existing window background. Bar and text shadows
-are unchanged. This fix needs updated Party and `winxi/shadow.lua`, not a new uihook DLL.
+are unchanged.
 
 **Use Default UI Positioning is hidden and forced off for this testing build**, including old
 saved opt-ins. Its alliance-location controls are hidden too. Manual positions, corners and links are
@@ -309,16 +206,13 @@ party; use **Unlink** to move all three lists separately.
 Follow Default UI Behavior is off by default and **has not yet been live-tested**. Organize uses ordinary
 windows and brings back the stock HUD frames for the time being; it edits the saved manual positions. Native anchoring
 cannot be turned back on through saved settings while parked.
-With default behaviour off, visibility-rule hiding renews empty replacements so the stock frames stay suppressed.
 Turning off one mode leaves the other alone. Do not run hideparty alongside either mode.
-The plugin is built and installed separately; it is not automatically part of the existing release package.
+The uihook plugin comes in winparty's zip; from this repository, build it from [plugins/uihook](../../plugins/uihook/README.md).
 
 ## Native Selection Cursor
 
 Selected members get the animated, right-pointing cursor from the installed client's
-`ROM/119/51.DAT` (`anc_s` sprites and the `anc` texture). The shared `winxi.cursor` loader
-reads the DAT through the same pivot-aware file reader used for maps, uploads it once, and
-plays its six frames at 15 FPS. The cursor keeps the DAT's artwork and colours and scales
+`ROM/119/51.DAT`, played at 15 FPS. The cursor keeps the DAT's artwork and colours and scales
 with the name text. It lies over the frame to the left of the name, without indenting the name or
 changing where it is cut short; it may overlap other elements. No replacement cursor PNG is bundled.
 Reload Party after changing the DAT or its overlay. If the DAT, sprites or texture cannot load,
@@ -330,8 +224,7 @@ it does not move or change the game's cursor.
 ## Party-Order Rearrangement
 
 While the native party cursor is active, the party buff icons are replaced with outlined job/subjob
-labels beside each member. Detection uses the same pointer and active flag that `hideparty` uses to
-restore the default party frames, not the chat/menu name. This covers party-order rearrangement
+labels beside each member. This covers party-order rearrangement
 and choosing a party member with `<stpt>`/`<stal>`. The labels appear in all three party lists,
 including Alliance 2 and Alliance 3. A label looks like `[WAR15/RDM7]`; an unknown half is `---`, so
 a wholly unknown member shows `[---/---]`. Members in another zone also get a label.
@@ -341,10 +234,8 @@ This is separate from the addon's Organize mode and does not change the target o
 
 ## Resolution And Scaling
 
-Party draws in ImGui output/display pixels, not in the game's background-render or native-menu
-coordinate space. Frame sizes use the saved style scale; changing the aspect ratio does not
-stretch the bars. Background supersampling and the native menu resolution are not inputs to winparty's
-layout. The real presentation and Windows DPI behaviour still need checking in game.
+Frame sizes use the saved style scale; changing the aspect ratio does not stretch the bars. The real
+presentation and Windows DPI behaviour still need checking in game.
 
 Turn on **Behavior → Positioning → Automatic Positioning** for the edge-relative layout
 (off by default):
@@ -369,54 +260,32 @@ Lock Windows off, to place frames by hand. The original defaults include positio
 cannot fit completely on small screens, and buff icons that reach outside a window may still reach
 the screen edge; this is basic adaptation, not a full responsive layout system.
 
-The offline resolution check covers 640×480 through 3840×2160 and ultrawide outputs up to
-5120×1440, at saved scales of 50–200%. It checks geometry and output clipping, plus automatic
-edge margins, the Target and alliance links, the full-layout 35px gap, clamping and invalid-display
-handling. It does not emulate
-the native game's renderer, and does not prove that every layout fits on every screen.
+## window borders
+In **wxi → Styles → Window Border**, choose **Theme** (the default), **Brushed Silver**, **Bronze**, **FFXI-inspired**, **Crystal**, **Royal Gold**, **Obsidian**, **Plain Obsidian**, **Royal Silver**, **Royal Platinum**, **Mythril**, **Adaman**, **Jade** or **Amethyst**.
+The border is part of winxi's theme, so it is drawn on every window of every addon that follows
+the same theme, including this addon's party, target and pet windows.
+The thin **3px** edging replaces the native window border; it does not sit on top of it.
+Corners keep their size as windows resize, and borders fade with the window.
+Theme stays the default; if textures are missing, the theme border stays visible.
+**Border Opacity** (beside it) fades the border of every game window, plain or art: 100 is solid, 0 is none.
+Settings windows keep a solid border.
+
+Preview: [the borders](../libs/winxi/assets/borders/preview.png).
+
+Choosing a border keeps your current theme background. For the FFXI-inspired look, use a dark navy
+background in Winxi Theme. Keep the theme padding at least **3px** to leave room for these borders.
 
 ## window backgrounds
-In **wxi → Styles → Window Background**, choose **Plain** (the flat Background
-Color, the default), **Gradient** (lighter at the top, darker at the bottom), **FFXI-inspired** (that
-gradient with a fine dark line on every other row, after the look of the game's own windows),
-**Grain** (soft stone), **Marble** (faint veins), **Weave** (linen) or **Brushed Metal**.
+In **wxi → Styles → Window Background**, choose **Plain** (the default), **Gradient**, **FFXI-inspired**, **Grain**, **Marble**, **Weave** or **Brushed Metal**.
 Each is drawn in your Background Color, its opacity included, and fades with the window. Like the
 border, it is part of winxi's theme and drawn on every game window; settings windows stay plain.
 
-Preview: [`libs/winxi/assets/backgrounds/preview.png`](../libs/winxi/assets/backgrounds/preview.png).
-Regenerate the tiles with `python3 tools/generate_winxi_backgrounds.py` (Pillow and numpy); no game
-art is used.
+Preview: [the backgrounds](../libs/winxi/assets/backgrounds/preview.png).
 
 ## bar textures
-In **wxi → Styles → Bar Texture**, choose:
-- **Original**: the bundled classic textures.
-- **Glass**: glossy reflections and beveled edges.
-- **Detailed**: metal bevels and a subtle segmented fill.
-- **Crystal**: angular facets, diagonal reflections and diamond accents.
-- **Satin**: a soft, smooth fill with understated thin edging.
-- **Runic**: a luminous central fill with chevrons and frame markings that stay put.
-- **Classic FF**: a clean top-to-bottom gradient and a crisp square bevel.
-- **Radiant (Bright)**: a near-white tintable fill for brighter HP/MP, with a thin silver bevel.
-- **Chrome**: polished metal: a hard bright band over a dark horizon, with bright side edges. The default.
-- **Flat**: one even colour in a thin square frame.
-- **Segmented**: ten cells, marked on the frame so that they stay put as the bar empties.
-- **Ember**: a glowing core fading to darker edges, with fine sparks.
-- **Kingdom**: a single square bright rail over a plain dark field, inspired by classic Final Fantasy console menus.
-- **Magitek**: industrial ribs, alternating metal highlights and mechanical rail markings; a nod to Final Fantasy's machinery.
-- **Aether**: luminous crystal facets and diamond rail accents, inspired by the series' crystal motifs.
-- **Elven**: soft satin light, curved filigree rails and flowing leaf-like reflections; high-fantasy metalwork.
-- **Gothic**: dark iron edging with pointed tracery and a luminous interior; dark-fantasy ornament.
+In **wxi → Styles → Bar Texture**, choose **Original**, **Glass**, **Detailed**, **Crystal**, **Satin**, **Runic**, **Classic FF**, **Radiant (Bright)**, **Chrome** (the default), **Flat**, **Segmented**, **Ember**, **Kingdom**, **Magitek**, **Aether**, **Elven**, **Gothic**, **Enamel**, **Enamel (Lit Rim)**, **Enamel (Gradient)**, **Glass Tube**, **Glass Tube (Deep)** or **Glass Enamel**.
 
-The smooth sets are shaded from top to foot only, with no pattern along the bar. The fill image is
-stretched to the HP that is left, so a pattern squeezes as the bar empties; these sets look the same at any HP.
-- **Enamel**: a bright upper half over a deeper lower one, softly parted, as the game's own bars are.
-- **Enamel (Lit Rim)**: the same, with a thin light along the top.
-- **Enamel (Gradient)**: each half a gradient of its own.
-- **Glass Tube**: round like a tube: dark edges, a highlight a quarter of the way down, light along the foot.
-- **Glass Tube (Deep)**: darker edges and a sharper highlight.
-- **Glass Enamel**: the enamel's two halves with the tube's highlight.
-
-These are original designs made by a script, not game art copied or redrawn.
+Preview: [the bar textures](assets/bars/preview.png).
 
 The choice applies to HP and MP across the party, target and pet frames.
 Colours, range fading, bar sizes and the optional bookends still work as before.
@@ -432,57 +301,28 @@ game's own gauges: 0 is none, 100 the brightest. It dims with the bar's range fa
 **Custom Bar Backdrop** colours the empty part of the bars with **Bar Backdrop Color** instead
 of a darker shade of the bar's own colour; its alpha lets the dark trough show through.
 
-Preview: [`assets/bars/preview.png`](assets/bars/preview.png).
-The generated textures live in their named subfolders under `assets/bars`; regenerate them
-with `python3 tools/generate_party_bars.py` (requires Pillow), or only the sets named after it
-(`python3 tools/generate_party_bars.py enamel tube`). It copies each set's HP art, and the glow,
-into `libs/winxi/assets/bars` for `winxi.bars`. The preview is only for show,
-not an in-game screenshot.
-
 ## matching bookends
-Turn on **wxi → Styles → Bar Bookends**, then choose **Bookend Style**:
-- **Bar Texture** uses the chosen bar's existing cap (the default).
-- **Match Border** follows the Window Border: each border has its own ornament. With the plain
-  Theme border it uses the bar texture cap.
-- Any border's name chooses its ornament on its own, whatever the border: rods with studs (Brushed
-  Silver, Bronze, Mythril), riveted plates set with a jewel (FFXI-inspired, Obsidian, Adaman), jewelled
-  spines (Royal Gold, Royal Silver, Royal Platinum) and cut stones (Crystal, Jade, Amethyst).
-- Five more ornaments of their own: **Kingdom** (gold crown and blue jewel), **Magitek**
-  (steel coupling and cyan core), **Aether** (violet floating shards), **Elven** (gilt green leaf),
-  and **Gothic** (dark lance and ruby). Pair them with the bars of the same name, or mix as you like.
-- **Rounded** and **Rounded Silver**: round ends after the game's own gauges, in cyan or silver.
-  Unlike the others they sit beyond the bar's ends, as tall as the frame and about half as wide,
-  so the bar carries on into them.
+Turn on **wxi → Styles → Bar Bookends**, then choose **Bookend Style**: **Bar Texture** (the default), **Match Border**, any border's name, **Kingdom**, **Magitek**, **Aether**, **Elven**, **Gothic**, **Rounded** or **Rounded Silver**.
 
-The slim ornaments are not tinted by HP/MP, so silver stays silver and gold stays gold.
+Preview: [the bookends](assets/bookends/preview.png).
+
 **Bookend Opacity** (under Bookend Style) makes them see-through: 100 is solid, 0 hides them.
 They stay visible whatever the range, fade with the window, and work with all bar textures.
 Missing ornaments fall back to the bar's existing cap.
 For the silver combination, choose the **Royal Silver** border, **Radiant (Bright)** bars,
 and **Match Border** bookends.
 
-Preview: [`assets/bookends/preview.png`](assets/bookends/preview.png), including enlarged ornament
-detail. Regenerate with `python3 tools/generate_party_bookends.py` after generating the bar
-textures (Pillow required). The preview is only for show, not an in-game screenshot.
-
-The Original bar images are XivParty's, cut down to the bars themselves, in `assets/bars` with its licence.
-The generated sets do not use those images as source material.
+The Original bar images are XivParty's, cut down to the bars themselves, with its licence.
 Needs `libs/winxi`.
 
 ## Pre-releases and release candidates
 
 A testing round's package is a **pre-release**: the version carries `-pre1`, `-pre2`... (in `addon.version`, so
-`/addon list` and the settings window say it; in the zip's and the tag's name; marked pre-release on GitHub), and
-its notes say what it is. A pre-release that comes through a round with nothing left to fix becomes a
-**release candidate**, `-rc1`, built from the same code. A candidate that runs a round untouched is the release,
-its version without a suffix. The changelog section is the release's throughout: the stage is not a version
-of its own. Packages are made from the commit with `tools/package_release.py <name> --stage pre1` (or `rc1`),
-after `tests/run.sh`, and the command it prints makes the GitHub release, marked pre-release.
+`/addon list` and the settings window say it), and its notes say what it is. A pre-release that comes
+through a round with nothing left to fix becomes a **release candidate**, `-rc1`. A candidate that runs a
+round untouched is the release, its version without a suffix.
 
-The uihook plugin in party's zip is built from the same commit (`plugins/uihook-SOURCE.txt` says which).
-Its version stays a number (1.70), because Ashita's API gives a plugin a number, so the stage belongs to the package.
-
-What a round of party covers before a release candidate is cut:
+What to try in a round:
 
 - **Loading**: `/addon load winparty` alone (the overlay windows), then with `/load uihook` (the native
   windows, Use uihook on); unload and load each again while the other stays. With hideparty loaded too,
@@ -494,10 +334,7 @@ What a round of party covers before a release candidate is cut:
 - **The settings window**: every tab, each row doing what its sentence says, dependents greyed under
   their parent; Style's fonts, bars, bookends and backgrounds; Advanced: Value Positioning; saving and
   reloading the character's settings.
-- **Offline first**: the checks in the Offline QA section above pass from the repository root.
 - **What to send**: a screenshot of the window in question, your settings file
   (`config\addons\winparty\<character>.lua`, nothing private in it but the character's name), and the
   lines of Ashita's log around any error. Say which pre-release: the version in `/addon list`.
 
-A finding fixed within the round makes the next pre-release (`-pre2`); a round with nothing to fix
-makes `-rc1` from the same commit, and that candidate's untouched round makes the release.

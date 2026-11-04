@@ -61,10 +61,10 @@ each where the game's are.
 addons/winchat/          this directory
 addons/libs/winxi/       WinXI 24 or newer (including infopanel code and bundled icons)
 addons/wxi/    shared theme settings (optional)
-plugins/uihook.dll       0.5 or newer, chat ABI 13 (native content, the tab strip, scrollbar and rows of text measured, the two log windows' routing and lines, the game's colours); 0.8 or newer reads each chat line after every addon, so the addon load order does not matter
+plugins/uihook.dll       0.5 or newer; 0.8 or newer reads each chat line after every addon, so the addon load order does not matter
 ```
 
-Build uihook with `plugins/uihook/build.sh`; the output is `plugins/uihook/build/uihook.dll`. Turn
+How to install and update uihook is in [its README](../../plugins/uihook/README.md). Turn
 replacement off or unload the addon before you replace its files, and unload uihook before you replace
 its DLL. Update the DLL and `addons/libs/winxi` together with winchat. Do not run FancyChat,
 hidechatbg or other addons that write the native chat's visibility alongside it.
@@ -120,20 +120,15 @@ of a clock panel you already have.
   share the taller one's height, so both logs keep one bottom. Stacked logs keep one panel.
 - Day and weather icons can go before or after any slot, each with its own offset, or be put in as data
   tokens for an exact order. Icon sets are under `addons/libs/winxi/infopanel/icons`: `gems` (the days cut
-  as gemstones) and `classic` (drawn after the game's own: its mottled day balls and soft weather sprites,
-  made by `tools/generate_classic_icons.py`) are bundled. Each has a picture for every weather, including the skies the
+  as gemstones) and `classic` (drawn after the game's own: its mottled day balls and soft weather sprites)
+  are bundled. Each has a picture for every weather, including the skies the
   game draws no icon for (a sun for a clear sky, a pair of clouds, a bank of fog), and `gems`
   supplies any custom picture that is missing. Hidden/Native placement does not add an icon on its own;
   winchat never changes the native HUD's visibility.
 - Hover a **day icon** to see the Vana'diel weekday and its element. Hover a **weather icon** or the
   `{weather}` words to see the weather name, element and single/double strength (or no elemental
   weather for clear skies, clouds and fog), and then the **zone's forecast**: today and the four days
-  after it, each with what the zone may roll and the odds, as the Phoenix server rolls it. The server
-  keeps a table of 2160 Vana'diel days for each zone, three weathers a day. Every 3 to 30 Earth minutes
-  it rolls again: the rare weather 15% of the time, the common 35%, the normal the rest (from 2:00 to
-  7:00, outside cities, a roll that gives a clear sky is fog instead, which the tooltip leaves unsaid).
-  A zone with one entry or none never changes. The tables are winxi's `weather` set (`data/<server>/weather`), built from the server's
-  `sql/zone_weather.sql` and zone types by `tools/build_zone_weather.py`.
+  after it, each with what the zone may roll and the odds, as the Phoenix server rolls it.
 - Hover the `{time}`, `{day}`, `{date}` or `{moon}` words for the **Vana'diel calendar**: the month,
   its thirty days in weeks of eight under the Icon Set's day pictures (or the days' names), with today
   marked, the days gone dimmed, and the neighbouring months' days that fill out the first and last
@@ -147,28 +142,20 @@ of a clock panel you already have.
   Vana'diel time it leaves (**At**) and how long the crossing takes (**Trip Time**), in Earth
   minutes:seconds. The rows that board in the zone you are in are marked in the theme's tooltip border
   colour. Aboard a ship or airship, a line on top says where you are bound and how long until you are
-  put ashore. The server runs every ship on a cycle from its zone's
-  `data/zones/<name>/zone.yaml` (`src/map/transports/ship_handler.cpp`): the seconds into the cycle
-  are the raw game time less the run's offset, modulo its length; the door is open through the docked
-  phase, and the riders are put ashore at the run's disembark second. The runs are
-  winxi's `transports` set (`data/<server>/transports`), built by `tools/build_transports.py`. The Aht Urhgan ferries run
+  put ashore. The Aht Urhgan ferries run
   only where the server has `ENABLE_TOAU` on, as the live branch does. Both the automatically placed icons and the `{dayicon}` / `{weathericon}` tokens support
   this, including panel-only mode when the logs are empty. Tooltips use the shared Winxi tooltip
   switch, delay and styling, but not its width: each is as wide as its longest line, so the
   forecast's days and the timetable's rows never wrap. Icons and words stay click-through; hovering
   does not take game input.
-- Background, border art and shadow follow the shared or local Winxi theme, captured together with
-  the log that owns the panel. The panel normally shares that log's draw list. When both logs collapse, a
-  panel-sized capture keeps it visible without an empty chat frame or a full-size invisible hit area.
-  Attached, it lifts the drawn logs (and their scroll regions) by its height; it never changes
-  the game's own log rectangles.
+- Background, border art and shadow follow the shared or local Winxi theme. When both logs collapse,
+  the panel stays visible without an empty chat frame. Attached, it lifts the drawn logs (and their
+  scroll regions) by its height; it never changes the game's own log rectangles.
 - Visibility follows **compact chat**, not the native clock: action and combat menus that hide the game's
   clock no longer stop the panel. When both compact logs are empty, at zero native lines, or
-  hidden by Smart Visibility, the panel (if on) stays visible. Menu anchors use its real bounds,
-  with no space reserved for the collapsed logs. It still hides during expanded history, zoning,
+  hidden by Smart Visibility, the panel (if on) stays visible. It still hides during expanded history, zoning,
   winchat off, or when no valid native layout or capture is available. Custom positioning does not override these rules.
-- Time, zone and EXP data do not need the native clock to be drawn. Weather uses the login and weather packets,
-  then fresh native data or a direct read of the game's weather state. Its icon stays available while
+- Time, zone and EXP data do not need the native clock to be drawn. The weather icon stays available while
   fishing, in events, or when the native clock is hidden, even when winchat loads mid-session.
   A passing read failure keeps the last known weather; leaving a zone and character resets clear it.
   Clear skies are a real value, never a guessed fallback. `{grid}` likewise falls back to the game's
@@ -181,8 +168,7 @@ and are not imported. Use `/winchat panel off` before you go back to clock.
 
 **Hide Game Clock** (Info Panel → General, off by default; `/winchat clock [hide|show]`) hides the
 game's clock, its time and its day and weather icons while winchat runs, with the panel on or off.
-Each frame winchat renews an empty replacement in uihook's clock slot and names both icons hidden,
-so the game still runs its clock: `{grid}` and the weather stay readable for the panel. Turning it
+The game still runs its clock, so `{grid}` and the weather stay readable for the panel. Turning it
 off, winchat off, zoning or unloading gives the game's clock back at once. Needs uihook with clock
 support; unload the clock addon and hidecompass, which use the same object. `/winchat status`
 reports it as Game Clock.
@@ -230,6 +216,16 @@ the mode is how the boxes behave and where they stand.
   are kept. `/winchat on` and `/winchat off` control this switch.
 - **Replace Native Chat** (on to begin with): on chooses **Follow Game**; off chooses **WinXI Skin**.
   This changes the layout behaviour, not whether winchat is on. Existing mode settings are kept.
+  Native window size does not necessarily mean the same number of lines.
+  - *On, Follow Game*: the log, the input bar and the expanded log where the game puts its own, at its sizes.
+    Each log follows its game window's size and its lines, as the game grows its window a row for each
+    message and shrinks it to its fewest while none come (at 0 lines nothing is drawn); the second window
+    stands where the game shows it, with the game's width and gap. The input bar uses the game's
+    height (or enough for the chosen font), centred text, and the log's width, but takes the bottom
+    of the compact footprint rather than moving it when you type;
+    the expanded log opens where the game puts it, at its full height.
+  - *Off, WinXI Skin*: the addon's own Width and rows, the activity controls, and the expanded log's place
+    and height, from the Layout and Activity sections.
 - **Auto-Translate** (on to begin with): Tab while typing opens winchat's own list of auto-translate
   phrases, from the installed client's dictionary, and of your character's own items (in any bag) and key
   items, as the game's own lists are, for the word at the caret (with no word, the 42 categories and Items
@@ -254,16 +250,6 @@ the mode is how the boxes behave and where they stand.
     (`addons/libs/winxi/sounds`); a wav of the same name in `addons/winchat/sounds` is played in its place. Typing goes on narrowing the list. The phrase goes into your line as its real token, so
   others see it in their own language when you send. Off, Tab is the game's, whose own menu takes the
   input bar back for as long as it is open. `/winchat translate on` and `off` do the same.
-  Native window size does not necessarily mean the same number of lines.
-  - *On, Follow Game*: the log, the input bar and the expanded log where the game puts its own, at its sizes.
-    Each log follows its game window's size and its lines, as the game grows its window a row for each
-    message and shrinks it to its fewest while none come (at 0 lines nothing is drawn); the second window
-    stands where the game shows it, with the game's width and gap. The input bar uses the game's
-    height (or enough for the chosen font), centred text, and the log's width, but takes the bottom
-    of the compact footprint rather than moving it when you type;
-    the expanded log opens where the game puts it, at its full height.
-  - *Off, WinXI Skin*: the addon's own Width and rows, the activity controls, and the expanded log's place
-    and height, from the Layout and Activity sections.
 - **Timestamps** (on to begin with): the time in front of each line as SimpleLog's Timestamps or
   Ashita's timestamp addon writes it; winchat adds none of its own. Off, those are hidden in the
   compact log, Window 2 and the expanded log; the messages keep them, so turning it on shows them
@@ -284,9 +270,7 @@ the mode is how the boxes behave and where they stand.
   `C:\Windows\Fonts`. Japanese and other non-Latin text need a font with those glyphs.
 - **Font Size**: 8 to 24 pixels (12 to begin with); the boxes grow with it, and the expanded log's text
   is this size too (with Replace Expanded Log). In Follow Game, **Automatic** (0) takes the size the
-  game's rows give: the first window's row pitch (its height less the top and bottom padding, divided by the
-  lines it shows) less the row gap. It is read where the reading is sound and kept until another is, 12 until
-  the first; so the rows stand where the game's do.
+  game's rows give, so the rows stand where the game's do (12 until it is first read).
 - The bridge's status is at the foot of the tab.
 
 **Layout** (WinXI Skin)
@@ -344,10 +328,7 @@ animation. Choosing a log, scrolling back in it, or dragging its scrollbar keeps
 fade's idle delay restarts after you interact with it. Expanded history is not affected. Messages stay in history
 when hidden; opening or scrolling the log still lets you read them. Imported history does not count as
 new activity. Native log capture stays active while hidden, so the game's original log does not show
-through. When both logs disappear, the info panel stays visible on its own. Collapsed logs reserve no
-layout height; the panel-only capture uses the visible panel's real bounds.
-One-row logs and small panels also skip ImGui's normal minimum window height, so their real
-window geometry matches the requested size.
+through. When both logs disappear, the info panel stays visible on its own.
 
 **Look** (both modes)
 
@@ -377,159 +358,29 @@ Match Game Input Size) becomes Follow Game, and off becomes WinXI Skin; the four
 log become Replace Expanded Log, on where all were on. The old Own Color and Override Colours settings
 are dropped.
 
-## Native behaviour and limitations
+## Limitations
 
-**Compact log.** `winxi.nativechat` captures the complete themed window, after its border and title,
-and uihook replays it at the native primary log's render boundary. The game's second log window, where
-it shows one, is replaced the same way by the second box, with the messages the game routes to it
-(uihook reads the game's own routing; nothing is guessed from the channels). With one window, or
-without that reading, the split log is hidden while the first box shows. The game decides when the log is drawn: the replacement never forces a closed log open,
-never ignores UI hide, and never draws over browsing and action menus. Zoning suspends it. Turning it off,
-unloading, a failed capture or stale submissions bring the game's drawing back. A missing or stale
-primary rectangle, or too little room above the native anchor, leaves the game's log showing rather
-than floating the box elsewhere, while the input bar carries on. A character or settings swap
-clears the kept messages. Windows stay click-through, except for the wheel over an overflowing log
-and its scrollbar, and the box is kept within the screen's width.
-
-**Anchoring.** The log follows the native primary chat base (or, in WinXI Skin with Position Custom,
-stands at its own place). While you type, its total footprint stays fixed: input takes the bottom
-of that space, so fewer chat rows show, rather than the whole log lifting. Closing
-input brings those rows back. The game's own lifting of input and log does not move this footprint; the optional info
-panel and second window also stay put. The log and the input bar always share a width and a left edge. Uihook moves the native clock
-text, day icon and weather icons by the difference between the replacement's top-left and the
-native log's, keeping the game's clock-to-log spacing, with the native clock and the `clock` addon
-alike (its rectangles are reported where they moved to). The compass stays put. Releasing the log,
-or expanding it, brings back the ordinary clock placement.
-
-**Input.** Open chat as ever: Enter, `/`, Space or your shortcut. Cursor keys, Home/End, editing,
-history, Enter and Escape are the **same native editor's**, as are the chat mode, commands and
-sending; the bar draws its text and blinking caret and scrolls to keep the caret in view.
-Auto-translate phrases already in the line use the game's display buffer; otherwise the raw-byte caret is used.
-With Auto-Translate on, Tab while the game's input is open is winchat's, so the game's own auto-translate
-menu, which would take the input bar back, never opens; while winchat's list is open, Up, Down, Page Up,
-Page Down, Enter and Escape are its own too. They are blocked in Ashita's `key` event (which sees a key
-before the game's input handler) and DirectInput's `key_data`, each until it is let go. The game reads the
-Enter that sends the line from DirectInput's polled keyboard state, though, not from a key message, so
-blocking those alone sent the half-typed line. So winchat also clears the list's keys from that state
-(`key_state`, written through `data_modified_raw`) while the list is open and while a key it acted on is
-still down. No other key's state is touched; `/winchat status` counts the times it cleared one. The chosen phrase's six-byte token replaces the word (or goes
-in at the caret from a category) on the next frame, through Ashita's `SetInputText`, or each buffer's
-setter where that is not kept, and is read back to be sure. Text typed since the choice is never overwritten,
-and a line past the setters' 120 bytes is refused rather than cut. `/winchat status` says what was
-written. Nothing is sent, no outgoing message is blocked and no key is pressed for the game: the next
-Enter sends the line as ever, with the token in it.
-
-Off, the game's own auto-translate menu takes the input bar back from the skin while it is open. Uihook draws the
-captured bar at the `menu inline` boundary in place of the game's background, text and caret when it is
-safe to replace it. Input is a slot of its own: closing input, a decode, API or capture failure or a missing
-signature releases it, and the game's editor shows. Clicking in the skinned bar does not place the caret
-or select. IME menus stay the game's and want live testing.
-
-**Expanded log.** Use the game's Square/window selection on the log, then Confirm: a faint light
-over the box and the game's hand cursor at its newest line show the selection. The addon binds no
-button and writes no expanded flag. Expanded mode is a **WinXI frame around the game's own
-browser**, at its full-log rectangle: uihook replaces the decoration and lets the game draw its
-rows, selection and cursor where its mouse hit-tests are. Browsing, tabs, wheel, Confirm (with its
-message-action menus) and Cancel are all native; no tell is made up, and every tab uses the game's
-own filter. The **tabs, scrollbar and text** are the addon's: uihook measures the game's tab strip,
-scrollbar and rows of text as the game draws them and, with Replace Expanded Log on,
-leaves them undrawn, and the addon draws its own in exactly those places the frame after. The game draws each tab not chosen only its first 30 units wide, and the next over the rest; the
-addon draws every tab whole, as **WinXI buttons** side by side from where the game's strip starts, all
-as wide as the longest name needs (narrowed only to fit the log): rounded, over the log's
-**Background** colour, in a game window's button colour (the **Border / Art Tint**, faint), the
-**Highlight Color** for the tab the game has chosen, its short name (Win 1, Win 2, Say, Tell, Party,
-LS 1, LS 2, A (J), A (E), Unity, Shout) in the chat's **Font** at 85% of **Font Size** and the log's
-**Title** colour with winxi's dark edge, centred and cut only where the log is too
-narrow. Which tabs there are and their order are the game's, as its strip is drawn: Window, Window 2
-(only with the game's second log window setting on), Say, Tell, Party, Linkshell 1, Linkshell 2,
-Assist (E), Assist (J), Unity and Shout, each named by the art the game draws it with, through the
-client's own pairing of art and filter. The game's mouse clicks on its tabs stay at its own places,
-so the buttons have no mouse light. The
-scrollbar is the compact log's: a thin white thumb, no track, inside the log's right edge, as tall as the
-game's bar and where the game's page is among its rows, brighter while the mouse is on it or on the
-game's bar, which the game still drags. A tab that cannot be named is named for
-its place. Nothing is moved, so Square, the wheel and the mouse on the tabs and the scrollbar still work on
-the game's own controls. With Replace Expanded Log off, or without a fresh place from uihook (the first frame, or a
-build without the hooks), the game's own are drawn: the selected tab and row highlight in the
-Highlight Color, other tabs in the Title colour, the cursor and scrollbar in the **Border / Art Tint**,
-with the native fade and pulse kept. The row highlight and cursor are the game's, tinted so, unless Replace
-Expanded Log mirrors the whole log: then uihook leaves the full log wholly undrawn (with uihook 0.6) and the
-addon lights the row the game highlights (uihook measures the game's highlight as it is drawn and
-flags the rows under it; the cursor's row with an older uihook) from the left of its text to the scrollbar, a row's pitch tall, in the
-Highlight Color (brighter while held down), lights a row the game marks faintly, and draws the cursor
-after the cursor row's text; which row that is, is the game's, read as it draws.
-The **text** is the addon's with Replace Expanded Log on: uihook decodes each of the game's rows as the
-game draws it (its glyph words back to the bytes the game was given, colour codes and all) and
-measures the row, and the addon lays the rows out as the compact log does: the chat's **Font** at
-**Font Size**, Font Size + 2 apart, the newest ending at the **Bottom Padding** and older ones up from
-it, from the log's left edge in by **Left Padding**, in its message's chat-mode colour with the game's
-inline colours kept and auto-translate brackets as shapes, clipped
-to the log's box; the game's cursor is drawn after the cursor row's text, where the game puts its
-mark. Which rows there are and their wrapping, the cursor, Confirm and its menus and the wheel are
-still the game's, followed by the rows' order (when the row the game has chosen is past what fits,
-the view moves up to keep it in sight). The game's own rows stand 16 of its units apart, which do not line
-up with these, so while the rows are the addon's the mouse over the rows is kept from the game: its hover
-and clicks would land on other rows than the ones shown. Every mouse message but the wheels is kept there
-(moves, and every button's presses and double-clicks), and the release of a press kept is kept wherever
-it is let go, while a press the game had (the camera turned across the log, its scrollbar dragged) keeps
-its drag and its release wherever they land. The game's tabs and scrollbar (a few pixels round it) are
-still its own, and so is the mouse while a menu of the game's (a row's action menu, or the input line) is
-open over the log. The wheel goes through and scrolls as ever; Square, the arrows and Confirm choose
-rows; Chat Tooltips work on these rows. With Replace Expanded Log off the game draws its own rows and
-has its mouse. With a Font Size larger than the game's own row pitch, fewer rows fit than the game
-pages: only as many as fit are shown, from the newest of the page up, and the rows at the top of a page
-are reached by walking the cursor up with the arrows (the view follows it); the text is never shrunk to
-the game's rows. A font wider than the game's can
-run past the right edge, where it is clipped. Off, or without a fresh set of rows from uihook, the game's own bitmap font is drawn.
-Padding, Width and Default Text apply to the compact log and input only, and there is no WinXI
-title over the tabs. Missing control signatures leave the art untinted and the game's tabs,
-scrollbar and text drawn; missing content signatures, geometry or a failed capture leave the
-game's whole view showing.
-Compact and expanded captures are never replayed at each other's boundary. A row's action menu
-(Confirm on a player's line) and the input line open over the log, which keeps its WinXI look under
-them; the menu itself is the game's. Expanding releases compact scrollbar drags and resets the
-wheel. Other addons' Under Expanded Chat hiding works as before.
-
-**Colours.** The palettes are **standard-palette approximations**, not live reads: custom DAT
-colours and your own channel colours are not imported. Text without inline codes takes its mode's
-second-palette colour (white for unlisted slots); unknown modes take the WinXI theme's. Both
-palette banks survive wrapping and paragraph breaks, and a reset returns to the mode's colour.
-Named NPC dialogue gets `[NPC]` after the speaker, only `NPC` in yellow, never doubled. Combat lines
-are not compacted, grouped, filtered or timestamped; settings left from those removed options are
-dropped on load.
-
-**Text.** Auto-translate is expanded and CP932 is converted to UTF-8. FFXI `1E`/`1F` colour escapes
-are parsed first, kept as byte ranges and never drawn; slot 1 resets to the line's colour. NPC bell
-separators and CRLF become paragraph breaks; `7F` prompt, end and timing controls are consumed;
-cut-off escapes are dropped. Auto-translate brackets are drawn as shapes, and elemental
-`EF 1F`–`EF 26` symbols as `[fire]`, `[ice]` and so on. The game's other pictographs (`EF 29`–`EF 4D`),
-blinking and timed reveal are not reproduced. No FancyChat code is used; palette observations are credited in `palette.lua`.
-Native chat recognition lives in uihook, not in this addon.
-
-## Checks
-
-```sh
-luajit tests/chatbox_log_check.lua
-luajit tests/chatbox_encoding_check.lua
-luajit tests/chatbox_inline_check.lua
-luajit tests/chatbox_retention_check.lua
-luajit tests/chatbox_scrollbar_check.lua
-luajit tests/chatbox_ui_check.lua
-luajit tests/infopanel_source_check.lua
-luajit tests/winxi_frame_check.lua
-luajit tests/nativemenus_check.lua
-luajit tests/nativehistory_check.lua
-luajit tests/chatbox_input_check.lua
-luajit tests/chatbox_translate_check.lua
-luajit tests/chatbox_layout_check.lua
-luajit tests/harness.lua winparty addons/winparty/winparty.lua tests/winxi_capture_check.lua
-luajit tests/winxi_version_check.lua
-plugins/uihook/tests/run.sh
-```
-
-These are offline checks, not proof of live rendering. Still to check in game: primary and split
-logs, wrapping, Enter, slash and mode shortcuts, history, editing and caret scrolling,
-the Auto-Translate list (Tab never reaching the game, Enter's phrase kept and not sent) and IME, non-Latin glyphs, input fallback, expanded history, selection and focus
-changes, confirm and cancel, menu hiding, shared widths, input lift and close, clock anchoring,
-zoning, UI hide, theme and font changes, device recovery, and unloading and reloading the addon and
-plugin. `/winchat off` returns to the game's chat at once.
+- The game decides when the log is drawn: winchat never forces a closed log open, never ignores UI
+  hide, and never draws over browsing and action menus. Zoning suspends it.
+- If the game's log is not where winchat can find it, or there is too little room above it, the game's
+  log shows instead, while the input bar carries on. Turning winchat off, unloading or a failed capture
+  also brings the game's drawing back.
+- A character or settings swap clears the kept messages.
+- The windows are click-through, except for the wheel over an overflowing log and its scrollbar.
+- The game's clock moves with the log, keeping its distance from it; the compass stays put.
+- Clicking in the skinned input bar does not place the caret or select. IME menus stay the game's and
+  want live testing.
+- With Auto-Translate off, the game's own auto-translate menu takes the input bar back from the skin while it is open.
+- The expanded log is opened with the game's Square/window selection on the log, then Confirm. The addon
+  binds no button. Browsing, tabs, wheel, Confirm (with its message-action menus) and Cancel are the game's.
+- With a Font Size larger than the game's own row pitch, fewer rows fit in the expanded log than the game
+  pages: the rows at the top of a page are reached by walking the cursor up with the arrows. A font wider
+  than the game's can run past the right edge, where it is clipped.
+- Padding, Width and Default Text apply to the compact log and input only, and there is no WinXI
+  title over the expanded log's tabs.
+- The palettes are standard-palette approximations, not live reads: custom DAT colours and your own
+  channel colours are not imported. Unknown modes take the WinXI theme's colour.
+- Named NPC dialogue gets `[NPC]` after the speaker, only `NPC` in yellow.
+- Combat lines are not compacted, grouped, filtered or timestamped by winchat.
+- Elemental symbols are drawn as `[fire]`, `[ice]` and so on. The game's other pictographs,
+  blinking and timed reveal are not reproduced.

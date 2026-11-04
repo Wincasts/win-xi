@@ -1,8 +1,7 @@
 # parse (experimental)
 
-A new packet-based combat parser for Ashita v4, with a winxi overlay. This is **not a port of
-`references/parse`**: it has its own decoder, identity model, accounting and tests. It needs no
-runtime files from that addon.
+A new packet-based combat parser for Ashita v4, with a winxi overlay. It is not a port of the
+reference Parse addon, and it needs no runtime files from that addon.
 
 ## Install
 
@@ -189,8 +188,7 @@ button in the settings.
   An owner plus a pet with the same name cannot collide. Reuse of the *same server ID within one
   zone epoch* is not detected as a new spawn. Start a new encounter when this difference matters.
 
-The pure core keeps categories, ability-ID buckets and per-target buckets. In this first UI,
-category breakdowns are available through `report detail`. Per-ability names and target filtering
+In this first UI, category breakdowns are available through `report detail`. Per-ability names and target filtering
 are not yet shown. AoE counts each affected target or result, so event counts are **not cast
 counts**.
 
@@ -237,7 +235,7 @@ landed strikes and one missed attempt. That reading **depends on the profile's a
 - Recognized buffs that change TP or multi-attack, including Sekkanoki, Meikyo Shisui, Regain,
   relevant rolls, aftermath and charge or flourish effects, are left out. Hidden or unsupported
   effects are still your responsibility when you calibrate a controlled test.
-- A fresh `0x0DF` TP update must arrive strictly after the WS and within two seconds. It must then
+- A fresh TP update must arrive strictly after the WS and within two seconds. It must then
   stay unchanged for 0.4 seconds while no other action involving you, HP change, equipment change
   or observed death invalidates it. Missing, stale, ambiguous or off-profile TP becomes **unknown**.
 - AoE and multi-result WS, and successes with zero or absorbed damage, are left out. Death messages
@@ -254,11 +252,11 @@ hit rates for comparisons, capture controlled samples and compare known TP retur
 
 ## Accuracy and limitations
 
-This first version has automated synthetic packet and UI tests, **not live accuracy certification**.
-Compare a short live capture against known combat outcomes before you use it for gear testing.
+This first version has been tested only against made-up packets, **not certified for accuracy in
+live play**. Compare a short live capture against known combat outcomes before you use it for gear testing.
 
-- Damage comes from `0x028`. TP inference also reads `0x0DF` and death messages in `0x029`.
-  Periodic DoT ticks, healing totals, defensive rates, buff-state test indexing, threat,
+- Damage comes from the server's action messages. TP inference also reads TP updates and death
+  messages. Periodic DoT ticks, healing totals, defensive rates, buff-state test indexing, threat,
   automatic fights and kill/overkill reconciliation are not implemented. The damage shown is the
   reported result, not a reconstruction of the monster HP removed.
 - Additional HP/MP drain effects are not added to hit damage on their own: they may be part of
@@ -271,77 +269,18 @@ Compare a short live capture against known combat outcomes before you use it for
   pets that cannot be resolved at the time, are not attributed after the fact. A change of owner
   for the same pet ID within an encounter is not split. Start a new encounter for tests involving
   charm or owner changes.
-- Chunk deduplication compares complete action packets against the network chunk just before,
-  keeping multiplicity within a chunk. It is not an unlimited history of resent packets.
-- Totals live in memory for the current manual encounter. Reloading loses them. Capture and replay
-  are for diagnostics, not an in-game import/export feature.
+- Resent packets are dropped by comparing each action packet against the network chunk just before.
+  It is not an unlimited history of resent packets.
+- Totals live in memory for the current manual encounter. Reloading loses them. Captures are for
+  diagnostics, not an in-game import/export feature.
 
-## Diagnostic capture and offline replay
+## Diagnostic capture
 
-`/parse capture test_01` creates `addons/parse/captures/test_01.txt`. Names may only use
-letters, numbers, underscores and hyphens. Existing files are never overwritten. This resets the
-current encounter, so replay starts from the same state. Each action packet that was decoded and
-accepted carries its monotonic timestamp and resolved identity metadata. Injected packets,
-suppressed duplicates and packets received while paused are left out. Pause, resume and reset
-markers keep the timeline. Turning the capture off, or unloading, freezes the offline timeline
-without pausing live accounting. Version 2 also records WS inference decisions, TP and calibration
-evidence and the reasons for exclusions (`W` records), so replay keeps the mixed melee and WS
-accuracy without reading current memory. Replay checks the TP arithmetic, but does not rerun the
-live eligibility guards from raw TP, gear and buff packets.
+If you are asked to send a capture, make one like this. `/parse capture test_01` creates
+`addons/parse/captures/test_01.txt`. Names may only use letters, numbers, underscores and hyphens.
+Existing files are never overwritten. This resets the current encounter. Use
+`/parse capture off` (or unload the addon) to close it. Closing the capture does not pause
+live recording. Packets received while paused are left out.
 
-Captures contain **character names and raw combat packets**. Treat them as private. The folder
-is git-ignored. Captures are written out per record (use them for short diagnostic sessions, not
-benchmarks). The last 128 normalized combat events are also kept in a bounded diagnostic ring in
-the session.
-
-Copy the file to a machine with LuaJIT and this repository. From the repository root:
-
-```sh
-luajit tools/parse_replay.lua /path/to/test_01.txt
-luajit tools/parse_replay.lua /path/to/test_01.txt --separate-pets --no-skillchains
-```
-
-Replay uses the captured identities rather than live memory. It prints totals, rates, categories
-and unknown outcomes. The format is versioned, non-executable text; it is never `loadfile`d. Replay
-accepts both v1 and v2. A malformed capture causes a nonzero exit with the line number.
-
-## Development and validation
-
-```sh
-luajit tests/parse_check.lua
-luajit tests/parse_accuracy_check.lua
-luajit tests/harness.lua parse tests/parse_stand_in.lua tests/parse_ui_check.lua
-luajit tools/parse_replay.lua tests/fixtures/parse_capture.txt
-luajit tools/parse_replay.lua tests/fixtures/parse_accuracy_capture.txt
-```
-
-The tests use synthetic packed packets and fixed v1/v2 synthetic captures, not captures claimed to
-come from retail. They check unsigned IDs, conditional fields, truncation, same-name actors, pets,
-AoE, counters and spikes, skillchains, exclusions, zero rates, timing, replay and chunk multiplicity.
-The UI checks run the real addon against the project's Ashita stand-in.
-
-For live validation: start a capture, make several known hits and misses and a WS or skillchain,
-pause and resume, then stop the capture. Compare `report detail` with the replay and the known
-actions. Repeat with a trust and a pet, a multi-target spell, zoning and a crowded fight. Look at
-the unknown counters before making accuracy claims.
-
-### Files
-
-- `parse_packet.lua`: bounded unsigned wire decoder, starting at bit 40.
-- `parse_identity.lua`: verified server-ID lookup, roster and companion attribution, zone-scoped keys.
-- `parse_classify.lua`: explicit outcomes, and actor/target reversal for reactive damage.
-- `parse_core.lua`: pure aggregates, rates, reversible grouping and pause-aware encounter timing.
-- `parse_session.lua`: pipeline, diagnostics, capture lifecycle and replay entry point.
-- `parse_capture.lua`: versioned text serialization; no executable Lua in captures.
-- `parse_dedupe.lua`: adjacent-chunk retransmission comparison.
-- `parse_preview.lua`: deterministic dummy observations, kept apart from the live session.
-- `parse_columns.lua`: column definitions, visibility and order normalization, and cell formatting.
-- `parse_controls.lua`: font-independent cog button drawing.
-- `parse_minimal.lua`: compact transparent overlay with its own position and click-through lock.
-- `parse_ws.lua`: pure calibrated TP solver and cautious observation and settling state machine.
-- `parse_ws_live.lua`: local equipment, buff and job context guards, and party TP packet fields.
-- `parse.lua`: Ashita lifecycle, commands and winxi presentation.
-
-Wire-format reference: [XiPackets server 0x0028](https://github.com/atom0s/XiPackets/tree/main/world/server/0x0028).
-Protocol identifiers and layout were also checked against the local Phoenix server reference. No
-reference addon or server implementation was copied. New code is under the repository's MIT license.
+Captures contain **character names and raw combat packets**. Treat them as private. Use them for
+short diagnostic sessions, not benchmarks.

@@ -69,24 +69,7 @@ and the lines have the theme's Text Outline. The settings window uses winxi's se
 
 ## What it reads
 
-Everything comes from the action packet (0x028), as trigger reads it. A spell beginning and a
-weaponskill readied are two kinds of action whose first result numbers the spell or move; one broken
-off is the same kind with the action's four letters beginning `sp` rather than `ca`, as the Phoenix
-server writes them. A spell cast, a mob's move done and an ability used name the spell or move as the
-action itself. A spell or move the game keeps quiet about (no message with its beginning) is left
-alone here too.
-
-An action that comes to nothing is sent as a spell finished whose first result has the animation of
-an interruption (508). A spell paralyzed (message 84) or intimidated (106) at its end names the
-spell, and is followed by the spell broken off, which is not said over it. An attack, an ability or
-an item stopped that way names nothing and is left alone; it used to come out as `casts Spell 0`.
-
-A move's name is the game's: a monster's moves are numbered from 256 up and named in the game's list
-of monsters' abilities; a weaponskill of the players' own, or an ability, in its list of abilities.
+Everything comes from the action packet, as trigger reads it. A spell or move the game keeps quiet
+about (no message with its beginning) is left alone here too. An attack, an ability or an item
+stopped by paralysis or intimidation names nothing and is left alone. A move's name is the game's.
 Where the game has no name, the line says `Spell 999`, `Weaponskill 999` or `Ability 999`.
-
-`reader.lua` reads the packets and makes the lines, `box.lua` draws the window, and
-`tests/mobcast_check.lua` works them through: spells begun, cast, broken off, paralyzed and intimidated; an attack paralyzed; weaponskills
-readied, used and broken off; abilities; targets by the party list and by id; players, NPCs, pets
-and unknowns left alone; each switch; the box's lines, their order, time, lock and size; the sample; hiding and
-fading; bad settings made good.
