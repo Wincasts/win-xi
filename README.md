@@ -45,8 +45,8 @@ Each addon's folder has a README with all of its commands and settings.
 
 ## Installing from this repository
 
-mobcast, cooldowns, hidecompass and blockpool are not released as zips yet. Anything here can also be
-newer than its release. Copy these into your Ashita folder, merging folders:
+Every addon and plugin above has a release on [DOWNLOADS.md](DOWNLOADS.md), which is the easier way.
+What is here can be newer than its release. To use it, copy these into your Ashita folder, merging folders:
 
 - `addons/libs/winxi` and `addons/wxi`, which every addon but occlusionfix and hidecompass needs
 - `addons/<the addon>` (or `forks/addons/cooldowns`) for each addon you want
