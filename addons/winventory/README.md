@@ -1,185 +1,132 @@
 # winventory
 
-The bags in a window: what is in them, and what you can do with it, by mouse or controller. It was
-the `inv` tool of xitools, then the `inventory` addon, and is now winventory. It needs only the `winxi`
-library (`addons/libs/winxi`).
+Shows your bags in a window: what is in them, and what you can do with each item. You can use it with
+the mouse or with a controller. It can also show the treasure pool and the gear you are wearing.
+
+## Why use it
+
+- You see all your bags in one window, with tabs, and can move items between bags by dragging them.
+- You can lot and pass on treasure, and change your gear, from the same window.
+- It works fully with a controller, with a list on screen of what each button does.
+
+It needs only the `winxi` library (`addons/libs/winxi`). It started as the `inv` tool of xitools, then
+became the `inventory` addon, and is now winventory.
 
 ## Install
 
-The package is listed in [DOWNLOADS.md](../../DOWNLOADS.md). Extract it into your Ashita folder (the
-one holding `addons`, `plugins` and `config`), then, in game:
+The download is listed in [DOWNLOADS.md](../../DOWNLOADS.md). Extract it into your Ashita folder (the
+one that holds `addons`, `plugins` and `config`). Then, in game, type:
 
     /addon load winventory
 
 ### Coming from inventory, inv or xitools
 
-Each character's settings are brought over the first time it logs in with winventory: from
-`config/addons/inventory/` where it has them, otherwise from `config/addons/inv/`. Remove the old
-`addons/inventory` folder.
-
-The addon was called `inv`. The first time it is loaded for a character, it brings over the settings
-it kept under that name. If there are none, it brings over what xitools kept for the tool: its
-settings, the window's place, the order you put items in by hand, and xitools' theme and hiding
-rules.
+- Each character's settings are brought over the first time it logs in with winventory. They come from
+  `config/addons/inventory/` if it has them, otherwise from `config/addons/inv/`.
+- Remove the old `addons/inventory` folder.
+- The addon was once called `inv`. The first time it is loaded for a character, it brings over the
+  settings kept under that name. If there are none, it brings over what xitools kept for its tool:
+  the settings, the window's place, the order you put items in by hand, and xitools' theme and hiding
+  rules.
 
 ## Commands
 
-- `/winventory` opens or closes the settings
-- `/winventory toggle` shows or hides the window (bind it to a macro to open the window with a controller)
-- `/winventory focus` gives the open window the controller, or takes it away again
-- `/winventory help` lists the commands in the chat log
+- `/winventory` opens or closes the settings.
+- `/winventory toggle` shows or hides the window. Put it in a macro to open the window with a
+  controller.
+- `/winventory focus` gives the open window the controller, or gives it back to the game.
+- `/winventory help` lists the commands in the chat log.
 
-`/inventory` and `/inv` still work as `/winventory`: `/inv toggle` and `/inv focus` too. Anything else
-after the command only says how to open the settings.
+`/inventory` and `/inv` still work the same as `/winventory`, and so do `/inv toggle` and
+`/inv focus`. Anything else after the command only says how to open the settings.
 
-## Settings
+## Using the window
 
-The settings are in five tabs, each in collapsible sections: **General** (Window and Controller),
-**Inventory** (Grid, Tabs and Currencies), **Treasure** (Treasure Pool and Display), **Equipment**
-(Equipment Monitor, Display and Slots) and **Tooltips** (Tooltip Window and Display), then Visibility.
-The Treasure and Tooltips tabs are laid out alike: what turns it on, **Detach From Inventory**, and,
-when detached, its position and lock; then how it looks. While one is not enabled, the rest of its tab is hidden. Every setting's tooltip is in winxi's
-themed tooltip.
+### With the mouse
 
-**Scale** sizes each window: the inventory's (General → Window) its icons, the room between them and its
-words; the treasure pool's (Treasure → Display) and the Tooltip Window's (Tooltips → Display) are theirs
-while they are detached, and while attached they take the inventory's, so the three stay in step; the
-equipment monitor's (Equipment → Display) its slots, their spacing and its words.
+- Right-click an item to see what you can do with it.
+- Rest the mouse on an item to see its details.
 
-**Lock**, in General → Window, stops you dragging the inventory window when it is on.
-It is off by default. The **Position** fields still work while locked.
+### Moving items
 
-**Growth Anchor**, also in General → Window, chooses which corner stays fixed while the locked
-window changes size (for example, when you switch tabs). **Top Left** is the default and grows right
-and down. **Top Right** grows left and down, **Bottom Left** grows right and up, and **Bottom Right**
-grows left and up. Changing the anchor does not move the window. Unlocking brings back the normal
-top-left growth, so you can move it freely.
+Items can be dragged with the mouse while the window is locked (**Lock**, see
+[Window settings](#window-settings)). When it is unlocked, dragging moves the window instead.
 
-### Grid and tabs
+- Drop an item on another item in the same tab to swap their places. This makes your own order, as the
+  controller's Manual sort does. Auto sort puts the usual order back.
+- Drop an item on another tab's name at the top to move it into that tab's bags. It goes into the bag
+  chosen along the bottom of the window if that has room. If not, it goes into the first bag that has
+  room and can take it. Wardrobes take only gear. You cannot move items into your Mog House bags from
+  elsewhere.
 
-Under **Inventory → Grid** in the settings, **Rows** and **Columns** set how much of the inventory
-grid you see (5–30 rows and 6–30 columns). While the settings are open, empty placeholders show the
-full chosen grid. Changes to rows and columns update that preview at once. With the settings closed,
-the grid shrinks to fit what is in the bag (including empty bag slots when Show Empty Slots is on),
-up to the chosen row limit. Making either dimension bigger or smaller resizes the window to fit.
-Extra items scroll, with the mouse wheel, only when there are more than the chosen row limit. A slim
-bar just outside the grid's right edge shows how far down it is scrolled. It takes no room from the
-slots, so the spacing and the window's width stay the same whether the grid scrolls or not. You can
-drag the bar anywhere in the strip between the grid's right edge and the window's border: a press on
-the bar takes hold of it, and a press elsewhere in the strip brings it to the mouse first. A press
-there never moves the window. The window is as wide as the grid: the tabs above it, and the gil,
-counts and bag tabs below it, line up with the slots' edges. Tabs and slot counts stay visible. Every
-slot, full or empty, sits on a faint square of its own, under the item's icon. Around them the grid
-has no background of its own, so the base Winxi window shows through. These controls replace Max
-Height. **Show Bag/Satchel/Wardrobe/House Tab** turns each group on or off; controller tab
-navigation skips hidden groups. Hiding a tab does not change its items, and you can still move items
-to those bags. The controls apply to both the unified and the separate-bag views.
+### With a controller
 
-In the unified view (**Unified Bags**, under Inventory → Tabs), a tab with more than one bag has a
-row of tabs of its own along the foot of the window: **all**, for every bag together, then one for
-each bag the player has (satchel, case and sack; the wardrobes by number; safe 1, safe 2, storage and
-locker). Choosing a bag shows its items alone, with its own count in the row above. Auto sort then
-sorts that bag alone. On **all**, the row has one count, of every bag together (35/35, say); each
-bag's own count is on its tab. A tab with one bag, such as the inventory's, has no row. These tabs
-are worked with the mouse.
+Turn on **Controller Navigation** in the settings (General → Controller). Then:
 
-### Currencies
+| Button | What it does |
+|---|---|
+| D-pad | Moves the highlight. |
+| LB / RB | Change tab. |
+| A | Opens the item's menu. |
+| B | Backs out of a menu, or gives the controller back to the game. |
+| X (square) | Opens the sort menu. |
+| Y (triangle) | Moves the controller on to the next window. |
 
-The gil's place at the foot of the window can show gil or any currency. It can show a second one
-after it, with a short upright line between them, and another line before the bag count:
-`12,345 G | 4,500 IS | 08/30`. Choose them under **Inventory → Currencies** as **Currency 1**
-(gil by default) and **Currency 2** (none by default). Either can be **None**. Each is shown with a
-short name (G, CP, GP, IS, AP, Tokens and so on); the list names them in full.
+The window takes the controller when `/winventory toggle` opens it. Only `/winventory toggle` closes it.
 
-A server does not say which currencies it has, and its answers carry every currency the game knows.
-So **Currency List** picks which ones the two offer. **Retail** has every one. **Phoenix**, the
-default, holds gil, the currencies of Phoenix's era, and any other that the server says the player
-has some of. The era is Phoenix's, Treasures of Aht Urhgan: conquest points, Beastmen's and
-Kindred's Seals, Ancient Beastcoins, guild points, Ballista and Fellow Points, Imperial Standing,
-assault points, Nyzul Isle Tokens and Imperial Army ID Tags. Opening the list asks the server what
-the player has, so later currencies the player does have some of come into it.
+**Y** moves the controller from window to window: the inventory, then the treasure pool (only while
+there is treasure), then the equipment monitor (only while it is shown), then back to the inventory.
+The window that has the controller has a thin outline. To leave a window out of this cycle, turn off
+**Cycle Treasure Pool** or **Cycle Equipment** (General → Controller).
 
-The server tells the player how many they have only when asked. So while the inventory window is
-shown and a currency is chosen, the addon asks, as the game's own Currencies menus do. It asks as the
-window is shown, every minute while it stays, and a few seconds after you arrive in a new area. It
-asks only for the menus a chosen currency is in; gil needs no asking. Until the first answer, the
-count is a dash.
+- **In the treasure pool**: the highlight starts on the first item's **Lot**. Left and right move
+  between Lot and Pass. Up and down move between items. Up from the first item reaches **Lot All** and
+  **Pass All**. A presses the button the highlight is on.
+- **In the equipment monitor**: the d-pad moves over the slots. A opens what you can put on in that
+  slot: **Remove** for what you are wearing, then the gear in your inventory and wardrobes that fits
+  the slot and that your main job can wear at its level, highest level first (up to 15).
+- **B** in either one goes back to the inventory.
 
-### Tooltip window
-
-The **Tooltips** tab puts what winventory says of things in a window of its own, with the item's icon at
-its left. With **Tooltip Window** on (it is off by default), an item's details (its name, slot and
-races, stats and description, level and jobs), a treasure pool line's (the same, and who is winning it) and an equipment slot's
-gear show there, for whatever is under the mouse or the controller's highlight, in place of the tooltip
-beside the mouse and the box beside the highlight. That keeps the grid clear while you work it with a
-controller; **Controller Item Info** is then greyed, as the window always shows everything.
-
-By default the window is attached: at the inventory's right, its top level with the inventory's, and
-under the treasure pool while there is treasure, so the pool filling pushes it down and the pool
-emptying brings it back up. Clicks go through it there. With the inventory hidden and the pool pinned,
-it goes at the pool's right. Turn on **Detach From Inventory** to place it yourself: drag it, or set
-**Tooltip Position X** and **Y**. **Lock Tooltip Window** holds it still and lets clicks through it.
-**Grow From** is the corner that stays put as the window changes size with what it says: place it at
-the bottom right of the screen with Bottom Right, and it grows up and left. While the settings are open
-it shows a sample, so you can see where it is with nothing selected. The window is held for a moment
-as the mouse goes from one item to the next, so it does not blink.
-
-## Moving items
-
-While the window is locked, you can drag items with the mouse. Drop an item on another item of the
-tab to swap their places (your own order, as the controller's Manual sort makes it; Auto sort puts
-the usual order back). Drop it on another tab's name at the top to move it into that tab's bags: the
-bag chosen along the foot of the window if it has room, or else the first that has room and can take
-it (wardrobes take only gear; you cannot move items to the house's bags from afar). Unlocked, a drag
-moves the window, as before.
-
-## Mouse and controller
-
-With the mouse, right-click an item to see what you can do with it. With a controller (Controller
-Navigation, in the settings): the d-pad moves the highlight, LB / RB change tab, A opens the item's
-menu, B backs out of a menu or gives the controller back to the game, and X (square) opens the sort
-menu. The window takes the controller as `/winventory toggle` opens it, and only `/winventory toggle` closes it.
-
-Y (triangle) moves the controller on to the next window: the inventory, then the treasure pool (only
-while there is treasure), then the equipment monitor (only while it is shown), then back to the
-inventory. The window that has the controller has the thin outline. In the treasure pool, the highlight
-starts on the first item's **Lot**. Left and right move between Lot and Pass, up and down move between
-the items, and up from the first item reaches **Lot All** and **Pass All**. A presses the button the
-highlight is on. In the equipment monitor,
-the d-pad moves over the slots and A opens what you can put on there: **Remove** for what you are
-wearing, then the gear in your inventory and wardrobes that goes in that slot and that your main job
-can wear at its level, highest level first (up to 15). B in either goes back to the inventory. Turn
-off **Cycle Treasure Pool** or **Cycle Equipment** (General → Controller) to leave one out of the cycle.
-
-While the window has the controller, a legend under it says which buttons do what right now: in the inventory, the treasure pool, the equipment
-monitor, a menu, or while sorting by hand. Each button is drawn as it looks on your controller: the
-cross, circle, square and triangle in their colours on a PlayStation controller, coloured letters on
-an Xbox one, L1 / R1 or LB / RB as small pills, and a cross for the d-pad. Turn off **Controller Legend**
-(General → Controller) to hide it. The verbose item box, placed below the window, goes under the legend.
+While the window has the controller, a legend under it shows which buttons do what at that moment:
+in the inventory, the treasure pool, the equipment monitor, a menu, or while sorting by hand. Each
+button looks as it does on your controller: the cross, circle, square and triangle in their colours on
+a PlayStation controller, coloured letters on an Xbox one, L1 / R1 or LB / RB as small rounded labels,
+and a cross shape for the d-pad. Turn off **Controller Legend** (General → Controller) to hide it. The
+detailed item box, placed below the window, goes under the legend.
 
 ## Treasure pool
 
-While there is treasure, the treasure pool sits to the right of the window. It has a line for each
-item, with the best lot so far, the time left, and buttons to lot and pass, with Lot All and Pass All
-over them. Hover over an item, or highlight it with the controller, for all there is to say of it, as for an item in your bags, and who is winning it. It comes and goes with the inventory window.
-Detach From Inventory, under Treasure Pool in the settings, makes it a window of its own that you can
-move, with its own **Position** and **Lock**. Show When Empty fills an empty pool with sample
-treasure, so you can see how it looks; its buttons do nothing. With a controller, Y takes you to it
-(see above).
+While there is treasure, the treasure pool shows to the right of the window.
+
+- Each item has a line with the best lot so far, the time left, and buttons to lot and pass. **Lot
+  All** and **Pass All** are above them.
+- Rest the mouse on an item, or highlight it with the controller, to see all its details, as for an
+  item in your bags, and who is winning it.
+- It shows and hides with the inventory window.
+- **Detach From Inventory** (Treasure → Treasure Pool) makes it a window of its own that you can move,
+  with its own **Position** and **Lock**.
+- **Show When Empty** fills an empty pool with sample treasure, so you can see how it looks. Its
+  buttons do nothing.
+- With a controller, **Y** takes you to it (see [With a controller](#with-a-controller)).
 
 ## Equipment monitor
 
-Turn on **Enable** in `/winventory` → **Equipment** for a live equipment window, like EquipMon. It is off
-by default. It does not need the reference addon or its assets. While it is off, the rest of its
-settings are hidden.
+Turn on **Enable** in `/winventory` → **Equipment** to get a window that shows the gear you are
+wearing, like the EquipMon addon. It is off by default. It does not need EquipMon or its files. While
+it is off, the rest of its settings are hidden.
 
-The monitor is a window of its own, with the theme's shadow under it as every winxi window has. The first time it is shown it goes under the inventory window,
-its left edge in line with the window's; from then on it stays where you put it: drag it, or set its
-**Position**. **Lock** holds it still. It comes and goes (and fades) with the inventory, unless pinned
-(see Pinning below). Before 1.2 it could be attached under the inventory: a monitor that was is put
-there once, and is free from then on.
+### Where it goes
 
-All 16 slots use the game's equipment-screen arrangement:
+- The monitor is a window of its own, with the theme's shadow, as every winxi window has.
+- The first time it shows, it goes under the inventory window, lined up with its left edge. After
+  that, it stays where you put it: drag it, or set its **Position**. **Lock** holds it in place.
+- It shows, hides and fades with the inventory, unless it is pinned (see [Pinning](#pinning)).
+- Before 1.2 it could be attached under the inventory. A monitor that was attached is put there once,
+  and is free after that.
+
+### The slots
+
+All 16 slots are laid out as on the game's equipment screen:
 
 | | | | |
 |---|---|---|---|
@@ -188,41 +135,202 @@ All 16 slots use the game's equipment-screen arrangement:
 | Body | Hands | Left Ring | Right Ring |
 | Back | Waist | Legs | Feet |
 
-Equipped items are found in the containers they are really in, wardrobes included, and update live.
-A gear or ammo change shows on the next draw after the client updates its memory. Swaps that happen
-entirely between rendered frames cannot each be shown.
-Hover over a slot for its name and the item equipped in it. Stackable ammunition shows its current
-count. Red crosses mark encumbered slots, even when empty. You can switch each of these two overlays
-off on its own.
+- Worn items are found in the bag they are really in, wardrobes included, and update as you change
+  gear.
+- A gear or ammo change shows as soon as the game has updated. Very fast swaps that happen between two
+  screen updates cannot all be shown.
+- Rest the mouse on a slot to see its name and the item in it. Hovering over a worn item shows which
+  bag it is in, even when Wardrobe Markers is off.
+- Stackable ammunition shows how many are left.
+- Red crosses mark slots you cannot use (encumbered), even when empty.
+- You can turn each of these off on its own: **Show Ammo Count** and **Show Encumbrance**.
 
-**Quality Borders** draws a white inset border around high-quality gear, as the game does. Other
-gear has no border. The game's item data has no HQ flag (an item's HQ is a separate item, named with
-+1, +2 or +3), so an item counts as high quality when its name ends that way.
-**Wardrobe Markers** marks gear kept in a wardrobe as the game's equipment menu does: the
-wardrobe's number, white with a dark edge, in the top-right corner, over a wash of the wardrobe's
-colour along the top and right edges. Wardrobes 1–3 use the game's blue, yellow and green; 4–8 use
-red, purple, teal, orange and pink. Items in the main inventory have no mark. Both controls are under
-**Equipment → Slots**. They are on by default, and independent of Slot Backgrounds and of each other.
-Hovering over an equipped item shows where it is stored even when Wardrobe Markers is off.
+### How the slots look
 
-**Slot Backgrounds** draws each slot as the game's equipment menu does: a flat lavender-grey tile
-sunk into the window, its top and left edges in shadow and its right and bottom edges lit, meeting
-on the diagonal inside a thin dark rim, with the slot's name in pale lettering at its centre. Empty
-slots keep their labels; occupied slots draw their icons on top. The backdrop and lettering scale
-with the icons, stay inside the square grid, and turn off together with Slot Backgrounds.
+These are under **Equipment → Slots**.
 
-The Equipment tab has its own **Scale**, **Spacing**, **Opacity**, **Window Background** and
-**Slot Backgrounds** controls, and, when detached, **Position** and **Lock**. Drag the
-unlocked, detached window to move it; attached, it moves with the inventory window. The settings are
-kept per character with the rest of Inventory's settings. The styling and count text use Winxi's
-theme, not EquipMon's numbered texture themes and separate font objects.
+- **Quality Borders** (on by default) draws a white border inside the edge of high-quality (HQ) gear,
+  as the game does. Other gear has no border. The game's item data does not say which items are HQ (an
+  HQ item is a separate item, named with +1, +2 or +3). So an item counts as HQ when its name ends that
+  way.
+- **Wardrobe Markers** (on by default) marks gear kept in a wardrobe, as the game's equipment menu
+  does. The wardrobe's number is in the top-right corner, white with a dark edge, over a strip of the
+  wardrobe's colour along the top and right edges. Wardrobes 1–3 use the game's blue, yellow and
+  green. Wardrobes 4–8 use red, purple, teal, orange and pink. Items in your main inventory have no
+  mark.
+- Quality Borders and Wardrobe Markers work separately from each other and from Slot Backgrounds.
+- **Slot Backgrounds** draws each slot as the game's equipment menu does. Each slot is a flat
+  lavender-grey square, set into the window: its top and left edges are shaded and its right and
+  bottom edges are lit, inside a thin dark rim. The slot's name is in pale letters in the middle.
+  Empty slots keep their names. Full slots show the item's icon on top. The background and names grow
+  and shrink with the icons, and turn off together with Slot Backgrounds.
 
-### Pinning
+### Other equipment settings
+
+The Equipment tab has its own **Scale**, **Spacing**, **Opacity**, **Window Background** and **Slot
+Backgrounds** settings, and **Position** and **Lock**. Drag the unlocked window to move it. The
+settings are saved for each character with the rest of winventory's settings. The look and the count
+text use the Winxi theme, not EquipMon's themes and fonts.
+
+## Pinning
 
 `/winventory toggle` shows and hides the inventory window, the treasure pool and the equipment monitor
-together. Each has a pin that keeps it on screen when they are toggled off:
-**Pin Inventory** (General → Window), **Pin Treasure Pool** (Treasure) and **Pin Equipment**
-(Equipment). A pinned inventory window toggled off stays, but gives the controller back to the game.
-With the inventory hidden, a pinned treasure pool attached to it moves into its top-left corner, and
-goes back beside it once the inventory is shown again. The equipment monitor stays where you put it. Pinned windows still follow General's shared Visibility rules (including
-hiding while logged out).
+together. Each has a pin that keeps it on screen when the others are hidden:
+
+- **Pin Inventory** (General → Window). A pinned inventory window stays when you toggle it off, but
+  gives the controller back to the game.
+- **Pin Treasure Pool** (Treasure). With the inventory hidden, a pinned treasure pool that is attached
+  to it moves into the inventory's top-left corner. It goes back beside the inventory when the
+  inventory shows again.
+- **Pin Equipment** (Equipment). The equipment monitor stays where you put it.
+
+Pinned windows still follow General's shared Visibility rules, including hiding while you are logged
+out.
+
+## Settings
+
+The settings are in five tabs, each with sections that fold open and shut:
+
+| Tab | Sections |
+|---|---|
+| **General** | Window, Controller |
+| **Inventory** | Grid, Tabs, Currencies |
+| **Treasure** | Treasure Pool, Display |
+| **Equipment** | Equipment Monitor, Display, Slots |
+| **Tooltips** | Tooltip Window, Display |
+
+Then comes **Visibility**. Every setting's tooltip uses winxi's themed tooltip.
+
+The Treasure and Tooltips tabs are laid out the same way: first the setting that turns it on, then
+**Detach From Inventory**, then (when detached) its position and lock, then how it looks. While one is
+not turned on, the rest of its tab is hidden.
+
+### Window settings
+
+These are in **General → Window**.
+
+- **Scale** sets the size of the inventory window: its icons, the space between them, and its text.
+  The other windows have their own Scale:
+  - the treasure pool's (Treasure → Display) and the Tooltip Window's (**Tooltip Scale**, Tooltips → Display) apply only
+    while they are detached. While attached, they use the inventory's, so all three match;
+  - the equipment monitor's (Equipment → Display) sets its slots, their spacing and its text.
+- **Lock** stops you dragging the inventory window. It is off by default. The **Position** fields
+  still work while it is locked. While it is locked, you can drag items (see
+  [Moving items](#moving-items)).
+- **Growth Anchor** chooses which corner stays in place when the locked window changes size (for
+  example, when you switch tabs):
+  - **Top Left** (the default) grows right and down;
+  - **Top Right** grows left and down;
+  - **Bottom Left** grows right and up;
+  - **Bottom Right** grows left and up.
+
+  Changing the anchor does not move the window. Unlocking goes back to growing from the top left, so
+  you can move it freely.
+
+### Grid and tabs
+
+These are in **Inventory → Grid** and **Inventory → Tabs**.
+
+**Rows** and **Columns** set how much of the grid you see: 5–30 rows and 6–30 columns.
+
+- While the settings are open, empty boxes show the full grid you chose. Changes to rows and columns
+  show at once.
+- With the settings closed, the grid shrinks to fit what is in the bag, up to the row limit you chose.
+  This includes empty bag slots when **Show Empty Slots** is on.
+- Making the grid bigger or smaller resizes the window to fit.
+- These settings replace the old Max Height setting.
+
+Scrolling:
+
+- When there are more items than the row limit, you can scroll with the mouse wheel.
+- A thin bar just outside the grid's right edge shows how far down you are. It takes no room from the
+  slots, so the window's width stays the same whether the grid scrolls or not.
+- You can drag the bar anywhere in the strip between the grid and the window's border. Press on the
+  bar to take hold of it. Press elsewhere in the strip to bring the bar to the mouse first. A press
+  there never moves the window.
+
+How it looks:
+
+- The window is as wide as the grid. The tabs above, and the gil, counts and bag tabs below, line up
+  with the edges of the slots. Tabs and slot counts always show.
+- Every slot, full or empty, sits on its own faint square, under the item's icon. The grid has no
+  background of its own, so the Winxi window background shows through.
+
+**Show Bag Tab**, **Show Satchel Tab**, **Show Wardrobe Tab** and **Show House Tab** turn each group of
+bags on or off. Controller tab changes skip hidden groups. Hiding a tab does not change its items, and
+you can still move items into those bags. These settings work in both the combined and the
+separate-bag views.
+
+**Unified Bags** combines bags into one tab. In that view, a tab with more than one bag has its own
+row of tabs along the bottom of the window:
+
+- **all**, for every bag together;
+- then one for each bag you have: satchel, case and sack; the wardrobes by number; safe 1, safe 2,
+  storage and locker.
+
+Choosing a bag shows only its items, with its own count in the row above. Auto sort then sorts only
+that bag. On **all**, the row has one count for every bag together (35/35, for example), and each
+bag's own count is on its tab. A tab with only one bag, such as the inventory's, has no row. These
+tabs work with the mouse only.
+
+### Currencies
+
+These are in **Inventory → Currencies**.
+
+The bottom of the window, where gil is shown, can show gil or any currency. It can show a second one
+after it, with a short line between them, and another line before the bag count:
+`12,345 G | 4,500 IS | 08/30`.
+
+- **Currency 1** is gil by default. **Currency 2** is none by default. Either can be **None**.
+- Each is shown with a short name (G, CP, GP, IS, AP, Tokens and so on). The list shows the full names.
+
+**Currency List** picks which currencies the two lists offer. The server does not say which currencies
+it has, and its answers include every currency the game knows. So:
+
+- **Retail** offers every currency.
+- **Phoenix** (the default) offers gil, the currencies of Phoenix's era, and any other currency the
+  server says you have some of. Phoenix's era is Treasures of Aht Urhgan. Its currencies are conquest
+  points, Beastmen's and Kindred's Seals, Ancient Beastcoins, guild points, Ballista and Fellow Points,
+  Imperial Standing, assault points, Nyzul Isle Tokens and Imperial Army ID Tags.
+- Opening the list asks the server what you have. So later currencies that you have some of are added
+  to it.
+
+The server tells you how much of a currency you have only when asked. So while the inventory window
+shows a chosen currency, winventory asks, as the game's own Currencies menus do:
+
+- when the window opens;
+- every minute while it stays open;
+- a few seconds after you arrive in a new area.
+
+It asks only for the menus that the chosen currencies are in. Gil needs no asking. Until the first
+answer, the count shows a dash.
+
+### Tooltip window
+
+These are in the **Tooltips** tab.
+
+With **Tooltip Window** on (off by default), winventory shows its details in a window of its own,
+with the item's icon at the left. It shows details for whatever is under the mouse or the controller's
+highlight:
+
+- an item: its name, slot and races, stats and description, level and jobs;
+- a treasure pool line: the same, and who is winning it;
+- an equipment slot: the gear in it.
+
+This takes the place of the tooltip beside the mouse and the box beside the controller highlight. It
+keeps the grid clear while you use a controller. **Controller Item Info** is then greyed out, because
+the window always shows everything.
+
+Where the window goes:
+
+- By default it is attached to the right of the inventory, its top level with the inventory's top.
+  While there is treasure, it sits under the treasure pool, so it moves down as the pool fills and back
+  up as it empties. Clicks go through it there.
+- With the inventory hidden and the pool pinned, it goes to the right of the pool.
+- Turn on **Detach From Inventory** to place it yourself: drag it, or set
+  **Tooltip Position X** and **Tooltip Position Y**.
+  **Lock Tooltip Window** holds it in place and lets clicks through it.
+- **Grow From** is the corner that stays in place as the window changes size. For example, put it at
+  the bottom right of the screen and choose Bottom Right, and it grows up and to the left.
+- While the settings are open, it shows a sample, so you can see where it is with nothing selected.
+- The window stays for a moment as the mouse moves from one item to the next, so it does not flicker.

@@ -1,55 +1,130 @@
 # wxi
 
-One window for the look shared by every addon that draws with `winxi` (`addons/libs/winxi`). The
-window is drawn with winxi itself. It opens when the addon loads. It was called winxisettings before:
-load `wxi` in its place, and remove the old `addons\winxisettings` folder.
+One settings window for the look of every addon that draws its windows with the `winxi` library
+(`addons/libs/winxi`). You set colours, fonts, borders, tooltips and icons here once, and every
+winxi addon uses them. The window opens when the addon loads.
 
-- `/winxi` or `/wxi` opens or closes the window
+## Why use it
 
-There are five tabs, in this order:
+- You set the look of all your winxi addons in one place, instead of in each addon.
+- You can keep a different set of addon settings for each screen resolution, and switch between them.
+- You can choose which server's game data the winxi addons read.
 
-- **Game Windows**: the windows on the game screen. Here you set their background, border, text and
-  highlight colours, padding, drop shadow, font and font size. You also set the text outline (the dark
-  edge round text written over a bar or the game, in every addon) and its colour. And the styles:
-  window border and background, border opacity, frame titles (style, colour, all caps, font, size,
-  position and shadow), bar texture and bar bookends.
-- **Icons**: under HQ Icons, Custom Icons. Choose None for the game's own status icons, or a set of
-  custom ones. Each set is a folder in `libs\winxi\statusicons` (FFXIV to start; add a folder of your
-  own and it is listed). In an addon's own Winxi Theme tab, this stays under Styles.
-- **Tooltips**: every tooltip drawn with `winxi.tooltip`, in every addon. Show Tooltips, the delay
-  before one shows, their background, border and text colours, padding, max width and font size, and a
-  sample to hover over. These are always the shared theme's, even in an addon that keeps a theme of
-  its own.
-- **Settings Windows**: every addon's settings windows. These are kept apart from the game screen's
-  windows, so what you set there does not change the window you set it in. Here you set their
-  background, border, text and highlight colours, the Sub-Category Color of the sections' [-]/[+]
-  titles (orange to start), the Winxi Theme tab's colour, padding, font and font size.
+This addon was called winxisettings before. Load `wxi` in its place, and remove the old
+`addons\winxisettings` folder.
 
-- **Layouts**: every addon's settings, kept for each screen resolution (`winxi.layouts`). It shows the
-  resolution now, Switch With Resolution (on to start), Save Layout for it, and the saved layouts, each
-  with Use and Remove.
+## Opening the window
 
-Each appearance tab has a reset button for its own values. Every change goes to the shared theme
-(`config\addons\winxi\theme.lua`), so it reaches every addon that follows it. An addon that keeps a
-theme of its own (Use Shared Theme off, in its Winxi Theme tab) is not changed.
+- `/winxi` or `/wxi` opens or closes the window.
 
-## Layouts
+## The tabs
 
-A layout is a copy of every addon's `settings.lua` for every character
-(`config\addons\<addon>\<name>_<server>\settings.lua`) and the shared Winxi Theme. It is kept in
-`config\addons\winxi\layouts\<width>x<height>\`. An addon's other files are the same at every
-resolution: tCrossBar's bindings, simplelog's filters.
+There are six tabs, in this order:
 
-Each addon writes its settings back as it closes or as a character logs out. So a layout is put in
-place only while no character is logged in. **Use** at the title screen or character select puts it in
-place at once. With a character logged in, it is used the next time the game starts.
+| Tab | What you set there |
+|---|---|
+| **Game Windows** | The windows on the game screen (see below). |
+| **Icons** | Which status icons to use. |
+| **Tooltips** | Every tooltip, in every addon. |
+| **Settings Windows** | Every addon's settings windows. |
+| **Layouts** | Addon settings kept for each screen resolution. |
+| **Server Data** | Which server's game data every winxi addon reads. |
 
-With **Switch With Resolution** on, starting the game at a different resolution than last time does
-two things. It keeps every addon's settings as the layout for the old resolution. Then it uses the
-layout kept for the new resolution, if there is one. If there is none, the settings stay as they were,
-so you can move them for it. For this to work, wxi has to be loaded as the game starts: put
-`/addon load wxi` in `scripts\default.txt`.
+### Game Windows
 
-To try another resolution: Save Layout for this one, close the game, change the resolution and start
-again. When you go back to it later, what was saved comes back. The new resolution's layout is kept as
-you leave it.
+The windows on the game screen. Here you set:
+
+- their background, border, text and highlight colours;
+- padding (the space inside a window's edge), drop shadow, font and font size;
+- the text outline and its colour. The text outline is the dark edge round text written over a bar or
+  over the game, in every addon;
+- the styles: window border and background, border opacity, frame titles (style, colour, all caps,
+  font, size, position and shadow), bar texture and bar bookends (the end pieces of a bar).
+
+### Icons
+
+Under the **Icons** section, **Custom Icons** chooses the status icons. Choose **None** for the
+game's own icons, or choose a set of custom icons. Each set is a folder in `libs\winxi\statusicons`.
+**FFXIV** is the set you start with. Add a folder of your own and it is listed too. In an addon's own
+Winxi Theme tab, this setting is under Styles.
+
+### Tooltips
+
+These settings apply to every tooltip drawn with `winxi.tooltip`, in every addon:
+
+- **Show Tooltips**, and the delay before a tooltip shows;
+- background, border and text colours, padding, max width and font size;
+- a sample tooltip to hover over.
+
+Tooltips always use the shared theme's values, even in an addon that keeps a theme of its own.
+
+### Settings Windows
+
+Every addon's settings windows. They are kept apart from the windows on the game screen. So what you
+change there does not change the window you are changing it in. Here you set:
+
+- background, border, text and highlight colours;
+- **Sub-Category Color**: the colour of the section titles that fold open and shut with [-] and [+]
+  (orange to start);
+- the colour of the Winxi Theme tab;
+- padding, font and font size;
+- how big a settings window is when it opens (**Minimum Width** and **Starting Height**).
+
+### Layouts
+
+Every addon's settings, kept for each screen resolution. The tab shows:
+
+- the resolution you are using now;
+- **Switch With Resolution** (on to start);
+- **Save Layout**, to save a layout for this resolution;
+- the saved layouts, each with **Use** and **Remove**.
+
+See [How layouts work](#how-layouts-work) below.
+
+### Server Data
+
+Choose which server's data every winxi addon reads: its monsters, spells, statuses and rules. The tab
+also shows what the data was made from, and when.
+
+## Resetting and sharing
+
+Each appearance tab has a reset button for its own values.
+
+Every change goes to the shared theme, saved in `config\addons\winxi\theme.lua`. So it reaches every
+addon that follows the shared theme. An addon that keeps a theme of its own is not changed. (That is
+an addon with **Use Shared Theme** turned off, in its Winxi Theme tab.)
+
+## How layouts work
+
+A layout is a copy of:
+
+- every addon's `settings.lua` for every character
+  (`config\addons\<addon>\<name>_<server>\settings.lua`);
+- the shared Winxi Theme.
+
+It is kept in `config\addons\winxi\layouts\<width>x<height>\`. An addon's other files are the same at
+every resolution, for example tCrossBar's bindings and simplelog's filters.
+
+Each addon saves its settings when it closes or when a character logs out. So a layout can only be put
+in place while no character is logged in:
+
+- **Use** at the title screen or character select puts the layout in place at once.
+- **Use** with a character logged in puts it in place the next time the game starts.
+
+With **Switch With Resolution** on, starting the game at a different resolution from last time does
+two things:
+
+1. It saves every addon's settings as the layout for the old resolution.
+2. It uses the layout saved for the new resolution, if there is one. If there is none, your settings
+   stay as they were, so you can move your windows to suit the new resolution.
+
+For this to work, wxi must be loaded when the game starts. Put `/addon load wxi` in
+`scripts\default.txt`.
+
+To try another resolution:
+
+1. Press **Save Layout** for this resolution.
+2. Close the game, change the resolution and start the game again.
+
+When you go back to the first resolution later, the settings you saved come back. The new
+resolution's layout is saved as you leave it.

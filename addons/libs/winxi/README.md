@@ -1,146 +1,209 @@
 # winxi
 
-Shared drawing for Ashita addons that render with imgui: one look, set once, used by every addon.
+A shared library that almost every addon in this project uses to draw its windows. It gives them all
+one look, which you set once. winxi is not an addon: there is nothing to load. You set the shared look
+in one window, wxi's `/winxi` (see [wxi](../../wxi/README.md)).
 
-winxi is a library, not an addon: there is nothing to load. Nearly every addon of this project draws
-its windows with it, and the look they share is set in one window, wxi's `/winxi` (see
-[wxi](../../wxi/README.md)).
+## Why you need it
+
+- An addon you use needs it: each winxi addon needs this folder to run, and its download includes a
+  copy.
+- It gives all those addons the same look, which you set once in wxi.
+- Every winxi addon's settings window is laid out the same way, so once you know one, you know them
+  all.
 
 ## Installing
 
-An addon that uses winxi needs this folder installed alongside it, at `addons/libs/winxi`. Every addon's
-zip carries a copy, so extracting the zip into your Ashita folder puts it there.
+An addon that uses winxi needs this folder installed next to it, at `addons/libs/winxi`. Every addon's
+zip includes a copy, so extracting the zip into your Ashita folder puts it there.
 
-Each addon is released on its own, with its own copy of winxi, so installing one addon can put an older
-winxi over the one another addon came with. Every addon that is released checks, as it loads, that the
-winxi it finds is at least the one it was made with, and says so plainly if it is not:
+Each addon is released on its own, with its own copy of winxi. So installing one addon can put an older
+winxi over the newer one another addon came with. Each released addon checks, when it loads, that the
+winxi it finds is at least the version it was made with. If not, it says so plainly:
 
 ```text
 <addon> needs winxi <number> or newer, and addons/libs/winxi is <number>: install the newest release of any winxi addon.
 ```
 
-The addon then does not load. Install the newest package of any winxi addon from
-[DOWNLOADS.md](../../../DOWNLOADS.md), which brings the newest winxi, and load the addon again. A newer
-winxi serves every older addon.
+The addon then does not load. To fix it, install the newest download of any winxi addon from
+[DOWNLOADS.md](../../../DOWNLOADS.md). It brings the newest winxi. Then load the addon again. A newer
+winxi works with every older addon.
 
 ## The theme
 
-The theme is the background, border, text and highlight colours, padding, drop shadow, the font and its
-size, the outline round text over bars and the game, and the styles: window border art and its opacity,
-window background, frame titles, tab style, bar texture, bar bookends and custom status icons. It is
-saved in `config\addons\winxi\theme.lua` and kept in step across addons.
+The theme is the shared look:
 
-It is set in wxi's `/winxi` window, or in the Winxi Theme tab of an addon's own settings window, the last
-tab, in its own colour. A change made there shows at once in that addon, and reaches every other addon
-using winxi when the control is let go.
+- the background, border, text and highlight colours;
+- padding (the space inside a window's edge), drop shadow, and the font and its size;
+- the outline round text written over bars and over the game;
+- the styles: window border art and its opacity, window background, frame titles, tab style, bar
+  texture, bar bookends (the end pieces of a bar), and custom status icons.
 
-Every addon that uses winxi gives you the choice, with its "Use Shared Theme" checkbox: follow the shared
-theme, or keep colours, padding and shadow of its own. The addon's own theme starts from the shared
-theme's values, so switching the shared theme off changes nothing until something is changed.
+It is saved in `config\addons\winxi\theme.lua`, and every addon uses the same copy.
 
-Settings windows have colours, padding, a font and a font size of their own, set on wxi's Settings
-Windows tab, so what is chosen for the game's windows does not change the window it is chosen in.
+### Where to set it
 
-Text written over a bar, an image or the game itself has a dark edge all round it, so it can be read
-whatever is behind it. Its thickness is the theme's Text Outline, one setting for every addon, and its
-colour the theme's Outline Color.
+You set it in wxi's `/winxi` window, or in the **Winxi Theme** tab of an addon's own settings window.
+That is the last tab, in its own colour. A change shows at once in that addon. It reaches every other
+winxi addon when you let go of the control.
 
-Tooltips follow the shared theme's Tooltip values, set in wxi's Tooltips tab, whether or not the addon
-follows the shared theme: whether they show, their delay, colours, padding, text size and width. Words go
-on to another line at the Max Width.
+### An addon's own theme
+
+Every winxi addon has a **Use Shared Theme** checkbox. With it on, the addon follows the shared theme.
+With it off, the addon keeps its own colours, padding and shadow. The addon's own theme starts as a
+copy of the shared one, so turning the shared theme off changes nothing until you change something.
+
+### Settings windows
+
+Settings windows have their own colours, padding, font and font size, set on wxi's **Settings
+Windows** tab. So what you choose for the game's windows does not change the window you choose it in.
+
+### Text outline
+
+Text written over a bar, a picture or the game itself has a dark edge all round it, so you can read it
+whatever is behind it. Its thickness is the theme's **Text Outline**, one setting for every addon. Its
+colour is the theme's **Outline Color**.
+
+### Tooltips
+
+Tooltips always follow the shared theme's tooltip settings, set in wxi's **Tooltips** tab, whether or
+not the addon follows the shared theme. These settings are: whether tooltips show, their delay,
+colours, padding, text size and width. Words go on to a new line at the **Max Width**.
 
 ## Settings windows
 
-Every addon's settings window is laid out the same way, so that someone who has set one addon up knows
-every other: Settings (the addon's behaviour), then the addon's own tabs, then Visibility (for an addon
-with a window: Fade In And Out and the rules for hiding), then Winxi Theme last. Every setting is a row:
-its name, a sentence under the name saying what it does, and its control at the right.
+Every addon's settings window is laid out the same way, so if you have set up one addon you know them
+all. The tabs come in this order:
 
-A settings window can always be resized. It fits its content as it changes, until a grip or an edge is
-taken hold of; from then it keeps the size it is given, never bigger than the screen, with anything too
-big scrolling. A double-click on a grip or an edge fits it to its content again. How a settings window
-opens is set on wxi's Settings Windows tab: Minimum Width (Fit To Content, or at least so many pixels
-wide), Starting Height (Fit To Content, or a height in pixels that its content scrolls within), and a
-button that takes both from that window as it stands.
+1. **Settings**: what the addon does. (Some addons give this tab another name, such as General.)
+2. The addon's own tabs.
+3. **Visibility** (for an addon with a window on screen): **Fade In And Out**, and the rules for
+   hiding it.
+4. **Winxi Theme**, last.
 
-### Sections collapse
+Every setting is a row: its name, a sentence under the name saying what it does, and its control on
+the right.
 
-Every section of a menu can be collapsed: its title starts `[-]` while open and `[+]` while collapsed,
-and a click on the title changes which. Which sections are collapsed is kept while the addon is loaded.
-The titles are in the Sub-Category Color on wxi's Settings Windows tab.
+### Size
+
+You can always resize a settings window.
+
+- It fits its contents as they change, until you take hold of an edge or a corner. From then on it
+  keeps the size you give it. It is never bigger than the screen. Anything that does not fit scrolls.
+- Double-click an edge or a corner to fit it to its contents again.
+- How a settings window opens is set on wxi's **Settings Windows** tab:
+  - **Minimum Width**: Fit To Content, or at least this many pixels wide;
+  - **Starting Height**: Fit To Content, or a height in pixels, with the contents scrolling inside;
+  - a button (**Use This Window's Size**) that takes both from that window as it is now.
+
+### Sections fold up
+
+Every section of a menu can be folded up. Its title starts with `[-]` while open and `[+]` while
+folded. Click the title to change it. Which sections are folded is remembered while the addon is
+loaded. The titles are in the **Sub-Category Color** set on wxi's Settings Windows tab.
 
 ## Fading while idle
 
-An addon can fade its windows out while you are idle. The fade settings are each addon's own, not
-shared like the theme.
+An addon can fade its windows out while you are idle. Each addon has its own fade settings; they are
+not shared like the theme.
 
-Idle is standing still, unless the Moving setting is off: then moving about does not keep the windows
-up, and they fade on the move too once nothing else has kept them up. What else counts as not idle is
-each a setting: being engaged, having a target (a change of target brings the windows back as well),
-being below full HP, resting, and a change to the party list (someone joining, leaving or changing
-area).
+- Idle means standing still. If **Stay Visible While Moving** is off, moving about does not keep the
+  windows showing, so they fade while you move too, unless something else keeps them up.
+- Other things that count as not idle each have their own setting:
+  - being engaged in battle (**Stay Visible While Engaged**);
+  - having a target (**Stay Visible While Targeting**). Changing target brings the windows back too;
+  - being below full HP (**Stay Visible While Missing HP**);
+  - resting (**Stay Visible While Healing**);
+  - a change to the party list: someone joining, leaving or changing area (**Show On Party Changes**).
 
 ## Arranging windows
 
-An addon that arranges its windows this way has an Organize button in its settings window. While organizing, windows are
-labelled, a grid can be shown, and dropping one window onto another links them: the dropped one is held
-against the side it was dropped towards. Links are between the windows of one addon.
+An addon that arranges its windows this way has an **Organize** button in its settings window. While
+you organize:
 
-Every addon's settings can be kept for each screen resolution, on wxi's Layouts tab.
+- each window is labelled, and a grid can be shown;
+- dropping one window onto another links them. The dropped window is held against the side it was
+  dropped towards.
+- Links are only between windows of the same addon.
+
+You can keep every addon's settings for each screen resolution, on wxi's **Layouts** tab.
 
 ## Controller input
 
-Some addons' windows can be worked with a controller (XInput, or DirectInput by make). Only the buttons
-an addon uses are taken, and only while its window has reason to take them: they are kept from the game,
-and the sticks and every other button still reach it. A button already down when the addon takes the
-controller is not counted as a press. The window the buttons will act in has a bright line drawn around
-its edge, and under it the buttons it uses, each with a word for what it does.
+Some addons' windows can be used with a controller (XInput, or DirectInput, by make).
 
-Buttons are named as an Xbox controller's are. XInput is the default. For a DirectInput controller,
-the addon's settings say which make it is (PlayStation, Switch or Stadia), and its buttons are read as
-the Xbox buttons in the same positions. Automatic follows the kind the game reads, its Enable XInput
-setting as the launcher writes it, a DirectInput controller taken for a PlayStation one; where that
-cannot be read, the kind heard pressing buttons. Buttons are shown as they look on the kind in use: A on
-an Xbox controller, Cross on a PlayStation one, B on a Switch Pro.
+- An addon takes only the buttons it uses, and only while its window needs them. Those buttons do not
+  reach the game. The sticks and every other button still reach the game.
+- A button that is already held down when the addon takes the controller does not count as a press.
+- The window the buttons will act in has a bright line around its edge. Under it are the buttons it
+  uses, each with a word for what it does.
+
+Buttons are named as on an Xbox controller. XInput is the default.
+
+- For a DirectInput controller, the addon's settings say which make it is (PlayStation, Switch or
+  Stadia). Its buttons are read as the Xbox buttons in the same positions.
+- **Automatic** follows the kind of controller the game uses, from its **Enable XInput** setting as
+  the launcher writes it. A DirectInput controller is taken to be a PlayStation one. Where that
+  setting cannot be read, it uses the kind of controller it hears pressing buttons.
+- Buttons are shown as they look on the controller in use: A on an Xbox controller, Cross on a
+  PlayStation one, B on a Switch Pro.
 
 ## Menu sounds
 
-Menus can make small sounds as they are worked (opening, moving, changing tabs, confirming, going back
-and errors). They are off until an addon turns them on. The ones that come with winxi are plain tones,
-not the game's. Each sound is a wav file called by its name: `sounds\move.wav` in an addon's own folder
-is used before the one in `libs\winxi\sounds`, so an addon may bring its own. Ashita plays one sound at
-a time, at the volume of the file.
+Menus can make small sounds as you use them: opening, moving, changing tabs, confirming, going back,
+and errors.
+
+- They are off until an addon turns them on.
+- The sounds that come with winxi are plain tones, not the game's.
+- Each sound is a WAV file named after what it is for. `sounds\move.wav` in an addon's own folder is
+  used before the one in `libs\winxi\sounds`, so an addon can bring its own.
+- Ashita plays one sound at a time, at the volume of the file.
 
 ## Game status icons and Pivot
 
-Individual game status icons, the game-only sheet, and the mixed custom/game sheet all load their game artwork through the same Pivot-aware DAT reader. Pivot chooses the winning overlay in its configured order; winxi does not guess overlay folders or reorder them. The installed client's FTABLE mapping selects the status DAT (file id 87, normally `ROM/119/57.DAT`). If the DAT cannot be opened or an icon is unsupported/malformed, that icon falls back to Ashita's resource-manager bitmap.
+When winxi shows the game's own status icons, it reads them from the game's files. It does this in a
+way that works with **Pivot** (an Ashita plugin that lets you replace game files with your own). Pivot
+decides which replacement wins, in the order you set it. winxi does not guess or reorder them. If the
+file cannot be opened, or an icon cannot be read, that icon falls back to the one Ashita provides.
 
-Pivot's `redirect_fopens=true` setting must be enabled for this reader, as it must for winxi's map/cursor reader. Explicit custom status sets still take precedence when enabled: turn custom status icons off to use only game/Pivot artwork. DATs and textures are cached per addon; after changing Pivot overlays, reload the affected addons to rebuild their icons and sheets.
+- Pivot's `redirect_fopens=true` setting must be on for this, as it must for winxi's map and cursor
+  pictures.
+- If you choose custom status icons, they still win while they are on. Turn custom status icons off to
+  use only the game's (or Pivot's) pictures.
+- Each addon keeps the icons it has read. After you change Pivot's replacements, reload the addons you
+  use so they read their icons again.
 
 ## Custom icons
 
-A status's icon can be the game's own or one of a set of custom icons, chosen under **Custom Icons**
-(wxi's Icons tab, under HQ Icons; Styles in an addon's own Winxi Theme tab): **None** for the
-game's own, or a set. A set is a folder of `libs\winxi\statusicons` holding `<status number>.png`
-for each status it has an icon for (`1.png` for Poison, `33.png` for Haste, and so on); a status the
-set has no file for keeps the game's icon. **FFXIV**, the `ffxiv` folder, is the set winxi comes with.
+A status's icon can be the game's own, or one from a set of custom icons. You choose under **Custom
+Icons**: on wxi's **Icons** tab, or under Styles in an addon's own Winxi Theme tab. Choose **None** for
+the game's own icons, or choose a set.
 
-To add a set, make a folder beside `ffxiv` (a name with no dot in it), put the icons in it, and open
-the list again: it is found then, no reload needed. The icons are drawn whole, as wide for how tall as
-the pictures are, so square ones stay square; keep every icon in a set the same size. A folder may
-also hold a `set.lua` to give the set a name in the list, or to say that each icon takes only part of
-its picture's width, as ffxiv's do (48 by 64 in the middle of a square of 64):
+- A set is a folder in `libs\winxi\statusicons`. It holds a `<status number>.png` for each status it
+  has an icon for: `1.png` for Poison, `33.png` for Haste, and so on.
+- A status the set has no file for keeps the game's icon.
+- **FFXIV** (the `ffxiv` folder) is the set that comes with winxi.
+
+To add a set:
+
+1. Make a folder next to `ffxiv`. Its name must not have a dot in it.
+2. Put the icons in it. Keep every icon in a set the same size.
+3. Open the list again. The set is found then; no reload is needed.
+
+The icons are drawn whole, keeping their shape, so square pictures stay square. A folder can also have
+a `set.lua` file, to give the set a name in the list, or to say that each icon uses only part of its
+picture's width. ffxiv's icons do this: they are 48 by 64 in the middle of a 64 by 64 square:
 
 ```lua
 return { name = 'FFXIV', left = 8 / 64, right = 56 / 64 };
 ```
 
-For the winplates addon, which draws statuses from a single picture, a set is put on one sheet a few icons
-a frame the first time it is wanted; ffxiv's comes ready made, as `sheet.png`.
+The winplates addon draws statuses from one big picture. For it, a set is put onto one sheet, a few
+icons each frame, the first time it is needed. ffxiv's comes ready made, as `sheet.png`.
 
 ## Game data
 
-winxi carries what is known of the game that the client does not say (each area's monsters, items,
-spells, abilities, quests and the like), made from the Phoenix server's data, plus an auto-translate
-dictionary made from the installed client. Which server's data is used is chosen in wxi's Server Data
-tab.
+winxi carries game information that the game itself does not give, such as each area's monsters,
+items, spells, abilities and quests. It is made from the Phoenix server's data. It also has an
+auto-translate dictionary, made from the game you have installed. You choose which server's data is
+used on wxi's **Server Data** tab.

@@ -1,19 +1,23 @@
 # hidecompass
 
-Hides the game's own compass. It is hidden from the moment the addon loads.
+Hides the game's own compass. The compass is hidden as soon as you load the addon.
 
-- `/hidecompass`: toggles the compass
+## Why use it
+
+- It takes the compass off your screen, if you do not want it there.
+- You can show it again at any time with one command.
+- There is nothing to set up: load it and the compass is gone.
+
+## Commands
+
+- `/hidecompass`: hides the compass, or shows it again
 - `/hidecompass hide` (or `h`): hides it
 - `/hidecompass show` (or `s`): shows it again
 - `/hidecompass help`: lists the commands
 
-## How it works
+When you show the compass again, it fades in, as it does after a cutscene.
 
-The client keeps one compass object, with a state it steps through itself: hidden, asked to show, fading
-in, shown, fading out. Its drawing is skipped while the state is hidden. Each frame the game draws the
-compass and then, if it finds it hidden and nothing is in the way, asks for it to be shown again; the
-addon sets it back to hidden before the next frame is drawn. Showing it again is left to the game: the
-addon simply stops, and the compass fades in as it does after a cutscene.
+## If it stops working
 
-The object is found by a signature in `FFXiMain.dll`, read from the Phoenix client. If a client update
-moves things, the addon says on loading that it failed to locate the pointer, and does nothing.
+The addon looks for the compass in the game's program files. A game update can move it. If the addon
+cannot find it, it says so when it loads ("Failed to locate required pointer") and does nothing.

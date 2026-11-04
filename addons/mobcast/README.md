@@ -1,75 +1,109 @@
 # mobcast
 
-Says, in a small window in the theme, what the enemies about you are doing: a spell begun, a
-weaponskill readied, an ability used, each line in the chat log's own words and in a colour of its
-kind, up for a few seconds. It is for seeing what is coming where you are looking, rather than finding
-it in the log. It needs only the `winxi` library (`addons/libs/winxi`).
+Shows what the enemies near you are doing, in a small window on your screen. When an enemy starts a
+spell, readies a weaponskill or uses an ability, a line appears for a few seconds. Each line uses the
+same words as the chat log, in a colour for its kind. You see what is coming where you are looking,
+instead of searching the chat log for it.
+
+## Why use it
+
+- You see enemy spells, weaponskills and abilities as they begin, without reading the chat log.
+- Each line updates as the action goes on: cast, used, or interrupted.
+- You can show only your own target, and choose which kinds of action to show.
+
+It needs only the `winxi` library (`addons/libs/winxi`).
+
+Example lines:
 
     Mad Sheep readies Sheep Song on Tester.
     Goblin Smithy starts casting Fire on Tester.
     Orcish Fighter uses Mighty Strikes.
 
-- `/mobcast` opens or closes the settings
-- `/mobcast test` says a line of each kind, to see the box by
+## Commands
 
-The box is trigger's indicator taken further. Trigger says a line only for the spells and moves you
-have made triggers for; mobcast says one for everything an enemy does, and a line follows what it is
-about: a mob's `starts casting` becomes `casts` as the spell lands, or `'s casting is interrupted`
-when it is broken off, or `is paralyzed and stops casting` (or `is intimidated`) when that stops
-it at its end, and its `readies` becomes `uses`, or `is interrupted`. An ability is used at
-once, with no warning sent, so its line stands by itself. A line said again while it is up stays up
-longer rather than being said twice.
+- `/mobcast` opens or closes the settings.
+- `/mobcast test` shows one line of each kind, so you can see how the box looks.
 
-An enemy is a monster that is nobody's pet: players, NPCs and pets are left alone. Whom the
-spell or weaponskill is aimed at is named as the log names them, when they are someone else: a party
-member by the party list, anyone else by the area's entities.
+## What it shows
+
+mobcast takes trigger's indicator further. trigger shows a line only for the spells and moves you have
+made triggers for. mobcast shows a line for everything an enemy does.
+
+A line changes as the action goes on:
+
+| The line starts as | It can become |
+|---|---|
+| `starts casting` (a spell) | `casts` when the spell lands; `'s casting is interrupted` when it is broken off; `is paralyzed and stops casting` (or `is intimidated`) when that stops it at the end |
+| `readies` (a weaponskill) | `uses`, or `is interrupted` |
+
+An ability is used at once, with no warning first, so its line stands alone. If the same line comes
+again while it is still on screen, it stays up longer instead of showing twice.
+
+An enemy here is a monster that is nobody's pet. Players, NPCs and pets are left out.
+
+When a spell or weaponskill is aimed at someone else, the line names them as the chat log does. A
+party member is named from the party list. Anyone else is named from the people and monsters in the
+area.
 
 ## Settings
 
-`/mobcast` opens them: described rows, each a name, a line saying what it does and its control at the
-right, in sections that collapse with their [-]/[+]. While the settings are open the box shows a
-sample line of each kind when it has nothing to say, so that it can be dragged where it is wanted.
+Type `/mobcast` to open them. Each setting is a row: its name, a sentence saying what it does, and its
+control on the right. The sections fold open and shut with their [-] and [+]. While the settings are
+open and nothing is happening, the box shows a sample line of each kind. This lets you drag it where
+you want it.
 
-**Settings**
+### Settings tab
 
-*Window*
+**Window**
 
-- **Lock Window** holds the box where it is and lets the mouse through it to the game. Off, it can be
-  dragged.
-- **Position** is where the top of the box is on the screen, at the side it grows from. Dragging the
+- **Lock Window** holds the box in place and lets the mouse click through it to the game. When it is
+  off, you can drag the box.
+- **Position** is where the top of the box is on the screen, on the side it grows from. Dragging the
   box sets it too.
-- **Grow From** is the side that stays where it is as the lines get longer or shorter, Left, Center or
-  Right. The lines are set to that side too.
-- **Font Size** is the lines' size in pixels; Theme Size follows Winxi Theme.
+- **Grow From** is the side that stays in place as lines get longer or shorter: Left, Center or Right.
+  The lines line up on that side too.
+- **Font Size** is the size of the lines in pixels. Theme Size uses the size set in Winxi Theme.
 
-*Enemies*
+**Enemies**
 
-- **Show Spells**, **Show Weaponskills**, **Show Abilities** switch each kind of line on and off.
-- **Show Targets** says whom a spell or weaponskill is aimed at. Off, the lines say only what is coming.
-- **Only My Target** keeps the box to the enemy you have targeted. Off, every enemy about you.
+- **Show Spells**, **Show Weaponskills** and **Show Abilities** turn each kind of line on and off.
+- **Show Targets** names who a spell or weaponskill is aimed at. When it is off, the lines say only
+  what is coming.
+- **Only My Target** shows only the enemy you have targeted. When it is off, it shows every enemy near
+  you.
 
-*Lines*
+**Lines**
 
-- **Duration** is how long a line stays, 1 to 30 seconds. A line said again starts its time over.
-- **Max Lines** is how many the box holds at once, 1 to 10; past that the oldest goes.
-- **Newest Line** is where a new line goes. Bottom, the lines are in the order they were said, the
-  oldest at the top; Top, the newest is always at the top, just under the box's edge, and the older
-  ones are pushed down. A line that changes, as `starts casting` becoming `casts`, keeps its place.
+- **Duration** is how long a line stays: 1 to 30 seconds. A line that comes again starts its time
+  over.
+- **Max Lines** is how many lines the box holds at once: 1 to 10. Past that, the oldest line goes.
+- **Newest Line** is where a new line goes:
+  - **Bottom**: lines are in the order they came, the oldest at the top.
+  - **Top**: the newest line is always at the top, just under the box's edge, and older ones move down.
+
+  A line that changes (for example `starts casting` becoming `casts`) keeps its place.
 - **Spell Color**, **Weaponskill Color** and **Ability Color** are the colours of each kind of line.
-- **Test** says a line of each kind, as `/mobcast test` does.
+- **Test** shows a line of each kind, as `/mobcast test` does.
 
-**Visibility**
+### Visibility tab
 
 - **Fade In And Out** fades the box in as it appears and out as it goes.
-- The hiding rules every winxi addon has: while the map is open, the chat log opened out, changing
-  area, during events, and with the game's interface hidden.
+- The hiding rules every winxi addon has: hide while the map is open, while the chat log is opened
+  out, while changing area, during events (cutscenes), and while the game's interface is hidden.
 
-The box uses the game-window theme, border, background, frame title and font set in wxi,
-and the lines have the theme's Text Outline. The settings window uses winxi's settings appearance.
+### Look
 
-## What it reads
+The box uses the game-window look set in wxi: theme, border, background, frame title and font. Its
+lines use the theme's Text Outline (the dark edge round the text). The settings window uses winxi's
+settings-window look.
 
-Everything comes from the action packet, as trigger reads it. A spell or move the game keeps quiet
-about (no message with its beginning) is left alone here too. An attack, an ability or an item
-stopped by paralysis or intimidation names nothing and is left alone. A move's name is the game's.
-Where the game has no name, the line says `Spell 999`, `Weaponskill 999` or `Ability 999`.
+## Limits
+
+mobcast reads the same messages from the server that trigger reads: the ones the game gets about each
+action.
+
+- A spell or move the game does not announce (no message when it begins) is not shown here either.
+- An attack, an ability or an item stopped by paralysis or intimidation names nothing, so it is not
+  shown.
+- The name of a move is the game's own name for it. Where the game has no name, the line says
+  `Spell 999`, `Weaponskill 999` or `Ability 999`.
