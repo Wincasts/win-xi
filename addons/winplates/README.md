@@ -85,7 +85,7 @@ win over these.
 - Health bars off, at **120 × 7 px**.
 - Statuses at **100%**, lined up with the left of the name, moved **2 px right and 5 px up**. Fewer
   statuses are ticked: 2–8, 10–13, 19, 132–135, 156, 192, 194 and 217.
-- Mastery stars off. There is no switch for them in the settings window.
+- Mastery stars are off.
 - **Own Name** hidden. **Other Players** and **Other Pets** shown. **Always Show Target** off.
 - The players' **Normal** (pale blue) and **Alliance** (amber) colour overrides on.
 - The appearance and the hiding rules are part of these settings too.

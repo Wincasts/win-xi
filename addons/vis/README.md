@@ -123,17 +123,6 @@ Unloading vis puts back everything it changed, and sets both numbers back to 1.
 vis finds the parts of the game it changes while the game runs. If a game update moves one of them,
 the setting that uses it says so when vis loads, and the other settings keep working.
 
-These commands help find the changed places after a game update:
-
-- `/vis callers` lists every call to the game's distance-scale function: a number, the address, which
-  multiplier it uses, what it passes in, and the first thing done with the answer. The fog's two calls
-  and the zone-object range are marked, and the detail and visibility-list places are counted. The
-  full report is written to `config/addons/vis/callers.txt`. It includes the part of the game
-  searched, and the code around each call.
-- `/vis patch <n> <mult>` changes call `n` by hand.
-- `/vis unpatch [n]` puts call `n` back, or all of them.
-- `/vis scan` searches for everything again.
-
 ## If something goes wrong
 
 If an error happens in vis, it says so once in the chat and keeps going. This is on purpose: when an

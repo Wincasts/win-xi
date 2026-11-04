@@ -37,8 +37,6 @@ It needs `libs/winxi`.
 ```text
 /winparty                        the settings (also /pt and /xif)
 /winparty help                   every command, in the chat log
-/winparty perf                   five seconds of drawing and message-handling CPU time
-/winparty perf counters          the same, with counts of what was done
 /winparty native on|off          the party and alliance lists in the game's place, with uihook
 /winparty native target on|off   the target windows in the game's place, with uihook
 /winparty native status          a short report on the uihook mode and whether it is ready
@@ -46,10 +44,6 @@ It needs `libs/winxi`.
 ```
 
 - `/party` is left alone, for the game's own party chat.
-- `/winparty perf` measures five seconds of the time winparty spends drawing and handling messages
-  from the server: the average, the median, the 95th and 99th percentile, and the worst.
-- `/winparty perf counters` also counts how often winparty read characters, measured text, drew
-  pictures, tried to load textures and reordered statuses.
 
 ## The windows
 

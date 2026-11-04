@@ -126,7 +126,7 @@ messages they block. It cannot see changes made by addons that run after it.
 
 - An alphabetical `scripts/default.txt` loads winchat before simplelog. Move simplelog's line above
   winchat's, or every game start puts them back in that order. (SimpleLog's timestamps then reach the
-  game's log but not winchat's. `/winchat bytes` shows this.)
+  game's log but not winchat's.)
 
 winchat never blocks or changes a message. So the game's history keeps everything, and is there if
 winchat stops. SimpleLog's multi-hit and critical tags, grouping, filters by who acts, timestamps and
@@ -155,8 +155,6 @@ For finding problems:
 | Command | What it does |
 |---|---|
 | `/winchat status` | How winchat is connected to the game, the last box drawn, and counts of kept messages and of lines it could not read |
-| `/winchat modes` | The last ten lines kept and their chat modes (to find a channel's mode number) |
-| `/winchat bytes` | The last line that came in: the original, the changed, the expanded and the UTF-8 text, as hex codes (the first 256 of each) |
 | `/uihook chat` | What uihook sees of the game's chat: recognition, focus and expanded flags, cursor, page, scroll and filter |
 
 ## Settings
