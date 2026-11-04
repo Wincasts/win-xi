@@ -57,8 +57,9 @@ winchat or winparty, first type `/load uihook`.
 
 ## License
 
-The addons and library written here (`winxi` and the addons above but cooldowns)
-are MIT licensed: see [LICENSE](LICENSE). `plugins/namehook` is a fork of a GPL v3 plugin and stays
-GPL v3. cooldowns keeps its authors' terms. Final Fantasy XI and its art belong to Square Enix.
+`winxi`, the uihook and blockpool plugins, and the addons above except winparty, winventory and
+cooldowns are MIT licensed: see [LICENSE](LICENSE). winparty and winventory are built on other
+people's work and keep their terms. cooldowns is Ashita's imrecast with changes, and `plugins/namehook`
+a fork of a GPL v3 plugin: both stay GPL v3. Final Fantasy XI and its art belong to Square Enix.
 
 Author: win.
