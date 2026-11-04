@@ -1,14 +1,13 @@
 # sct
 
-Scrolling text on your screen when your statuses change, and when you receive items or key items.
-When you gain a status, `+ [icon] Name` appears at the top of a box and moves down. It fades out just
-before it reaches the bottom. When you lose a status, `- [icon] Name` does the same.
+Scrolling text for changes to your status and for items you receive. Buffs and enfeebles gained or
+lost, and items and key items obtained, scroll through an on-screen panel with their icons.
 
-## Why use it
+## Highlights
 
-- You see at a glance each buff and enfeeble you gain or lose, with its icon.
-- Items and key items you receive scroll past too, so you do not miss a drop.
-- Buffs, enfeebles and lost statuses each have their own colour, which you can change.
+- See every buff and enfeeble you gain or lose at a glance.
+- Items and key items appear as you receive them, so no drop goes unnoticed.
+- Separate, customisable colours for buffs, enfeebles and lost statuses.
 
 ## Commands
 

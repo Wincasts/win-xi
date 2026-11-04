@@ -1,15 +1,13 @@
 # mobcast
 
-Shows what the enemies near you are doing, in a small window on your screen. When an enemy starts a
-spell, readies a weaponskill or uses an ability, a line appears for a few seconds. Each line uses the
-same words as the chat log, in a colour for its kind. You see what is coming where you are looking,
-instead of searching the chat log for it.
+Shows the actions of nearby enemies in a compact on-screen window. Each spell, weaponskill and
+ability appears as it begins, worded as in the chat log and colour-coded by type.
 
-## Why use it
+## Highlights
 
-- You see enemy spells, weaponskills and abilities as they begin, without reading the chat log.
-- Each line updates as the action goes on: cast, used, or interrupted.
-- You can show only your own target, and choose which kinds of action to show.
+- Follow enemy spells, weaponskills and abilities without reading the chat log.
+- Each entry updates as the action progresses: cast, used or interrupted.
+- Show only your current target, and only the kinds of action you choose.
 
 It needs only the `winxi` library (`addons/libs/winxi`).
 

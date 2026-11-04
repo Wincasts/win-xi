@@ -1,12 +1,13 @@
 # hidecompass
 
-Hides the game's own compass. The compass is hidden as soon as you load the addon.
+Hides the game's compass as soon as it is loaded. The compass can be shown or hidden again at any
+time with `/hidecompass`.
 
-## Why use it
+## Highlights
 
-- It takes the compass off your screen, if you do not want it there.
-- You can show it again at any time with one command.
-- There is nothing to set up: load it and the compass is gone.
+- A cleaner screen without the compass.
+- Show or hide it at any time with a single command.
+- Nothing to configure.
 
 ## Commands
 

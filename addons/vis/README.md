@@ -1,16 +1,15 @@
 # vis
 
-Lets you see further. vis sets how far the game draws the world (terrain, buildings, trees) and how far
-it draws characters and monsters. The fog stays where you want it, and the area is drawn to match:
-objects do not pop in, they keep their detail, and distant terrain the game would normally hide can be
-drawn.
+Extends how far the game draws terrain, buildings and characters, with independent control over the
+fog. Objects no longer pop in or lose detail as you approach, and distant terrain the game would
+normally hide can be drawn.
 
-## Why use it
+## Highlights
 
-- You can see further than the game normally lets you, without objects popping in close to you.
-- You can keep the normal fog, or move it further away.
-- Cities, the outdoors and dungeons can each have their own settings, and so can a single zone. They
-  are applied as you arrive.
+- See further than the game normally allows, without objects popping in nearby.
+- Keep the standard fog or move it further out.
+- Separate settings for cities, outdoor areas and dungeons, or for a single zone, applied
+  automatically as you arrive.
 
 Every value is saved for each character and applied when the addon loads.
 

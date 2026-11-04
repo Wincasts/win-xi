@@ -1,18 +1,18 @@
 # winchat (experimental)
 
-winchat draws the game's chat log and the line you type in again, in the winxi look. The game still
-runs the chat: winchat draws over the game's own log, in the same place and at the same size. It can
-also show tooltips for items, spells and places named in chat, an auto-translate list on Tab, and an
-optional info panel with the time, zone, weather and EXP.
+Redraws the game's chat log and input line in the winxi style, while the game continues to run the
+chat itself: winchat draws over the game's own log, in the same place and at the same size. It adds
+tooltips for items, spells and places named in chat, an auto-translate list on Tab, and an optional
+information panel. This addon is experimental.
 
-## Why use it
+## Highlights
 
-- The chat log matches the look of your other winxi addons, in the font and size you choose.
-- Rest the mouse on an item, spell, ability, quest or place named in chat to see what it is.
-- Tab opens a list of auto-translate phrases and of your own items and key items, which you can use
-  with a keyboard or a controller.
-- An optional info panel shows the time, zone, weather, EXP, a weather forecast and ship and airship
-  departures.
+- A chat log that matches your other winxi addons, in the font and size you choose.
+- Hover over an item, spell, ability, quest or place named in chat to see what it is.
+- An auto-translate list on Tab, including your own items and key items, usable with a keyboard or a
+  controller.
+- An optional information panel with the time, zone, weather, EXP, a weather forecast and ship and
+  airship departures.
 
 Up to 0.17 this addon was called chatbox. Load `winchat` instead of `chatbox`, and remove the old
 `addons\chatbox` folder. Each character's settings are brought over from `chatbox` the first time

@@ -17,21 +17,21 @@ Each zip has everything that addon needs.
 
 | Addon | What it does | Command |
 |---|---|---|
-| [winplates](addons/winplates) | Draws the names over players, NPCs and monsters in its own style, with health bars, cast bars and status icons if you want them | `/winplates` |
-| [winparty](addons/winparty) | Shows your party, target and pet in frames with health bars, laid out like the XivParty addon | `/winparty` |
-| [winbuff](addons/winbuff) | Shows the statuses you are under in a bar, with the time each has left, in place of the game's own row of icons | `/winbuff` |
-| [winchat](addons/winchat) | Draws the chat log and the line you type in again in the winxi look, with chat tooltips and an optional info panel. Experimental | `/winchat` |
-| [winventory](addons/winventory) | Shows your bags in a window that you can use with a mouse or a controller, with the treasure pool and an equipment monitor | `/winventory` |
-| [zone](addons/zone) | Shows a banner with the zone, region and weather when you arrive, and names the places in a zone as you walk into them | `/zone` |
-| [vis](addons/vis) | Sets how far the world and the characters in it are drawn, and keeps the fog where you want it | `/vis` |
-| [trigger](addons/trigger) | Plays a sound when something happens, such as a tell, an invite, a trade or low HP | `/trigger` |
-| [parse](addons/parse) | A combat parser that counts damage, hit rates and DPS. Experimental | `/parse` |
-| [sct](addons/sct) | Scrolling text for the statuses you gain and lose, the items you receive and the key items you get | `/sct` |
-| [mobcast](addons/mobcast) | Shows in a small window what the enemies around you are casting, readying and using | `/mobcast` |
-| [cooldowns](forks/addons/cooldowns) | Shows your ability and spell recast times in a winxi window (atom0s's, Thorny's and others' imrecast, with changes) | `/cooldowns` |
-| [occlusionfix](addons/occlusionfix) | Stops characters near walls and door frames from blinking out of view | `/occlusionfix` |
-| [hidecompass](addons/hidecompass) | Hides the game's compass | `/hidecompass` |
-| [wxi](addons/wxi) | One settings window for the look that every winxi addon shares | `/winxi` |
+| [winplates](addons/winplates) | Replaces the game's names over players, NPCs and monsters with fully configurable ones | `/winplates` |
+| [winparty](addons/winparty) | Party, alliance, target and pet frames in the shared winxi style, following the compact layout of the Windower addon XivParty | `/winparty` |
+| [winbuff](addons/winbuff) | Replaces the game's row of status icons with a bar of FFXIV-style icons, each showing the time remaining on that buff or debuff | `/winbuff` |
+| [winchat](addons/winchat) | Redraws the game's chat log and input line in the winxi style, with chat tooltips and an optional information panel. Experimental | `/winchat` |
+| [winventory](addons/winventory) | Displays all of your bags in a single window, with full mouse and controller support | `/winventory` |
+| [zone](addons/zone) | Displays location banners for the zone, region, weather and named areas as you travel | `/zone` |
+| [vis](addons/vis) | Extends how far the game draws terrain, buildings and characters, with independent control over the fog | `/vis` |
+| [trigger](addons/trigger) | Plays an audio alert when something notable happens, such as a tell, a party invite, low HP or a wanted item dropping | `/trigger` |
+| [parse](addons/parse) | A combat parser reporting damage, DPS and hit rates for you, your party and your alliance. Experimental | `/parse` |
+| [sct](addons/sct) | Scrolling text for buffs and enfeebles gained or lost, and for items you receive | `/sct` |
+| [mobcast](addons/mobcast) | Shows the actions of nearby enemies in a compact on-screen window | `/mobcast` |
+| [cooldowns](forks/addons/cooldowns) | Displays your ability and spell recast times, and a puppetmaster's automaton cooldowns, in a winxi window | `/cooldowns` |
+| [occlusionfix](addons/occlusionfix) | Prevents players, NPCs and monsters from disappearing when they stand near walls, door frames, counters and other scenery | `/occlusionfix` |
+| [hidecompass](addons/hidecompass) | Hides the game's compass as soon as it is loaded | `/hidecompass` |
+| [wxi](addons/wxi) | A single settings window for the look shared by every winxi addon | `/winxi` |
 
 Each addon's folder has a README with all of its commands and settings.
 

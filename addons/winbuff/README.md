@@ -1,14 +1,13 @@
 # winbuff
 
-Shows the statuses you are under (your buffs and debuffs) in a bar, with FFXIV-style icons and the time
-each one has left. It takes the place of the game's own row of status icons, which it turns off.
+Replaces the game's row of status icons with a bar of FFXIV-style icons, each showing the time
+remaining on that buff or debuff.
 
-## Why use it
+## Highlights
 
-- You see how long each of your buffs and debuffs has left, under its icon.
-- You choose the icon size, how many icons fit in a row, and where the bar sits.
-- You can see which buffs you cast yourself, and which of your debuffs Erase, a -na spell or a
-  waltz can remove.
+- The remaining duration of every buff and debuff, shown beneath its icon.
+- Configurable icon size, icons per row and bar position.
+- Shows which buffs you cast yourself, and which debuffs Erase, a -na spell or a waltz can remove.
 
 It needs only the `winxi` library (`addons/libs/winxi`). The optional `uihook` plugin makes it behave
 even more like the game's own icons (see [With the uihook plugin](#with-the-uihook-plugin)).

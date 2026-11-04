@@ -1,14 +1,15 @@
 # blockpool 0.1
 
-A plugin for players who run the game through Proton (a way to play Windows games on Linux). It
-works around a memory leak in Proton (GE-Proton11-5, seen 2026-10-26/27) that can make the game run
-out of memory after a few hours. Load it if you play under Proton.
+A plugin for players who run the game through Proton on Linux or the Steam Deck. It works around a
+memory leak in Proton's graphics layer (seen in GE-Proton11-5) that exhausts the game's memory after
+a few hours of play.
 
-## Why use it
+## Highlights
 
-- Without it, the game under Proton can run out of memory and crash after about 2 hours 45 minutes.
-- It stops the leak: after a small loss at the start, no more memory is lost.
-- You load it once. There is nothing to set.
+- Prevents the out-of-memory crash that otherwise occurs after about two hours and forty-five
+  minutes.
+- After a small one-time allocation at start-up, memory use stays level.
+- Load it once; there is nothing to configure.
 
 ## Using it
 

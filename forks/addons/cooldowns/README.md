@@ -1,13 +1,13 @@
 # cooldowns
 
-Shows how long until your abilities and spells can be used again (their recast times), in a window
-titled **Cooldowns**. If you play puppetmaster, it can also show your automaton's cooldowns. The window
-uses the shared winxi look.
+Displays your ability and spell recast times in a single window titled **Cooldowns**, in the shared
+winxi style, and, for puppetmasters, the automaton's cooldowns as well. It is based on imrecast by
+atom0s, Thorny, RZN and lin, and replaces both imrecast and recast.
 
-## Why use it
+## Highlights
 
-- You see all your ability and spell recasts in one list, with the time left on each.
-- Countdowns change colour as they get close to ready, so you notice them.
+- Every recast in one list, with the time remaining on each.
+- Timers change colour as they near completion.
 - Puppetmasters also see the automaton's spell, Bash, Shot and attachment cooldowns.
 
 cooldowns replaces the older recast and imrecast addons. See

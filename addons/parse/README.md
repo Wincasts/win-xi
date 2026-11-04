@@ -1,18 +1,15 @@
 # parse (experimental)
 
-A combat parser: it counts the damage you, your party and your alliance deal, and shows it in a window.
-It reads the server's combat messages as they arrive, and shows totals, damage per second (DPS) and hit
-rates for each person. It is new: it is not a copy of the older Parse addon, and does not need any of
-that addon's files.
+A combat parser for you, your party and your alliance. It reads the server's combat messages as they
+arrive and reports damage totals, damage per second and hit rates for each participant. It is a new
+addon, not a port of the older Parse addon, and needs none of its files. This first version has been
+tested against sample data only and has not yet been verified in live play.
 
-## Why use it
+## Highlights
 
-- You see who is dealing how much damage, and each person's share and DPS, while you fight.
-- You can see observed hit rates for melee, ranged attacks and spells.
-- A small, see-through "minimal" view can sit over the game without getting in the way.
-
-This first version has been tested only against made-up data, not in live play. See
-[Accuracy and limits](#accuracy-and-limits).
+- Each participant's damage, share of the total and DPS during the fight.
+- Observed hit rates for melee, ranged attacks and spells.
+- A compact, translucent overlay that can stay on screen without getting in the way.
 
 ## Install
 

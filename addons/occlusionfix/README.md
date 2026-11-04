@@ -1,13 +1,13 @@
 # occlusionfix
 
-Stops characters (players, NPCs and monsters) from blinking out of sight when they stand near a wall,
-a door frame, a counter or other scenery. Load it and it works. There is nothing to set.
+Prevents players, NPCs and monsters from disappearing when they stand near walls, door frames,
+counters and other scenery.
 
-## Why use it
+## Highlights
 
-- Characters next to walls and scenery stay on screen instead of flickering in and out.
-- It fixes a problem the game has even with no addons loaded.
-- There is nothing to set up, and unloading it puts the game back as it was.
+- Fixes a problem present in the game itself, even with no other addons loaded.
+- Works as soon as it is loaded, with nothing to configure.
+- Unloading it restores the game's original behaviour.
 
 ## Commands
 

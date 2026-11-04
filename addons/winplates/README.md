@@ -1,17 +1,17 @@
 # winplates
 
-winplates draws the names over the heads of players, NPCs and monsters in its own style. You choose
-which names you see and how each kind of name is written. You can add more under or over a name:
-health bars, cast bars, status icons, a monster's level and what a check tells you about it. It works
-with the `namehook` plugin, which must be loaded.
+Replaces the game's names over players, NPCs and monsters with fully configurable ones. Choose which
+names appear and how each kind is formatted, and add health bars, cast bars, status icons, monster
+levels and check information beneath or above them. Requires the namehook plugin, which comes with
+its download.
 
-## Why use it
+## Highlights
 
-- Hide the names you do not need, such as other players or NPCs, and still see your target's name.
-- See more about a monster at a glance: the levels it can be, whether it is aggressive, and a letter
-  that tells monsters with the same name apart.
-- Show health bars, cast bars and the statuses each character is under, next to the name.
-- Make names easier to read, with your own font, size, outline and colours.
+- Hide the names you do not need while keeping your target's name visible.
+- See a monster's possible levels, whether it is aggressive, and a letter that tells monsters of the
+  same name apart.
+- Show health bars, cast bars and active statuses alongside each name.
+- Improve readability with your choice of font, size, outline and colours.
 
 Up to 1.86 this addon was called name, and up to 1.5 it was called nametoggle. See
 [Coming from name or nametoggle](#coming-from-name-or-nametoggle).

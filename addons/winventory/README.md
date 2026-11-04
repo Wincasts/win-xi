@@ -1,13 +1,13 @@
 # winventory
 
-Shows your bags in a window: what is in them, and what you can do with each item. You can use it with
-the mouse or with a controller. It can also show the treasure pool and the gear you are wearing.
+Displays all of your bags in a single window, with full mouse and controller support. It also
+includes the treasure pool and an equipment monitor.
 
-## Why use it
+## Highlights
 
-- You see all your bags in one window, with tabs, and can move items between bags by dragging them.
-- You can lot and pass on treasure, and change your gear, from the same window.
-- It works fully with a controller, with a list on screen of what each button does.
+- Browse every bag through tabs, and move items between bags by dragging them.
+- Lot or pass on treasure and change your equipment from the same window.
+- Full controller support, with an on-screen guide to each button.
 
 It needs only the `winxi` library (`addons/libs/winxi`). It started as the `inv` tool of xitools, then
 became the `inventory` addon, and is now winventory.

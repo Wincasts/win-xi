@@ -1,17 +1,16 @@
 # Zone
 
-Zone tells you where you are. When you enter a zone, a banner shows its name, region and weather, and
-the Vana'diel day and time. When you walk into a named place inside it, such as a square, a bridge, a
-shop or a guild, a smaller banner names it. A change of weather shows a banner too. You can also keep a
-small line on screen that always says where you are, and you can edit the places each map announces.
+Displays location banners as you travel. Entering a zone shows its name, region and weather along
+with the Vana'diel day and time, and entering a named area within it, such as a square, bridge, shop
+or guild, shows a smaller banner. Weather changes are announced, an optional location line can
+remain on screen, and the named areas of each map can be edited.
 
-## Why use it
+## Highlights
 
-- You always know which zone and which part of it you are in, without opening the map.
-- You hear about dungeon entrances, town gates and weather changes as they happen.
-- The first time you find a new place, it is marked as a discovery, with a count of how many you
-  have found in that zone.
-- The banner comes in eleven styles, so it can match the look you like.
+- Always know which zone, and which part of it, you are in without opening the map.
+- Notice dungeon entrances, town gates and weather changes as they happen.
+- Newly found places are marked as discoveries, with a count for each zone.
+- Eleven banner styles to suit your interface.
 
 Zone used to be called zoneinfo. See [Coming from zoneinfo](#coming-from-zoneinfo).
 

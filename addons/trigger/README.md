@@ -1,15 +1,15 @@
 # trigger
 
-Plays a sound when something worth hearing about happens: a tell, an invite, low HP, an item you want
-dropping, and more. You can also make your own triggers, which play a sound when a kind of monster
-starts a spell or move you name. An optional small window (the toast) can show these on screen too.
+Plays an audio alert when something notable happens, such as a tell, a party invite, low HP or a
+wanted item dropping. Custom triggers can alert you when a chosen monster begins a specific spell or
+ability, and an optional on-screen notification, the toast, can accompany each alert.
 
-## Why use it
+## Highlights
 
-- You hear about tells, invites, trade requests and other events even when you are not watching the
-  screen.
-- It warns you when your HP or MP is low, when your TP is ready, or when a party member is knocked out.
-- You can get a sound, and a line on screen, when a monster starts a spell or move you care about.
+- Hear tells, invites, trade requests and other events even when you are not watching the screen.
+- Warnings when your HP or MP runs low, when your TP is ready, or when a party member is knocked
+  out.
+- An alert, and an on-screen line, when a monster begins a spell or ability you care about.
 
 It needs only the `winxi` library (`addons/libs/winxi`).
 

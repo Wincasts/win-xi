@@ -1,17 +1,17 @@
 # winparty
 
-Party, alliance, target and pet windows, in winxi's themed look. Each person is one line with their
-name, HP and MP bars, and TP. The target windows show your target, sub-target and target of target,
-with their HP, distance and debuffs. The layout follows the compact one of the Windower addon
-[XivParty](https://github.com/Tylas11/XivParty).
+Party, alliance, target and pet frames in the shared winxi style, following the compact layout of
+the Windower addon [XivParty](https://github.com/Tylas11/XivParty). Each member occupies a single
+line with HP, MP and TP. The target frames show your target, sub-target and target of target, with
+HP, distance and debuffs.
 
-## Why use it
+## Highlights
 
-- You see your party, alliance, pets and target in compact windows that match your other winxi
-  addons.
-- It shows buffs and debuffs with their time left, and marks the ones you can remove.
-- It shows party members' casts as they happen, and the debuffs seen to land on your target.
-- With the uihook plugin, it can take the place of the game's own party and target windows.
+- Compact frames for your party, alliance, pets and target that match your other winxi addons.
+- Buffs and debuffs with their remaining time, and a mark on the ones you can remove.
+- Party members' casts as they happen, and the debuffs seen to land on your target.
+- With the uihook plugin, which comes with its download, it can replace the game's own party and
+  target windows.
 
 ### Renamed from party and xiframes
 
