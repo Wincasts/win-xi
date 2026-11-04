@@ -154,7 +154,9 @@ def main():
         about, build = SETS[name]
         print(f'\n== {name}: {about}')
         # made beside, then put in place: a set that fails half way leaves the one there was
-        with tempfile.TemporaryDirectory(dir=source.cache_for(found.branch or 'local').parent) as scratch:
+        scratch_root = source.cache_for(found.branch or 'local').parent
+        scratch_root.mkdir(parents=True, exist_ok=True)  # .cache/ is not in a fresh clone
+        with tempfile.TemporaryDirectory(dir=scratch_root) as scratch:
             made = Path(scratch) / name
             made.mkdir()
             build(found.path, made, args.set)
