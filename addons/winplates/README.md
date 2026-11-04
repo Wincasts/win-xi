@@ -20,10 +20,9 @@ loaded.
 
 ## Settings
 
-The format token reference under each kind of name's Format Tokens can be edited in
-[`tooltips/name.md`](../../tooltips/name.md) (`name.format.*`); see the
-[editing and build instructions](../../tooltips/README.md). Every other sentence is written
-in the settings code itself.
+The format token reference under each kind of name's Format Tokens comes from winxi's tooltip
+catalogue (`addons/libs/winxi/data/tooltips/name.lua`, `name.format.*`). Every other sentence is
+written in the settings code itself.
 
 The preferred baseline is in `name_defaults.lua`. It is taken from the author's own settings.
 It uses **trebucbi.ttf**, not bold, maximum/minimum font sizes **30/10**, the sub-target's

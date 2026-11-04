@@ -340,7 +340,7 @@ Every write to the client's code goes through one place (`src/CodePatch.h`). Eac
 
 ## Building
 
-`./build.sh` builds `build/namehook.dll` on Linux with clang-cl and lld-link, as a 32-bit Windows plugin. `tests/run.sh` checks the categories, the list, the commands and the files under wine; the drawing itself is not checked there, as there is no client to draw on. Both say at the top what they need.
+`./build.sh` builds `build/namehook.dll` on Linux with clang-cl and lld-link, as a 32-bit Windows plugin. It says at the top what it needs.
 
 On Windows, `CMakeLists.txt` builds it with Visual Studio 2022 and CMake 3.28 or newer, as Win32 and not x64:
 

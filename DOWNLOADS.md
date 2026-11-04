@@ -20,4 +20,4 @@ A pre-release is a testing build; its notes say what to try. The full history is
 | **zone** | 2.11-pre1 (pre-release) | [zone-v2.11-pre1.zip](https://github.com/Wincasts/win-xi/releases/download/zone-v2.11-pre1/zone-v2.11-pre1.zip) (1.1 MB) · [sha256](https://github.com/Wincasts/win-xi/releases/download/zone-v2.11-pre1/zone-v2.11-pre1.zip.sha256) | Banners for the zone, region, sub-zone and weather, and a location line. | Everything it needs, with its own copy of winxi | [notes](https://github.com/Wincasts/win-xi/releases/tag/zone-v2.11-pre1) |
 
 Every winxi addon comes with its own copy of the `winxi` library. If one says it needs a newer winxi,
-install the newest package of any of them. The list was written on 2026-11-02 by `tools/write_downloads.py`.
+install the newest package of any of them. The list was written on 2026-11-02.

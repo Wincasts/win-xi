@@ -2,7 +2,7 @@
 /Phoenix-beta/
 /references/
 
-# The Phoenix server's live branch as tools/phoenix fetches it for the build scripts, and their scratch
+# The Phoenix server's live branch as the data build fetches it, and its scratch
 /.cache/
 
 __pycache__/
@@ -11,7 +11,7 @@ __pycache__/
 # The Ashita plugin SDK and the Microsoft C runtime and Windows SDK that plugins/*/build.sh build against
 /.toolchain/
 
-# Plugin build output, and the release zips tools/ makes from it
+# Plugin build output, and release zips
 /plugins/*/build/
 /dist/
 
@@ -28,5 +28,5 @@ __pycache__/
 /archive/
 
 
-# Text no release may hold (tools/package_release.py reads it): kept local
+# Text no release may hold (the release script reads it): kept local
 /.private-markers

@@ -51,15 +51,9 @@ newer than its release. Copy into your Ashita folder, merging folders:
 Then, in game: `/addon load <the addon>`, after `/load namehook` for winplates or `/load uihook` for
 winbuff, winchat or winparty.
 
-## For developers
-
-`tests/run.sh` runs the checks: each loads an addon against a stand-in for Ashita. `tools/` builds the
-data and art the addons use, and `tools/package_release.py <addon>` makes a release zip from the commit,
-after the checks pass.
-
 ## License
 
-The addons and library written here (`winxi`, the addons above but cooldowns, the tests and the tools)
+The addons and library written here (`winxi` and the addons above but cooldowns)
 are MIT licensed: see [LICENSE](LICENSE). `plugins/namehook` is a fork of a GPL v3 plugin and stays
 GPL v3. cooldowns keeps its authors' terms. Final Fantasy XI and its art belong to Square Enix.
 
