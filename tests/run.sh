@@ -232,6 +232,7 @@ echo
 run winplates addons/winplates/winplates.lua name_check.lua
 run windamage addons/windamage/windamage.lua damage_check.lua
 run windamage addons/windamage/windamage.lua damage_absent_check.lua
+run windamage tests/damage_upgrade_stand_in.lua damage_upgrade_check.lua
 run namehooktest addons/namehooktest/namehooktest.lua namehooktest_check.lua
 run winplates addons/winplates/winplates.lua name_token_options_check.lua
 run winplates addons/winplates/winplates.lua name_types_check.lua
