@@ -465,12 +465,11 @@ ashita.events.register('packet_out', 'packet_out_handler', function(e)
     perf.Packet(PacketOut, e)
 end)
 
--- What /winparty help lists, a command a line
+-- What /winparty help lists, a command a line (/winparty perf, a developer's measure, still works but is not listed)
 local helpLines = {
     '/winparty - opens or closes the settings.',
     '/winparty native on|off - replaces the game\'s party and alliance lists (uihook); /winparty native target on|off the target.',
     '/winparty native status - says how the replacement is doing.',
-    '/winparty perf - measures five seconds of winparty\'s CPU time; /winparty perf counters counts its work as well.',
     '/winparty menu - says which of the game\'s menus is open.',
     '/winparty cursor - loads the game\'s cursor again and says whether it could.',
     '/winparty help - lists these commands.',
