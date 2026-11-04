@@ -85,8 +85,12 @@ WINXI_ART = {'backgrounds': 'assets/backgrounds', 'borders': 'assets/borders', '
 PLUGIN_LICENSES = {'namehook': 'the GNU GPL v3.0', 'uihook': 'the MIT License'}
 # Kept with the addons to make their art and sounds, and of no use in the game
 LEFT_OUT = ('*.py', '*.sh')
-# Text no release should hold: the author's character's settings folder
-PRIVATE = (b'Name_1000',)
+# Text no release should hold, such as the author's own character's settings folder: one a line in
+# .private-markers at the top of the checkout (lines starting # left out). It is never committed, so
+# the names stay off GitHub; without it nothing is looked for.
+PRIVATE_MARKERS = ROOT / '.private-markers'
+PRIVATE = tuple(line.strip().encode() for line in PRIVATE_MARKERS.read_text().splitlines()
+                if line.strip() and not line.lstrip().startswith('#')) if PRIVATE_MARKERS.is_file() else ()
 
 
 def git(*args, binary=False):

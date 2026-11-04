@@ -27,3 +27,6 @@ __pycache__/
 # Retired diagnostic and experimental addons, kept locally for reference and never pushed
 /archive/
 
+
+# Text no release may hold (tools/package_release.py reads it): kept local
+/.private-markers
