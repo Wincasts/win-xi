@@ -6,6 +6,8 @@ TOOLCHAIN="${TOOLCHAIN:-$HERE/../../.toolchain}"
 MSVC="${MSVC_PATH:-$TOOLCHAIN/msvc}"
 SDK="${ASHITA_SDK_PATH:-$TOOLCHAIN/ashita/plugins/sdk}"
 OUT="$HERE/build/tests"
+# One wine prefix for every plugin's checks, made by wine the first time it is missing
+WINE_TESTS="${TEST_WINEPREFIX:-$TOOLCHAIN/wine-tests}"
 # a font file for the font drawing's checks (the game's prefix's Trebuchet, where it is), else they are skipped
 GAME_FONT="${GAME_FONT:-$HOME/.local/share/com.phoenixxi.launcher/prefix/0/drive_c/windows/Fonts/trebuc.ttf}"
 mkdir -p "$OUT"
@@ -18,7 +20,7 @@ for module in buffs party hud chat chat_controls chat_windows menus history text
         "/libpath:$MSVC/crt/lib/x86" "/libpath:$MSVC/sdk/lib/ucrt/x86" "/libpath:$MSVC/sdk/lib/um/x86" gdi32.lib ole32.lib windowscodecs.lib uuid.lib
     font=""
     [[ "$module" == skinfont && -f "$GAME_FONT" ]] && font="Z:${GAME_FONT//\//\\}"
-    WINEPREFIX="$OUT/prefix" WINEDEBUG=-all wine "$OUT/$module.exe" $font
+    WINEPREFIX="$WINE_TESTS" WINEDEBUG=-all wine "$OUT/$module.exe" $font
 done
 cd "$HERE/../.."
 luajit tests/nativehud_check.lua
