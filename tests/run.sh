@@ -1,16 +1,23 @@
 #!/usr/bin/env bash
 # Runs the checks: each loads an addon (or a part of winxi) against a stand-in for Ashita and prints
-# what it finds. Read the output: a line ending in false, or an error, is something to look at.
+# what it finds. A check fails when it exits non-zero (an error) or prints a line ending in false.
+# Every check runs, even after one fails; the failures are listed at the end, and then the script
+# exits 1, so it can be relied on as a gate (tools/package_release.py asks for it before a release).
 cd "$(dirname "$0")/.." || exit 1
-python3 tools/build_tooltips.py --check || exit 1
-python3 tools/abi_check.py || exit 1
-python3 -m unittest discover -s tools -p test_build_tooltips.py || exit 1
-python3 -m unittest discover -s tools -p test_build_name_cast_times.py || exit 1
-python3 -m unittest discover -s tools -p test_deploy.py || exit 1
-python3 -m unittest discover -s tools -p test_phoenix_modules.py || exit 1
-python3 -m unittest discover -s tools -p test_package_release.py || exit 1
-luajit tests/winxi_tips_check.lua || exit 1
-run() { echo "== $1"; luajit tests/harness.lua "$1" "$2" "tests/$3" 2>&1; echo; }
+
+checks() {
+# Any check that exits non-zero is marked in the output, for the summary to find
+set -E
+trap 'echo "!! FAILED (exit $?): $BASH_COMMAND"' ERR
+python3 tools/build_tooltips.py --check
+python3 tools/abi_check.py
+python3 -m unittest discover -s tools -p test_build_tooltips.py
+python3 -m unittest discover -s tools -p test_build_name_cast_times.py
+python3 -m unittest discover -s tools -p test_deploy.py
+python3 -m unittest discover -s tools -p test_phoenix_modules.py
+python3 -m unittest discover -s tools -p test_package_release.py
+luajit tests/winxi_tips_check.lua
+run() { echo "== $1"; luajit tests/harness.lua "$1" "$2" "tests/$3" 2>&1 || echo "!! FAILED (exit $?): run $*"; echo; }
 run winventory addons/winventory/winventory.lua inventory_check.lua
 run winventory addons/winventory/winventory.lua inventory_grid_check.lua
 run winventory addons/winventory/winventory.lua inventory_bag_tabs_check.lua
@@ -37,73 +44,73 @@ run mark       addons/mark/mark.lua     mark_stats_ui_check.lua
 run mark       addons/mark/mark.lua     mark_database_check.lua
 luajit tests/mark_stats_check.lua
 luajit tests/winxi_version_check.lua
-luajit tests/winxi_perf_check.lua || exit 1
+luajit tests/winxi_perf_check.lua
 run perf       addons/perf/perf.lua     perf_check.lua
-luajit tests/winxi_presence_check.lua || exit 1
-luajit tests/winxi_partystatus_check.lua || exit 1
-luajit tests/winxi_statuses_check.lua || exit 1
-luajit tests/winxi_datasets_check.lua || exit 1
-luajit tests/winxi_abi_check.lua || exit 1
-luajit tests/winxi_camera_check.lua || exit 1
-luajit tests/winxi_slots_check.lua || exit 1
-luajit tests/winxi_layers_check.lua || exit 1
-luajit tests/winxi_nameplates_api_check.lua || exit 1
+luajit tests/winxi_presence_check.lua
+luajit tests/winxi_partystatus_check.lua
+luajit tests/winxi_statuses_check.lua
+luajit tests/winxi_datasets_check.lua
+luajit tests/winxi_abi_check.lua
+luajit tests/winxi_camera_check.lua
+luajit tests/winxi_slots_check.lua
+luajit tests/winxi_layers_check.lua
+luajit tests/winxi_nameplates_api_check.lua
 luajit tests/winxi_gamedata_check.lua
-luajit tests/winxi_items_check.lua || exit 1
-python3 tools/test_build_item_data.py || exit 1
-python3 tools/test_build_catalog_data.py || exit 1
-luajit tests/winxi_catalogs_check.lua || exit 1
-luajit tests/winxi_autotranslate_check.lua || exit 1
-python3 tools/test_build_quest_data.py || exit 1
-luajit tests/winxi_quests_check.lua || exit 1
-luajit tests/parse_check.lua || exit 1
-luajit tests/parse_accuracy_check.lua || exit 1
-luajit tests/harness.lua parse tests/parse_stand_in.lua tests/parse_ui_check.lua || exit 1
-luajit tools/parse_replay.lua tests/fixtures/parse_capture.txt || exit 1
-luajit tools/parse_replay.lua tests/fixtures/parse_accuracy_capture.txt || exit 1
+luajit tests/winxi_items_check.lua
+python3 tools/test_build_item_data.py
+python3 tools/test_build_catalog_data.py
+luajit tests/winxi_catalogs_check.lua
+luajit tests/winxi_autotranslate_check.lua
+python3 tools/test_build_quest_data.py
+luajit tests/winxi_quests_check.lua
+luajit tests/parse_check.lua
+luajit tests/parse_accuracy_check.lua
+luajit tests/harness.lua parse tests/parse_stand_in.lua tests/parse_ui_check.lua
+luajit tools/parse_replay.lua tests/fixtures/parse_capture.txt
+luajit tools/parse_replay.lua tests/fixtures/parse_accuracy_capture.txt
 luajit tests/nativehud_check.lua
-luajit tests/nativechat_check.lua || exit 1
-luajit tests/chatbox_log_check.lua || exit 1
-luajit tests/chatbox_optimization_check.lua || exit 1
-luajit tests/chatbox_encoding_check.lua || exit 1
-luajit tests/chatbox_inline_check.lua || exit 1
-luajit tests/chatbox_retention_check.lua || exit 1
-luajit tests/chatbox_scrollbar_check.lua || exit 1
-luajit tests/chatbox_render_check.lua || exit 1
-luajit tests/chatbox_ui_check.lua || exit 1
-luajit tests/chatbox_visibility_check.lua || exit 1
-luajit tests/chatbox_input_check.lua || exit 1
-luajit tests/chatbox_translate_check.lua || exit 1
-luajit tests/chatbox_known_check.lua || exit 1
-luajit tests/chatbox_layout_check.lua || exit 1
-luajit tests/chatbox_browse_check.lua || exit 1
-luajit tests/harness.lua winparty addons/winparty/winparty.lua tests/winxi_capture_check.lua || exit 1
-luajit tests/infopanel_source_check.lua || exit 1
-luajit tests/infopanel_tooltips_check.lua || exit 1
-luajit tests/infopanel_subzone_check.lua || exit 1
-luajit tests/winxi_frame_check.lua || exit 1
-luajit tests/winxi_clip_check.lua || exit 1
-luajit tests/winxi_selection_check.lua || exit 1
-luajit tests/winxi_gamekeys_check.lua || exit 1
-luajit tests/winxi_layouts_check.lua || exit 1
-luajit tests/harness.lua zone tests/zoneinfo_fixture.lua tests/winxi_assets_check.lua || exit 1
-luajit tests/nativemenus_check.lua || exit 1
-luajit tests/nativehistory_check.lua || exit 1
-luajit tests/nativetext_check.lua || exit 1
+luajit tests/nativechat_check.lua
+luajit tests/chatbox_log_check.lua
+luajit tests/chatbox_optimization_check.lua
+luajit tests/chatbox_encoding_check.lua
+luajit tests/chatbox_inline_check.lua
+luajit tests/chatbox_retention_check.lua
+luajit tests/chatbox_scrollbar_check.lua
+luajit tests/chatbox_render_check.lua
+luajit tests/chatbox_ui_check.lua
+luajit tests/chatbox_visibility_check.lua
+luajit tests/chatbox_input_check.lua
+luajit tests/chatbox_translate_check.lua
+luajit tests/chatbox_known_check.lua
+luajit tests/chatbox_layout_check.lua
+luajit tests/chatbox_browse_check.lua
+luajit tests/harness.lua winparty addons/winparty/winparty.lua tests/winxi_capture_check.lua
+luajit tests/infopanel_source_check.lua
+luajit tests/infopanel_tooltips_check.lua
+luajit tests/infopanel_subzone_check.lua
+luajit tests/winxi_frame_check.lua
+luajit tests/winxi_clip_check.lua
+luajit tests/winxi_selection_check.lua
+luajit tests/winxi_gamekeys_check.lua
+luajit tests/winxi_layouts_check.lua
+luajit tests/harness.lua zone tests/zoneinfo_fixture.lua tests/winxi_assets_check.lua
+luajit tests/nativemenus_check.lua
+luajit tests/nativehistory_check.lua
+luajit tests/nativetext_check.lua
 run sct        addons/sct/sct.lua       sct_check.lua
-luajit tests/sct_acquisitions_check.lua || exit 1
+luajit tests/sct_acquisitions_check.lua
 run mobcast    addons/mobcast/mobcast.lua mobcast_check.lua
 run tempo      addons/tempo/tempo.lua   tempo_ui_check.lua
 run targetlines tests/targetlines_fixture.lua targetlines_check.lua
-luajit tests/tempo_check.lua || exit 1
-luajit tests/expbar_check.lua || exit 1
-luajit tests/harness.lua expbar addons/expbar/expbar.lua tests/expbar_ui_check.lua || exit 1
+luajit tests/tempo_check.lua
+luajit tests/expbar_check.lua
+luajit tests/harness.lua expbar addons/expbar/expbar.lua tests/expbar_ui_check.lua
 run vis        addons/vis/vis.lua       vis_check.lua
 run vis        addons/vis/vis.lua       vis_game_check.lua
 run vis        addons/vis/vis.lua       vis_adopt_check.lua
-luajit tests/vis_detail_check.lua || exit 1
-luajit tests/vis_view_check.lua || exit 1
-luajit tests/occlusionfix_check.lua || exit 1
+luajit tests/vis_detail_check.lua
+luajit tests/vis_view_check.lua
+luajit tests/occlusionfix_check.lua
 run atlas      addons/atlas/atlas.lua   atlas_check.lua
 run atlas      addons/atlas/atlas.lua   shell_logout_check.lua
 luajit tests/tcrossbar_shadow_check.lua
@@ -129,7 +136,7 @@ run owntimers  tests/empty.lua          winxi_owntimers_check.lua
 run cleanse    tests/empty.lua          winxi_cleanse_check.lua
 run game       tests/empty.lua          winxi_game_check.lua
 run widgets    tests/empty.lua          winxi_widgets_check.lua
-luajit tests/winxi_statusdat_check.lua || exit 1
+luajit tests/winxi_statusdat_check.lua
 run statusicons tests/empty.lua         winxi_statusicons_mixed_check.lua
 run winparty      addons/winparty/winparty.lua party_check.lua
 run winparty      addons/winparty/winparty.lua party_lifecycle_check.lua
@@ -180,7 +187,7 @@ luajit tests/chatbubbles_colors_check.lua
 run winbubbles addons/winbubbles/winbubbles.lua chatbubbles_config_check.lua
 run winbubbles addons/winbubbles/winbubbles.lua chatbubbles_absent_check.lua
 luajit tests/hideparty_cursor_check.lua
-luajit tests/winxi_lens_check.lua || exit 1
+luajit tests/winxi_lens_check.lua
 luajit tests/map_files_check.lua
 echo
 run wxi addons/wxi/wxi.lua wxi_check.lua
@@ -191,13 +198,13 @@ luajit tests/trigger_overlap_check.lua
 luajit tests/trigger_volume_check.lua
 luajit tests/trigger_wav_check.lua
 python3 tests/trigger_sound_volumes_check.py
-luajit tests/harness.lua cooldowns tests/cooldowns_stand_in.lua tests/cooldowns_check.lua || exit 1
-luajit tests/harness.lua cooldowns tests/cooldowns_migration_stand_in.lua tests/cooldowns_migration_check.lua || exit 1
-luajit tests/harness.lua cooldowns tests/cooldowns_stand_in.lua tests/cooldowns_performance_check.lua || exit 1
-luajit tests/harness.lua cooldowns tests/cooldowns_stand_in.lua tests/cooldowns_optimization_check.lua || exit 1
+luajit tests/harness.lua cooldowns tests/cooldowns_stand_in.lua tests/cooldowns_check.lua
+luajit tests/harness.lua cooldowns tests/cooldowns_migration_stand_in.lua tests/cooldowns_migration_check.lua
+luajit tests/harness.lua cooldowns tests/cooldowns_stand_in.lua tests/cooldowns_performance_check.lua
+luajit tests/harness.lua cooldowns tests/cooldowns_stand_in.lua tests/cooldowns_optimization_check.lua
 run puppet     addons/puppet/puppet.lua puppet_check.lua
-luajit tests/harness.lua puppet addons/puppet/puppet.lua tests/puppet_regression_check.lua || exit 1
-luajit tests/harness.lua puppet addons/puppet/puppet.lua tests/puppet_attachments_check.lua || exit 1
+luajit tests/harness.lua puppet addons/puppet/puppet.lua tests/puppet_regression_check.lua
+luajit tests/harness.lua puppet addons/puppet/puppet.lua tests/puppet_attachments_check.lua
 run winbuff       addons/winbuff/winbuff.lua     buff_check.lua
 run winbuff       addons/winbuff/winbuff.lua     buff_mine_check.lua
 run winbuff       addons/winbuff/winbuff.lua     buff_performance_check.lua
@@ -251,12 +258,12 @@ luajit tests/name_icons_check.lua
 luajit tests/name_playerdat_check.lua
 luajit tests/namehook_capabilities_check.lua
 luajit tests/harness.lua winplates addons/winplates/winplates.lua tests/name_lifecycle_check.lua
-luajit tests/harness.lua winplates addons/winplates/winplates.lua tests/name_readability_check.lua || exit 1
-luajit tests/harness.lua winplates addons/winplates/winplates.lua tests/name_report_check.lua || exit 1
-luajit tests/harness.lua winplates addons/winplates/winplates.lua tests/name_castbar_check.lua || exit 1
-luajit tests/harness.lua winplates addons/winplates/winplates.lua tests/name_castbar_render_check.lua || exit 1
+luajit tests/harness.lua winplates addons/winplates/winplates.lua tests/name_readability_check.lua
+luajit tests/harness.lua winplates addons/winplates/winplates.lua tests/name_report_check.lua
+luajit tests/harness.lua winplates addons/winplates/winplates.lua tests/name_castbar_check.lua
+luajit tests/harness.lua winplates addons/winplates/winplates.lua tests/name_castbar_render_check.lua
 luajit tests/name_format_check.lua
-luajit tests/name_filtered_text_check.lua || exit 1
+luajit tests/name_filtered_text_check.lua
 luajit tests/name_letters_check.lua
 luajit tests/name_badges_check.lua
 echo '== winplates badge atlas'
@@ -282,3 +289,19 @@ fi
 echo "== party scene"
 scene plain "$1"
 scene bare "$1"
+}
+
+LOG="$(mktemp)"
+trap 'rm -f "$LOG"' EXIT
+checks "$@" 2>&1 | tee "$LOG"
+status=${PIPESTATUS[0]}
+[[ "${1:-}" == measure ]] && exit "$status"
+
+mapfile -t failures < <(grep -nE '^!! FAILED|(^|[[:space:]])false[[:space:]]*$' "$LOG")
+echo
+if (( ${#failures[@]} )); then
+    echo "== ${#failures[@]} check(s) failed (output line: what it said):"
+    printf '  %s\n' "${failures[@]}"
+    exit 1
+fi
+echo "== every check passed"
